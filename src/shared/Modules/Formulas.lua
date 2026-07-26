@@ -1,0 +1,143 @@
+--[[
+	Every derived number in the game. See docs/GAME.md §4.
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local BigNumber = require(Shared.Modules.BigNumber)
+local Constants = require(Shared.Modules.Constants)
+local Certifications = require(Shared.Modules.Config.Certifications)
+local Skills = require(Shared.Modules.Config.Skills)
+local Worksites = require(Shared.Modules.Config.Worksites)
+
+type BigNum = BigNumber.BigNum
+
+local Formulas = {}
+
+function Formulas.gainMultiplier(profile: any, skillId: string, worksiteId: string?): BigNum
+	local multiplier = BigNumber.one()
+
+	if worksiteId then
+		local worksite = Worksites.get(worksiteId)
+		if worksite then
+			multiplier = BigNumber.mulNumber(multiplier, worksite.multiplier)
+		end
+	end
+
+	local canonical = Skills.canonicalize(skillId)
+	local order = profile.certifications[canonical] or profile.certifications[skillId] or 0
+	multiplier = BigNumber.mulNumber(multiplier, Certifications.gainMultiplier(order))
+
+	if profile.seasons > 0 then
+		multiplier = BigNumber.mul(multiplier, BigNumber.pow10(profile.seasons))
+	end
+
+	multiplier = BigNumber.mulNumber(multiplier, Formulas.comfortMultiplier(profile))
+	multiplier = BigNumber.mulNumber(multiplier, Formulas.boostMultiplier(profile, canonical))
+
+	return multiplier
+end
+
+function Formulas.gainPerAction(profile: any, skillId: string, worksiteId: string?): BigNum
+	local base = BigNumber.fromNumber(Constants.WORK.BASE_GAIN)
+	return BigNumber.mul(base, Formulas.gainMultiplier(profile, skillId, worksiteId))
+end
+
+function Formulas.comfortMultiplier(profile: any): number
+	return math.max(Constants.HOME.BASE_COMFORT, profile.home.comfort or Constants.HOME.BASE_COMFORT)
+end
+
+function Formulas.boostMultiplier(profile: any, skillId: string): number
+	local now = os.time()
+	local multiplier = 1
+	local canonical = Skills.canonicalize(skillId)
+	for _, boost in profile.boosts do
+		if boost.expiresAt > now and (boost.skill == nil or Skills.canonicalize(boost.skill) == canonical) then
+			multiplier *= boost.multiplier
+		end
+	end
+	return multiplier
+end
+
+function Formulas.maxActionsPerSecond(profile: any): number
+	local passId = Constants.WORK.NO_LIMIT_GAMEPASS_ID
+	if passId ~= 0 and profile.gamepasses[passId] then
+		return Constants.WORK.MAX_ACTIONS_PER_SECOND_GAMEPASS
+	end
+	return Constants.WORK.MAX_ACTIONS_PER_SECOND
+end
+
+function Formulas.afkActionsPerSecond(profile: any): number
+	return Formulas.maxActionsPerSecond(profile) * Constants.WORK.AFK_RATE_FRACTION
+end
+
+function Formulas.maxStamina(profile: any): number
+	local resilienceVal = profile.skills.resilience or profile.skills.grit or profile.skills.durability
+	local gritLog = if BigNumber.isValid(resilienceVal) then math.max(BigNumber.log10(resilienceVal), 0) else 0
+	return Constants.STAMINA.BASE_MAX + gritLog * Constants.STAMINA.MAX_PER_GRIT_LOG
+end
+
+function Formulas.staminaRegenPerSecond(profile: any): number
+	local resilienceVal = profile.skills.resilience or profile.skills.grit or profile.skills.durability
+	local gritLog = if BigNumber.isValid(resilienceVal) then math.max(BigNumber.log10(resilienceVal), 0) else 0
+	return Constants.STAMINA.REGEN_PER_SECOND + gritLog * Constants.STAMINA.REGEN_PER_GRIT_LOG
+end
+
+function Formulas.yenPerMinute(profile: any): BigNum
+	local certificationBonus = 1
+	for _, order in profile.certifications do
+		certificationBonus += order * Certifications.WAGE_BONUS_PER_ORDER
+	end
+
+	local wage = BigNumber.fromNumber(Constants.CURRENCY.BASE_YEN_PER_MINUTE)
+	wage = BigNumber.mulNumber(wage, certificationBonus)
+
+	local kusatoriVal = profile.skills.kusatori or profile.skills.weeding or profile.skills.agility
+	local weedingLog = if BigNumber.isValid(kusatoriVal) then math.max(BigNumber.log10(kusatoriVal), 0) else 0
+	wage = BigNumber.mulNumber(wage, 1 + weedingLog)
+
+	return wage
+end
+
+function Formulas.yenForGain(skillId: string, gain: BigNum): BigNum
+	local canonical = Skills.canonicalize(skillId)
+	if canonical ~= "kusatori" and canonical ~= "weeding" and canonical ~= "agility" then
+		return BigNumber.zero()
+	end
+	return BigNumber.mulNumber(gain, Constants.CURRENCY.WEEDING_YEN_PER_GAIN)
+end
+
+function Formulas.totalSkill(profile: any): BigNum
+	local total = BigNumber.zero()
+	for _, skillId in Skills.ORDER do
+		local val = profile.skills[skillId]
+		if BigNumber.isValid(val) then
+			total = BigNumber.add(total, val)
+		end
+	end
+	return total
+end
+
+function Formulas.totalCertificationOrders(profile: any): number
+	local total = 0
+	for _, order in profile.certifications do
+		total += order
+	end
+	return total
+end
+
+function Formulas.meetsWorksiteRequirement(profile: any, worksiteId: string): boolean
+	local worksite = Worksites.get(worksiteId)
+	if not worksite then
+		return false
+	end
+	local canonical = Skills.canonicalize(worksite.skill)
+	local current = profile.skills[canonical] or profile.skills[worksite.skill]
+	if not BigNumber.isValid(current) then
+		return false
+	end
+	return BigNumber.gte(current, BigNumber.coerce(worksite.requirement))
+end
+
+return Formulas

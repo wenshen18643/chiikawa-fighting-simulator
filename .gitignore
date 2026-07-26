@@ -1,0 +1,27 @@
+*.rbxl
+*.rbxl.lock
+*.rbxlx
+*.rbxm
+*.rbxmx
+
+# Bundled tool binaries — pinned in aftman.toml, fetch via `aftman install`
+/tools/*.exe
+
+# Rojo
+/sourcemap.json
+
+# Wally
+/Packages/
+/ServerPackages/
+/DevPackages/
+wally.lock
+
+# Aftman/tool caches
+.aftman/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json

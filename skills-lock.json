@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "roblox-animations": {
+      "source": "sentinelcore/roblox-skills",
+      "sourceType": "github",
+      "skillPath": "roblox-animations/SKILL.md",
+      "computedHash": "66b027e98b5f5c67aed452aea94e2a58967334b04b3476fc1cfc390ca251f982"
+    }
+  }
+}

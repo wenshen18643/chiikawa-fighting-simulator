@@ -1,0 +1,789 @@
+--[[
+	The shape of an area, plus the building blocks area files use to dress
+	themselves. See docs/GAME.md §7.
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Constants = require(Shared.Modules.Constants)
+-- selene: allow(unused_variable)
+local UI = require(Shared.UI)
+
+local Area = {}
+
+export type Gate = {
+	skillTotal: number | { m: number, e: number },
+	certificationTotal: number,
+}
+
+export type Palette = {
+	ground: Color3,
+	prop: Color3,
+	sky: Color3,
+}
+
+export type Terrain = {
+	material: string,
+	islandSize: number,
+}
+
+export type DecorateContext = {
+	area: any,
+	origin: Vector3,
+	parent: Folder,
+	rng: Random,
+	isReserved: (x: number, z: number) -> boolean,
+	helpers: typeof(Area.helpers),
+	UI: typeof(UI),
+	--[[
+		Uploaded decor from Config/Assets, injected by whoever is building.
+
+		A closure for the same reason `isReserved` is one: AssetService is a
+		server service and this module is shared, so requiring it directly
+		would put ServerScriptService in the client's module graph. Handing it
+		in keeps that graph a tree.
+
+		Both are optional and both return nil freely. Every helper that uses
+		them keeps its procedural version as the fallback, so an area file
+		never has to care whether an upload arrived.
+	]]
+	model: ((key: string) -> Model?)?,
+	packItem: ((key: string) -> Model?)?,
+}
+
+--[[
+	Try for an uploaded model, standing on the terrain at (x, z).
+
+	Returns nil when there is no such asset, which is the signal for the caller
+	to build its procedural version instead.
+]]
+local function placeAsset(ctx: DecorateContext, key: string, x: number, z: number, config: { [string]: any }?): Model?
+	local get = ctx.model
+	if not get then
+		return nil
+	end
+
+	local model = get(key)
+	if not model then
+		return nil
+	end
+
+	local options = config or {}
+	local scale = options.scale
+	if scale and scale ~= 1 then
+		model:ScaleTo(model:GetScale() * scale)
+	end
+
+	local size = model:GetExtentsSize()
+	local base = ctx.origin
+		+ Vector3.new(x, Constants.WORLD.TERRAIN_TOP + (options.y or 0) + size.Y / 2, z)
+
+	local pivot = CFrame.new(base)
+	local spin = options.rotation
+	if spin then
+		pivot *= CFrame.Angles(0, spin, 0)
+	end
+
+	model:PivotTo(pivot)
+	model.Parent = options.parent or ctx.parent
+	return model
+end
+
+export type AreaDefinition = {
+	id: number,
+	key: string,
+	name: string,
+	flavour: string,
+	gate: Gate,
+	origin: Vector3,
+	terrain: Terrain,
+	palette: Palette,
+	bridgeTo: string?,
+	decorate: ((ctx: DecorateContext) -> ())?,
+}
+
+--------------------------------------------------------------------------------
+-- Helpers available to every area file
+--------------------------------------------------------------------------------
+
+Area.helpers = {}
+
+function Area.helpers.block(ctx: DecorateContext, config: { [string]: any }): Part
+	local part = Instance.new("Part")
+	part.Name = config.name or "Decor"
+	part.Anchored = true
+	part.CanCollide = config.collide ~= false
+	part.Size = config.size
+	part.Shape = config.shape or Enum.PartType.Block
+	part.Color = config.color or ctx.area.palette.prop
+	part.Material = config.material or Enum.Material.SmoothPlastic
+	part.Transparency = config.transparency or 0
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+
+	local groundY = Constants.WORLD.TERRAIN_TOP + (config.y or 0)
+	if config.cframe then
+		part.CFrame = config.cframe
+	else
+		part.Position = ctx.origin + Vector3.new(config.x or 0, groundY, config.z or 0)
+	end
+
+	part.Parent = config.parent or ctx.parent
+	return part
+end
+
+--[[
+	A tree. The uploaded model when there is one, trunk-and-canopy parts when
+	there is not.
+
+	`height` still means what it meant: the procedural version is built to it,
+	and the asset version is scaled so its own extents match it. Otherwise an
+	area asking for a 12-stud tree and a 30-stud tree would get two identical
+	imported models.
+]]
+function Area.helpers.tree(ctx: DecorateContext, x: number, z: number, height: number, canopySize: number)
+	local asset = placeAsset(ctx, "tree", x, z, { rotation = ctx.rng:NextNumber() * math.pi * 2 })
+	if asset then
+		local natural = asset:GetExtentsSize().Y
+		if natural > 0.01 then
+			asset:ScaleTo(asset:GetScale() * (height / natural))
+			-- Re-seat it: scaling about the pivot moves where the base sits.
+			local size = asset:GetExtentsSize()
+			asset:PivotTo(
+				CFrame.new(ctx.origin + Vector3.new(x, Constants.WORLD.TERRAIN_TOP + size.Y / 2, z))
+					* CFrame.Angles(0, ctx.rng:NextNumber() * math.pi * 2, 0)
+			)
+		end
+		return asset
+	end
+
+	local trunk = Area.helpers.block(ctx, {
+		name = "Trunk",
+		size = Vector3.new(2, height, 2),
+		x = x,
+		z = z,
+		y = height / 2 - 1,
+		color = Color3.fromRGB(122, 96, 74),
+		material = Enum.Material.Wood,
+	})
+
+	Area.helpers.block(ctx, {
+		name = "Canopy",
+		shape = Enum.PartType.Ball,
+		size = Vector3.new(canopySize, canopySize, canopySize),
+		x = x,
+		z = z,
+		y = height - 1 + canopySize / 3,
+		material = Enum.Material.Grass,
+		collide = false,
+	})
+
+	return trunk
+end
+
+function Area.helpers.stone(ctx: DecorateContext, x: number, z: number, size: number)
+	local asset = placeAsset(ctx, "stone", x, z, { rotation = ctx.rng:NextNumber() * math.pi * 2 })
+	if asset then
+		return asset
+	end
+
+	return Area.helpers.block(ctx, {
+		name = "Stone",
+		shape = Enum.PartType.Ball,
+		size = Vector3.new(size, size * 0.7, size),
+		x = x,
+		z = z,
+		y = size * 0.25,
+		color = Color3.fromRGB(168, 168, 160),
+		material = Enum.Material.Slate,
+	})
+end
+
+--[[
+	A bush. Uploaded model, falling back to a squashed green ball.
+]]
+function Area.helpers.bush(ctx: DecorateContext, x: number, z: number, size: number)
+	local asset = placeAsset(ctx, "bush", x, z, { rotation = ctx.rng:NextNumber() * math.pi * 2 })
+	if asset then
+		return asset
+	end
+
+	return Area.helpers.block(ctx, {
+		name = "Bush",
+		shape = Enum.PartType.Ball,
+		size = Vector3.new(size, size * 0.72, size),
+		x = x,
+		z = z,
+		y = size * 0.26,
+		color = Color3.fromRGB(96, 148, 78),
+		material = Enum.Material.Grass,
+		collide = false,
+	})
+end
+
+--[[
+	A fallen log. Uploaded model, falling back to a rotated cylinder.
+]]
+function Area.helpers.log(ctx: DecorateContext, x: number, z: number, length: number)
+	local asset = placeAsset(ctx, "log", x, z, { rotation = ctx.rng:NextNumber() * math.pi * 2 })
+	if asset then
+		return asset
+	end
+
+	local part = Area.helpers.block(ctx, {
+		name = "Log",
+		shape = Enum.PartType.Cylinder,
+		size = Vector3.new(length, 2.2, 2.2),
+		x = x,
+		z = z,
+		y = 1.1,
+		color = Color3.fromRGB(116, 88, 66),
+		material = Enum.Material.Wood,
+		collide = false,
+	})
+	part.CFrame = part.CFrame * CFrame.Angles(0, ctx.rng:NextNumber() * math.pi * 2, 0)
+	return part
+end
+
+--[[
+	One random item out of the nature pack, if that pack loaded.
+
+	Returns nil rather than falling back, because unlike a tree or a bush there
+	is no procedural equivalent of "whatever happens to be in that pack" — so
+	callers use it to add variety on top of decor that already stands alone.
+]]
+function Area.helpers.natureProp(ctx: DecorateContext, x: number, z: number): Model?
+	local get = ctx.packItem
+	if not get then
+		return nil
+	end
+
+	local model = get("naturePack")
+	if not model then
+		return nil
+	end
+
+	local size = model:GetExtentsSize()
+	model:PivotTo(
+		CFrame.new(ctx.origin + Vector3.new(x, Constants.WORLD.TERRAIN_TOP + size.Y / 2, z))
+			* CFrame.Angles(0, ctx.rng:NextNumber() * math.pi * 2, 0)
+	)
+	model.Parent = ctx.parent
+	return model
+end
+
+--[[
+	A building. The uploaded house model when there is one, otherwise the
+	procedural walls-and-pitched-roof below.
+
+	The asset keeps collision (Config/Assets marks `house` collide = true) so a
+	building stays a building rather than something to walk through.
+]]
+function Area.helpers.hut(ctx: DecorateContext, config: { [string]: any })
+	local asset = placeAsset(ctx, "house", config.x or 0, config.z or 0, {
+		rotation = config.rotation,
+		parent = config.parent,
+	})
+	if asset then
+		return
+	end
+
+	local x, z = config.x or 0, config.z or 0
+	local width = config.width or 22
+	local depth = config.depth or 18
+	local height = config.height or 13
+	local wall = config.color or Color3.fromRGB(236, 226, 208)
+	local roof = config.roofColor or Color3.fromRGB(196, 116, 96)
+
+	Area.helpers.block(ctx, {
+		name = "HutWalls",
+		size = Vector3.new(width, height, depth),
+		x = x,
+		z = z,
+		y = height / 2,
+		color = wall,
+		material = Enum.Material.WoodPlanks,
+	})
+
+	local PITCH = 30
+	local rise = (width / 2) * math.tan(math.rad(PITCH))
+	local slope = (width / 2) / math.cos(math.rad(PITCH))
+
+	for _, side in { -1, 1 } do
+		local slab = Instance.new("Part")
+		slab.Name = "HutRoof"
+		slab.Anchored = true
+		slab.CanCollide = false
+		slab.Size = Vector3.new(slope + 2, 1.2, depth + 4)
+		slab.Color = roof
+		slab.Material = Enum.Material.Slate
+		slab.TopSurface = Enum.SurfaceType.Smooth
+		slab.BottomSurface = Enum.SurfaceType.Smooth
+		slab.CFrame = CFrame.new(
+			ctx.origin + Vector3.new(x + side * (width / 4), Constants.WORLD.TERRAIN_TOP + height + rise / 2, z)
+		) * CFrame.Angles(0, 0, math.rad(-side * PITCH))
+		slab.Parent = ctx.parent
+	end
+
+	Area.helpers.block(ctx, {
+		name = "HutRidge",
+		size = Vector3.new(2.4, 1.6, depth + 5),
+		x = x,
+		z = z,
+		y = height + rise,
+		color = roof,
+		material = Enum.Material.Slate,
+		collide = false,
+	})
+
+	Area.helpers.block(ctx, {
+		name = "HutDoor",
+		size = Vector3.new(5, 8, 0.6),
+		x = x,
+		z = z - depth / 2 - 0.2,
+		y = 4,
+		color = Color3.fromRGB(140, 104, 74),
+		material = Enum.Material.Wood,
+		collide = false,
+	})
+
+	for _, side in { -1, 1 } do
+		Area.helpers.block(ctx, {
+			name = "HutWindow",
+			size = Vector3.new(4, 4, 0.5),
+			x = x + side * width * 0.28,
+			z = z - depth / 2 - 0.2,
+			y = height * 0.68,
+			color = Color3.fromRGB(196, 226, 238),
+			material = Enum.Material.Glass,
+			transparency = 0.25,
+			collide = false,
+		})
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Chiikawa Procedural 3D Props
+--------------------------------------------------------------------------------
+
+-- Study Desk: Low round pink desk from image, with booklet, eraser, pencil, cushion & lightbulb emitter
+function Area.helpers.studyDesk(ctx: DecorateContext, config: { [string]: any }): Model
+	local model = Instance.new("Model")
+	model.Name = "StudyDeskProp"
+	local x, z, y = config.x or 0, config.z or 0, config.y or 3.2
+
+	-- Round Oval Tabletop in Cute Pastel Pink
+	local top = Area.helpers.block(ctx, {
+		name = "TableTop",
+		shape = Enum.PartType.Cylinder,
+		size = Vector3.new(0.6, 9.5, 6.2),
+		color = Color3.fromRGB(245, 175, 195),
+		material = Enum.Material.SmoothPlastic,
+		cframe = CFrame.new(ctx.origin + Vector3.new(x, Constants.WORLD.TERRAIN_TOP + y, z)) * CFrame.Angles(0, 0, math.rad(90)),
+		parent = model,
+	})
+
+	-- 4 Curved/Curly Dark Legs
+	local legOffsets = {
+		Vector3.new(-3.6, -1.2, -1.8),
+		Vector3.new(3.6, -1.2, -1.8),
+		Vector3.new(-3.6, -1.2, 1.8),
+		Vector3.new(3.6, -1.2, 1.8),
+	}
+	for i, offset in legOffsets do
+		Area.helpers.block(ctx, {
+			name = `Leg_{i}`,
+			shape = Enum.PartType.Cylinder,
+			size = Vector3.new(2.4, 0.5, 0.5),
+			color = Color3.fromRGB(80, 60, 50),
+			material = Enum.Material.Wood,
+			cframe = CFrame.new(top.Position + offset) * CFrame.Angles(0, 0, math.rad(90)),
+			parent = model,
+		})
+	end
+
+	-- Open Booklet / Notebook on top with squiggly pencil details
+	local bookLeft = Area.helpers.block(ctx, {
+		name = "BookLeftPage",
+		size = Vector3.new(2.4, 0.15, 3.2),
+		color = Color3.fromRGB(255, 252, 245),
+		material = Enum.Material.SmoothPlastic,
+		cframe = CFrame.new(top.Position + Vector3.new(-1.3, 0.35, -0.2)) * CFrame.Angles(0, 0, math.rad(-5)),
+		parent = model,
+	})
+	local bookRight = Area.helpers.block(ctx, {
+		name = "BookRightPage",
+		size = Vector3.new(2.4, 0.15, 3.2),
+		color = Color3.fromRGB(255, 252, 245),
+		material = Enum.Material.SmoothPlastic,
+		cframe = CFrame.new(top.Position + Vector3.new(1.3, 0.35, -0.2)) * CFrame.Angles(0, 0, math.rad(5)),
+		parent = model,
+	})
+
+	-- Squiggly line markings on pages
+	Area.helpers.block(ctx, {
+		name = "PencilLine1",
+		size = Vector3.new(1.6, 0.05, 0.3),
+		color = Color3.fromRGB(100, 90, 85),
+		cframe = bookLeft.CFrame * CFrame.new(0, 0.1, -0.6),
+		parent = model,
+	})
+	Area.helpers.block(ctx, {
+		name = "PencilLine2",
+		size = Vector3.new(1.6, 0.05, 0.3),
+		color = Color3.fromRGB(100, 90, 85),
+		cframe = bookRight.CFrame * CFrame.new(0, 0.1, 0.4),
+		parent = model,
+	})
+
+	-- Eraser (Blue/White cover)
+	Area.helpers.block(ctx, {
+		name = "Eraser",
+		size = Vector3.new(0.8, 0.3, 1.2),
+		color = Color3.fromRGB(70, 140, 230),
+		material = Enum.Material.SmoothPlastic,
+		cframe = CFrame.new(top.Position + Vector3.new(-3.2, 0.35, 1.0)) * CFrame.Angles(0, math.rad(25), 0),
+		parent = model,
+	})
+
+	-- Small notebook / booklet beside it
+	Area.helpers.block(ctx, {
+		name = "SideBook",
+		size = Vector3.new(2.0, 0.4, 2.4),
+		color = Color3.fromRGB(180, 220, 150),
+		material = Enum.Material.SmoothPlastic,
+		cframe = CFrame.new(top.Position + Vector3.new(2.8, 0.35, 0.8)) * CFrame.Angles(0, math.rad(-15), 0),
+		parent = model,
+	})
+
+	-- Zabuton floor cushion
+	Area.helpers.block(ctx, {
+		name = "Cushion",
+		size = Vector3.new(4.5, 0.6, 4.5),
+		color = Color3.fromRGB(240, 180, 220),
+		material = Enum.Material.Fabric,
+		cframe = CFrame.new(top.Position + Vector3.new(0, -1.8, 4.5)),
+		parent = model,
+	})
+
+	-- Anime Lightbulb / Study Spark Particle Emitter
+	local emitterAttachment = Instance.new("Attachment")
+	emitterAttachment.Name = "StudyEmitterAttachment"
+	emitterAttachment.Position = Vector3.new(0, 2, 0)
+	emitterAttachment.Parent = top
+
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Name = "StudyParticleEmitter"
+	emitter.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 230, 150)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(240, 140, 210)),
+	})
+	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(1, 1.2) })
+	emitter.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
+	emitter.Lifetime = NumberRange.new(1.2, 2.2)
+	emitter.Rate = 4
+	emitter.Speed = NumberRange.new(1.5, 3.5)
+	emitter.SpreadAngle = Vector2.new(30, 30)
+	emitter.Parent = emitterAttachment
+
+	--[[
+		Book stacks that pile up with tier.
+
+		The other three props read their tier as scale alone — a bigger fork, a
+		bigger weed. Studying does not work that way: a huge booklet says
+		nothing, whereas the pile of books you have got through says exactly
+		what a tier is. So this one grows in COUNT as well as size.
+	]]
+	local tier = math.clamp(config.tier or 1, 1, 7)
+	local BOOK_COLORS = {
+		Color3.fromRGB(226, 108, 130),
+		Color3.fromRGB(120, 168, 224),
+		Color3.fromRGB(242, 196, 108),
+		Color3.fromRGB(146, 196, 130),
+		Color3.fromRGB(196, 146, 214),
+	}
+
+	for index = 1, tier - 1 do
+		-- Two short columns beside the desk rather than one tall improbable one.
+		local column = if index % 2 == 0 then 1 else -1
+		local level = math.floor((index - 1) / 2)
+
+		Area.helpers.block(ctx, {
+			name = `StackedBook_{index}`,
+			size = Vector3.new(2.6, 0.42, 3.4),
+			color = BOOK_COLORS[(index - 1) % #BOOK_COLORS + 1],
+			material = Enum.Material.SmoothPlastic,
+			cframe = CFrame.new(top.Position + Vector3.new(column * 5.4, -0.1 + level * 0.46, 1.6))
+				* CFrame.Angles(0, math.rad(index * 7 % 18 - 9), 0),
+			parent = model,
+		})
+	end
+
+	model.Parent = config.parent or ctx.parent
+	return model
+end
+
+-- Weeding Patch: Raised dirt mound with grass blades, flowers & flying leaf emitter
+function Area.helpers.weedingPatch(ctx: DecorateContext, config: { [string]: any }): Model
+	local model = Instance.new("Model")
+	model.Name = "WeedingPatchProp"
+	local x, z, y = config.x or 0, config.z or 0, config.y or 1.5
+
+	local soil = Area.helpers.block(ctx, {
+		name = "SoilMound",
+		shape = Enum.PartType.Cylinder,
+		size = Vector3.new(1.2, 10.0, 10.0),
+		color = Color3.fromRGB(110, 85, 65),
+		material = Enum.Material.Ground,
+		cframe = CFrame.new(ctx.origin + Vector3.new(x, Constants.WORLD.TERRAIN_TOP + y, z)) * CFrame.Angles(0, 0, math.rad(90)),
+		parent = model,
+	})
+
+	-- Grass clumps & flowers
+	for i = 1, 8 do
+		local angle = (i / 8) * math.pi * 2
+		local dist = 3.2
+		local gx = x + math.cos(angle) * dist
+		local gz = z + math.sin(angle) * dist
+		Area.helpers.block(ctx, {
+			name = `WeedSprout_{i}`,
+			size = Vector3.new(0.6, 2.2, 0.6),
+			color = if i % 2 == 0 then Color3.fromRGB(126, 190, 104) else Color3.fromRGB(96, 162, 78),
+			material = Enum.Material.Grass,
+			cframe = CFrame.new(ctx.origin + Vector3.new(gx, Constants.WORLD.TERRAIN_TOP + y + 1.2, gz)) * CFrame.Angles(0, angle, math.rad(15)),
+			parent = model,
+		})
+	end
+
+	-- Flying Leaf Particle Emitter
+	local attachment = Instance.new("Attachment")
+	attachment.Position = Vector3.new(0, 1.5, 0)
+	attachment.Parent = soil
+
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Name = "LeafEmitter"
+	emitter.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(126, 190, 104)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(245, 175, 195)),
+	})
+	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.8), NumberSequenceKeypoint.new(1, 0.2) })
+	emitter.Lifetime = NumberRange.new(1.5, 2.5)
+	emitter.Rate = 5
+	emitter.Speed = NumberRange.new(2, 5)
+	emitter.SpreadAngle = Vector2.new(45, 45)
+	emitter.Parent = attachment
+
+	model.Parent = config.parent or ctx.parent
+	return model
+end
+
+-- Sasumata & Training Dummy for Strength/Tobatsu
+function Area.helpers.sasumataDummy(ctx: DecorateContext, config: { [string]: any }): Model
+	local model = Instance.new("Model")
+	model.Name = "SasumataDummyProp"
+	local x, z, y = config.x or 0, config.z or 0, config.y or 4.5
+
+	-- Dummy Post
+	local dummy = Area.helpers.block(ctx, {
+		name = "DummyPost",
+		size = Vector3.new(2.2, 9.0, 2.2),
+		color = Color3.fromRGB(150, 118, 90),
+		material = Enum.Material.Wood,
+		x = x,
+		z = z,
+		y = y,
+		parent = model,
+	})
+
+	-- Target wrapping
+	Area.helpers.block(ctx, {
+		name = "DummyTarget",
+		size = Vector3.new(2.8, 3.2, 2.8),
+		color = Color3.fromRGB(230, 210, 180),
+		material = Enum.Material.Fabric,
+		cframe = dummy.CFrame * CFrame.new(0, 1, 0),
+		parent = model,
+	})
+
+	-- Sasumata Weapon standing beside dummy
+	local sasumataShaft = Area.helpers.block(ctx, {
+		name = "SasumataShaft",
+		size = Vector3.new(0.5, 10.0, 0.5),
+		color = Color3.fromRGB(120, 95, 75),
+		material = Enum.Material.Wood,
+		cframe = dummy.CFrame * CFrame.new(3.5, 0.5, 0) * CFrame.Angles(0, 0, math.rad(-15)),
+		parent = model,
+	})
+	-- Sasumata Fork Head
+	Area.helpers.block(ctx, {
+		name = "SasumataFork",
+		size = Vector3.new(3.2, 0.5, 0.5),
+		color = Color3.fromRGB(220, 225, 230),
+		material = Enum.Material.Metal,
+		cframe = sasumataShaft.CFrame * CFrame.new(0, 4.5, 0),
+		parent = model,
+	})
+
+	-- Sweat Particle Emitter
+	local attachment = Instance.new("Attachment")
+	attachment.Position = Vector3.new(0, 2.5, 0)
+	attachment.Parent = dummy
+
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Name = "SweatEmitter"
+	emitter.Color = ColorSequence.new(Color3.fromRGB(140, 210, 255))
+	emitter.Size = NumberSequence.new(0.6)
+	emitter.Lifetime = NumberRange.new(1.0, 1.8)
+	emitter.Rate = 4
+	emitter.Speed = NumberRange.new(2, 4)
+	emitter.Parent = attachment
+
+	model.Parent = config.parent or ctx.parent
+	return model
+end
+
+-- Waterfall & Tear Zone for Durability / Crying
+function Area.helpers.waterfallZone(ctx: DecorateContext, config: { [string]: any }): Model
+	local model = Instance.new("Model")
+	model.Name = "WaterfallZoneProp"
+	local x, z, y = config.x or 0, config.z or 0, config.y or 8.0
+
+	-- Cliff Rock
+	local cliff = Area.helpers.block(ctx, {
+		name = "Cliff",
+		size = Vector3.new(12.0, 16.0, 8.0),
+		color = Color3.fromRGB(120, 125, 130),
+		material = Enum.Material.Slate,
+		x = x,
+		z = z - 4,
+		y = y,
+		parent = model,
+	})
+
+	-- Neon Waterfall Stream
+	local stream = Area.helpers.block(ctx, {
+		name = "WaterfallStream",
+		size = Vector3.new(6.0, 15.0, 0.8),
+		color = Color3.fromRGB(80, 190, 240),
+		material = Enum.Material.Neon,
+		transparency = 0.25,
+		cframe = cliff.CFrame * CFrame.new(0, 0, 4.2),
+		parent = model,
+	})
+
+	-- Tear / Water Spray Emitter shooting out left & right
+	local attachment = Instance.new("Attachment")
+	attachment.Position = Vector3.new(0, -5, 0.5)
+	attachment.Parent = stream
+
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Name = "TearEmitter"
+	emitter.Color = ColorSequence.new(Color3.fromRGB(100, 200, 255))
+	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.8), NumberSequenceKeypoint.new(1, 0.3) })
+	emitter.Lifetime = NumberRange.new(1.2, 2.0)
+	emitter.Rate = 8
+	emitter.Speed = NumberRange.new(4, 8)
+	emitter.SpreadAngle = Vector2.new(60, 60)
+	emitter.Parent = attachment
+
+	model.Parent = config.parent or ctx.parent
+	return model
+end
+
+function Area.helpers.scatter(ctx: DecorateContext, count: number, place: (x: number, z: number) -> ())
+	local half = ctx.area.terrain.islandSize / 2 - 90
+	local placed = 0
+	local tries = 0
+	local maxTries = count * 8
+
+	while placed < count and tries < maxTries do
+		tries += 1
+		local x = ctx.rng:NextNumber(-half, half)
+		local z = ctx.rng:NextNumber(-half, half)
+		if ctx.isReserved(x, z) then
+			continue
+		end
+		place(x, z)
+		placed += 1
+	end
+end
+
+function Area.helpers.cluster(
+	ctx: DecorateContext,
+	centreX: number,
+	centreZ: number,
+	radius: number,
+	count: number,
+	place: (x: number, z: number) -> ()
+)
+	for _ = 1, count do
+		local angle = ctx.rng:NextNumber(0, math.pi * 2)
+		local distance = math.sqrt(ctx.rng:NextNumber(0, 1)) * radius
+		local x = centreX + math.cos(angle) * distance
+		local z = centreZ + math.sin(angle) * distance
+		if not ctx.isReserved(x, z) then
+			place(x, z)
+		end
+	end
+end
+
+function Area.helpers.ring(
+	_ctx: DecorateContext,
+	centreX: number,
+	centreZ: number,
+	radius: number,
+	count: number,
+	place: (x: number, z: number, angle: number) -> ()
+)
+	for index = 1, count do
+		local angle = (index - 1) / count * math.pi * 2
+		place(centreX + math.cos(angle) * radius, centreZ + math.sin(angle) * radius, angle)
+	end
+end
+
+function Area.helpers.signpost(ctx: DecorateContext, config: { [string]: any })
+	local post = Area.helpers.block(ctx, {
+		name = `Signpost_{config.title}`,
+		size = Vector3.new(0.6, 8, 0.6),
+		x = config.x or 0,
+		z = config.z or 0,
+		y = 4,
+		color = Color3.fromRGB(150, 118, 90),
+		material = Enum.Material.Wood,
+		collide = false,
+	})
+
+	ctx.UI.sign(post, {
+		name = "Sign",
+		title = config.title,
+		subtitle = config.subtitle,
+		offset = Vector3.new(0, 5, 0),
+		maxDistance = config.maxDistance or 220,
+		titleColor = config.titleColor or ctx.UI.color.white,
+	})
+
+	return post
+end
+
+--------------------------------------------------------------------------------
+-- Definition
+--------------------------------------------------------------------------------
+
+local REQUIRED = { "id", "key", "name", "flavour", "gate", "origin", "terrain", "palette" }
+
+function Area.define(definition: AreaDefinition): AreaDefinition
+	for _, field in REQUIRED do
+		assert((definition :: any)[field] ~= nil, `Area "{definition.key or "?"}" is missing "{field}"`)
+	end
+	assert(type(definition.id) == "number", `Area "{definition.key}" id must be a number`)
+	assert(definition.terrain.islandSize > 0, `Area "{definition.key}" needs a positive islandSize`)
+	assert(definition.gate.certificationTotal ~= nil, `Area "{definition.key}" gate needs certificationTotal`)
+	assert(
+		definition.bridgeTo == nil or type(definition.bridgeTo) == "string",
+		`Area "{definition.key}" bridgeTo must be an area key`
+	)
+	return definition
+end
+
+return Area
