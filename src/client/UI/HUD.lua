@@ -31,6 +31,7 @@ local UserInputService = game:GetService("UserInputService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Certifications = require(Shared.Modules.Config.Certifications)
+local Constants = require(Shared.Modules.Constants)
 local Remotes = require(Shared.Modules.Remotes)
 local Worksites = require(Shared.Modules.Config.Worksites)
 local UI = require(Shared.UI)
@@ -72,17 +73,35 @@ local selectedSkill: string? = nil
 	UI/HUD.story.lua) instead of waiting on StateController, which never
 	receives a real snapshot without a live server. Numbers are representative
 	rather than meaningful — this is for looking at the layout, not the game.
+
+	This must stay a COMPLETE Types.StateSnapshot, not just the fields the HUD
+	itself happens to read. The panels it hosts read the same table directly:
+	`stamina` was missing once and WorkCore.update threw on `stamina.max` at its
+	very first statement, which the pcall below turned into one warn line and an
+	unpopulated work core rather than a visible failure. Add fields here when
+	ReplicationService.buildSnapshot grows them.
 ]]
 local PREVIEW_SNAPSHOT = {
 	yen = BigNumber.fromNumber(184500),
 	yenPerMinute = BigNumber.fromNumber(1200),
 	stamps = BigNumber.fromNumber(37),
+	-- Not full: a ring pinned at 100% shows neither the arc nor the readout
+	-- doing anything, which is the one thing worth looking at in a preview.
+	stamina = { current = 72, max = Constants.STAMINA.BASE_MAX },
+	resting = false,
 	seasons = 0,
 	currentWorksite = "tobatsu_1",
+	currentWorksiteRegion = 1,
 	selectedSkill = "tobatsu",
 	gainPerAction = BigNumber.fromNumber(50),
 	blockedWorksite = nil,
 	regionId = 1,
+	-- String keys: JSON has no integer keys (Types.PlayerProfile.unlockedRegions).
+	unlockedRegions = { ["1"] = true },
+	highestUnlockedRegion = 1,
+	-- The onboarding panel is its own story's job, not a thing that should open
+	-- over the HUD every time this one mounts.
+	showIntro = false,
 	skills = {
 		tobatsu = BigNumber.fromNumber(52000),
 		resilience = BigNumber.fromNumber(18000),
@@ -598,12 +617,22 @@ function HUD.init(container: Instance?)
 	local unsubscribeState = StateController.onChanged(update)
 
 	if container then
-		-- No live server in preview: seed every panel with representative
-		-- numbers instead of sitting at "0" waiting for a snapshot that will
-		-- never arrive.
-		local ok, err = pcall(update, PREVIEW_SNAPSHOT)
+		--[[
+			No live server in preview: seed every panel with representative
+			numbers instead of sitting at "0" waiting for a snapshot that will
+			never arrive.
+
+			Guarded so one bad field cannot cost you the whole preview — but
+			guarded LOUDLY. This swallowed a `stamina` KeyError into a single
+			warn line once, and the visible result was a work core that had
+			simply not been filled in, which reads as a layout bug rather than
+			as a crash. The traceback names the panel that actually threw.
+		]]
+		local ok, err = xpcall(update, function(message)
+			return debug.traceback(tostring(message), 2)
+		end, PREVIEW_SNAPSHOT)
 		if not ok then
-			warn(`[HUD] preview snapshot failed: {err}`)
+			warn(`[HUD] PREVIEW SNAPSHOT FAILED — the HUD below is incomplete.\n{err}`)
 		end
 
 		--[[
