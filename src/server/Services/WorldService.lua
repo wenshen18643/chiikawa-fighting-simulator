@@ -444,12 +444,12 @@ end
 --------------------------------------------------------------------------------
 
 local function configureLighting()
-	-- Soft, dim, relaxing outdoor lighting.
+	-- Soft, dimmed outdoor lighting.
 	Lighting.ClockTime = 15.5
-	Lighting.Brightness = 0.4
-	Lighting.ExposureCompensation = -0.2
+	Lighting.Brightness = 1.1
+	Lighting.ExposureCompensation = -0.1
 	Lighting.GlobalShadows = true
-	Lighting.Ambient = Color3.fromRGB(55, 55, 60)
+	Lighting.Ambient = Color3.fromRGB(60, 60, 65)
 	Lighting.OutdoorAmbient = Color3.fromRGB(75, 75, 80)
 	Lighting.EnvironmentDiffuseScale = 0.35
 	Lighting.EnvironmentSpecularScale = 0.15
@@ -487,7 +487,7 @@ local function configureLighting()
 	end
 	local bloom = Instance.new("BloomEffect")
 	bloom.Name = "SoftBloom"
-	bloom.Intensity = 0.05
+	bloom.Intensity = 0.25
 	bloom.Size = 16
 	bloom.Threshold = 2.2
 	bloom.Parent = Lighting
@@ -498,10 +498,10 @@ local function configureLighting()
 	end
 	local grade = Instance.new("ColorCorrectionEffect")
 	grade.Name = "WarmGrade"
-	grade.Brightness = -0.02
+	grade.Brightness = 0.01
 	grade.Contrast = 0.02
-	grade.Saturation = 0.0
-	grade.TintColor = Color3.fromRGB(245, 242, 238)
+	grade.Saturation = 0.02
+	grade.TintColor = Color3.fromRGB(250, 242, 235)
 	grade.Parent = Lighting
 end
 

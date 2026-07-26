@@ -88,14 +88,15 @@ local function buildWorksite(worksite: Worksites.WorksiteDefinition, cframe: CFr
 	local size = Constants.WORLD.WORKSITE_SIZE
 	local border = Constants.WORLD.WORKSITE_BORDER
 
+	local area = Areas.get(regionId)
 	local frame = Instance.new("Part")
 	frame.Name = `{worksite.id}_Frame`
 	frame.Anchored = true
 	frame.CanCollide = true
 	frame.Size = Vector3.new(size.X + border, 0.2, size.Z + border)
 	frame.CFrame = cframe * CFrame.new(0, -0.1, 0)
-	frame.Material = Enum.Material.SmoothPlastic
-	frame.Color = color:Lerp(Color3.fromRGB(0, 0, 0), 0.25)
+	frame.Color = color:Lerp(area.palette.ground, 0.4)
+	frame.Material = Enum.Material.Concrete
 	frame.TopSurface = Enum.SurfaceType.Smooth
 	frame.Parent = folder
 
@@ -177,22 +178,11 @@ local function buildWorksite(worksite: Worksites.WorksiteDefinition, cframe: CFr
 	return part
 end
 
-local function buildDistrictArch(area: Areas.AreaDefinition, district: Layout.District, folder: Folder)
+local function buildDistrictArch(_area: Areas.AreaDefinition, district: Layout.District, folder: Folder)
 	local skill = Skills.get(district.skillId)
 	if not skill or #district.worksites == 0 then
 		return
 	end
-
-	local plate = Instance.new("Part")
-	plate.Name = `{district.skillId}_Plate`
-	plate.Anchored = true
-	plate.CanCollide = true
-	plate.Size = district.plateSize
-	plate.CFrame = district.plateCFrame
-	plate.Material = Enum.Material.Ground
-	plate.Color = skill.color:Lerp(area.palette.ground, 0.55)
-	plate.TopSurface = Enum.SurfaceType.Smooth
-	plate.Parent = folder
 
 	local width = Constants.WORLD.WORKSITE_SIZE.X + 26
 	local height = 30

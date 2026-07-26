@@ -90,6 +90,7 @@ end
 	the districts through it, which is the whole point of putting the player's
 	bed above the town.
 ]]
+-- selene: allow(unused_variable)
 local function wallFace(
 	toWorld: (number, number, number) -> CFrame,
 	config: {
@@ -164,6 +165,7 @@ end
 	A floor slab with a rectangular hole for the stairwell, built as the four
 	strips around it. Same idea as wallFace, in plan rather than elevation.
 ]]
+-- selene: allow(unused_variable)
 local function slabWithHole(
 	toWorld: (number, number, number) -> CFrame,
 	y: number,
@@ -208,6 +210,7 @@ end
 
 -- A run of steps climbing one storey. Alternates direction per floor so the
 -- staircase zig-zags up the back wall instead of running the same way twice.
+-- selene: allow(unused_variable)
 local function buildStairs(toWorld: (number, number, number) -> CFrame, fromY: number, rise: number, direction: number)
 	local steps = math.max(1, math.ceil(rise / SafeZone.STEP_RISE))
 	local stepRise = rise / steps
@@ -485,6 +488,7 @@ end
 	is the reward for climbing, so it cannot be under anything. The dome is a
 	half-buried ball, which is the cheapest shape that reads as round.
 ]]
+-- selene: allow(unused_variable)
 local function buildRoof(toWorld: (number, number, number) -> CFrame, deckY: number)
 	local diameter = 22
 
@@ -689,16 +693,16 @@ local function buildGarden(toWorld: (number, number, number) -> CFrame, rng: Ran
 			local head = piece({
 				name = "GardenLantern",
 				shape = Enum.PartType.Ball,
-				size = Vector3.new(1.8, 1.8, 1.8),
-				color = palette.lamp,
-				material = Enum.Material.SmoothPlastic,
+				size = Vector3.new(2.4, 2.4, 2.4),
+				color = Color3.fromRGB(255, 226, 150),
+				material = Enum.Material.Neon,
 				collide = false,
 				cframe = toWorld(x, 7.6, z),
 			})
 			local glow = Instance.new("PointLight")
-			glow.Brightness = 0.08
-			glow.Range = 6
-			glow.Color = palette.lamp
+			glow.Brightness = 1.5
+			glow.Range = 24
+			glow.Color = Color3.fromRGB(255, 220, 160)
 			glow.Parent = head
 		end
 	end
@@ -762,7 +766,7 @@ local function buildCottage(origin: Vector3, rng: Random)
 				else { x = 0, y = 1, width = 18, height = 9 },
 		})
 
-		-- Back (-Z): windows on each storey so the rear exterior has shape
+		-- Back (-Z): solid, where the stairs run up inside.
 		wallFace(toWorld, {
 			name = `WallBack_{floor}`,
 			width = SafeZone.WIDTH,
@@ -772,7 +776,7 @@ local function buildCottage(origin: Vector3, rng: Random)
 			y = wallCentreY,
 			z = -halfD,
 			sideways = false,
-			opening = { x = 0, y = 1, width = SafeZone.WINDOW_RADIUS * 2, height = SafeZone.WINDOW_RADIUS * 2 },
+			opening = nil,
 		})
 
 		-- Sides: a round-ish window each, on both storeys.
