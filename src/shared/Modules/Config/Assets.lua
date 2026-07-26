@@ -43,6 +43,16 @@ export type AssetSpec = {
 	scale: number?,
 	-- Decor is non-colliding by default; set true for things worth bumping into.
 	collide: boolean?,
+	--[[
+		Case-insensitive substrings. A pack child whose name contains any of
+		them is not a prop and is dropped at load.
+
+		Needed because packs ship their authoring tools alongside their content:
+		this one includes "GrassWandSquare" and "GrassWandCylinder", 8-stud
+		blocks meant to be dragged around in Studio to paint grass. They match a
+		"grass" filter perfectly and are the wrong shape by a factor of eight.
+	]]
+	exclude: { string }?,
 }
 
 Assets.MODELS = {
@@ -56,7 +66,15 @@ Assets.MODELS = {
 	bush = { id = 11337757315, kind = "model", scale = 1 },
 	house = { id = 136868946197723, kind = "model", scale = 1, collide = true },
 	terrain = { id = 97974769788038, kind = "model", scale = 1 },
-	naturePack = { id = 71032774784968, kind = "pack", scale = 1 },
+	-- Replaced 71032774784968, which was private to another account and always
+	-- failed with "User is not authorized to access Asset".
+	--[[
+		"Nature Pack Studs Trees Bush Grass Flower". Public domain, so unlike the
+		four above it actually loads. Contents, as reported at startup:
+		Tree 1/2/Tree, Bush 1/2, Grass 1-3, Flower 1-3, Rock 1-5, Mushroom 1/2,
+		plus the two grass-painting wands excluded below.
+	]]
+	naturePack = { id = 82060619904561, kind = "pack", scale = 1, exclude = { "wand" } },
 } :: { [string]: AssetSpec }
 
 function Assets.get(key: string): AssetSpec?

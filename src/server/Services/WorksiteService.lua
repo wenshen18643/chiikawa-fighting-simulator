@@ -92,10 +92,10 @@ local function buildWorksite(worksite: Worksites.WorksiteDefinition, cframe: CFr
 	frame.Name = `{worksite.id}_Frame`
 	frame.Anchored = true
 	frame.CanCollide = true
-	frame.Size = Vector3.new(size.X + border, size.Y, size.Z + border)
-	frame.CFrame = cframe * CFrame.new(0, -0.6, 0)
-	frame.Material = Enum.Material.Slate
-	frame.Color = color:Lerp(Color3.fromRGB(0, 0, 0), 0.45)
+	frame.Size = Vector3.new(size.X + border, 0.2, size.Z + border)
+	frame.CFrame = cframe * CFrame.new(0, -0.1, 0)
+	frame.Material = Enum.Material.SmoothPlastic
+	frame.Color = color:Lerp(Color3.fromRGB(0, 0, 0), 0.25)
 	frame.TopSurface = Enum.SurfaceType.Smooth
 	frame.Parent = folder
 

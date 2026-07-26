@@ -39,6 +39,7 @@ local Remotes = require(Shared.Modules.Remotes)
 local SafeZone = require(Shared.Modules.Config.SafeZone)
 local UI = require(Shared.UI)
 
+local AssetService = require(script.Parent.AssetService)
 local WorldService = require(script.Parent.WorldService)
 
 local SafeZoneService = {}
@@ -241,41 +242,41 @@ local furnishers: { [string]: (any, (number, number, number) -> CFrame, number) 
 function furnishers.hearth(row, toWorld, y)
 	piece({
 		name = "Hearth",
-		size = Vector3.new(14, 9, 8),
+		size = Vector3.new(6, 4, 4),
 		color = palette.hearth,
 		material = Enum.Material.Slate,
-		cframe = toWorld(row.x, y + 4.5, row.z),
+		cframe = toWorld(row.x, y + 2.0, row.z),
 	})
 	local fire = piece({
 		name = "HearthFire",
-		size = Vector3.new(7, 1, 4),
+		size = Vector3.new(3.5, 0.6, 2),
 		color = Color3.fromRGB(250, 190, 120),
 		material = Enum.Material.Neon,
-		transparency = 0.35,
+		transparency = 0.5,
 		collide = false,
-		cframe = toWorld(row.x, y + 1.2, row.z + 2),
+		cframe = toWorld(row.x, y + 1.2, row.z + 1),
 	})
 
 	local flame = Instance.new("Fire")
-	flame.Size = 7
-	flame.Heat = 4
+	flame.Size = 3
+	flame.Heat = 2
 	flame.Color = Color3.fromRGB(252, 206, 140)
 	flame.SecondaryColor = Color3.fromRGB(228, 140, 96)
 	flame.Parent = fire
 
 	local light = Instance.new("PointLight")
-	light.Brightness = 2.4
-	light.Range = 26
+	light.Brightness = 0.15
+	light.Range = 8
 	light.Color = Color3.fromRGB(255, 208, 150)
 	light.Parent = fire
 
-	-- Chimney breast, so the hearth reads as part of the building.
+	-- Small neat chimney piece
 	piece({
 		name = "Chimney",
-		size = Vector3.new(10, SafeZone.FLOOR_HEIGHT - 8, 5),
+		size = Vector3.new(4, SafeZone.FLOOR_HEIGHT - 6, 3),
 		color = palette.plasterShade,
 		material = Enum.Material.Brick,
-		cframe = toWorld(row.x, y + 9 + (SafeZone.FLOOR_HEIGHT - 8) / 2, row.z - 1),
+		cframe = toWorld(row.x, y + 4 + (SafeZone.FLOOR_HEIGHT - 6) / 2, row.z - 0.5),
 	})
 end
 
@@ -377,9 +378,9 @@ function furnishers.lamp(row, toWorld, y)
 	local bulb = piece({
 		name = "Lantern",
 		shape = Enum.PartType.Ball,
-		size = Vector3.new(3.4, 3.8, 3.4),
+		size = Vector3.new(2.4, 2.8, 2.4),
 		color = palette.lamp,
-		material = Enum.Material.Neon,
+		material = Enum.Material.SmoothPlastic,
 		collide = false,
 		cframe = toWorld(row.x, y + SafeZone.FLOOR_HEIGHT - 3.5, row.z),
 	})
@@ -392,9 +393,9 @@ function furnishers.lamp(row, toWorld, y)
 	})
 
 	local light = Instance.new("PointLight")
-	light.Brightness = 1.6
-	light.Range = 34
-	light.Color = Color3.fromRGB(255, 232, 196)
+	light.Brightness = 0.1
+	light.Range = 8
+	light.Color = Color3.fromRGB(255, 220, 180)
 	light.Parent = bulb
 end
 
@@ -436,20 +437,20 @@ end
 function furnishers.certificateBoard(row, toWorld, y)
 	local board = piece({
 		name = "CertificateBoard",
-		size = Vector3.new(1, 14, row.width or 26),
-		color = palette.timberDark,
+		size = Vector3.new(0.4, 4, 8),
+		color = palette.timber,
 		material = Enum.Material.Wood,
 		collide = false,
-		cframe = toWorld(row.x, y + 9, row.z),
+		cframe = toWorld(row.x, y + 6, row.z),
 	})
 
 	UI.sign(board, {
 		name = "BoardSign",
 		title = "Certificates",
 		subtitle = "nothing to hang here yet",
-		offset = Vector3.new(-3, 0, 0),
-		extent = UDim2.fromScale(13, 4),
-		maxDistance = 60,
+		offset = Vector3.new(-1, 0, 0),
+		extent = UDim2.fromScale(8, 3),
+		maxDistance = 40,
 	})
 end
 
@@ -528,6 +529,11 @@ end
 --------------------------------------------------------------------------------
 
 local function buildGarden(toWorld: (number, number, number) -> CFrame, rng: Random)
+	-- The garden is built during boot, before a background download can finish.
+	-- Wait a moment for it rather than always losing that race — see
+	-- AssetService.waitFor.
+	AssetService.waitFor("naturePack", 4)
+
 	local garden = SafeZone.garden
 	local halfX = SafeZone.VOLUME.size.X / 2 - garden.fenceInset
 	local frontZ = SafeZone.VOLUME.centreOffset.Z + SafeZone.VOLUME.size.Z / 2 - garden.fenceInset
@@ -587,17 +593,52 @@ local function buildGarden(toWorld: (number, number, number) -> CFrame, rng: Ran
 		end
 	end
 
-	for _ = 1, garden.plantCount do
-		local x = rng:NextNumber(-halfX + 4, halfX - 4)
-		local z = rng:NextNumber(backZ + 4, frontZ - 4)
-		-- Keep the path and the building itself clear.
+	--[[
+		Ground that is clear to plant on: not on the path, not inside the house,
+		not on the doorstep a player lands on when they travel to Town.
+	]]
+	local function isClear(x: number, z: number): boolean
 		if math.abs(x) < garden.pathWidth / 2 + 3 then
-			continue
+			return false
 		end
 		if math.abs(x) < SafeZone.WIDTH / 2 + 2 and math.abs(z) < SafeZone.DEPTH / 2 + 2 then
-			continue
+			return false
 		end
-		local size = rng:NextNumber(3, 6)
+		local doorstep = SafeZone.DOORSTEP_OFFSET
+		if math.abs(x - doorstep.X) < 8 and math.abs(z - doorstep.Z) < 8 then
+			return false
+		end
+		return true
+	end
+
+	--[[
+		Plant one thing, preferring a model out of the nature pack and falling
+		back to a ball of foliage.
+
+		`match` picks the kind by name. The pack is public and does load, but its
+		child names are only known at runtime, so matching is a loose substring
+		with the procedural bush behind it -- the garden is the first thing every
+		player sees and must never depend on a download.
+	]]
+	local function plant(x: number, z: number, match: string, targetHeight: number?): boolean
+		local model = AssetService.clonePackItem("naturePack", rng, match)
+		if model then
+			local extents = model:GetExtentsSize()
+			if extents.Y > 0.01 and extents.Y < 60 then
+				if targetHeight then
+					model:ScaleTo(model:GetScale() * (targetHeight / extents.Y))
+					extents = model:GetExtentsSize()
+				end
+				model:PivotTo(
+					toWorld(x, extents.Y / 2, z) * CFrame.Angles(0, rng:NextNumber() * math.pi * 2, 0)
+				)
+				model.Parent = houseFolder
+				return true
+			end
+			model:Destroy()
+		end
+
+		local size = targetHeight or rng:NextNumber(3, 6)
 		piece({
 			name = "GardenBush",
 			shape = Enum.PartType.Ball,
@@ -607,6 +648,70 @@ local function buildGarden(toWorld: (number, number, number) -> CFrame, rng: Ran
 			collide = false,
 			cframe = toWorld(x, size * 0.3, z),
 		})
+		return false
+	end
+
+	--[[
+		Two trees flanking the gate, so the way out is framed rather than a gap
+		in a fence line. Placed rather than scattered: this is the shot every
+		player sees on their first frame outdoors.
+	]]
+	for _, side in { -1, 1 } do
+		plant(side * (garden.pathWidth / 2 + 9), frontZ - 7, "tree", 22)
+	end
+
+	-- Flower beds hugging both sides of the path, which is what makes the path
+	-- read as tended rather than as a strip of different-coloured ground.
+	local bedZStart = SafeZone.DEPTH / 2 + 3
+	local bedZEnd = SafeZone.DEPTH / 2 + garden.pathLength - 2
+	for _, side in { -1, 1 } do
+		local steps = 6
+		for index = 0, steps do
+			local z = bedZStart + (bedZEnd - bedZStart) * (index / steps)
+			local x = side * (garden.pathWidth / 2 + 2.5)
+			plant(x, z, "flower", rng:NextNumber(2.2, 3.4))
+		end
+	end
+
+	-- Lanterns down the path. §2: the cottage is the one place that is always
+	-- welcoming, and light is the cheapest way to say so.
+	for _, side in { -1, 1 } do
+		for _, z in { SafeZone.DEPTH / 2 + 8, SafeZone.DEPTH / 2 + 24 } do
+			local x = side * (garden.pathWidth / 2 + 5)
+			piece({
+				name = "GardenLanternPost",
+				size = Vector3.new(0.8, 7, 0.8),
+				color = palette.timberDark,
+				material = Enum.Material.Wood,
+				collide = false,
+				cframe = toWorld(x, 3.5, z),
+			})
+			local head = piece({
+				name = "GardenLantern",
+				shape = Enum.PartType.Ball,
+				size = Vector3.new(1.8, 1.8, 1.8),
+				color = palette.lamp,
+				material = Enum.Material.SmoothPlastic,
+				collide = false,
+				cframe = toWorld(x, 7.6, z),
+			})
+			local glow = Instance.new("PointLight")
+			glow.Brightness = 0.08
+			glow.Range = 6
+			glow.Color = palette.lamp
+			glow.Parent = head
+		end
+	end
+
+	-- The rest of the plot: a mix of bushes and grass tufts, path kept clear.
+	for _ = 1, garden.plantCount do
+		local x = rng:NextNumber(-halfX + 4, halfX - 4)
+		local z = rng:NextNumber(backZ + 4, frontZ - 4)
+		if not isClear(x, z) then
+			continue
+		end
+		local kind = if rng:NextNumber() > 0.45 then "bush" else "grass"
+		plant(x, z, kind, rng:NextNumber(3, 6))
 	end
 end
 
@@ -657,7 +762,7 @@ local function buildCottage(origin: Vector3, rng: Random)
 				else { x = 0, y = 1, width = 18, height = 9 },
 		})
 
-		-- Back (-Z): solid behind the staircase.
+		-- Back (-Z): windows on each storey so the rear exterior has shape
 		wallFace(toWorld, {
 			name = `WallBack_{floor}`,
 			width = SafeZone.WIDTH,
@@ -667,6 +772,7 @@ local function buildCottage(origin: Vector3, rng: Random)
 			y = wallCentreY,
 			z = -halfD,
 			sideways = false,
+			opening = { x = 0, y = 1, width = SafeZone.WINDOW_RADIUS * 2, height = SafeZone.WINDOW_RADIUS * 2 },
 		})
 
 		-- Sides: a round-ish window each, on both storeys.

@@ -114,6 +114,14 @@ return Area.define({
 		helpers.scatter(ctx, 60, function(x, z)
 			helpers.tree(ctx, x, z, ctx.rng:NextNumber(9, 16), ctx.rng:NextNumber(10, 15))
 		end)
+		-- Grass and flowers from the nature pack; bushes if it did not load.
+		helpers.scatter(ctx, 54, function(x, z)
+			local kind = if ctx.rng:NextNumber() > 0.4 then "grass" else "flower"
+			if not helpers.natureProp(ctx, x, z, kind) then
+				helpers.bush(ctx, x, z, ctx.rng:NextNumber(3, 7))
+			end
+		end)
+
 		helpers.scatter(ctx, 34, function(x, z)
 			helpers.stone(ctx, x, z, ctx.rng:NextNumber(3, 6))
 		end)

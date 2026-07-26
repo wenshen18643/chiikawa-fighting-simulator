@@ -45,7 +45,10 @@ local Assets = require(Shared.Modules.Config.Assets)
 local AssetService = {}
 
 local cache: { [string]: Model } = {}
-local failed: { [string]: boolean } = {}
+-- Pack key -> its props, flattened once at load rather than re-walked per pick.
+local packItems: { [string]: { Instance } } = {}
+-- key -> the reason it failed, kept for the single consolidated report.
+local failed: { [string]: string } = {}
 local library: Folder
 
 --[[
@@ -75,9 +78,53 @@ local function prepare(model: Model, spec: Assets.AssetSpec)
 end
 
 --[[
+	Every prop inside a pack, at any depth.
+
+	Packs are not laid out to a convention. This one arrives as
+	LoadAsset container -> Folder "Nature Asset Pack - Studs Style" -> ...,
+	and the next one may sort its contents into Trees/Bushes/Grass subfolders.
+	Two earlier attempts at this both failed on the real file: taking the
+	container's direct children handed out the entire pack as one prop, and
+	descending a fixed number of wrapper levels stopped at a Folder and was
+	then discarded for not being a Model.
+
+	So: recurse through FOLDERS, and stop at the first Model or BasePart. That
+	is the prop. Not descending into Models is the important half — otherwise a
+	tree would be collected as a trunk, a canopy and four branches.
+]]
+local function isExcluded(name: string, exclude: { string }?): boolean
+	if not exclude then
+		return false
+	end
+	local lowered = string.lower(name)
+	for _, pattern in exclude do
+		if string.find(lowered, string.lower(pattern), 1, true) then
+			return true
+		end
+	end
+	return false
+end
+
+local function collectItems(root: Instance, out: { Instance }, depth: number, exclude: { string }?)
+	if depth > 6 then
+		return
+	end
+	for _, child in root:GetChildren() do
+		if child:IsA("Folder") then
+			collectItems(child, out, depth + 1, exclude)
+		elseif child:IsA("Model") or child:IsA("BasePart") then
+			if not isExcluded(child.Name, exclude) then
+				table.insert(out, child)
+			end
+		end
+	end
+end
+
+--[[
 	LoadAsset returns a container Model holding the actual asset. For a single
-	model that container is one level of indirection worth removing; for a pack
-	it IS the thing, because its children are the point.
+	model that is one level of indirection worth removing. For a pack the
+	container is kept as-is and `collectItems` finds the props inside it,
+	whatever shape the author left them in.
 ]]
 local function unwrap(container: Model, spec: Assets.AssetSpec): Model?
 	if spec.kind == "pack" then
@@ -97,20 +144,15 @@ local function load(key: string, spec: Assets.AssetSpec)
 	end)
 
 	if not ok or typeof(result) ~= "Instance" then
-		failed[key] = true
-		warn(
-			`[AssetService] could not load "{key}" (id {spec.id}): {result}. `
-				.. `Falling back to the procedural version. The id must be public or owned by this place's owner.`
-		)
+		failed[key] = `{key} (id {spec.id}): {result}`
 		return
 	end
 
 	local container = result :: Model
 	local model = unwrap(container, spec)
 	if not model then
-		failed[key] = true
+		failed[key] = `{key} (id {spec.id}): loaded but contained no model`
 		container:Destroy()
-		warn(`[AssetService] asset "{key}" (id {spec.id}) loaded but contained no model.`)
 		return
 	end
 
@@ -118,6 +160,50 @@ local function load(key: string, spec: Assets.AssetSpec)
 	prepare(model, spec)
 	model.Parent = library
 	cache[key] = model
+
+	--[[
+		For a pack, say what arrived. What is inside a downloaded pack is not
+		knowable from this repo, and "the nature props look wrong" is impossible
+		to act on without knowing whether it holds 40 rocks or one 600-stud
+		diorama. Printed once, at load.
+	]]
+	if spec.kind == "pack" then
+		--[[
+			Flatten once, then report every prop with its class and size. The
+			names drive the substring filters in Areas/Area.lua ("tree", "bush",
+			"grass"), and the sizes say whether anything will trip the size
+			guard there. Neither is answerable from outside the running game,
+			and getting this listing wrong is what hid two separate unwrapping
+			bugs.
+		]]
+		local items = {}
+		collectItems(model, items, 0, spec.exclude)
+		packItems[key] = items
+
+		print(`[AssetService] pack "{key}" holds {#items} prop(s):`)
+		for _, child in items do
+			local detail = ""
+			if child:IsA("Model") then
+				local measured, size = pcall(function()
+					return (child :: Model):GetExtentsSize()
+				end)
+				if measured then
+					detail = string.format(" %.1f x %.1f x %.1f studs", size.X, size.Y, size.Z)
+				end
+			elseif child:IsA("BasePart") then
+				local size = (child :: BasePart).Size
+				detail = string.format(" %.1f x %.1f x %.1f studs", size.X, size.Y, size.Z)
+			end
+			print(`[AssetService]     {child.ClassName}  "{child.Name}"{detail}`)
+		end
+
+		if #items == 0 then
+			warn(
+				`[AssetService] pack "{key}" contained no Models or BaseParts at any depth. `
+					.. `Callers will use their procedural fallback.`
+			)
+		end
+	end
 
 	if container ~= model and container.Parent == nil then
 		container:Destroy()
@@ -139,32 +225,92 @@ function AssetService.clone(key: string): Model?
 end
 
 --[[
-	A clone of one random child of a pack, or nil.
+	A clone of one child of a pack, or nil.
 
-	Chosen by index rather than by name because the contents of a downloaded
-	pack are not known to this repo, and hardcoding child names would reproduce
-	the guessed-id problem one level down.
+	`match` is a case-insensitive substring of the child's name — "tree",
+	"bush", "grass". The nature pack is titled "Trees Bush Grass Flower", so
+	asking for the right kind of thing beats picking at random: a tree helper
+	that returned a random flower would be worse than the procedural tree.
+
+	Matching is deliberately loose and degrades in two steps: no child matches
+	the filter -> any child; no children at all -> nil, and the caller's
+	procedural fallback takes over. Exact child names are not known to this
+	repo, so nothing here depends on guessing one (the startup print reports
+	what actually arrived).
 ]]
-function AssetService.clonePackItem(key: string, rng: Random?): Model?
-	local pack = cache[key]
-	if not pack then
+function AssetService.clonePackItem(key: string, rng: Random?, match: string?): Model?
+	local usable = packItems[key]
+	if not usable or #usable == 0 then
 		return nil
 	end
 
-	local children = pack:GetChildren()
-	if #children == 0 then
-		return nil
+	local needle = match and string.lower(match) or nil
+	local matched = {}
+	if needle then
+		for _, child in usable do
+			if string.find(string.lower(child.Name), needle, 1, true) then
+				table.insert(matched, child)
+			end
+		end
 	end
 
-	local index = if rng then rng:NextInteger(1, #children) else math.random(1, #children)
-	local pick = children[index]
-	if not pick:IsA("Model") and not pick:IsA("BasePart") then
-		return nil
+	local pool = if #matched > 0 then matched else usable
+	local index = if rng then rng:NextInteger(1, #pool) else math.random(1, #pool)
+	local clone = pool[index]:Clone()
+
+	--[[
+		Always hand back a Model.
+
+		A pack may store a prop as a bare BasePart, but every caller places what
+		it gets with GetExtentsSize/ScaleTo/PivotTo — Model methods that a Part
+		does not have. Wrapping the odd loose part here means callers get one
+		contract instead of two, and none of them need a type check.
+	]]
+	if clone:IsA("BasePart") then
+		local wrapper = Instance.new("Model")
+		wrapper.Name = clone.Name
+		clone.Parent = wrapper
+		wrapper.PrimaryPart = clone
+		return wrapper
 	end
-	return pick:Clone() :: any
+
+	return clone :: any
 end
 
 function AssetService.isReady(key: string): boolean
+	return cache[key] ~= nil
+end
+
+--[[
+	Block briefly for one asset.
+
+	Loads are deliberately off the boot path, which is right for scenery
+	scattered across six areas nobody has reached yet — but wrong for the
+	cottage garden, which is built synchronously during boot and is the first
+	thing every player looks at. Without this it would always lose the race and
+	always draw its fallback.
+
+	Bounded, and returns false rather than throwing on timeout, so a slow or
+	failed load costs the nicer garden and not the boot.
+]]
+function AssetService.waitFor(key: string, timeout: number?): boolean
+	if cache[key] then
+		return true
+	end
+	if failed[key] then
+		return false
+	end
+
+	local deadline = os.clock() + (timeout or 3)
+	while os.clock() < deadline do
+		task.wait(0.1)
+		if cache[key] then
+			return true
+		end
+		if failed[key] then
+			return false
+		end
+	end
 	return cache[key] ~= nil
 end
 
@@ -189,14 +335,6 @@ function AssetService.init()
 	library.Name = "AssetLibrary"
 	library.Parent = ServerStorage
 
-	local blank = Assets.blank()
-	if #blank > 0 then
-		warn(
-			`[AssetService] no id set for: {table.concat(blank, ", ")}. `
-				.. `These use their procedural fallback. Add ids in Config/Assets.lua.`
-		)
-	end
-
 	--[[
 		Loaded in parallel and off the boot path. World generation is already
 		progressive (Town synchronously, the rest on a background task), so
@@ -204,12 +342,58 @@ function AssetService.init()
 		player can actually reach. Anything that arrives late simply starts
 		being used by the props built after it.
 	]]
-	for _, key in Assets.configured() do
+	local configured = Assets.configured()
+	local pending = #configured
+
+	for _, key in configured do
 		local spec = Assets.get(key)
 		if spec then
-			task.spawn(load, key, spec)
+			task.spawn(function()
+				load(key, spec)
+				pending -= 1
+			end)
 		end
 	end
+
+	--[[
+		ONE report, once, after the loads settle.
+
+		Per-asset warnings meant a boot with four unauthorized ids printed four
+		near-identical paragraphs, which buries the lines around them — and the
+		lines around them are the world-generation timings somebody is usually
+		reading the log for. The information is the same; it is one line now.
+	]]
+	task.spawn(function()
+		local deadline = os.clock() + 15
+		while pending > 0 and os.clock() < deadline do
+			task.wait(0.25)
+		end
+
+		local loaded, broken = {}, {}
+		for _, key in configured do
+			if cache[key] then
+				table.insert(loaded, key)
+			else
+				table.insert(broken, failed[key] or `{key}: still loading`)
+			end
+		end
+
+		local blank = Assets.blank()
+		print(
+			`[AssetService] decor models: {#loaded} loaded`
+				.. (if #loaded > 0 then ` ({table.concat(loaded, ", ")})` else "")
+				.. `, {#broken} failed, {#blank} with no id set`
+		)
+
+		if #broken > 0 then
+			warn(
+				`[AssetService] using the procedural fallback for {#broken} model(s): {table.concat(broken, "; ")}. `
+					.. `"not authorized" means the id is a PRIVATE model owned by another account -- `
+					.. `InsertService cannot fetch those no matter what is in Config/Assets.lua. `
+					.. `Re-upload it to this place's owner, or use a genuinely free model, then swap the id.`
+			)
+		end
+	end)
 end
 
 return AssetService

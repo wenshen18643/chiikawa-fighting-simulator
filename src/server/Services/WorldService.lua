@@ -199,7 +199,6 @@ local function buildWallSide(
 	local span = area.terrain.islandSize
 	local thickness = WORLD.WALL_THICKNESS
 	local wallHeight = WORLD.WALL_HEIGHT
-	local hedgeHeight = WORLD.HEDGE_HEIGHT
 
 	-- Either the whole side, or the two stubs left after the gap.
 	local segments: { { centre: number, length: number } } = {}
@@ -226,18 +225,6 @@ local function buildWallSide(
 			Transparency = 1,
 			CanCollide = true,
 			CanQuery = false,
-			Parent = parent,
-		})
-
-		-- Visible hedge, so the boundary is something you can see coming rather
-		-- than an invisible shove (§2 rule 5 — the world is never hostile).
-		part({
-			Name = `{name}_Hedge_{index}`,
-			Size = Vector3.new(footprint.X, hedgeHeight, footprint.Z),
-			Position = area.origin + offset + along + Vector3.new(0, WORLD.TERRAIN_TOP + hedgeHeight / 2, 0),
-			Color = area.palette.prop,
-			Material = Enum.Material.Grass,
-			CanCollide = false,
 			Parent = parent,
 		})
 	end
@@ -418,6 +405,13 @@ local function decorateArea(area: Areas.AreaDefinition, parent: Folder)
 
 	local zones = Layout.reservedZones(area)
 
+	--[[
+		One rng for pack picks, built once per area rather than per call. A fresh
+		Random.new(seed) inside the closure would return the same first value
+		every time, so every prop in the area would be the same pack item.
+	]]
+	local packRng = Random.new(area.id * 104729)
+
 	local ctx = {
 		area = area,
 		origin = area.origin,
@@ -433,8 +427,8 @@ local function decorateArea(area: Areas.AreaDefinition, parent: Folder)
 		model = function(key: string): Model?
 			return AssetService.clone(key)
 		end,
-		packItem = function(key: string): Model?
-			return AssetService.clonePackItem(key, Random.new(area.id * 104729))
+		packItem = function(key: string, match: string?): Model?
+			return AssetService.clonePackItem(key, packRng, match)
 		end,
 	}
 
@@ -450,36 +444,33 @@ end
 --------------------------------------------------------------------------------
 
 local function configureLighting()
-	-- Soft late-afternoon light. The tone charter (§2) is binding on the render
-	-- settings too: nothing here should read as harsh or cold.
+	-- Soft, dim, relaxing outdoor lighting.
 	Lighting.ClockTime = 15.5
-	Lighting.Brightness = 2.2
-	Lighting.ExposureCompensation = 0.15
+	Lighting.Brightness = 0.4
+	Lighting.ExposureCompensation = -0.2
 	Lighting.GlobalShadows = true
-	Lighting.Ambient = Color3.fromRGB(132, 126, 120)
-	Lighting.OutdoorAmbient = Color3.fromRGB(154, 150, 146)
-	Lighting.EnvironmentDiffuseScale = 0.6
-	Lighting.EnvironmentSpecularScale = 0.3
+	Lighting.Ambient = Color3.fromRGB(55, 55, 60)
+	Lighting.OutdoorAmbient = Color3.fromRGB(75, 75, 80)
+	Lighting.EnvironmentDiffuseScale = 0.35
+	Lighting.EnvironmentSpecularScale = 0.15
 	-- Pushed well out from the old 2,200: at that distance the far side of an
 	-- area was solid fog, which made a large world read as a small one in bad
 	-- weather rather than as somewhere with a view.
 	Lighting.FogEnd = 6500
 	Lighting.FogStart = 2200
-	Lighting.FogColor = Color3.fromRGB(226, 232, 238)
+	Lighting.FogColor = Color3.fromRGB(180, 188, 196)
 
 	local existingAtmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
 	if existingAtmosphere then
 		existingAtmosphere:Destroy()
 	end
 	local atmosphere = Instance.new("Atmosphere")
-	-- Thinner than before for the same reason as the fog: haze at this scale
-	-- reads as distance, and too much of it reads as a wall.
-	atmosphere.Density = 0.28
+	atmosphere.Density = 0.22
 	atmosphere.Offset = 0.2
-	atmosphere.Haze = 1.2
-	atmosphere.Glare = 0.2
-	atmosphere.Color = Color3.fromRGB(232, 236, 240)
-	atmosphere.Decay = Color3.fromRGB(180, 196, 210)
+	atmosphere.Haze = 0.8
+	atmosphere.Glare = 0.05
+	atmosphere.Color = Color3.fromRGB(190, 198, 204)
+	atmosphere.Decay = Color3.fromRGB(140, 155, 170)
 	atmosphere.Parent = Lighting
 
 	local existingSky = Lighting:FindFirstChildOfClass("Sky")
@@ -490,24 +481,28 @@ local function configureLighting()
 	sky.SunAngularSize = 14
 	sky.Parent = Lighting
 
-	if not Lighting:FindFirstChild("SoftBloom") then
-		local bloom = Instance.new("BloomEffect")
-		bloom.Name = "SoftBloom"
-		bloom.Intensity = 0.5
-		bloom.Size = 32
-		bloom.Threshold = 1.6
-		bloom.Parent = Lighting
+	local existingBloom = Lighting:FindFirstChild("SoftBloom") :: BloomEffect?
+	if existingBloom then
+		existingBloom:Destroy()
 	end
+	local bloom = Instance.new("BloomEffect")
+	bloom.Name = "SoftBloom"
+	bloom.Intensity = 0.05
+	bloom.Size = 16
+	bloom.Threshold = 2.2
+	bloom.Parent = Lighting
 
-	if not Lighting:FindFirstChild("WarmGrade") then
-		local grade = Instance.new("ColorCorrectionEffect")
-		grade.Name = "WarmGrade"
-		grade.Brightness = 0.02
-		grade.Contrast = 0.06
-		grade.Saturation = 0.12
-		grade.TintColor = Color3.fromRGB(255, 250, 244)
-		grade.Parent = Lighting
+	local existingGrade = Lighting:FindFirstChild("WarmGrade") :: ColorCorrectionEffect?
+	if existingGrade then
+		existingGrade:Destroy()
 	end
+	local grade = Instance.new("ColorCorrectionEffect")
+	grade.Name = "WarmGrade"
+	grade.Brightness = -0.02
+	grade.Contrast = 0.02
+	grade.Saturation = 0.0
+	grade.TintColor = Color3.fromRGB(245, 242, 238)
+	grade.Parent = Lighting
 end
 
 --------------------------------------------------------------------------------

@@ -24,26 +24,7 @@ return Area.define({
 		local helpers = ctx.helpers
 		local half = ctx.area.terrain.islandSize / 2
 
-		-- The ramen shop: a low building with a warm awning
-		helpers.block(ctx, {
-			name = "RamenShop",
-			size = Vector3.new(52, 20, 36),
-			x = -half * 0.48,
-			z = half * 0.5,
-			y = 10,
-			color = Color3.fromRGB(232, 222, 202),
-			material = Enum.Material.WoodPlanks,
-		})
-		helpers.block(ctx, {
-			name = "RamenAwning",
-			size = Vector3.new(60, 1.4, 16),
-			x = -half * 0.48,
-			z = half * 0.5 - 24,
-			y = 17,
-			color = Color3.fromRGB(226, 122, 108),
-			material = Enum.Material.Fabric,
-			collide = false,
-		})
+		-- The ramen shop
 		helpers.signpost(ctx, {
 			title = "Ramen",
 			subtitle = "hot bowls",
@@ -52,24 +33,6 @@ return Area.define({
 		})
 
 		-- The Exam Hall
-		helpers.block(ctx, {
-			name = "ExamHall",
-			size = Vector3.new(62, 26, 44),
-			x = half * 0.48,
-			z = half * 0.52,
-			y = 13,
-			color = Color3.fromRGB(224, 216, 226),
-			material = Enum.Material.Brick,
-		})
-		helpers.block(ctx, {
-			name = "ExamHallSteps",
-			size = Vector3.new(50, 2, 10),
-			x = half * 0.48,
-			z = half * 0.52 - 27,
-			y = 1,
-			color = Color3.fromRGB(206, 198, 208),
-			material = Enum.Material.Concrete,
-		})
 		helpers.signpost(ctx, {
 			title = "Exam Hall",
 			subtitle = "grades 5 to 1",
@@ -126,6 +89,14 @@ return Area.define({
 		helpers.scatter(ctx, 70, function(x, z)
 			helpers.tree(ctx, x, z, ctx.rng:NextNumber(9, 17), ctx.rng:NextNumber(10, 15))
 		end)
+		-- Grass and flowers from the nature pack; bushes if it did not load.
+		helpers.scatter(ctx, 48, function(x, z)
+			local kind = if ctx.rng:NextNumber() > 0.45 then "grass" else "flower"
+			if not helpers.natureProp(ctx, x, z, kind) then
+				helpers.bush(ctx, x, z, ctx.rng:NextNumber(3, 6))
+			end
+		end)
+
 		helpers.scatter(ctx, 40, function(x, z)
 			helpers.stone(ctx, x, z, ctx.rng:NextNumber(3, 7))
 		end)

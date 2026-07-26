@@ -138,7 +138,9 @@ SafeZone.garden = {
 	fenceInset = 6, -- from the edge of the safe volume
 	fenceHeight = 5,
 	postSpacing = 9,
-	plantCount = 14,
+	-- Raised from 14 now that plants come out of the nature pack and vary:
+	-- fourteen identical foliage balls looked sparse AND repetitive at once.
+	plantCount = 26,
 }
 
 function SafeZone.totalHeight(): number

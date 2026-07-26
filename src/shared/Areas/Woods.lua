@@ -69,10 +69,43 @@ return Area.define({
 			helpers.tree(ctx, x, z, ctx.rng:NextNumber(14, 24), ctx.rng:NextNumber(12, 18))
 		end)
 
-		-- Mushrooms: a stalk with a cap, the area's signature prop.
+		--[[
+			Ground cover from the nature pack — grass and flowers, since
+			`helpers.bush` already claims the bushes out of it. Falls back to a
+			procedural bush when the pack did not load, so this degrades to
+			plain undergrowth rather than to bare ground.
+		]]
+		helpers.scatter(ctx, 70, function(x, z)
+			local kind = if ctx.rng:NextNumber() > 0.35 then "grass" else "flower"
+			if not helpers.natureProp(ctx, x, z, kind) then
+				helpers.bush(ctx, x, z, ctx.rng:NextNumber(4, 8))
+			end
+		end)
+
+		--[[
+			Mushrooms: the area's signature prop. The nature pack ships Mushroom
+			1 and 2, but they are tiny (about 1 stud), so they are scaled up to
+			the same 2-5 stud range the procedural pair used — otherwise the
+			signature prop of the Woods would be invisible from standing height.
+		]]
 		helpers.scatter(ctx, 46, function(x, z)
 			local height = ctx.rng:NextNumber(2, 5)
 			local capSize = ctx.rng:NextNumber(3, 7)
+
+			local packed = helpers.natureProp(ctx, x, z, "mushroom")
+			if packed then
+				local natural = packed:GetExtentsSize().Y
+				if natural > 0.01 then
+					packed:ScaleTo(packed:GetScale() * ((height + capSize * 0.5) / natural))
+					local size = packed:GetExtentsSize()
+					packed:PivotTo(
+						CFrame.new(ctx.origin + Vector3.new(x, -2 + size.Y / 2, z))
+							* CFrame.Angles(0, ctx.rng:NextNumber() * math.pi * 2, 0)
+					)
+				end
+				return
+			end
+
 			helpers.block(ctx, {
 				name = "MushroomStalk",
 				shape = Enum.PartType.Cylinder,

@@ -174,7 +174,8 @@ area three services later. `decorate` runs inside a `pcall` — one broken area 
 whole world down.
 
 **`ctx` gives you:** `origin`, `parent`, a per-area seeded `rng` (so every server looks identical),
-`helpers` (`block`, `tree`, `stone`, `hut`, `signpost`, `scatter`, `cluster`, `ring`),
+`helpers` (`block`, `tree`, `bush`, `log`, `stone`, `natureProp`, `hut`, `signpost`, `scatter`,
+`cluster`, `ring`),
 `isReserved(x, z)`, and **`UI`** — the shared component library, so area signage is built from the
 same components as the HUD:
 

@@ -49,7 +49,8 @@ export type DecorateContext = {
 		never has to care whether an upload arrived.
 	]]
 	model: ((key: string) -> Model?)?,
-	packItem: ((key: string) -> Model?)?,
+	-- `match` selects by name within the pack: "tree", "bush", "grass".
+	packItem: ((key: string, match: string?) -> Model?)?,
 }
 
 --[[
@@ -143,7 +144,14 @@ end
 	imported models.
 ]]
 function Area.helpers.tree(ctx: DecorateContext, x: number, z: number, height: number, canopySize: number)
+	--[[
+		Two sources before the procedural version: a dedicated `tree` asset if
+		one is ever configured, then a tree out of the nature pack (which is
+		titled "Trees Bush Grass Flower", so asking it for a tree by name is
+		reasonable). Only if both come back empty do we build one from parts.
+	]]
 	local asset = placeAsset(ctx, "tree", x, z, { rotation = ctx.rng:NextNumber() * math.pi * 2 })
+		or Area.helpers.natureProp(ctx, x, z, "tree")
 	if asset then
 		local natural = asset:GetExtentsSize().Y
 		if natural > 0.01 then
@@ -158,32 +166,91 @@ function Area.helpers.tree(ctx: DecorateContext, x: number, z: number, height: n
 		return asset
 	end
 
+	--[[
+		The procedural tree, and worth some care: the uploaded tree models in
+		docs/ASSETS.md are private to another account and cannot be fetched, so
+		this is not a placeholder anybody will see instead of the real thing —
+		it IS the tree, in every area, forever.
+
+		One cylinder plus one ball reads as a lollipop and, worse, every tree in
+		a forest was identical. Three overlapping canopy blobs at jittered
+		offsets with per-tree colour variation costs three parts more and stops
+		a hillside looking like a repeated stamp.
+
+		All jitter comes from `ctx.rng`, which is seeded per area, so every
+		server still grows the same forest.
+	]]
+	local rng = ctx.rng
+	local lean = if rng then (rng:NextNumber() - 0.5) * 0.14 else 0
+
 	local trunk = Area.helpers.block(ctx, {
 		name = "Trunk",
-		size = Vector3.new(2, height, 2),
-		x = x,
-		z = z,
-		y = height / 2 - 1,
+		shape = Enum.PartType.Cylinder,
+		size = Vector3.new(height, 1.9, 1.9),
 		color = Color3.fromRGB(122, 96, 74),
 		material = Enum.Material.Wood,
+		-- Cylinders are long on X, so stand it up, then lean it slightly.
+		cframe = CFrame.new(ctx.origin + Vector3.new(x, Constants.WORLD.TERRAIN_TOP + height / 2 - 1, z))
+			* CFrame.Angles(lean, 0, math.rad(90) + lean),
 	})
 
+	-- Base flare, so the trunk meets the ground instead of ending at it.
 	Area.helpers.block(ctx, {
-		name = "Canopy",
-		shape = Enum.PartType.Ball,
-		size = Vector3.new(canopySize, canopySize, canopySize),
-		x = x,
-		z = z,
-		y = height - 1 + canopySize / 3,
-		material = Enum.Material.Grass,
+		name = "TrunkBase",
+		shape = Enum.PartType.Cylinder,
+		size = Vector3.new(2.4, 2.9, 2.9),
+		color = Color3.fromRGB(104, 80, 60),
+		material = Enum.Material.Wood,
+		cframe = CFrame.new(ctx.origin + Vector3.new(x, Constants.WORLD.TERRAIN_TOP + 0.2, z))
+			* CFrame.Angles(0, 0, math.rad(90)),
 		collide = false,
 	})
+
+	--[[
+		Three blobs: a big one on the crown and two smaller ones pushed out and
+		down, which is enough to break the silhouette. Each is tinted a little
+		differently so the canopy has some internal shape under flat lighting.
+	]]
+	local leaf = Color3.fromRGB(104, 168, 84)
+	local BLOBS = {
+		{ scale = 1.00, dx = 0.00, dz = 0.00, dy = 0.34, tint = 0.00 },
+		{ scale = 0.68, dx = -0.34, dz = 0.20, dy = 0.10, tint = 0.14 },
+		{ scale = 0.60, dx = 0.32, dz = -0.24, dy = 0.16, tint = -0.10 },
+	}
+
+	for index, blob in BLOBS do
+		local jitterX = if rng then (rng:NextNumber() - 0.5) * canopySize * 0.16 else 0
+		local jitterZ = if rng then (rng:NextNumber() - 0.5) * canopySize * 0.16 else 0
+		local size = canopySize * blob.scale
+
+		local shade = if blob.tint >= 0
+			then leaf:Lerp(Color3.fromRGB(150, 208, 118), blob.tint)
+			else leaf:Lerp(Color3.fromRGB(58, 112, 52), -blob.tint)
+
+		Area.helpers.block(ctx, {
+			name = `Canopy_{index}`,
+			shape = Enum.PartType.Ball,
+			size = Vector3.new(size, size * 0.88, size),
+			x = x + canopySize * blob.dx + jitterX,
+			z = z + canopySize * blob.dz + jitterZ,
+			y = height - 1 + canopySize * blob.dy,
+			color = shade,
+			material = Enum.Material.Grass,
+			collide = false,
+		})
+	end
 
 	return trunk
 end
 
 function Area.helpers.stone(ctx: DecorateContext, x: number, z: number, size: number)
+	--[[
+		The nature pack ships Rock 1-5, so stones come out of it before falling
+		back to a grey ball. Five variants beats one shape at five sizes, which
+		is what every scatter of these looked like before.
+	]]
 	local asset = placeAsset(ctx, "stone", x, z, { rotation = ctx.rng:NextNumber() * math.pi * 2 })
+		or Area.helpers.natureProp(ctx, x, z, "rock")
 	if asset then
 		return asset
 	end
@@ -205,6 +272,7 @@ end
 ]]
 function Area.helpers.bush(ctx: DecorateContext, x: number, z: number, size: number)
 	local asset = placeAsset(ctx, "bush", x, z, { rotation = ctx.rng:NextNumber() * math.pi * 2 })
+		or Area.helpers.natureProp(ctx, x, z, "bush")
 	if asset then
 		return asset
 	end
@@ -253,114 +321,68 @@ end
 	is no procedural equivalent of "whatever happens to be in that pack" — so
 	callers use it to add variety on top of decor that already stands alone.
 ]]
-function Area.helpers.natureProp(ctx: DecorateContext, x: number, z: number): Model?
+-- Above this a pack item is not a prop, it is a scene. See below.
+local NATURE_PROP_MAX_HEIGHT = 34
+
+function Area.helpers.natureProp(ctx: DecorateContext, x: number, z: number, match: string?): Model?
 	local get = ctx.packItem
 	if not get then
 		return nil
 	end
 
-	local model = get("naturePack")
+	local model = get("naturePack", match)
 	if not model then
 		return nil
 	end
 
 	local size = model:GetExtentsSize()
+
+	--[[
+		A pack is somebody else's file and may hold anything. If a "prop" comes
+		back taller than a tree, it is far more likely to be a whole assembled
+		scene — or the pack's own baseplate — than a bush, and scattering ninety
+		of those across an area would bury it. Skip rather than guess.
+	]]
+	if size.Y > NATURE_PROP_MAX_HEIGHT or size.Y <= 0.01 then
+		model:Destroy()
+		return nil
+	end
+
+	local spin = if ctx.rng then ctx.rng:NextNumber() * math.pi * 2 else 0
 	model:PivotTo(
 		CFrame.new(ctx.origin + Vector3.new(x, Constants.WORLD.TERRAIN_TOP + size.Y / 2, z))
-			* CFrame.Angles(0, ctx.rng:NextNumber() * math.pi * 2, 0)
+			* CFrame.Angles(0, spin, 0)
 	)
 	model.Parent = ctx.parent
 	return model
 end
 
 --[[
-	A building. The uploaded house model when there is one, otherwise the
-	procedural walls-and-pitched-roof below.
+	A building, and ONLY if there is a model for one.
+
+	--------------------------------------------------------------------------
+	NO PROCEDURAL FALLBACK, DELIBERATELY
+	--------------------------------------------------------------------------
+
+	Every other helper here degrades to parts, because a rough tree still reads
+	as a tree. A building does not: the fallback was a 22x13x18 box of cream
+	WoodPlanks with a pitched slab on top, and seven of them in a row along the
+	south edge of Town read as a wall of brown crates rather than as a lane of
+	houses. Empty ground looks better than that, and the cottage in
+	SafeZoneService already shows what a building here is supposed to look like.
+
+	So this places the uploaded `house` model and otherwise does nothing. The
+	moment a usable id exists in Config/Assets.lua, every hut call site
+	repopulates with no other change. Until then the lanes are open ground.
 
 	The asset keeps collision (Config/Assets marks `house` collide = true) so a
 	building stays a building rather than something to walk through.
 ]]
 function Area.helpers.hut(ctx: DecorateContext, config: { [string]: any })
-	local asset = placeAsset(ctx, "house", config.x or 0, config.z or 0, {
+	placeAsset(ctx, "house", config.x or 0, config.z or 0, {
 		rotation = config.rotation,
 		parent = config.parent,
 	})
-	if asset then
-		return
-	end
-
-	local x, z = config.x or 0, config.z or 0
-	local width = config.width or 22
-	local depth = config.depth or 18
-	local height = config.height or 13
-	local wall = config.color or Color3.fromRGB(236, 226, 208)
-	local roof = config.roofColor or Color3.fromRGB(196, 116, 96)
-
-	Area.helpers.block(ctx, {
-		name = "HutWalls",
-		size = Vector3.new(width, height, depth),
-		x = x,
-		z = z,
-		y = height / 2,
-		color = wall,
-		material = Enum.Material.WoodPlanks,
-	})
-
-	local PITCH = 30
-	local rise = (width / 2) * math.tan(math.rad(PITCH))
-	local slope = (width / 2) / math.cos(math.rad(PITCH))
-
-	for _, side in { -1, 1 } do
-		local slab = Instance.new("Part")
-		slab.Name = "HutRoof"
-		slab.Anchored = true
-		slab.CanCollide = false
-		slab.Size = Vector3.new(slope + 2, 1.2, depth + 4)
-		slab.Color = roof
-		slab.Material = Enum.Material.Slate
-		slab.TopSurface = Enum.SurfaceType.Smooth
-		slab.BottomSurface = Enum.SurfaceType.Smooth
-		slab.CFrame = CFrame.new(
-			ctx.origin + Vector3.new(x + side * (width / 4), Constants.WORLD.TERRAIN_TOP + height + rise / 2, z)
-		) * CFrame.Angles(0, 0, math.rad(-side * PITCH))
-		slab.Parent = ctx.parent
-	end
-
-	Area.helpers.block(ctx, {
-		name = "HutRidge",
-		size = Vector3.new(2.4, 1.6, depth + 5),
-		x = x,
-		z = z,
-		y = height + rise,
-		color = roof,
-		material = Enum.Material.Slate,
-		collide = false,
-	})
-
-	Area.helpers.block(ctx, {
-		name = "HutDoor",
-		size = Vector3.new(5, 8, 0.6),
-		x = x,
-		z = z - depth / 2 - 0.2,
-		y = 4,
-		color = Color3.fromRGB(140, 104, 74),
-		material = Enum.Material.Wood,
-		collide = false,
-	})
-
-	for _, side in { -1, 1 } do
-		Area.helpers.block(ctx, {
-			name = "HutWindow",
-			size = Vector3.new(4, 4, 0.5),
-			x = x + side * width * 0.28,
-			z = z - depth / 2 - 0.2,
-			y = height * 0.68,
-			color = Color3.fromRGB(196, 226, 238),
-			material = Enum.Material.Glass,
-			transparency = 0.25,
-			collide = false,
-		})
-	end
 end
 
 --------------------------------------------------------------------------------
