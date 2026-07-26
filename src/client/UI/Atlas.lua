@@ -145,6 +145,10 @@ local function buildWorldPage(parent: Frame)
 		button.ZIndex = cell.ZIndex + 2
 		button.Parent = cell
 		button.Activated:Connect(function()
+			-- Fetched lazily, not in Atlas.build(): WaitForChild here would
+			-- otherwise hang forever when previewed in Studio Edit mode,
+			-- where no server exists to create the Remotes tree.
+			travelRemote = travelRemote or Remotes.event("Region", "RequestTravel")
 			travelRemote:FireServer(area.id)
 			setOpen(false)
 		end)
@@ -402,7 +406,7 @@ local function refresh()
 	end
 
 	-- Where the player is, on the real map.
-	local character = Players.LocalPlayer.Character
+	local character = Players.LocalPlayer and Players.LocalPlayer.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if root and playerPin then
 		local fraction = Layout.toMapFraction(root.Position)
@@ -463,8 +467,6 @@ function Atlas.isOpen(): boolean
 end
 
 function Atlas.build(parent: Instance)
-	travelRemote = Remotes.event("Region", "RequestTravel")
-
 	scrim, panel, setOpen = UI.modal(parent, "Atlas", {
 		extent = UDim2.fromScale(0.78, 0.8),
 		zIndex = 30,

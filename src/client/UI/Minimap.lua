@@ -224,7 +224,7 @@ end
 --------------------------------------------------------------------------------
 
 local function refresh()
-	local character = Players.LocalPlayer.Character
+	local character = Players.LocalPlayer and Players.LocalPlayer.Character
 	local rootPart = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if not rootPart then
 		return

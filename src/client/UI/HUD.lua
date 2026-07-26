@@ -52,7 +52,10 @@ local COMPACT_WIDTH = 760
 
 local skillEntries: { [string]: SkillBar.SkillEntry } = {}
 
-local screen: ScreenGui
+-- A plain Frame in preview mode: a nested ScreenGui does not render at all
+-- unless it is a direct child of PlayerGui/CoreGui/PluginGui, and a UI Labs
+-- story's target is a Frame several layers under its DockWidgetPluginGui.
+local screen: ScreenGui | Frame
 local identityCard: Frame
 local skillBarHolder: Frame
 local yenSet: (string, number?) -> ()
@@ -63,6 +66,31 @@ local toastHolder: Frame
 
 local activeSkill: string? = nil
 local selectedSkill: string? = nil
+
+--[[
+	Fed to `update()` when HUD.init() is called with a preview container (see
+	UI/HUD.story.lua) instead of waiting on StateController, which never
+	receives a real snapshot without a live server. Numbers are representative
+	rather than meaningful — this is for looking at the layout, not the game.
+]]
+local PREVIEW_SNAPSHOT = {
+	yen = BigNumber.fromNumber(184500),
+	yenPerMinute = BigNumber.fromNumber(1200),
+	stamps = BigNumber.fromNumber(37),
+	seasons = 0,
+	currentWorksite = "tobatsu_1",
+	selectedSkill = "tobatsu",
+	gainPerAction = BigNumber.fromNumber(50),
+	blockedWorksite = nil,
+	regionId = 1,
+	skills = {
+		tobatsu = BigNumber.fromNumber(52000),
+		resilience = BigNumber.fromNumber(18000),
+		kusatori = BigNumber.fromNumber(9000),
+		examprep = BigNumber.fromNumber(3000),
+	},
+	certifications = {},
+}
 
 --------------------------------------------------------------------------------
 -- Identity
@@ -127,11 +155,15 @@ local function buildBust(parent: Frame)
 			CFrame.lookAt(pivot.Position + Vector3.new(0, 0.25, 4.2), pivot.Position + Vector3.new(0, 0.1, 0))
 	end
 
+	-- Players.LocalPlayer is nil when this runs inside a Studio Edit-mode
+	-- preview (no client has joined), so the bust just stays empty there.
 	local player = Players.LocalPlayer
-	if player.Character then
-		task.defer(mount, player.Character)
+	if player then
+		if player.Character then
+			task.defer(mount, player.Character)
+		end
+		player.CharacterAppearanceLoaded:Connect(mount)
 	end
-	player.CharacterAppearanceLoaded:Connect(mount)
 
 	return viewport
 end
@@ -146,7 +178,7 @@ local function buildIdentity(parent: Instance)
 	buildBust(identityCard)
 
 	UI.label(identityCard, "Name", {
-		text = Players.LocalPlayer.DisplayName,
+		text = if Players.LocalPlayer then Players.LocalPlayer.DisplayName else "Preview Player",
 		font = UI.font.bold,
 		size = 14,
 		extent = UDim2.new(1, -62, 0, 17),
@@ -488,15 +520,32 @@ local function applyResponsiveLayout()
 	identityCard.Size = if compact then UDim2.fromOffset(212, 78) else UDim2.fromOffset(268, 116)
 end
 
-function HUD.init()
-	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
-
-	screen = Instance.new("ScreenGui")
-	screen.Name = "HUD"
-	screen.ResetOnSpawn = false
-	screen.IgnoreGuiInset = false
-	screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	screen.Parent = playerGui
+--[[
+	`container` is only passed by a UI Labs story (see UI/HUD.story.lua),
+	which mounts the HUD inside a Studio Edit-mode plugin widget: no
+	LocalPlayer has joined and no server exists to populate Remotes, so
+	everything downstream that depends on either is guarded on it.
+]]
+function HUD.init(container: Instance?)
+	if container then
+		-- See the `screen` declaration above: ScreenGui would not render
+		-- here, so the story target gets a plain full-size Frame instead.
+		local frame = Instance.new("Frame")
+		frame.Name = "HUD"
+		frame.BackgroundTransparency = 1
+		frame.BorderSizePixel = 0
+		frame.Size = UDim2.fromScale(1, 1)
+		frame.Parent = container
+		screen = frame
+	else
+		local gui = Instance.new("ScreenGui")
+		gui.Name = "HUD"
+		gui.ResetOnSpawn = false
+		gui.IgnoreGuiInset = false
+		gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+		screen = gui
+	end
 
 	buildIdentity(screen)
 	buildToasts(screen)
@@ -505,14 +554,27 @@ function HUD.init()
 	Minimap.build(screen)
 	WorkCore.build(screen)
 
-	-- The Atlas gets its own ScreenGui at a higher DisplayOrder: it is a modal
-	-- and must cover the HUD rather than fight it for ZIndex.
-	local atlasScreen = Instance.new("ScreenGui")
-	atlasScreen.Name = "Atlas"
-	atlasScreen.ResetOnSpawn = false
-	atlasScreen.DisplayOrder = 10
-	atlasScreen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	atlasScreen.Parent = playerGui
+	-- The Atlas gets its own top-level container, raised above the HUD: it
+	-- is a modal and must cover the HUD rather than fight it for ZIndex.
+	local atlasScreen: ScreenGui | Frame
+	if container then
+		local frame = Instance.new("Frame")
+		frame.Name = "Atlas"
+		frame.BackgroundTransparency = 1
+		frame.BorderSizePixel = 0
+		frame.Size = UDim2.fromScale(1, 1)
+		frame.ZIndex = 1000 -- HUD and Atlas are Sibling Frames under `container`.
+		frame.Parent = container
+		atlasScreen = frame
+	else
+		local gui = Instance.new("ScreenGui")
+		gui.Name = "Atlas"
+		gui.ResetOnSpawn = false
+		gui.DisplayOrder = 10
+		gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+		atlasScreen = gui
+	end
 	Atlas.build(atlasScreen)
 
 	-- A permanent way in, since not every player will try the M key. The bottom
@@ -530,14 +592,40 @@ function HUD.init()
 	})
 
 	applyResponsiveLayout()
-	screen:GetPropertyChangedSignal("AbsoluteSize"):Connect(applyResponsiveLayout)
-	UserInputService.LastInputTypeChanged:Connect(applyResponsiveLayout)
+	local sizeConnection = screen:GetPropertyChangedSignal("AbsoluteSize"):Connect(applyResponsiveLayout)
+	local inputConnection = UserInputService.LastInputTypeChanged:Connect(applyResponsiveLayout)
 
-	StateController.onChanged(update)
+	local unsubscribeState = StateController.onChanged(update)
+
+	if container then
+		-- No live server in preview: seed every panel with representative
+		-- numbers instead of sitting at "0" waiting for a snapshot that will
+		-- never arrive.
+		local ok, err = pcall(update, PREVIEW_SNAPSHOT)
+		if not ok then
+			warn(`[HUD] preview snapshot failed: {err}`)
+		end
+
+		--[[
+			UI Labs re-mounts this on every hot-reload. `screen:Destroy()`
+			alone would not be enough: sizeConnection/inputConnection are on
+			UserInputService and StateController's listener list, not on
+			`screen`, so Destroy() leaves them dangling and they pile up
+			across reloads.
+		]]
+		return function()
+			sizeConnection:Disconnect()
+			inputConnection:Disconnect()
+			unsubscribeState()
+			screen:Destroy()
+			atlasScreen:Destroy()
+		end
+	end
 
 	-- Work.Feedback is NOT wired here any more — FeedbackController owns the
 	-- "+N" and everything else that happens when a click lands.
 	Remotes.event("Notify", "Message").OnClientEvent:Connect(showToast)
+	return nil
 end
 
 return HUD
