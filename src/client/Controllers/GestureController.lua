@@ -173,7 +173,7 @@ local function bindRig(character: Model, assign: (Rig) -> ())
 	end
 
 	local watcher = character.DescendantAdded:Connect(function(descendant)
-		if descendant:IsA("Motor6D") then
+		if Skeleton.isJoint(descendant) or descendant:IsA("Attachment") then
 			attempt()
 		end
 	end)
@@ -207,20 +207,23 @@ local function bindRig(character: Model, assign: (Rig) -> ())
 			shape this code does not expect rather than a timing miss -- the
 			watcher above is still live, so a late rig will still bind.
 		]]
-		local motors, bones = {}, {}
+		local found, bones = {}, {}
 		for _, descendant in character:GetDescendants() do
 			if descendant:IsA("Motor6D") then
-				table.insert(motors, descendant.Name)
-			elseif descendant:IsA("Bone") or descendant:IsA("AnimationConstraint") then
-				table.insert(bones, `{descendant.ClassName}:{descendant.Name}`)
+				table.insert(found, `Motor6D:{descendant.Name}`)
+			elseif descendant:IsA("AnimationConstraint") then
+				local wired = if descendant.Attachment0 and descendant.Attachment1 then "" else " (unwired)"
+				table.insert(found, `AnimationConstraint:{descendant.Name}{wired}`)
+			elseif descendant:IsA("Bone") then
+				table.insert(bones, descendant.Name)
 			end
 		end
 
 		warn(
 			`[GestureController] no drivable joints in {character.Name} after {BIND_TIMEOUT}s. `
 				.. `RigType={Skeleton.rigKind(character)}. `
-				.. `Motor6Ds: {if #motors > 0 then table.concat(motors, ", ") else "none"}. `
-				.. `Bones/constraints: {if #bones > 0 then table.concat(bones, ", ") else "none"}. `
+				.. `Joints: {if #found > 0 then table.concat(found, ", ") else "none"}. `
+				.. `Bones: {if #bones > 0 then table.concat(bones, ", ") else "none"}. `
 				.. `Still watching for joints to appear.`
 		)
 	end)

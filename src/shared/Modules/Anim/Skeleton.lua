@@ -1,6 +1,8 @@
 local Skeleton = {}
 
-export type Joints = { [string]: Motor6D }
+export type Joint = Motor6D | AnimationConstraint
+
+export type Joints = { [string]: Joint }
 
 export type AttachRule = { pattern: string, to: string }
 
@@ -91,6 +93,37 @@ Skeleton.PLAYER_PROFILES = {
 	},
 } :: { [string]: { [string]: string } }
 
+Skeleton.JOINT_ALIASES = {
+	RootJoint = { "Root" },
+} :: { [string]: { string } }
+
+function Skeleton.isJoint(instance: Instance): boolean
+	return instance:IsA("Motor6D") or instance:IsA("AnimationConstraint")
+end
+
+local function attachmentPart(attachment: Attachment?): BasePart?
+	local parent = attachment and attachment.Parent
+	if parent and parent:IsA("BasePart") then
+		return parent
+	end
+	return nil
+end
+
+function Skeleton.jointParts(joint: Joint): (BasePart?, BasePart?)
+	if joint:IsA("Motor6D") then
+		return joint.Part0, joint.Part1
+	end
+	return attachmentPart(joint.Attachment0), attachmentPart(joint.Attachment1)
+end
+
+function Skeleton.jointOffsets(joint: Joint): (CFrame, CFrame)
+	if joint:IsA("Motor6D") then
+		return joint.C0, joint.C1
+	end
+	local a0, a1 = joint.Attachment0, joint.Attachment1
+	return (if a0 then a0.CFrame else CFrame.identity), (if a1 then a1.CFrame else CFrame.identity)
+end
+
 function Skeleton.rigKind(character: Model): string
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid and humanoid.RigType == Enum.HumanoidRigType.R6 then
@@ -103,19 +136,32 @@ function Skeleton.resolveCharacter(character: Model): (Joints?, string)
 	local kind = Skeleton.rigKind(character)
 	local names = Skeleton.PLAYER_PROFILES[kind]
 
-	local motors: { [string]: Motor6D } = {}
+	local available: { [string]: Joint } = {}
 	for _, descendant in character:GetDescendants() do
 		if descendant:IsA("Motor6D") then
-			motors[descendant.Name] = descendant
+			available[descendant.Name] = descendant
+		elseif descendant:IsA("AnimationConstraint") and descendant.Attachment0 and descendant.Attachment1 then
+			local existing = available[descendant.Name]
+			if not (existing and existing:IsA("Motor6D")) then
+				available[descendant.Name] = descendant
+			end
 		end
 	end
 
 	local joints: Joints = {}
 	local found = false
 	for canonical, actual in names do
-		local motor = motors[actual]
-		if motor then
-			joints[canonical] = motor
+		local joint = available[actual]
+		if not joint then
+			for _, alias in Skeleton.JOINT_ALIASES[actual] or {} do
+				joint = available[alias]
+				if joint then
+					break
+				end
+			end
+		end
+		if joint then
+			joints[canonical] = joint
 			found = true
 		end
 	end
@@ -135,10 +181,13 @@ end
 	R15 shoulder and a hand-built Motor6D without per-rig sign tables.
 ]]
 function Skeleton.basisFor(model: Instance, joints: Joints, root: BasePart): ({ [string]: CFrame }, { [string]: CFrame })
-	local motorsByChild: { [BasePart]: Motor6D } = {}
+	local jointsByChild: { [BasePart]: Joint } = {}
 	for _, descendant in model:GetDescendants() do
-		if descendant:IsA("Motor6D") and descendant.Part1 then
-			motorsByChild[descendant.Part1] = descendant
+		if Skeleton.isJoint(descendant) then
+			local _, part1 = Skeleton.jointParts(descendant :: Joint)
+			if part1 then
+				jointsByChild[part1] = descendant :: Joint
+			end
 		end
 	end
 
@@ -147,12 +196,17 @@ function Skeleton.basisFor(model: Instance, joints: Joints, root: BasePart): ({ 
 		local current: BasePart? = part
 		local guard = 0
 		while current and current ~= root and guard < 12 do
-			local motor = motorsByChild[current]
-			if not motor or not motor.Part0 then
+			local joint = jointsByChild[current]
+			if not joint then
 				break
 			end
-			cframe = (motor.C0 * motor.C1:Inverse()) * cframe
-			current = motor.Part0
+			local part0 = Skeleton.jointParts(joint)
+			if not part0 then
+				break
+			end
+			local c0, c1 = Skeleton.jointOffsets(joint)
+			cframe = (c0 * c1:Inverse()) * cframe
+			current = part0
 			guard += 1
 		end
 		return cframe
@@ -161,12 +215,12 @@ function Skeleton.basisFor(model: Instance, joints: Joints, root: BasePart): ({ 
 	local basis: { [string]: CFrame } = {}
 	local inverse: { [string]: CFrame } = {}
 
-	for name, motor in joints do
-		local part0 = motor.Part0
+	for name, joint in joints do
+		local part0 = Skeleton.jointParts(joint)
 		if part0 then
 			local parentRest = restToRoot(part0)
 			local parentRotation = parentRest - parentRest.Position
-			local c0 = motor.C0
+			local c0 = Skeleton.jointOffsets(joint)
 			local value = parentRotation * (c0 - c0.Position)
 			basis[name] = value
 			inverse[name] = value:Inverse()
