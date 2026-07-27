@@ -23,14 +23,18 @@
 	HOW THIS COOPERATES WITH THE DEFAULT ANIMATE SCRIPT
 	--------------------------------------------------------------------------
 
-	The Animator writes `Motor6D.Transform` every frame during the internal
-	animation step. So does this. The trick is ordering and blending, not
-	ownership:
+	The Animator writes joint `Transform` every frame. So does this. The trick is
+	ordering and blending, not ownership:
 
-	  * We run on BindToRenderStep at Character + 1, which is AFTER the animation
-	    step has written its pose for the frame.
-	  * We then read what the Animator just wrote and LERP from it toward the
-	    gesture pose by a weight that ramps 0 -> 1 -> 0.
+	  * Motor6D rigs are written on BindToRenderStep at Character + 1, which is
+	    after the legacy animation step has posed the frame.
+	  * AnimationConstraint rigs (the Avatar Joint Upgrade default for R15
+	    players) are written on PreSimulation instead. Their Transforms are
+	    collected in a batch job that runs after PreSimulation and before physics,
+	    and the Animator refills them between PreAnimation and PreSimulation --
+	    so a render-step write on those rigs is discarded before it is ever read.
+	  * Either way we read what the Animator just wrote and LERP from it toward
+	    the gesture pose by a weight that ramps 0 -> 1 -> 0.
 
 	At weight 0 the arm is exactly the walk cycle; at weight 1 it is exactly the
 	gesture; in between it is a real blend. When a gesture ends we stop writing
@@ -97,11 +101,18 @@ local BLEND_OUT = 0.13
 -- live past this, so it is a reporting deadline and not a give-up.
 local BIND_TIMEOUT = 15
 
--- Book prop timing, as fractions of the examprep gesture. The flip window is
--- the one Config/PlayerAnims keys for the left hand's page sweep.
-local BOOK_OPEN_START, BOOK_OPEN_END = 0.10, 0.30
-local BOOK_CLOSE_START, BOOK_CLOSE_END = 0.86, 1.00
-local BOOK_FLIP_START, BOOK_FLIP_END = 0.52, 0.68
+--[[
+	Book prop timing, in seconds and independent of the gesture clock.
+
+	The book used to open and shut once per click, which at click speed is a
+	trapdoor rather than a book. It now opens when studying starts, STAYS open for
+	as long as clicks keep arriving, turns one page per click, and only closes
+	once the player has stopped.
+]]
+local BOOK_OPEN_TIME = 0.28
+local BOOK_CLOSE_TIME = 0.4
+local BOOK_HOLD = 1.1
+local BOOK_FLIP_TIME = 0.22
 
 local SASUMATA_SKILLS = { tobatsu = true, subjugation = true, strength = true }
 local BOOK_SKILLS = { examprep = true, special = true, craft = true }
@@ -110,12 +121,21 @@ type Rig = {
 	joints: Skeleton.Joints,
 	basis: { [string]: CFrame },
 	inverse: { [string]: CFrame },
+	animator: Animator?,
 }
 
 type Playing = {
 	skillId: string,
 	startedAt: number,
-	releasingAt: number?,
+	duration: number,
+}
+
+type BookState = {
+	open: number,
+	flipFrom: number,
+	flipTo: number,
+	flipAt: number,
+	touchedAt: number,
 }
 
 local localRig: Rig? = nil
@@ -124,6 +144,27 @@ local playing: Playing? = nil
 
 local remoteRigs: { [Model]: Rig } = {}
 local remotePhase: { [Model]: number } = {}
+
+local books: { [Model]: BookState } = {}
+
+local function bookState(character: Model): BookState
+	local state = books[character]
+	if not state then
+		state = { open = 0, flipFrom = 0, flipTo = 0, flipAt = -math.huge, touchedAt = -math.huge }
+		books[character] = state
+	end
+	return state
+end
+
+local function turnPage(character: Model, now: number)
+	local state = bookState(character)
+	state.touchedAt = now
+	if now - state.flipAt >= BOOK_FLIP_TIME then
+		state.flipFrom = state.flipTo
+		state.flipTo = 1 - state.flipTo
+		state.flipAt = now
+	end
+end
 
 --------------------------------------------------------------------------------
 -- Joints
@@ -143,8 +184,11 @@ local function buildRig(character: Model): Rig?
 		return nil
 	end
 
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+
 	local basis, inverse = Skeleton.basisFor(character, joints, root)
-	return { joints = joints, basis = basis, inverse = inverse }
+	return { joints = joints, basis = basis, inverse = inverse, animator = animator }
 end
 
 --[[
@@ -243,15 +287,24 @@ local scratch: Clip.Pose = {}
 --[[
 	Blend a clip pose onto whatever the Animator wrote this frame.
 
-	`motor.Transform` is read, not assumed: at this point in the frame it holds
+	`joint.Transform` is read, not assumed: at this point in the frame it holds
 	the locomotion pose, so lerping from it is what makes weight mean "how much
 	of this is the gesture". At weight 0 the joint is exactly the walk cycle.
 
 	Rotations are authored in the character's own root frame and mapped onto the
 	rig's real joint axes by `inverse * pose * basis`, so one clip drives R6 and
 	R15 without the per-rig sign flips this used to need.
+
+	`constraints` selects which half of a rig this pass owns. AnimationConstraints
+	are only read pre-physics and Motor6Ds are only read post-animation-step, so
+	the two are written from different events and each pass skips the other's
+	joints rather than writing a value that will be thrown away.
 ]]
-local function applyRig(rig: Rig, definition: any, t: number, weight: number)
+local function applyRig(rig: Rig, definition: any, t: number, weight: number, constraints: boolean)
+	if rig.animator and rig.animator.EvaluationThrottled then
+		return
+	end
+
 	table.clear(scratch)
 	Clip.pose(definition, t, scratch)
 
@@ -259,7 +312,7 @@ local function applyRig(rig: Rig, definition: any, t: number, weight: number)
 
 	for name, target in scratch do
 		local motor = rig.joints[name]
-		if motor and motor.Parent then
+		if motor and motor.Parent and motor:IsA("AnimationConstraint") == constraints then
 			local jointWeight = weight
 			if mask then
 				jointWeight *= mask[name] or 1
@@ -470,7 +523,7 @@ local function bookWeld(book: Instance, partName: string): Weld?
 	return part and part:FindFirstChild("BookWeld") :: Weld? or nil
 end
 
-local function animateBook(character: Model, openAmount: number, t: number)
+local function animateBook(character: Model, openAmount: number, flipAmount: number)
 	local book = character:FindFirstChild("EquippedOpenBook")
 	if not book then
 		return
@@ -502,30 +555,38 @@ local function animateBook(character: Model, openAmount: number, t: number)
 	leftPage.C0 = leftCover * CFrame.new(-0.025 * scale, -0.04 * scale, 0)
 
 	if middlePage then
-		local flip = 0
-		if t >= BOOK_FLIP_START then
-			if t <= BOOK_FLIP_END then
-				flip = smoothstep((t - BOOK_FLIP_START) / (BOOK_FLIP_END - BOOK_FLIP_START))
-			else
-				flip = 1
-			end
-		end
-		local midAngle = rightAngle + (leftAngle - rightAngle) * flip
+		local midAngle = rightAngle + (leftAngle - rightAngle) * math.clamp(flipAmount, 0, 1)
 		middlePage.C0 = hinge * CFrame.Angles(0, 0, midAngle) * CFrame.new(0.5 * scale, 0.03 * scale, 0)
 	end
 end
 
-local function bookOpenAmount(t: number): number
-	if t < BOOK_OPEN_START then
-		return 0
-	elseif t < BOOK_OPEN_END then
-		return (t - BOOK_OPEN_START) / (BOOK_OPEN_END - BOOK_OPEN_START)
-	elseif t < BOOK_CLOSE_START then
-		return 1
-	elseif t < BOOK_CLOSE_END then
-		return 1 - (t - BOOK_CLOSE_START) / (BOOK_CLOSE_END - BOOK_CLOSE_START)
+--[[
+	Advance the book toward open-while-studying and run whichever page turn is in
+	flight, then draw it. Returns nothing; the state lives in `books` so a book
+	that has been left alone still closes on its own.
+]]
+local function stepBook(character: Model, dt: number, wanted: boolean)
+	if not character:FindFirstChild("EquippedOpenBook") then
+		return
 	end
-	return 0
+
+	local state = bookState(character)
+	local now = os.clock()
+	if wanted then
+		state.touchedAt = now
+	end
+
+	local target = if now - state.touchedAt < BOOK_HOLD then 1 else 0
+	local rate = if target > state.open then dt / BOOK_OPEN_TIME else dt / BOOK_CLOSE_TIME
+	state.open += math.clamp(target - state.open, -rate, rate)
+
+	local flip = state.flipTo
+	local since = now - state.flipAt
+	if since < BOOK_FLIP_TIME then
+		flip = state.flipFrom + (state.flipTo - state.flipFrom) * smoothstep(since / BOOK_FLIP_TIME)
+	end
+
+	animateBook(character, state.open, flip)
 end
 
 --[[
@@ -603,7 +664,16 @@ end
 -- Local player
 --------------------------------------------------------------------------------
 
-function GestureController.play(skillId: string?)
+--[[
+	`duration` is the window WorkController locks input for, and the clip is
+	fitted to it rather than played at its authored length.
+
+	The two used to disagree, and the clip always lost: kusatori's authored rip
+	lands at 0.65s but input unlocks at 0.42s, so a player clicking at the rate
+	the game allows restarted the clip before its one distinctive frame and only
+	ever saw the crouch. Every gesture now reaches its payoff between two clicks.
+]]
+function GestureController.play(skillId: string?, duration: number?)
 	if not skillId then
 		return
 	end
@@ -617,21 +687,32 @@ function GestureController.play(skillId: string?)
 	local character = Players.LocalPlayer.Character
 	if character then
 		attachSkillProp(character, skillId)
+		if BOOK_SKILLS[skillId] then
+			turnPage(character, os.clock())
+		end
 	end
 
 	-- Restarting mid-gesture is fine: BLEND_IN ramps from whatever is on screen,
 	-- so there is no snap back to the first keyframe.
-	playing = { skillId = skillId, startedAt = os.clock() }
+	playing = {
+		skillId = skillId,
+		startedAt = os.clock(),
+		duration = math.max(duration or definition.length, 0.1),
+	}
 end
 
-local function stepLocal()
-	local rig = localRig
+local function stepLocalProps(dt: number)
 	local character = localCharacter
-	if not rig or not character then
+	if not character then
 		return
 	end
 
-	if not playing then
+	stepBook(character, dt, playing ~= nil and BOOK_SKILLS[playing.skillId] == true)
+end
+
+local function stepLocal(constraints: boolean)
+	local rig = localRig
+	if not rig or not playing then
 		return
 	end
 
@@ -641,7 +722,7 @@ local function stepLocal()
 		return
 	end
 
-	local duration = definition.length
+	local duration = playing.duration
 	local elapsed = os.clock() - playing.startedAt
 	local t = math.clamp(elapsed / duration, 0, 1)
 
@@ -659,22 +740,47 @@ local function stepLocal()
 		weight = smoothstep(1 - releasing / BLEND_OUT)
 	end
 
-	if BOOK_SKILLS[playing.skillId] then
-		animateBook(character, bookOpenAmount(t), t)
-	end
-
-	applyRig(rig, definition, t, weight)
+	applyRig(rig, definition, t, weight, constraints)
 end
 
 --------------------------------------------------------------------------------
 -- Other players
 --------------------------------------------------------------------------------
 
-local function stepRemote()
+local function stepRemoteProps(dt: number)
+	for character in remoteRigs do
+		if not character.Parent then
+			continue
+		end
+
+		local skillId = character:GetAttribute(WORKING_ATTRIBUTE)
+		local studying = type(skillId) == "string" and BOOK_SKILLS[skillId] == true
+
+		if type(skillId) == "string" then
+			attachSkillProp(character, skillId)
+		end
+
+		if studying then
+			local phase = remotePhase[character] or 0
+			local definition = PlayerAnims.get(skillId :: string)
+			local length = if definition then definition.length else 1
+			local turns = math.floor((os.clock() + phase) / length)
+			local state = bookState(character)
+			if state.flipTo ~= turns % 2 then
+				turnPage(character, os.clock())
+			end
+		end
+
+		stepBook(character, dt, studying)
+	end
+end
+
+local function stepRemote(constraints: boolean)
 	for character, rig in remoteRigs do
 		if not character.Parent then
 			remoteRigs[character] = nil
 			remotePhase[character] = nil
+			books[character] = nil
 			continue
 		end
 
@@ -688,16 +794,10 @@ local function stepRemote()
 			continue
 		end
 
-		attachSkillProp(character, skillId)
-
 		local phase = remotePhase[character] or 0
 		local t = ((os.clock() + phase) % definition.length) / definition.length
 
-		if BOOK_SKILLS[skillId] then
-			animateBook(character, bookOpenAmount(t), t)
-		end
-
-		applyRig(rig, definition, t, 1)
+		applyRig(rig, definition, t, 1, constraints)
 	end
 end
 
@@ -709,6 +809,9 @@ function GestureController.init()
 	local localPlayer = Players.LocalPlayer
 
 	local function bindLocal(character: Model)
+		if localCharacter then
+			books[localCharacter] = nil
+		end
 		localCharacter = character
 		localRig = nil
 		playing = nil
@@ -722,8 +825,8 @@ function GestureController.init()
 	end
 	localPlayer.CharacterAdded:Connect(bindLocal)
 
-	WorkController.onClick(function(skillId)
-		GestureController.play(skillId or WorkController.getTrainingSkill() or "tobatsu")
+	WorkController.onStart(function(skillId, duration)
+		GestureController.play(skillId or WorkController.getTrainingSkill() or "tobatsu", duration)
 	end)
 
 	local function watch(player: Player)
@@ -748,17 +851,31 @@ function GestureController.init()
 	Players.PlayerAdded:Connect(watch)
 
 	--[[
-		Character + 1, not RenderStepped.
+		Two events, because the two joint types are read at different points.
 
-		RenderStepped fires before the animation step, so anything written there
-		is overwritten by the Animator in the same frame -- which is why the old
-		version had to silence the Animator to be seen at all. One priority above
-		Character puts us after it, where reading Transform gives the pose to
-		blend against.
+		AnimationConstraints -- what an R15 player rig is made of since the Avatar
+		Joint Upgrade -- are gathered in a batch job that runs after PreSimulation
+		and before physics, and the Animator refills their Transform earlier in
+		the same frame. Writing them from the render step, as this used to, put
+		the pose somewhere nothing would ever read it: the gestures were running
+		correctly and were simply never applied, which is why only the held props
+		appeared to animate.
+
+		Motor6D rigs (R6 players, and any rig on a place with the upgrade turned
+		off) still take their pose from the legacy animation step during render,
+		so those joints keep the Character + 1 binding. Props are welds and are
+		stepped once, on the earlier of the two.
 	]]
+	RunService.PreSimulation:Connect(function(dt)
+		stepLocal(true)
+		stepRemote(true)
+		stepLocalProps(dt)
+		stepRemoteProps(dt)
+	end)
+
 	RunService:BindToRenderStep("Gesture", Enum.RenderPriority.Character.Value + 1, function()
-		stepLocal()
-		stepRemote()
+		stepLocal(false)
+		stepRemote(false)
 	end)
 end
 
