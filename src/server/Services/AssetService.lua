@@ -52,6 +52,32 @@ local failed: { [string]: string } = {}
 local library: Folder
 
 --[[
+	Things a decor model is never allowed to bring with it.
+
+	  LuaSourceContainer  Free models are a well known way to import somebody
+	                      else's code. LuaSourceContainer, not BaseScript:
+	                      BaseScript covers Script and LocalScript but NOT
+	                      ModuleScript, and the require-backdoors found in this
+	                      project's own models kept their payload id on a
+	                      ModuleScript. A module cannot start itself, so one left
+	                      behind is inert -- but only for as long as nothing
+	                      requires it, which is a property of the OTHER instances
+	                      present rather than of the module. Take both and the
+	                      question does not arise.
+	  Sound               The shop fronts ship eight between them. Ambient audio
+	                      nobody asked for, over the top of SoundController.
+	  Camera              Every Studio export carries a ThumbnailCamera.
+	  PostEffect          One of these arrived with a SunRaysEffect attached. A
+	                      prop has no business grading the whole screen.
+]]
+local function isContraband(descendant: Instance): boolean
+	return descendant:IsA("LuaSourceContainer")
+		or descendant:IsA("Sound")
+		or descendant:IsA("Camera")
+		or descendant:IsA("PostEffect")
+end
+
+--[[
 	Make an uploaded model safe to scatter.
 
 	Anchoring is the load-bearing one. The world is built at a fixed terrain
@@ -59,24 +85,34 @@ local library: Folder
 	falls forever and takes its welded neighbours with it.
 ]]
 local function prepare(model: Model, spec: Assets.AssetSpec)
+	--[[
+		Unwrap Tools first.
+
+		The ramen bowl is published as a Tool, and a Tool dropped into Workspace
+		is inventory rather than scenery: walk into it and it goes in your
+		backpack, taking the lunch off the table with it. Its parts are perfectly
+		good props, so the wrapper is removed and the contents promoted.
+
+		Done in its own pass so anything promoted out of a Tool is still caught
+		by the anchoring pass below.
+	]]
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("Tool") then
+			local parent = descendant.Parent
+			for _, child in descendant:GetChildren() do
+				child.Parent = parent
+			end
+			descendant:Destroy()
+		end
+	end
+
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
 			descendant.Anchored = true
 			descendant.CanCollide = spec.collide == true
 			descendant.CanQuery = false
 			descendant.CanTouch = false
-		elseif descendant:IsA("LuaSourceContainer") then
-			--[[
-				Free models are a well known way to import somebody else's code.
-
-				LuaSourceContainer, not BaseScript: BaseScript covers Script and
-				LocalScript but NOT ModuleScript, and the require-backdoors found
-				in this project's own character models kept their payload id on a
-				ModuleScript. A module cannot start itself, so one left behind is
-				inert -- but only for as long as nothing requires it, which is a
-				property of the OTHER instances present rather than of the module.
-				Take both and the question does not arise.
-			]]
+		elseif isContraband(descendant) then
 			descendant:Destroy()
 		end
 	end
@@ -435,16 +471,34 @@ function AssetService.init()
 		being used by the props built after it.
 	]]
 	local configured = Assets.configured()
-	local pending = #configured
+	local pending = 0
 
 	for _, key in configured do
 		local spec = Assets.get(key)
-		if spec then
-			task.spawn(function()
-				load(key, spec)
-				pending -= 1
-			end)
+		if not spec then
+			continue
 		end
+
+		--[[
+			A template is a clone out of ReplicatedStorage. It cannot fail, it
+			cannot be slow, and there is nothing to overlap it with -- so it is
+			loaded here and now.
+
+			This is what retires the waitFor() races. The safe zone is built
+			synchronously during boot out of about thirty templates; spawning
+			those meant it either blocked on each one or drew its fallback,
+			and which of the two you got varied per boot.
+		]]
+		if spec.template then
+			load(key, spec)
+			continue
+		end
+
+		pending += 1
+		task.spawn(function()
+			load(key, spec)
+			pending -= 1
+		end)
 	end
 
 	--[[

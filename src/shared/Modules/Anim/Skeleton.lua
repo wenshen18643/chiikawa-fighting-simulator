@@ -65,6 +65,26 @@ Skeleton.PROFILES = {
 		nearest = { "Body", "LeftHead", "RightHead" },
 		fallback = "Body",
 	},
+	--[[
+		The job-booth Yoroi-san. A legacy R6 rig -- correct part names, wrong
+		joint classes -- so SafeZoneService.rigYoroi rebuilds its `Motor` and
+		`Snap` joints as Motor6D and hangs a RootJoint off an invisible root
+		before this profile can find anything.
+
+		`build` stays false. buildRig() infers limbs from part heights and would
+		reassign a rig that already has the joints named correctly.
+	]]
+	yoroi = {
+		joints = {
+			root = "RootJoint",
+			head = "Neck",
+			armL = "Left Shoulder",
+			armR = "Right Shoulder",
+			legL = "Left Hip",
+			legR = "Right Hip",
+		},
+		fallback = "Torso",
+	},
 } :: { [string]: Profile }
 
 Skeleton.PLAYER_PROFILES = {

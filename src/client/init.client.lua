@@ -28,6 +28,9 @@ local BOOT_ORDER = {
 	{ container = script.Controllers, name = "FeedbackController" },
 	{ container = script.Controllers, name = "GestureController" },
 	{ container = script.Controllers, name = "CompanionAnimController" },
+	-- Independent of the rest: it waits on Workspace.SafeZone and drives
+	-- whatever the server tagged as rigged.
+	{ container = script.Controllers, name = "SafeZoneAnimController" },
 	{ container = script.Controllers, name = "SoundController" },
 	{ container = script.Controllers, name = "WorldController" },
 	{ container = script.UI, name = "HUD" },

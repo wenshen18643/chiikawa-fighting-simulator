@@ -174,6 +174,78 @@ Assets.MODELS = {
 		through AssetService, and it is not a reason to keep trusting the fetch.
 	]]
 	chiikawa = { id = 103908480888538, kind = "model", template = "Chiikawa", scale = 1 },
+
+	--[[
+		----------------------------------------------------------------------
+		SAFE ZONE -- the home plot dressing
+		----------------------------------------------------------------------
+
+		All local, all `template`, so none of them make a web call and the
+		cottage cannot half-build because a download lost a race.
+
+		Every one arrived from the toolbox and every one went through
+		tools/model-hygiene before it was committed. Nine of them shipped
+		scripts: four carried the same `require(<id parked in a NumberPose>)`
+		backdoor documented above, and LaundryLine additionally shipped a
+		ScreenGui holding a TextBox and two TextButtons nested under a
+		LocalScript -- a command bar. All stripped; geometry untouched.
+
+		`scale` stays 1 on every row. Nothing here is placed at its authored
+		size: SafeZoneService sizes each prop to a target measured in studs
+		(Config/SafeZone.lua), because a toolbox model's scale says only what
+		its author was working at and these came from a dozen different authors.
+	]]
+	sakuraTree = { id = 0, kind = "model", template = "SakuraTree", scale = 1 },
+	grassPatch = { id = 0, kind = "model", template = "GrassPatch", scale = 1 },
+	lantern = { id = 0, kind = "model", template = "Lantern", scale = 1 },
+	lanternTall = { id = 0, kind = "model", template = "LanternTall", scale = 1 },
+	mailBox = { id = 0, kind = "model", template = "MailBox", scale = 1 },
+	laundryLine = { id = 0, kind = "model", template = "LaundryLine", scale = 1 },
+	wateringCan = { id = 0, kind = "model", template = "WateringCan", scale = 1 },
+	picnicTable = { id = 0, kind = "model", template = "PicnicTable", scale = 1, collide = true },
+	lowTable = { id = 0, kind = "model", template = "LowTable", scale = 1 },
+	tableCloth = { id = 0, kind = "model", template = "TableCloth", scale = 1 },
+	floorCushion = { id = 0, kind = "model", template = "FloorCushion", scale = 1 },
+	kettle = { id = 0, kind = "model", template = "Kettle", scale = 1 },
+	teaPot = { id = 0, kind = "model", template = "TeaPot", scale = 1 },
+	teaCup = { id = 0, kind = "model", template = "TeaCup", scale = 1 },
+
+	-- The three market buildings. Solid, because a shop you can walk through
+	-- reads as a poster of a shop.
+	shopBlue = { id = 0, kind = "model", template = "ShopBlue", scale = 1, collide = true },
+	shopRed = { id = 0, kind = "model", template = "ShopRed", scale = 1, collide = true },
+	shopStall = { id = 0, kind = "model", template = "ShopStall", scale = 1, collide = true },
+
+	--[[
+		Food. Deliberately built oversized -- see SafeZone.FOOD. A bowl of ramen
+		taller than the character eating it is the single most recognisable
+		visual joke in the source material, and it only lands if the food is
+		scaled against the CHARACTER rather than against the table.
+	]]
+	ramen = { id = 0, kind = "model", template = "Ramen", scale = 1 },
+	onigiri = { id = 0, kind = "model", template = "Onigiri", scale = 1 },
+	dango = { id = 0, kind = "model", template = "Dango", scale = 1 },
+	dangoPlatter = { id = 0, kind = "model", template = "DangoPlatter", scale = 1 },
+	pancakes = { id = 0, kind = "model", template = "Pancakes", scale = 1 },
+	yogurtBerry = { id = 0, kind = "model", template = "YogurtBerry", scale = 1 },
+	--[[
+		The yogurt gag: §the house was won in a lottery run by a yogurt
+		conglomerate, so a tub of it on the doorstep is the deed to the building.
+	]]
+	yogurtVanilla = { id = 0, kind = "model", template = "YogurtVanilla", scale = 1 },
+
+	--[[
+		The Yoroi-san pair. `yoroiKnight` is a legacy R6 rig -- Torso, Head, four
+		limbs, joined by `Motor` and `Snap`, which are the pre-Motor6D joint
+		classes and are NOT animatable. SafeZoneService.rigYoroi converts them
+		and hangs a root joint off an invisible HumanoidRootPart, after which the
+		ordinary Anim/Machine drives it like any companion.
+
+		`yoroiBeast` is the four-legged one and is welded solid, so it is set
+		dressing rather than a rig.
+	]]
+	yoroiKnight = { id = 0, kind = "model", template = "YoroiKnight", scale = 1 },
+	yoroiBeast = { id = 0, kind = "model", template = "YoroiBeast", scale = 1 },
 } :: { [string]: AssetSpec }
 
 function Assets.get(key: string): AssetSpec?

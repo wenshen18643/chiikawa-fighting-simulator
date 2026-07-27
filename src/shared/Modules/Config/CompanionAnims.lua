@@ -1179,6 +1179,204 @@ CompanionAnims.SETS = {
 			},
 		},
 	},
+	--[[
+		Yoroi-san behind the job booth.
+
+		Not a companion -- it never moves and nothing plays actions on it -- but
+		it goes through the same Machine, so it has to satisfy the same contract:
+		Machine:update reads clips.idle, clips.walk and clips.run unconditionally
+		to compute its blend weights. `walk` and `run` are therefore present and
+		deliberately near-empty rather than absent.
+
+		The performance is the opposite of the companions'. They are small and
+		frightened and move constantly; this one is armoured, twice the player's
+		height, and paid to stand at a desk. Everything is slow, the amplitudes
+		are a third of chiikawa's, and the only fast thing in the set is the
+		occasional turn of the head -- which is the entire characterisation:
+		imposing, immobile, and actually paying attention to you.
+	]]
+	yoroi = {
+		walkSpeed = 12,
+		runSpeed = 20,
+		-- Just enough noise to keep the armour from looking welded to the floor.
+		tremble = {
+			amplitude = 0.35,
+			frequency = 0.8,
+			joints = { root = 0.5, armL = 1, armR = 1, head = 0.4 },
+		},
+		breakDelay = { 7, 16 },
+		breaks = {
+			{ clip = "survey", weight = 3 },
+			{ clip = "stamp", weight = 2 },
+			{ clip = "beckon", weight = 2 },
+		},
+		clips = {
+			idle = {
+				length = 5.4,
+				looped = true,
+				tracks = {
+					root = {
+						{ t = 0.00, y = 0.00, pitch = 1.5, roll = -0.8 },
+						{ t = 0.30, y = -0.06, pitch = 2.5, roll = 0 },
+						{ t = 0.55, y = 0.00, pitch = 1.5, roll = 0.8 },
+						{ t = 0.80, y = -0.06, pitch = 2.5, roll = 0 },
+					},
+					head = {
+						{ t = 0.00, pitch = 2, yaw = -5 },
+						{ t = 0.35, pitch = 0, yaw = -6 },
+						{ t = 0.60, pitch = 3, yaw = 6 },
+						{ t = 0.85, pitch = 1, yaw = 4 },
+					},
+					-- Hands resting on the desk in front of it.
+					armL = {
+						{ t = 0.00, pitch = 26, roll = -9 },
+						{ t = 0.50, pitch = 29, roll = -11 },
+					},
+					armR = {
+						{ t = 0.00, pitch = 29, roll = 9 },
+						{ t = 0.50, pitch = 26, roll = 11 },
+					},
+					legL = { { t = 0.00, pitch = 0 } },
+					legR = { { t = 0.00, pitch = 0 } },
+				},
+			},
+			walk = {
+				length = 1.0,
+				looped = true,
+				tracks = {
+					root = {
+						{ t = 0.00, y = 0.00, roll = -2 },
+						{ t = 0.50, y = 0.06, roll = 2 },
+					},
+					armL = { { t = 0.00, pitch = 18 }, { t = 0.50, pitch = -14 } },
+					armR = { { t = 0.00, pitch = -14 }, { t = 0.50, pitch = 18 } },
+					legL = { { t = 0.00, pitch = 20 }, { t = 0.50, pitch = -18 } },
+					legR = { { t = 0.00, pitch = -18 }, { t = 0.50, pitch = 20 } },
+				},
+			},
+			run = {
+				length = 0.7,
+				looped = true,
+				tracks = {
+					root = {
+						{ t = 0.00, y = 0.00, pitch = -6 },
+						{ t = 0.50, y = 0.14, pitch = -6 },
+					},
+					armL = { { t = 0.00, pitch = 42 }, { t = 0.50, pitch = -30 } },
+					armR = { { t = 0.00, pitch = -30 }, { t = 0.50, pitch = 42 } },
+					legL = { { t = 0.00, pitch = 34 }, { t = 0.50, pitch = -30 } },
+					legR = { { t = 0.00, pitch = -30 }, { t = 0.50, pitch = 34 } },
+				},
+			},
+			-- Machine:playAction falls back to "action" for any skill without a
+			-- named clip, so this has to exist even though nothing triggers it.
+			action = {
+				length = 1.4,
+				mask = { legL = 0.2, legR = 0.2 },
+				tracks = {
+					root = {
+						{ t = 0.00, pitch = 1.5 },
+						{ t = 0.30, pitch = 9 },
+						{ t = 1.00, pitch = 1.5 },
+					},
+					armR = {
+						{ t = 0.00, pitch = 29, roll = 9 },
+						{ t = 0.28, pitch = 96, roll = 16 },
+						{ t = 0.55, pitch = 74, roll = 12 },
+						{ t = 1.00, pitch = 29, roll = 9 },
+					},
+					head = {
+						{ t = 0.00, pitch = 2 },
+						{ t = 0.30, pitch = 12 },
+						{ t = 1.00, pitch = 2 },
+					},
+				},
+			},
+			-- Looks up, checks both ends of the path, goes back to the paperwork.
+			survey = {
+				length = 4.2,
+				mask = { legL = 0.15, legR = 0.15, root = 0.5 },
+				tracks = {
+					root = {
+						{ t = 0.00, pitch = 1.5, yaw = 0 },
+						{ t = 0.22, pitch = -2, yaw = -13 },
+						{ t = 0.44, pitch = -2, yaw = -13 },
+						{ t = 0.60, pitch = -2, yaw = 14 },
+						{ t = 0.82, pitch = -2, yaw = 14 },
+						{ t = 1.00, pitch = 1.5, yaw = 0 },
+					},
+					head = {
+						{ t = 0.00, pitch = 2, yaw = 0 },
+						{ t = 0.18, pitch = -9, yaw = -22 },
+						{ t = 0.46, pitch = -9, yaw = -22 },
+						{ t = 0.58, pitch = -9, yaw = 24 },
+						{ t = 0.84, pitch = -7, yaw = 24 },
+						{ t = 1.00, pitch = 2, yaw = 0 },
+					},
+					armL = {
+						{ t = 0.00, pitch = 26, roll = -9 },
+						{ t = 0.30, pitch = 20, roll = -13 },
+						{ t = 1.00, pitch = 26, roll = -9 },
+					},
+				},
+			},
+			-- Stamps a form. The one piece of bureaucracy the whole economy runs on.
+			stamp = {
+				length = 2.0,
+				mask = { legL = 0.1, legR = 0.1, root = 0.6 },
+				tracks = {
+					root = {
+						{ t = 0.00, y = 0.00, pitch = 1.5 },
+						{ t = 0.30, y = -0.05, pitch = 8 },
+						{ t = 0.44, y = -0.09, pitch = 12 },
+						{ t = 0.70, y = -0.03, pitch = 6 },
+						{ t = 1.00, y = 0.00, pitch = 1.5 },
+					},
+					armR = {
+						{ t = 0.00, pitch = 29, roll = 9 },
+						{ t = 0.22, pitch = 74, roll = 14 },
+						{ t = 0.42, pitch = 22, roll = 7 },
+						{ t = 0.58, pitch = 66, roll = 12 },
+						{ t = 0.74, pitch = 24, roll = 7 },
+						{ t = 1.00, pitch = 29, roll = 9 },
+					},
+					head = {
+						{ t = 0.00, pitch = 2 },
+						{ t = 0.30, pitch = 16 },
+						{ t = 0.74, pitch = 14 },
+						{ t = 1.00, pitch = 2 },
+					},
+				},
+			},
+			-- Waves you over. The only warm thing it does, which is the joke.
+			beckon = {
+				length = 2.4,
+				mask = { legL = 0.1, legR = 0.1, root = 0.6 },
+				tracks = {
+					root = {
+						{ t = 0.00, pitch = 1.5, yaw = 0 },
+						{ t = 0.25, pitch = 5, yaw = 7 },
+						{ t = 0.70, pitch = 4, yaw = 6 },
+						{ t = 1.00, pitch = 1.5, yaw = 0 },
+					},
+					armR = {
+						{ t = 0.00, pitch = 29, roll = 9 },
+						{ t = 0.18, pitch = 122, roll = 26 },
+						{ t = 0.38, pitch = 106, roll = 14 },
+						{ t = 0.56, pitch = 124, roll = 28 },
+						{ t = 0.74, pitch = 104, roll = 14 },
+						{ t = 1.00, pitch = 29, roll = 9 },
+					},
+					head = {
+						{ t = 0.00, pitch = 2, yaw = 0 },
+						{ t = 0.24, pitch = -4, yaw = 10 },
+						{ t = 0.72, pitch = -3, yaw = 8 },
+						{ t = 1.00, pitch = 2, yaw = 0 },
+					},
+				},
+			},
+		},
+	},
 } :: { [string]: Set }
 
 function CompanionAnims.get(id: string): Set?
