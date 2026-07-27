@@ -69,7 +69,7 @@ local function buildSnapshot(player: Player, profile: any)
 		regionId = RegionService.getCurrentRegion(player),
 		unlockedRegions = profile.unlockedRegions,
 		highestUnlockedRegion = RegionService.getHighestUnlocked(profile),
-		-- Drives the first-run controls panel. Stays true until the client
+		-- Drives the first-run Field Guide. Stays true until the client
 		-- acknowledges, so a dropped packet cannot lose the onboarding.
 		showIntro = profile.meta.introShown ~= true,
 	}

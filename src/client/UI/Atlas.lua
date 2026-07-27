@@ -5,7 +5,7 @@
 
 	  WORLD   where everything is, what is open, and fast travel. The map is the
 	          real landmass at real proportions, drawn from Config/Layout.
-	  LADDER  the whole worksite ladder as a grid — six skills across, seven
+	  LADDER  the whole worksite ladder as a grid — four skills across, seven
 	          tiers down, every cell showing its requirement, multiplier and
 	          which area it first appears in. This is where the cumulative ladder
 	          becomes legible: you can see at a glance that the tier you want
@@ -195,7 +195,7 @@ local function buildLadderPage(parent: Frame)
 	})
 
 	UI.label(page, "Blurb", {
-		text = "Each area carries every tier below it, so you can train all six anywhere.",
+		text = "Each area carries every earlier tier, so all four skills stay trainable.",
 		font = UI.font.light,
 		size = 13,
 		color = UI.color.inkSoft,
@@ -306,8 +306,9 @@ local CONTROLS = {
 	{ key = "Space", what = "Jump" },
 	{ key = "Left click", what = "Work. One click is one gain." },
 	{ key = "E", what = "Talk to someone" },
-	{ key = "M", what = "This panel" },
-	{ key = "H", what = "Controls" },
+	{ key = "M", what = "Toggle the minimap" },
+	{ key = "N", what = "This Atlas" },
+	{ key = "H", what = "Open the full Field Guide" },
 }
 
 local function buildGuidePage(parent: Frame)

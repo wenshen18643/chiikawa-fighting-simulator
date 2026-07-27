@@ -14,9 +14,12 @@ A cozy incremental work-and-friendship simulator, Chiikawa-inspired. Roblox expe
 | `E` | Talk to a character when the prompt appears |
 | `M` / minimap button | Minimap — hidden by default, summoned when you need it |
 | `N` / `Select` / Atlas button | Atlas — map, the whole skill ladder, fast travel |
-| `H` / `F1` / `?` button | Controls panel |
+| `H` / `F1` / `?` button | Field Guide — controls, mechanics, progression, first 30 minutes |
 
-The controls panel opens by itself on a player's first session.
+The Field Guide opens by itself on a player's first session. It is split into six responsive,
+device-aware chapters and can be reopened at any time. Closing it begins a hands-on control lesson:
+move, sprint, jump, then perform one work action. Each prompt advances only after the game detects
+the real action; completing or deliberately skipping the lesson saves onboarding as finished.
 
 **A worksite pad is a multiplier, not a gate.** You can train anywhere: clicking on open ground
 raises whichever skill you have selected, at base rate. A pad raises its own skill at ×2 up to
@@ -75,8 +78,10 @@ src/
 │       ├── SkillBar           bottom-centre round skill buttons, numbered 1-4
 │       ├── WorkCore           above the bar: stamina ring + what/where
 │       ├── Minimap            local view + world strip, drawn from Layout
-│       ├── Atlas              full-screen map, ladder grid, guide (M)
-│       ├── ControlsPanel      first-run explanation
+│       ├── Atlas              full-screen map, ladder grid, guide (N)
+│       ├── ControlsPanel      responsive, paginated first-run Field Guide
+│       ├── ControlTutorial    move/run/jump/work practice prompts
+│       ├── TutorialContent    player-facing mechanics + first-30-minute route
 │       └── CompanionMenu      the friend picker, opened from the stand
 └── shared/                  -> ReplicatedStorage.Shared
     ├── Areas/                 ONE FILE PER AREA — see below
