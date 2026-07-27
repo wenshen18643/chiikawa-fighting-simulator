@@ -65,8 +65,18 @@ local function prepare(model: Model, spec: Assets.AssetSpec)
 			descendant.CanCollide = spec.collide == true
 			descendant.CanQuery = false
 			descendant.CanTouch = false
-		elseif descendant:IsA("BaseScript") then
-			-- Free models are a well known way to import somebody else's code.
+		elseif descendant:IsA("LuaSourceContainer") then
+			--[[
+				Free models are a well known way to import somebody else's code.
+
+				LuaSourceContainer, not BaseScript: BaseScript covers Script and
+				LocalScript but NOT ModuleScript, and the require-backdoors found
+				in this project's own character models kept their payload id on a
+				ModuleScript. A module cannot start itself, so one left behind is
+				inert -- but only for as long as nothing requires it, which is a
+				property of the OTHER instances present rather than of the module.
+				Take both and the question does not arise.
+			]]
 			descendant:Destroy()
 		end
 	end
@@ -138,20 +148,60 @@ local function unwrap(container: Model, spec: Assets.AssetSpec): Model?
 	return container
 end
 
-local function load(key: string, spec: Assets.AssetSpec)
-	local ok, result = pcall(function()
-		return InsertService:LoadAsset(spec.id)
-	end)
+--[[
+	Resolve a template out of ReplicatedStorage.Assets.Models.
 
-	if not ok or typeof(result) ~= "Instance" then
-		failed[key] = `{key} (id {spec.id}): {result}`
-		return
+	Returns a CLONE wrapped to look like what LoadAsset hands back -- a
+	container holding the thing -- so the unwrap/prepare path below stays
+	identical for local and fetched assets. The alternative was branching every
+	step after this, for no gain.
+]]
+local function loadTemplate(key: string, spec: Assets.AssetSpec): Model?
+	local assets = ReplicatedStorage:FindFirstChild("Assets")
+	local models = assets and assets:FindFirstChild("Models")
+	if not models then
+		failed[key] = `{key}: ReplicatedStorage.Assets.Models is missing (is assets/ mapped in default.project.json?)`
+		return nil
 	end
 
-	local container = result :: Model
+	local template = models:FindFirstChild(spec.template :: string)
+	if not template then
+		failed[key] = `{key}: no template "{spec.template}" under assets/Models/`
+		return nil
+	end
+
+	local container = Instance.new("Model")
+	local clone = template:Clone()
+	clone.Parent = container
+	return container
+end
+
+local function load(key: string, spec: Assets.AssetSpec)
+	local container: Model
+
+	if spec.template then
+		local resolved = loadTemplate(key, spec)
+		if not resolved then
+			return
+		end
+		container = resolved
+	else
+		local ok, result = pcall(function()
+			return InsertService:LoadAsset(spec.id)
+		end)
+
+		if not ok or typeof(result) ~= "Instance" then
+			failed[key] = `{key} (id {spec.id}): {result}`
+			return
+		end
+
+		container = result :: Model
+	end
+
 	local model = unwrap(container, spec)
 	if not model then
-		failed[key] = `{key} (id {spec.id}): loaded but contained no model`
+		local source = if spec.template then `template "{spec.template}"` else `id {spec.id}`
+		failed[key] = `{key} ({source}): loaded but contained no model`
 		container:Destroy()
 		return
 	end
@@ -330,6 +380,48 @@ function AssetService.place(model: Model, position: Vector3, rotationY: number?)
 	model:PivotTo(pivot)
 end
 
+--[[
+	One line describing what a loaded model actually is.
+
+	"It loads" and "it is usable" are different questions, and the second one is
+	only answerable inside a running server: a rig with a Humanoid needs
+	different handling from a prop, extents decide whether `scale` is wrong by a
+	factor of ten, and a non-zero script count would mean `prepare` had missed
+	something and somebody else's code is in the place.
+]]
+function AssetService.describe(model: Model): string
+	local parts, meshes, scripts, animations = 0, 0, 0, 0
+	local humanoid = false
+
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("MeshPart") then
+			meshes += 1
+			parts += 1
+		elseif descendant:IsA("BasePart") then
+			parts += 1
+		elseif descendant:IsA("BaseScript") then
+			scripts += 1
+		elseif descendant:IsA("Animation") then
+			animations += 1
+		elseif descendant:IsA("Humanoid") then
+			humanoid = true
+		end
+	end
+
+	local size = model:GetExtentsSize()
+	return string.format(
+		"%.1f x %.1f x %.1f studs, %d part(s) (%d mesh), %d animation(s), humanoid: %s, scripts left: %d",
+		size.X,
+		size.Y,
+		size.Z,
+		parts,
+		meshes,
+		animations,
+		tostring(humanoid),
+		scripts
+	)
+end
+
 function AssetService.init()
 	library = Instance.new("Folder")
 	library.Name = "AssetLibrary"
@@ -379,10 +471,17 @@ function AssetService.init()
 		end
 
 		local blank = Assets.blank()
+		local fromRepo = Assets.local_()
 		print(
 			`[AssetService] decor models: {#loaded} loaded`
 				.. (if #loaded > 0 then ` ({table.concat(loaded, ", ")})` else "")
 				.. `, {#broken} failed, {#blank} with no id set`
+				-- Called out separately because these cannot fail the way the
+				-- fetched ones can, so a reader chasing a load failure can rule
+				-- them out without cross-referencing Config/Assets.lua.
+				.. (
+					if #fromRepo > 0 then `. Served locally from assets/Models/: {table.concat(fromRepo, ", ")}` else ""
+				)
 		)
 
 		if #broken > 0 then

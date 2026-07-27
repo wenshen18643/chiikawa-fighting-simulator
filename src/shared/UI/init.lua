@@ -24,6 +24,7 @@ local Components = require(script.Components)
 local Glyphs = require(script.Glyphs)
 local Motion = require(script.Motion)
 local Primitives = require(script.Primitives)
+local Templates = require(script.Templates)
 local Theme = require(script.Theme)
 
 local UI = {}
@@ -63,11 +64,17 @@ UI.pips = Components.pips
 UI.tabs = Components.tabs
 UI.modal = Components.modal
 
+-- Studio-authored templates (assets/UI/*.model.json)
+UI.template = Templates.mount
+UI.hasTemplate = Templates.exists
+UI.Templates = Templates
+
 -- Glyphs
 UI.glyph = Glyphs.render
 UI.skillGlyph = Glyphs.forSkill
 UI.Glyphs = Glyphs
 
 export type LabelConfig = Components.LabelConfig
+export type MountConfig = Templates.MountConfig
 
 return UI

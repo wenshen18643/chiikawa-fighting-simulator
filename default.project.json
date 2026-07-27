@@ -16,6 +16,9 @@
       "Shared": {
         "$path": "src/shared"
       },
+      "Assets": {
+        "$path": "assets"
+      },
       "Packages": {
         "$path": { "optional": "Packages" }
       }

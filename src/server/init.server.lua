@@ -29,6 +29,12 @@ local BOOT_ORDER = {
 	"WorldService",
 	"SafeZoneService",
 	"NpcService",
+	-- After SafeZoneService, which is what moves Town's spawn onto the cottage
+	-- doorstep: the probes are placed relative to the FINAL spawn.
+	"AssetProbeService",
+	-- Binds PlayerAdded, so it wants to be up before anybody can join. Its own
+	-- spawning waits on the AssetService download.
+	"CompanionService",
 	"WorksiteService",
 	"StaminaService",
 	"CurrencyService",

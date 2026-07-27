@@ -4,14 +4,14 @@
 	Four skills that all resolve to "click, number goes up" are one skill wearing
 	four colours. A weed gets yanked, a fork comes down, a page turns — the
 	gesture is what separates them, and it costs one table row per skill
-	(Config/Feedback) rather than an art budget.
+	(Config/PlayerAnims) rather than an art budget.
 
 	--------------------------------------------------------------------------
 	NO UPLOADED ASSETS
 	--------------------------------------------------------------------------
 
 	A Roblox animation normally means an uploaded Animation instance and an asset
-	id. This drives the arm joints directly from keyframes in config instead,
+	id. This drives the body joints directly from keyframes in config instead,
 	which keeps the same promise the rest of the project makes: icons are
 	geometry (UI/Glyphs), characters are parts (NpcService), and none of it can
 	break because an upload went missing or was moderated.
@@ -43,15 +43,18 @@
 	"the animations are not smooth" was.
 
 	--------------------------------------------------------------------------
-	WHY THE WHOLE ARM
+	WHY THE WHOLE BODY
 	--------------------------------------------------------------------------
 
-	An earlier version bound the shoulder and explicitly rejected the elbow and
-	wrist. That makes the arm a rigid stick on a pivot: it cannot fold to bring a
-	book to a face, and it cannot coil before a swing. Both of the gestures that
-	read worst were the two that need an elbow most. This binds the whole chain
-	on R15 and degrades to the shoulder alone on R6, which genuinely has no
-	elbow joint to drive.
+	An earlier version drove the arms alone, which is why every gesture read as
+	stiff: a swing with no waist behind it and no weight on the legs is a stick
+	on a pivot. Clips now key the waist, neck, hips and knees as well, masked
+	low on the legs so the walk cycle still shows through underneath.
+
+	Clips are authored once in the character's own root frame and mapped onto
+	each rig's real joint axes, so the same data drives R15 and R6. A joint a
+	rig does not have is simply skipped -- R6 loses the elbows, wrists, waist
+	and knees, and keeps the rest.
 
 	--------------------------------------------------------------------------
 	LOCAL vs. REMOTE
@@ -72,7 +75,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Feedback = require(Shared.Modules.Config.Feedback)
+local Clip = require(Shared.Modules.Anim.Clip)
+local PlayerAnims = require(Shared.Modules.Config.PlayerAnims)
+local Skeleton = require(Shared.Modules.Anim.Skeleton)
 
 local WorkController = require(script.Parent.WorkController)
 
@@ -83,26 +88,17 @@ local WORKING_ATTRIBUTE = "WorkingSkill"
 -- Set alongside it; scales the held prop so higher tiers swing bigger tools.
 local TIER_ATTRIBUTE = "WorkTier"
 
---[[
-	Axis conventions. Every joint rotates about its local X.
-
-	Shoulder: NEGATIVE pitch lifts the arm up and back.
-	Elbow:    POSITIVE flexes, bringing the hand toward the shoulder.
-
-	These are deltas from the rig's rest pose, captured per joint, so they hold
-	for R6 and R15 alike. If a rig ever reads inverted, flip the sign HERE, once
-	-- never in Config/Feedback, which is shared with the remote path.
-]]
-local ELBOW_DIRECTION = 1
-local WRIST_DIRECTION = 1
-
 -- Weight envelope, in seconds. Short enough to feel immediate, long enough that
 -- neither end of a gesture is a step change.
 local BLEND_IN = 0.07
 local BLEND_OUT = 0.13
 
+-- How long to wait for a character's joints before saying so. The watcher stays
+-- live past this, so it is a reporting deadline and not a give-up.
+local BIND_TIMEOUT = 15
+
 -- Book prop timing, as fractions of the examprep gesture. The flip window is
--- the one Config/Feedback documents for the left hand's page sweep.
+-- the one Config/PlayerAnims keys for the left hand's page sweep.
 local BOOK_OPEN_START, BOOK_OPEN_END = 0.10, 0.30
 local BOOK_CLOSE_START, BOOK_CLOSE_END = 0.86, 1.00
 local BOOK_FLIP_START, BOOK_FLIP_END = 0.52, 0.68
@@ -110,15 +106,10 @@ local BOOK_FLIP_START, BOOK_FLIP_END = 0.52, 0.68
 local SASUMATA_SKILLS = { tobatsu = true, subjugation = true, strength = true }
 local BOOK_SKILLS = { examprep = true, special = true, craft = true }
 
-type Chain = {
-	shoulder: Motor6D?,
-	elbow: Motor6D?,
-	wrist: Motor6D?,
-}
-
 type Rig = {
-	Right: Chain,
-	Left: Chain,
+	joints: Skeleton.Joints,
+	basis: { [string]: CFrame },
+	inverse: { [string]: CFrame },
 }
 
 type Playing = {
@@ -138,193 +129,105 @@ local remotePhase: { [Model]: number } = {}
 -- Joints
 --------------------------------------------------------------------------------
 
---[[
-	R15 and R6 name their arm joints exactly and differently, so match on the
-	name rather than guessing from substrings. The old heuristic accepted any
-	joint whose name merely started with "r", which is a wide net to cast at a
-	rig you do not control.
-]]
-local JOINT_NAMES = {
-	R15 = {
-		Right = { shoulder = "RightShoulder", elbow = "RightElbow", wrist = "RightWrist" },
-		Left = { shoulder = "LeftShoulder", elbow = "LeftElbow", wrist = "LeftWrist" },
-	},
-	R6 = {
-		Right = { shoulder = "Right Shoulder" },
-		Left = { shoulder = "Left Shoulder" },
-	},
-}
-
-local function rigKind(character: Model): string
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if humanoid and humanoid.RigType == Enum.HumanoidRigType.R6 then
-		return "R6"
-	end
-	return "R15"
-end
-
-local function findMotor(character: Model, name: string): Motor6D?
-	for _, descendant in character:GetDescendants() do
-		if descendant:IsA("Motor6D") and descendant.Name == name then
-			return descendant
-		end
-	end
-	return nil
-end
-
-local function buildChain(character: Model, names: { [string]: string }): Chain
-	local chain: Chain = {}
-	chain.shoulder = names.shoulder and findMotor(character, names.shoulder) or nil
-	chain.elbow = names.elbow and findMotor(character, names.elbow) or nil
-	chain.wrist = names.wrist and findMotor(character, names.wrist) or nil
-	return chain
-end
-
 local function buildRig(character: Model): Rig?
-	local names = JOINT_NAMES[rigKind(character)]
-	local rig: Rig = {
-		Right = buildChain(character, names.Right),
-		Left = buildChain(character, names.Left),
-	}
-	if not rig.Right.shoulder and not rig.Left.shoulder then
+	local joints = Skeleton.resolveCharacter(character)
+	if not joints then
 		return nil
 	end
-	return rig
+	if not joints.shoulderR and not joints.shoulderL then
+		return nil
+	end
+
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if not root or not root:IsA("BasePart") then
+		return nil
+	end
+
+	local basis, inverse = Skeleton.basisFor(character, joints, root)
+	return { joints = joints, basis = basis, inverse = inverse }
 end
 
--- Rigs stream in a frame or two after the character does, so poll briefly.
+--[[
+	Bind as soon as the joints exist, whenever that turns out to be.
+
+	Polling for five seconds and then giving up forever was wrong: joints can
+	arrive much later than the character does -- an avatar still downloading, a
+	HumanoidDescription swap rebuilding the rig, a body part streamed in late --
+	and once the poll expired gestures stayed dead for the rest of the session.
+	Watching DescendantAdded is what makes that self-heal.
+]]
 local function bindRig(character: Model, assign: (Rig) -> ())
+	local bound = false
+
+	local function attempt(): boolean
+		if bound or character.Parent == nil then
+			return bound
+		end
+		local rig = buildRig(character)
+		if not rig then
+			return false
+		end
+		bound = true
+		assign(rig)
+		return true
+	end
+
+	local watcher = character.DescendantAdded:Connect(function(descendant)
+		if descendant:IsA("Motor6D") then
+			attempt()
+		end
+	end)
+
 	task.spawn(function()
 		local started = os.clock()
-		while os.clock() - started < 5 do
+		while not bound and os.clock() - started < BIND_TIMEOUT do
 			if character.Parent == nil then
+				watcher:Disconnect()
 				return
 			end
-			local rig = buildRig(character)
-			if rig then
-				assign(rig)
+			if attempt() then
+				watcher:Disconnect()
 				return
 			end
-			task.wait(0.2)
+			task.wait(0.25)
 		end
+
+		if bound then
+			watcher:Disconnect()
+			return
+		end
+		if character.Parent == nil then
+			watcher:Disconnect()
+			return
+		end
+
 		--[[
-			Nothing to drive. Say exactly what the rig DOES have, because the
-			usual cause is a rig this code does not expect -- an
-			AnimationConstraint rig has no Motor6Ds at all, and "no animation"
-			with a silent log is indistinguishable from a logic bug.
+			Say exactly what the rig DOES have. "No animation" with a silent log
+			is indistinguishable from a logic bug, and the usual cause is a rig
+			shape this code does not expect rather than a timing miss -- the
+			watcher above is still live, so a late rig will still bind.
 		]]
-		local found = {}
+		local motors, bones = {}, {}
 		for _, descendant in character:GetDescendants() do
 			if descendant:IsA("Motor6D") then
-				table.insert(found, descendant.Name)
+				table.insert(motors, descendant.Name)
+			elseif descendant:IsA("Bone") or descendant:IsA("AnimationConstraint") then
+				table.insert(bones, `{descendant.ClassName}:{descendant.Name}`)
 			end
 		end
+
 		warn(
-			`[GestureController] no arm joints found in {character.Name} after 5s; gestures disabled. `
-				.. `RigType={rigKind(character)}. Motor6Ds present: `
-				.. (if #found > 0 then table.concat(found, ", ") else "NONE (AnimationConstraint rig?)")
+			`[GestureController] no drivable joints in {character.Name} after {BIND_TIMEOUT}s. `
+				.. `RigType={Skeleton.rigKind(character)}. `
+				.. `Motor6Ds: {if #motors > 0 then table.concat(motors, ", ") else "none"}. `
+				.. `Bones/constraints: {if #bones > 0 then table.concat(bones, ", ") else "none"}. `
+				.. `Still watching for joints to appear.`
 		)
 	end)
 end
 
 --------------------------------------------------------------------------------
--- Keyframe evaluation
---------------------------------------------------------------------------------
-
---[[
-	Catmull-Rom, not per-segment smoothstep.
-
-	Smoothstep eases into AND out of every interior key, which drives the
-	angular velocity to zero at each one. A six-key gesture then reads as six
-	small separate movements — the "steppy" quality. A Catmull-Rom spline is C1
-	continuous, so the pose carries its velocity through a key and the whole
-	gesture flows as one motion. It also overshoots slightly on direction
-	changes, which is free follow-through.
-]]
-local function catmullRom(p0: number, p1: number, p2: number, p3: number, a: number): number
-	local a2 = a * a
-	local a3 = a2 * a
-	return 0.5
-		* ((2 * p1) + (-p0 + p2) * a + (2 * p0 - 5 * p1 + 4 * p2 - p3) * a2 + (-p0 + 3 * p1 - 3 * p2 + p3) * a3)
-end
-
-type Pose = { pitch: number, yaw: number, roll: number, elbow: number, wrist: number }
-
-local CHANNELS = { "pitch", "yaw", "roll", "elbow", "wrist" }
-
--- A key's pose for one side. `left` overrides the mirror when present.
-local function sideOf(key: Feedback.GestureKey, side: string, mirror: boolean): Pose
-	if side == "Left" then
-		local override = key.left
-		if override then
-			return {
-				pitch = override.pitch,
-				yaw = override.yaw or 0,
-				roll = override.roll or 0,
-				elbow = override.elbow or 0,
-				wrist = override.wrist or 0,
-			}
-		end
-		if mirror then
-			return {
-				pitch = key.pitch,
-				yaw = -(key.yaw or 0),
-				roll = -(key.roll or 0),
-				elbow = key.elbow or 0,
-				wrist = key.wrist or 0,
-			}
-		end
-	end
-	return {
-		pitch = key.pitch,
-		yaw = key.yaw or 0,
-		roll = key.roll or 0,
-		elbow = key.elbow or 0,
-		wrist = key.wrist or 0,
-	}
-end
-
-local function poseAt(gesture: Feedback.Gesture, t: number, side: string): Pose
-	local keys = gesture.keys
-	local count = #keys
-	local mirror = gesture.arms == "both"
-
-	if count == 0 then
-		return { pitch = 0, yaw = 0, roll = 0, elbow = 0, wrist = 0 }
-	end
-	if count == 1 or t <= keys[1].t then
-		return sideOf(keys[1], side, mirror)
-	end
-	if t >= keys[count].t then
-		return sideOf(keys[count], side, mirror)
-	end
-
-	for index = 1, count - 1 do
-		local a, b = keys[index], keys[index + 1]
-		if t <= b.t then
-			local span = b.t - a.t
-			local alpha = if span > 0 then (t - a.t) / span else 1
-
-			-- Clamped endpoints: duplicate the edge key so the spline does not
-			-- need a neighbour that does not exist.
-			local p0 = sideOf(keys[math.max(index - 1, 1)], side, mirror)
-			local p1 = sideOf(a, side, mirror)
-			local p2 = sideOf(b, side, mirror)
-			local p3 = sideOf(keys[math.min(index + 2, count)], side, mirror)
-
-			local out = {} :: any
-			for _, channel in CHANNELS do
-				out[channel] = catmullRom(p0[channel], p1[channel], p2[channel], p3[channel], alpha)
-			end
-			return out :: Pose
-		end
-	end
-
-	return sideOf(keys[count], side, mirror)
-end
-
---------------------------------------------------------------------------------
--- Applying a pose
+-- Applying a clip
 --------------------------------------------------------------------------------
 
 local function smoothstep(a: number): number
@@ -332,40 +235,39 @@ local function smoothstep(a: number): number
 	return a * a * (3 - 2 * a)
 end
 
+local scratch: Clip.Pose = {}
+
 --[[
-	Blend one joint toward a target rotation.
+	Blend a clip pose onto whatever the Animator wrote this frame.
 
 	`motor.Transform` is read, not assumed: at this point in the frame it holds
-	whatever the Animator wrote, so lerping from it is what makes weight mean
-	"how much of this is the gesture".
+	the locomotion pose, so lerping from it is what makes weight mean "how much
+	of this is the gesture". At weight 0 the joint is exactly the walk cycle.
+
+	Rotations are authored in the character's own root frame and mapped onto the
+	rig's real joint axes by `inverse * pose * basis`, so one clip drives R6 and
+	R15 without the per-rig sign flips this used to need.
 ]]
-local function blendJoint(motor: Motor6D?, target: CFrame, weight: number)
-	if not motor or not motor.Parent then
-		return
-	end
-	if weight >= 0.999 then
-		motor.Transform = target
-	else
-		motor.Transform = motor.Transform:Lerp(target, weight)
-	end
-end
+local function applyRig(rig: Rig, definition: any, t: number, weight: number)
+	table.clear(scratch)
+	Clip.pose(definition, t, scratch)
 
-local function applyChain(chain: Chain, pose: Pose, weight: number)
-	blendJoint(
-		chain.shoulder,
-		CFrame.Angles(math.rad(pose.pitch), math.rad(pose.yaw), math.rad(pose.roll)),
-		weight
-	)
-	blendJoint(chain.elbow, CFrame.Angles(math.rad(pose.elbow * ELBOW_DIRECTION), 0, 0), weight)
-	blendJoint(chain.wrist, CFrame.Angles(math.rad(pose.wrist * WRIST_DIRECTION), 0, 0), weight)
-end
+	local mask = definition.mask
 
-local function applyRig(rig: Rig, gesture: Feedback.Gesture, t: number, weight: number)
-	applyChain(rig.Right, poseAt(gesture, t, "Right"), weight)
+	for name, target in scratch do
+		local motor = rig.joints[name]
+		if motor and motor.Parent then
+			local jointWeight = weight
+			if mask then
+				jointWeight *= mask[name] or 1
+			end
 
-	-- A "right" gesture leaves the left arm entirely to the walk cycle.
-	if gesture.arms == "both" then
-		applyChain(rig.Left, poseAt(gesture, t, "Left"), weight)
+			if jointWeight > 0.001 then
+				local inverse = rig.inverse[name]
+				local final = if inverse then inverse * target * rig.basis[name] else target
+				motor.Transform = motor.Transform:Lerp(final, math.min(jointWeight, 1))
+			end
+		end
 	end
 end
 
@@ -703,9 +605,9 @@ function GestureController.play(skillId: string?)
 		return
 	end
 
-	local entry = Feedback.get(skillId)
-	if not entry then
-		warn(`[GestureController] no Feedback entry for "{skillId}"; nothing to play`)
+	local definition = PlayerAnims.get(skillId)
+	if not definition then
+		warn(`[GestureController] no PlayerAnims clip for "{skillId}"; nothing to play`)
 		return
 	end
 
@@ -730,23 +632,23 @@ local function stepLocal()
 		return
 	end
 
-	local entry = Feedback.get(playing.skillId)
-	if not entry then
+	local definition = PlayerAnims.get(playing.skillId)
+	if not definition then
 		playing = nil
 		return
 	end
 
-	local gesture = entry.gesture
+	local duration = definition.length
 	local elapsed = os.clock() - playing.startedAt
-	local t = math.clamp(elapsed / gesture.duration, 0, 1)
+	local t = math.clamp(elapsed / duration, 0, 1)
 
 	local weight: number
-	if elapsed < gesture.duration then
+	if elapsed < duration then
 		weight = smoothstep(elapsed / BLEND_IN)
 	else
 		-- Hold the final pose and fade our influence out, so the walk cycle
 		-- takes the arm back rather than the arm being dropped into it.
-		local releasing = elapsed - gesture.duration
+		local releasing = elapsed - duration
 		if releasing >= BLEND_OUT then
 			playing = nil
 			return
@@ -758,7 +660,7 @@ local function stepLocal()
 		animateBook(character, bookOpenAmount(t), t)
 	end
 
-	applyRig(rig, gesture, t, weight)
+	applyRig(rig, definition, t, weight)
 end
 
 --------------------------------------------------------------------------------
@@ -778,21 +680,21 @@ local function stepRemote()
 			continue
 		end
 
-		local entry = Feedback.get(skillId)
-		if not entry then
+		local definition = PlayerAnims.get(skillId)
+		if not definition then
 			continue
 		end
 
 		attachSkillProp(character, skillId)
 
 		local phase = remotePhase[character] or 0
-		local t = ((os.clock() + phase) % entry.gesture.duration) / entry.gesture.duration
+		local t = ((os.clock() + phase) % definition.length) / definition.length
 
 		if BOOK_SKILLS[skillId] then
 			animateBook(character, bookOpenAmount(t), t)
 		end
 
-		applyRig(rig, entry.gesture, t, 1)
+		applyRig(rig, definition, t, 1)
 	end
 end
 

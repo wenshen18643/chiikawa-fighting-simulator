@@ -202,6 +202,15 @@ Npcs.DEFINITIONS = {
 	},
 } :: { NpcDefinition }
 
+function Npcs.get(id: string): NpcDefinition?
+	for _, npc in Npcs.DEFINITIONS do
+		if npc.id == id then
+			return npc
+		end
+	end
+	return nil
+end
+
 function Npcs.getInRegion(regionId: number): { NpcDefinition }
 	local result = {}
 	for _, npc in Npcs.DEFINITIONS do

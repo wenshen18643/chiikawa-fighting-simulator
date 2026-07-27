@@ -1,6 +1,7 @@
 --[[
-	Uploaded model ids for world decor. Transcribed from docs/ASSETS.md, which
-	stays the human-facing list; this is the one the game reads.
+	Where the world's models come from: local templates under assets/Models/
+	for the character rigs, uploaded ids for the decor. This file is the list --
+	docs/ASSETS.md used to mirror it for humans and no longer exists.
 
 	--------------------------------------------------------------------------
 	WHY THESE ARE OPTIONAL
@@ -31,6 +32,21 @@
 		         chosen by name at runtime, because nobody here knows what is
 		         inside a given pack and guessing child names is the same
 		         mistake as guessing ids.
+
+	--------------------------------------------------------------------------
+	LOCAL TEMPLATES BEAT IDS
+	--------------------------------------------------------------------------
+
+	A spec with `template` set is resolved from ReplicatedStorage.Assets.Models
+	-- committed to this repo under assets/Models/ -- instead of being fetched
+	over the network. Everything above stops applying to it: no web call, no
+	"not authorized", no dependency on an uploader who can delete or edit the
+	model out from under the game, and no per-server load latency.
+
+	Prefer it. An `id` is what you use before somebody has done the work of
+	pulling the model into the repo; a `template` is what you use afterwards.
+	When both are present the template wins and the id is kept only as a note
+	of where the geometry originally came from.
 ]]
 
 local Assets = {}
@@ -38,6 +54,11 @@ local Assets = {}
 export type AssetSpec = {
 	id: number,
 	kind: string,
+	--[[
+		Name of a child of ReplicatedStorage.Assets.Models, committed under
+		assets/Models/ in this repo. Set it and the id is never fetched.
+	]]
+	template: string?,
 	-- Multiplied onto the model after load. Uploaded models arrive at whatever
 	-- scale their author chose, which is rarely this world's scale.
 	scale: number?,
@@ -75,17 +96,100 @@ Assets.MODELS = {
 		plus the two grass-painting wands excluded below.
 	]]
 	naturePack = { id = 82060619904561, kind = "pack", scale = 1, exclude = { "wand" } },
+
+	--[[
+		----------------------------------------------------------------------
+		CHARACTER RIGS -- the companion roster
+		----------------------------------------------------------------------
+
+		ALL THREE ARE LOCAL NOW. Each lives under assets/Models/ and is resolved
+		by `template`, so the roster makes no web call at all: no "not
+		authorized", no moderation risk, and no uploader who can edit the
+		character out from under the game.
+
+		They came out of the toolbox, and every one of them arrived carrying a
+		require-backdoor. The pattern, twice, from two different uploaders:
+		stash a Roblox asset id somewhere nobody reads -- a NumberPose's Value
+		on chiikawa, a ModuleScript ATTRIBUTE on the other two -- then
+		`require()` that number at runtime, which downloads and executes
+		whatever its owner currently has published. Usagi additionally shipped a
+		ScreenGui with a TextBox and buttons nested inside a LocalScript, which
+		is what a command bar looks like. Every script was stripped before
+		these were committed; the geometry is untouched.
+
+		Do not take prepare() below as covering this. It deletes BaseScript,
+		which is Script and LocalScript -- NOT ModuleScript. The backdoor's
+		payload holder on two of these models was a ModuleScript and would have
+		survived. It is inert with no Script left to require it, but "inert
+		because the other half was removed" is not a defence worth relying on.
+
+		They need no new `kind`. CompanionService unanchors its own clones --
+		prepare() anchoring everything is right for decor and wrong for a pet --
+		and normalises their height, so the authored scale below stays 1 and the
+		size the author happened to export at does not matter.
+
+		Sizes are worth watching: usagi is by far the heaviest at 70 parts and
+		67 meshes, against chiikawa's 8 and hachiware's single MeshPart. One per
+		player is fine; if companions ever become a crowd, usagi is the row to
+		reconsider first.
+	]]
+	--[[
+		Originally 126588941317056, "🌠 [New!] killer hachiware - chiikawa" by
+		FeBypassguy9 -- a "killer" NPC whose scripts existed to damage whoever
+		stood next to it, on top of the backdoor. 1 MeshPart, 1 Decal, a
+		Humanoid and 5 Motor6Ds survive; the 9 Animations went with the Animate
+		script that owned them, which costs nothing here because rig() deletes
+		the Humanoid anyway and a companion never plays them.
+	]]
+	hachiware = { id = 126588941317056, kind = "model", template = "Hachiware", scale = 1 },
+	--[[
+		Originally 88154057398500, "🌠 [UPDATED] Chiikawa Thing" by FeBypassguy9.
+
+		Titled "Chiikawa", reads as Usagi in game. Free models are named by
+		whoever uploaded them and the titles here are not to be trusted over
+		what is actually standing in front of you -- the key follows the model,
+		not the title.
+	]]
+	usagi = { id = 88154057398500, kind = "model", template = "Usagi", scale = 1 },
+	--[[
+		LOCAL. Lives at assets/Models/Chiikawa.rbxmx, so this row makes no web
+		call and cannot fail at runtime. 8 Parts, 8 SpecialMeshes, 1 Decal.
+
+		It is a "model", not a "pack", because unlike the id it replaces this is
+		exactly one character -- there is no shelf of plushies to pick a child
+		out of, so CompanionService.rig can clone it directly.
+
+		The id below is history, not a fallback: 103908480888538 ("🧸 Soft
+		Plushie Roleplay Toy Bundle Collection Cut", XzVantalWBaconVzX154) was
+		the pack this used to pull from, which itself replaced 136642940597969.
+		Kept written down because knowing where geometry came from matters if it
+		ever has to be re-sourced.
+
+		Worth knowing why it is local: the toolbox copy shipped two scripts
+		(`qPerfectionWeld`, `CoreSkyboxSystem`) that stashed an asset id in a
+		NumberPose and `require`d it at runtime -- remote code execution owned by
+		whoever controls that id, deliberately silent inside Studio. Both were
+		stripped before the model was committed. prepare() below would have
+		deleted them anyway, but that defence only ever fires for assets that go
+		through AssetService, and it is not a reason to keep trusting the fetch.
+	]]
+	chiikawa = { id = 103908480888538, kind = "model", template = "Chiikawa", scale = 1 },
 } :: { [string]: AssetSpec }
 
 function Assets.get(key: string): AssetSpec?
 	return Assets.MODELS[key]
 end
 
--- Keys with an id worth attempting a load for.
+-- Whether a spec resolves at all: from the repo, or failing that, from an id.
+local function isResolvable(spec: AssetSpec): boolean
+	return spec.template ~= nil or (spec.id ~= nil and spec.id > 0)
+end
+
+-- Keys worth attempting a load for, whether local or uploaded.
 function Assets.configured(): { string }
 	local keys = {}
 	for key, spec in Assets.MODELS do
-		if spec.id and spec.id > 0 then
+		if isResolvable(spec) then
 			table.insert(keys, key)
 		end
 	end
@@ -97,7 +201,19 @@ end
 function Assets.blank(): { string }
 	local keys = {}
 	for key, spec in Assets.MODELS do
-		if not spec.id or spec.id <= 0 then
+		if not isResolvable(spec) then
+			table.insert(keys, key)
+		end
+	end
+	table.sort(keys)
+	return keys
+end
+
+-- Keys served from assets/Models/ rather than fetched, for the startup report.
+function Assets.local_(): { string }
+	local keys = {}
+	for key, spec in Assets.MODELS do
+		if spec.template then
 			table.insert(keys, key)
 		end
 	end

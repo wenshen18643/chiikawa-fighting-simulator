@@ -11,6 +11,8 @@
 	  - Region.Entered      server -> client, drives the area title card.
 	  - SafeZone.Changed    server -> client, crossing your own front gate.
 	  - Notify.Message      server -> client, cozy toast copy (§2 rule 3).
+	  - Companion.Open      server -> client, the friend-stand roster.
+	  - Companion.Select    client -> server, which friend follows them.
 
 	There is deliberately no currency remote the client can write to.
 ]]
@@ -41,6 +43,17 @@ local REMOTE_TREE = {
 	},
 	Notify = {
 		Message = "RemoteEvent",
+	},
+	Companion = {
+		-- server -> client, when the player triggers the friend stand: the
+		-- roster to show and which entry is currently theirs. Sent rather than
+		-- read from a shared config, because which uploaded companions are
+		-- actually available is a runtime fact only the server knows.
+		Open = "RemoteEvent",
+		-- client -> server, an id from that roster. Validated server-side; the
+		-- client cannot name a companion that was not offered to it.
+		Select = "RemoteEvent",
+		Act = "RemoteEvent",
 	},
 	Guide = {
 		-- Client tells the server the player has read the intro, so it stops

@@ -4,10 +4,17 @@
 #   .\reload.ps1           build, regenerate sourcemap, restart Studio
 #   .\reload.ps1 -NoOpen   build only, leave Studio alone (use in a check loop)
 #   .\reload.ps1 -Check    build + analyze, never touches Studio
+#   .\reload.ps1 -Serve    live-sync into an already-open Studio session
+#
+# -Serve is the loop to use when iterating on anything authored in Studio's
+# viewport (assets/*.model.json). The default build path is ONE-WAY: it
+# overwrites the .rbxl, so anything created in Studio and not exported back
+# into the repo is destroyed by the next plain .\reload.ps1.
 
 param(
     [switch]$NoOpen,
-    [switch]$Check
+    [switch]$Check,
+    [switch]$Serve
 )
 
 $ProjectRoot = $PSScriptRoot
@@ -37,6 +44,18 @@ if (-not (Test-Path (Join-Path $ProjectRoot "Packages"))) {
     Write-Host "         Run 'wally install' before any public test." -ForegroundColor Yellow
 }
 
+# Serve short-circuits everything below: no build, no place file, no Studio
+# restart. Connect from the Rojo plugin in an already-open Studio session.
+if ($Serve) {
+    Write-Host "Regenerating sourcemap before serving..." -ForegroundColor Cyan
+    & $RojoPath sourcemap default.project.json --include-non-scripts -o $SourcemapOutput
+
+    Write-Host "Starting Rojo server. Connect via the Rojo plugin in Studio." -ForegroundColor Green
+    Write-Host "Ctrl+C to stop." -ForegroundColor Yellow
+    & $RojoPath serve default.project.json
+    exit $LASTEXITCODE
+}
+
 Write-Host "Building project with $RojoPath..." -ForegroundColor Cyan
 & $RojoPath build default.project.json -o $BuildOutput
 if ($LASTEXITCODE -ne 0) {
@@ -45,8 +64,11 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # Keeps luau-lsp / editor autocomplete honest about the DataModel shape.
+# --include-non-scripts because assets/ mounts Frames and other non-script
+# instances; without it luau-lsp cannot see ReplicatedStorage.Assets.* at all
+# and every template reference autocompletes to nothing.
 Write-Host "Regenerating sourcemap..." -ForegroundColor Cyan
-& $RojoPath sourcemap default.project.json -o $SourcemapOutput
+& $RojoPath sourcemap default.project.json --include-non-scripts -o $SourcemapOutput
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Sourcemap generation failed." -ForegroundColor Red
     exit 1

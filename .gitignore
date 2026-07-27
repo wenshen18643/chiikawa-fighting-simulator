@@ -4,6 +4,12 @@
 *.rbxm
 *.rbxmx
 
+# ...except hand-authored model templates under assets/, which ARE source.
+# Prefer .model.json there (line-diffable); .rbxmx is XML and diffs poorly,
+# so only reach for it when a template uses instances .model.json can't express.
+!/assets/**/*.rbxm
+!/assets/**/*.rbxmx
+
 # Bundled tool binaries — pinned in aftman.toml, fetch via `aftman install`
 /tools/*.exe
 
@@ -25,3 +31,7 @@ Thumbs.db
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
+
+.claude
+.agents
+CLAUDE.md

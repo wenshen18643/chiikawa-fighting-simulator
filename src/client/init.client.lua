@@ -27,10 +27,13 @@ local BOOT_ORDER = {
 	-- after it. Order among themselves does not matter.
 	{ container = script.Controllers, name = "FeedbackController" },
 	{ container = script.Controllers, name = "GestureController" },
+	{ container = script.Controllers, name = "CompanionAnimController" },
 	{ container = script.Controllers, name = "SoundController" },
 	{ container = script.Controllers, name = "WorldController" },
 	{ container = script.UI, name = "HUD" },
 	{ container = script.UI, name = "ControlsPanel" },
+	-- Independent of the rest: it only listens for the friend stand's remote.
+	{ container = script.UI, name = "CompanionMenu" },
 }
 
 for _, entry in BOOT_ORDER do

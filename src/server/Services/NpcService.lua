@@ -20,6 +20,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
+local Mascot = require(Shared.Modules.Mascot)
 local Npcs = require(Shared.Modules.Config.Npcs)
 local Areas = require(Shared.Areas)
 
@@ -28,142 +29,30 @@ local WorldService = require(script.Parent.WorldService)
 
 local NpcService = {}
 
-local EYE_COLOR = Color3.fromRGB(48, 42, 38)
-local BLUSH_COLOR = Color3.fromRGB(246, 176, 176)
-
+-- player -> npc id -> which line they heard last, so talking walks the script.
 local spoken: { [Player]: { [string]: number } } = {}
 
 --------------------------------------------------------------------------------
 -- Part assembly
 --------------------------------------------------------------------------------
 
-local function piece(parent: Model, name: string, size: Vector3, color: Color3, shape: Enum.PartType?): Part
-	local p = Instance.new("Part")
-	p.Name = name
-	p.Size = size
-	p.Color = color
-	p.Shape = shape or Enum.PartType.Ball
-	p.Material = Enum.Material.SmoothPlastic
-	p.Anchored = false
-	p.CanCollide = false
-	p.CanQuery = false
-	p.CanTouch = false
-	p.TopSurface = Enum.SurfaceType.Smooth
-	p.BottomSurface = Enum.SurfaceType.Smooth
-	p.Parent = parent
-	return p
-end
+--[[
+	The cast stands still, so its mascots are anchored where they are placed.
 
-local function weld(root: BasePart, target: BasePart, offset: CFrame)
-	target.CFrame = root.CFrame * offset
-	local w = Instance.new("WeldConstraint")
-	w.Part0 = root
-	w.Part1 = target
-	w.Parent = root
-end
-
-local function buildEars(model: Model, root: BasePart, build: Npcs.NpcBuild, headTop: number)
-	if build.earStyle == "none" then
-		return
-	end
-
-	local color = build.earColor or build.bodyColor
-	local spread = build.height * 0.26
-
-	for _, side in { -1, 1 } do
-		if build.earStyle == "round" then
-			local ear = piece(model, "Ear", Vector3.new(1, 1, 1) * (build.height * 0.34), color)
-			weld(root, ear, CFrame.new(side * spread, headTop * 0.82, 0))
-		elseif build.earStyle == "tall" then
-			-- A Cylinder part runs along its X axis: Size.X is the length and
-			-- Y/Z are the diameter. The Z rotation below stands it upright.
-			local ear = piece(
-				model,
-				"Ear",
-				Vector3.new(build.height * 0.75, build.height * 0.2, build.height * 0.2),
-				color,
-				Enum.PartType.Cylinder
-			)
-			weld(
-				root,
-				ear,
-				CFrame.new(side * spread * 0.8, headTop * 1.15, 0) * CFrame.Angles(0, 0, math.rad(90 + side * 12))
-			)
-		else -- pointed
-			local ear = piece(
-				model,
-				"Ear",
-				Vector3.new(build.height * 0.26, build.height * 0.4, build.height * 0.26),
-				color,
-				Enum.PartType.Wedge
-			)
-			weld(root, ear, CFrame.new(side * spread, headTop * 0.95, 0) * CFrame.Angles(0, 0, math.rad(side * 14)))
-		end
-	end
-end
-
-local function buildFace(model: Model, root: BasePart, build: Npcs.NpcBuild)
-	local h = build.height
-	local eyeSize = h * 0.11
-	local front = -h * 0.42
-
-	for _, side in { -1, 1 } do
-		local eye = piece(model, "Eye", Vector3.new(1, 1, 1) * eyeSize, EYE_COLOR)
-		weld(root, eye, CFrame.new(side * h * 0.16, h * 0.06, front))
-
-		if build.blush then
-			local blush = piece(model, "Blush", Vector3.new(1, 1, 1) * (h * 0.14), BLUSH_COLOR)
-			weld(root, blush, CFrame.new(side * h * 0.3, -h * 0.06, front * 0.88))
-		end
-	end
-
-	local mouth = piece(model, "Mouth", Vector3.new(h * 0.08, h * 0.05, h * 0.08), EYE_COLOR)
-	weld(root, mouth, CFrame.new(0, -h * 0.08, front))
-end
-
-local function buildLimbs(model: Model, root: BasePart, build: Npcs.NpcBuild)
-	local h = build.height
-
-	for _, side in { -1, 1 } do
-		local arm = piece(model, "Arm", Vector3.new(h * 0.16, h * 0.28, h * 0.16), build.bodyColor)
-		weld(root, arm, CFrame.new(side * h * 0.44, -h * 0.06, 0) * CFrame.Angles(0, 0, math.rad(side * 20)))
-
-		local foot = piece(model, "Foot", Vector3.new(h * 0.2, h * 0.14, h * 0.28), build.bodyColor)
-		weld(root, foot, CFrame.new(side * h * 0.18, -h * 0.46, -h * 0.06))
-	end
-end
-
+	Shape and proportions live in Shared/Modules/Mascot, which CompanionService
+	builds the same silhouettes from: the friend following you home is the same
+	character you met in town, from one definition.
+]]
 local function buildMascot(definition: Npcs.NpcDefinition, position: Vector3): Model
-	local build = definition.build
-	local h = build.height
+	local h = definition.build.height
 
-	local model = Instance.new("Model")
-	model.Name = definition.id
+	-- Lowest point of the assembled mascot is the foot. Place the root so that
+	-- lands just above PLATFORM_TOP, otherwise the legs end up inside the ground.
+	local footToRoot = Constants.WORLD.PLATFORM_TOP + Constants.WORLD.NPC_FOOT_CLEARANCE + h * Mascot.ROOT_TO_FOOT
+	local model = Mascot.build(definition.build, CFrame.new(position + Vector3.new(0, footToRoot, 0)), definition.id)
 
-	local root = Instance.new("Part")
-	root.Name = "Body"
-	root.Shape = Enum.PartType.Ball
-	root.Size = Vector3.new(h, h, h)
-	root.Color = build.bodyColor
-	root.Material = Enum.Material.SmoothPlastic
+	local root = model.PrimaryPart :: BasePart
 	root.Anchored = true
-	root.CanCollide = false
-	root.CanQuery = true
-	-- Lowest point of the assembled mascot is the foot, at roughly 0.53 * height
-	-- below the root. Place the root so that lands just above PLATFORM_TOP,
-	-- otherwise the legs end up inside the ground.
-	root.Position = position
-		+ Vector3.new(0, Constants.WORLD.PLATFORM_TOP + Constants.WORLD.NPC_FOOT_CLEARANCE + h * 0.53, 0)
-	root.Parent = model
-	model.PrimaryPart = root
-
-	-- Belly patch, slightly proud of the body so it does not z-fight.
-	local belly = piece(model, "Belly", Vector3.new(1, 1, 1) * (h * 0.62), build.bellyColor)
-	weld(root, belly, CFrame.new(0, -h * 0.1, -h * 0.16))
-
-	buildEars(model, root, build, h * 0.5)
-	buildFace(model, root, build)
-	buildLimbs(model, root, build)
 
 	return model
 end

@@ -2,28 +2,6 @@
 
 A cozy incremental work-and-friendship simulator, Chiikawa-inspired. Roblox experience managed with [Rojo](https://rojo.space/).
 
-**Read [`docs/GAME.md`](docs/GAME.md) first** — it is the design spec, and every module here references its section numbers.
-
-> ⚠️ **IP decision is still open.** See `docs/GAME.md` §0. All proper nouns in code and config are placeholders pending that call.
-
-## Status
-
-Slices 1–2 of the §17 build order are implemented, plus the world they happen in.
-
-| Working now | Not built yet |
-|---|---|
-| Six skills, full 7-tier worksite ladders, stat gating | Certification exams (Slice 3) |
-| **One click, one gain** + AFK work, stamina with rest-not-death | Stamps, Companion gacha, tools/gear (Slice 4) |
-| Yen wages (passive + per-pull), BigNumber economy | Subjugation combat, critters, work orders (Slice 5) |
-| **One contiguous 27,000-stud landmass**, six areas, land bridges, per-player gates | Cooking, food buffs, home/Comfort (Slice 6) |
-| **Cumulative ladder — every area trains all six skills** | Seasons/prestige (Slice 7), store (Slice 8) |
-| **A three-storey cottage you spawn in, and cannot be hurt inside** | Furniture, Comfort, home visits (Slice 6) |
-| Profile persistence, HUD, minimap, Atlas, click feedback | Authored character models, animations |
-| Progressive terrain, `StreamingEnabled`, sprint | Audio (no asset ids committed yet) |
-| 11 mascot NPCs with dialogue | |
-
-Certifications, seasons, companions, boosts, gear and home are already **live in the profile schema and the gain formula** at their identity values, so the slices above drop in without a data migration.
-
 ## Controls
 
 | Input | Action |
@@ -71,6 +49,8 @@ src/
 │       ├── WorldService       plazas, fences, gates, collision groups, lighting, void catch
 │       ├── SafeZoneService    the cottage; the spawn; what "safe" MEANS
 │       ├── NpcService         procedural mascot characters, dialogue prompts
+│       ├── CompanionService   the follower that trails you + the friend stand (E)
+│       ├── AssetProbeService  measures an unknown asset id in-world (off by default)
 │       ├── WorksiteService    lays six skill districts per area; occupancy + validation
 │       ├── SkillService       the only writer of profile.skills
 │       ├── CurrencyService    the only writer of Yen/Stamps
@@ -96,7 +76,8 @@ src/
 │       ├── WorkCore           above the bar: stamina ring + what/where
 │       ├── Minimap            local view + world strip, drawn from Layout
 │       ├── Atlas              full-screen map, ladder grid, guide (M)
-│       └── ControlsPanel      first-run explanation
+│       ├── ControlsPanel      first-run explanation
+│       └── CompanionMenu      the friend picker, opened from the stand
 └── shared/                  -> ReplicatedStorage.Shared
     ├── Areas/                 ONE FILE PER AREA — see below
     │   ├── Area               shared base: types, validation, decor helpers
@@ -111,6 +92,7 @@ src/
     │   └── init               the barrel: `require(Shared.UI)`
     ├── Modules/
     │   ├── BigNumber          mantissa/exponent numbers (§12)
+    │   ├── Mascot             the part-built mascot silhouette — NPCs and companions
     │   ├── Formulas           every derived number, pure functions
     │   ├── Constants          all tunables
     │   ├── RateLimiter        token bucket

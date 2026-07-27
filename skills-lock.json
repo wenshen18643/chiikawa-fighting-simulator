@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "building-3d-objects": {
+      "source": "ohzw/roblox-dev-skills",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/building-3d-objects/SKILL.md",
+      "computedHash": "7eb43f8f08ccf81375f2192f7d09e01e027d9f65f3a1ace0a256ef6d75a39d44"
+    },
     "roblox-animations": {
       "source": "sentinelcore/roblox-skills",
       "sourceType": "github",
