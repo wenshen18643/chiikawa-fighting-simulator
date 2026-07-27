@@ -58,6 +58,7 @@ local Skeleton = require(Shared.Modules.Anim.Skeleton)
 local UI = require(Shared.UI)
 
 local AssetService = require(script.Parent.AssetService)
+local WeedService = require(script.Parent.WeedService)
 local WorldService = require(script.Parent.WorldService)
 
 local SafeZoneService = {}
@@ -745,7 +746,11 @@ local function place(row: SafeZone.Placement, baseY: number): Model?
 
 	local landedCFrame, landedSize = model:GetBoundingBox()
 	local height = worldHeight(landedCFrame, landedSize)
-	local wanted = origin + Vector3.new(row.x, baseY + (row.y or 0) + height / 2 - (row.sink or 0), row.z)
+	local sink = row.sink or 0
+	if row.asset == "grassPatch" then
+		sink = height / 2
+	end
+	local wanted = origin + Vector3.new(row.x, baseY + (row.y or 0) + height / 2 - sink, row.z)
 	model:PivotTo(model:GetPivot() + (wanted - landedCFrame.Position))
 
 	if row.name then
@@ -1396,6 +1401,10 @@ local function scatterGrass(rng: Random, occupied: { Footprint })
 			if not clump then
 				return
 			end
+
+			WeedService.registerPatch(clump, function(child)
+				return child:IsA("Model")
+			end)
 		end
 	end
 end

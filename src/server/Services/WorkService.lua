@@ -36,6 +36,7 @@ local DataService = require(script.Parent.DataService)
 local NotifyService = require(script.Parent.NotifyService)
 local SkillService = require(script.Parent.SkillService)
 local StaminaService = require(script.Parent.StaminaService)
+local WeedService = require(script.Parent.WeedService)
 local WorksiteService = require(script.Parent.WorksiteService)
 
 local WorkService = {
@@ -226,13 +227,27 @@ local function onPerform(player: Player)
 		return
 	end
 
+	local worksite = if spot then Worksites.get(spot.worksiteId) else nil
+	local skillId = if worksite then (worksite :: any).skill else freeformSkill(player, profile)
+
+	if Skills.canonicalize(skillId) == "kusatori" then
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		local section = if root and root:IsA("BasePart")
+			then WeedService.nearestPullable(root.Position, WeedService.PULL_RADIUS)
+			else nil
+		if not section then
+			explain(player, "No weeds in reach — pull from a grass patch.")
+			return
+		end
+		WeedService.pull(section)
+	end
+
 	if not StaminaService.tryConsume(player, profile) then
 		explain(player, "Catching your breath for a moment. You are still earning.")
 		return
 	end
 
-	local worksite = if spot then Worksites.get(spot.worksiteId) else nil
-	local skillId = if worksite then (worksite :: any).skill else freeformSkill(player, profile)
 	local gain = credit(player, profile, skillId, spot and spot.worksiteId or nil, 1)
 	if not gain then
 		return

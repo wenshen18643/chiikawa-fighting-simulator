@@ -21,6 +21,7 @@
 ]]
 
 local ContextActionService = game:GetService("ContextActionService")
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
@@ -39,6 +40,7 @@ local StateController = require(script.Parent.StateController)
 local WorkController = {}
 
 local ACTION_NAME = "Work"
+local WEED_RADIUS = 14
 
 local performRemote: RemoteEvent
 local selectRemote: RemoteEvent
@@ -65,6 +67,25 @@ function WorkController.onClick(callback: (skillId: string?) -> ())
 	end)
 end
 
+local function weedsNear(): boolean
+	local player = Players.LocalPlayer
+	local character = player and player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root or not root:IsA("BasePart") then
+		return false
+	end
+
+	for _, patch in CollectionService:GetTagged("Weed") do
+		if patch:IsA("Model") then
+			local delta = patch:GetPivot().Position - root.Position
+			if Vector3.new(delta.X, 0, delta.Z).Magnitude <= WEED_RADIUS then
+				return true
+			end
+		end
+	end
+	return false
+end
+
 local function tryPerform()
 	if isAnimating then
 		return
@@ -79,19 +100,25 @@ local function tryPerform()
 	local feedbackEntry = Feedback.get(skillId)
 	local duration = if feedbackEntry and feedbackEntry.gesture then feedbackEntry.gesture.duration else 0.38
 
+	local showGesture = Skills.canonicalize(skillId) ~= "kusatori" or weedsNear()
+
 	isAnimating = true
 	lastSend = now
 
 	-- 1. Fire animation start immediately so the character begins the pose
-	for _, listener in startListeners do
-		task.spawn(listener, skillId, duration)
+	if showGesture then
+		for _, listener in startListeners do
+			task.spawn(listener, skillId, duration)
+		end
 	end
 
 	-- 2. Wait for the animation duration, then send perform intent and award completion feedback
 	task.delay(duration, function()
 		performRemote:FireServer()
-		for _, listener in completeListeners do
-			task.spawn(listener, skillId)
+		if showGesture then
+			for _, listener in completeListeners do
+				task.spawn(listener, skillId)
+			end
 		end
 		isAnimating = false
 	end)
