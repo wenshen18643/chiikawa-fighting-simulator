@@ -51,6 +51,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
+local Assets = require(Shared.Modules.Config.Assets)
 local Remotes = require(Shared.Modules.Remotes)
 local SafeZone = require(Shared.Modules.Config.SafeZone)
 local Skeleton = require(Shared.Modules.Anim.Skeleton)
@@ -707,7 +708,23 @@ end
 	  target and stopping puts the model somewhere near where you asked. The
 	  second pass measures where the bounding box actually landed and corrects
 	  by the difference, which is exact regardless of the pivot.
+
+	  The height is measured AFTER the rotation, and measured against the WORLD
+	  up axis rather than read off the box. Yaw alone cannot change a model's
+	  vertical extent so this never mattered before, but `pitch` and `roll` can:
+	  a can tipped 35 degrees forward is shorter than the can standing up, and
+	  sizing it upright buries the spout in the lawn.
+
+	  Both GetBoundingBox and GetExtentsSize are oriented to the model's PIVOT,
+	  not to the world -- so once the model is tilted, `size.Y` is its own height
+	  and not the height of the hole it needs in the ground. `worldHeight` below
+	  projects the box's three axes onto world up, which is that height.
 ]]
+local function worldHeight(cframe: CFrame, size: Vector3): number
+	return math.abs(cframe.XVector.Y) * size.X
+		+ math.abs(cframe.YVector.Y) * size.Y
+		+ math.abs(cframe.ZVector.Y) * size.Z
+end
 local function place(row: SafeZone.Placement, baseY: number): Model?
 	local model = AssetService.clone(row.asset)
 	if not model then
@@ -718,25 +735,148 @@ local function place(row: SafeZone.Placement, baseY: number): Model?
 	local largest = math.max(extents.X, extents.Y, extents.Z)
 	if largest > 0.01 then
 		model:ScaleTo(model:GetScale() * (row.fit / largest))
-		extents = model:GetExtentsSize()
+		extents *= row.fit / largest
 	end
 
-	local target = toWorld(row.x, 0, row.z) * CFrame.Angles(0, math.rad(row.yaw or 0), 0)
+	local target = toWorld(row.x, 0, row.z)
+		* CFrame.Angles(0, math.rad(row.yaw or 0), 0)
+		* CFrame.Angles(math.rad(row.pitch or 0), 0, math.rad(row.roll or 0))
 	model:PivotTo(target)
 
-	local wanted = origin
-		+ Vector3.new(row.x, baseY + (row.y or 0) + extents.Y / 2 - (row.sink or 0), row.z)
-	local landed = select(1, model:GetBoundingBox()).Position
-	model:PivotTo(model:GetPivot() + (wanted - landed))
+	local landedCFrame, landedSize = model:GetBoundingBox()
+	local height = worldHeight(landedCFrame, landedSize)
+	local wanted = origin + Vector3.new(row.x, baseY + (row.y or 0) + height / 2 - (row.sink or 0), row.z)
+	model:PivotTo(model:GetPivot() + (wanted - landedCFrame.Position))
 
 	if row.name then
 		model.Name = row.name
 	end
+
+	--[[
+		Where this ended up, in the model's OWN frame, recorded for anything that
+		has to be positioned against it.
+
+		`extents` is measured before the model is ever rotated, so it is the
+		authored-orientation size -- which is the only frame in which "the long
+		axis of the counter" means anything. Reading it back off the placed model
+		does not work: GetExtentsSize is oriented to the pivot, and a prop yawed
+		twenty degrees reports a box that is a blend of its own two axes.
+
+		This exists because Yoroi-san's position used to be a second set of
+		hand-written coordinates that had to agree with the booth's, and did not:
+		the booth moved and resized twice while the attendant stayed where it
+		was, standing inside the counter.
+	]]
+	model:SetAttribute("PlotSize", extents)
+	model:SetAttribute("PlotCentre", wanted)
+	model:SetAttribute("PlotYaw", row.yaw or 0)
+
 	model.Parent = houseFolder
 	return model
 end
 
-local function placeAll(rows: { SafeZone.Placement }, groundY: number, deckY: number)
+--[[
+	Give a flat cloth the shape of the table under it.
+
+	TableCloth is a 12.6 x 0.24 x 12.7 sheet with a scalloped frill around its
+	rim and no drape whatsoever, so laid on a table it is a lid: the frill hangs
+	in mid-air off every edge with nothing joining it to the furniture. Nothing
+	in the model can be posed into a skirt either -- the frill pieces are all at
+	the same height as the sheet.
+
+	So the skirt is built. Four panels drop from the cloth's own rim to just
+	above the floor, taking their colour and material from the sheet, sized to
+	the CLOTH rather than to the table so the hem lines up with the frill that is
+	already there. The panels overlap at the corners rather than mitring.
+]]
+local function drape(cloth: Model, table_: Model, groundY: number)
+	local sheet: BasePart? = nil
+	local best = 0
+	for _, descendant in cloth:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			local area = descendant.Size.X * descendant.Size.Z
+			if area > best then
+				sheet, best = descendant, area
+			end
+		end
+	end
+	if not sheet then
+		return
+	end
+
+	local clothCFrame, clothSize = cloth:GetBoundingBox()
+	local tableCFrame, tableSize = table_:GetBoundingBox()
+
+	local hemTop = clothCFrame.Position.Y - worldHeight(clothCFrame, clothSize) / 2
+	local hemBottom = math.max(groundY + 0.1, tableCFrame.Position.Y - worldHeight(tableCFrame, tableSize) / 2 + 0.1)
+	local drop = hemTop - hemBottom
+	if drop <= 0.2 then
+		return
+	end
+
+	-- The cloth's own yaw, kept upright: panels hang plumb whatever the sheet is
+	-- turned to, which they would not if they inherited its full rotation.
+	local look = clothCFrame.LookVector
+	local frame = CFrame.new(clothCFrame.Position.X, hemBottom + drop / 2, clothCFrame.Position.Z)
+		* CFrame.Angles(0, math.atan2(look.X, look.Z), 0)
+
+	local thickness = math.max(sheet.Size.Y, 0.16)
+
+	local sides = {
+		{ size = Vector3.new(clothSize.X, drop, thickness), offset = Vector3.new(0, 0, clothSize.Z / 2) },
+		{ size = Vector3.new(clothSize.X, drop, thickness), offset = Vector3.new(0, 0, -clothSize.Z / 2) },
+		{ size = Vector3.new(thickness, drop, clothSize.Z), offset = Vector3.new(clothSize.X / 2, 0, 0) },
+		{ size = Vector3.new(thickness, drop, clothSize.Z), offset = Vector3.new(-clothSize.X / 2, 0, 0) },
+	}
+
+	for index, side in sides do
+		local panel = Instance.new("Part")
+		panel.Name = `ClothSkirt{index}`
+		panel.Size = side.size
+		panel.CFrame = frame * CFrame.new(side.offset)
+		panel.Color = sheet.Color
+		panel.Material = sheet.Material
+		panel.Anchored = true
+		panel.CanCollide = false
+		panel.CanQuery = false
+		panel.CanTouch = false
+		panel.TopSurface = Enum.SurfaceType.Smooth
+		panel.BottomSurface = Enum.SurfaceType.Smooth
+		panel.Parent = cloth
+	end
+end
+
+--[[
+	Footprints of what has already been placed, in plot coordinates.
+
+	Only used by the lawn. Scattering 22 clumps at random almost never landed one
+	inside a shop; covering the plot on a grid lands several, and a clump of grass
+	standing up through a shop floor is worse than a bare patch.
+
+	SOLID THINGS ONLY -- the ones Config/Assets marks `collide`, which is the
+	shops, the booth and the picnic table. A sakura is 54 studs of canopy over a
+	trunk you can walk up to, and reserving its bounding box would clear a
+	54-stud circle of lawn to protect a tree that grass is supposed to grow
+	under.
+]]
+export type Footprint = { x: number, z: number, halfX: number, halfZ: number }
+
+local function footprintOf(row: SafeZone.Placement, model: Model): Footprint
+	local _, size = model:GetBoundingBox()
+	local yaw = math.rad(row.yaw or 0)
+	local cos, sin = math.abs(math.cos(yaw)), math.abs(math.sin(yaw))
+	return {
+		x = row.x,
+		z = row.z,
+		halfX = (size.X * cos + size.Z * sin) / 2,
+		halfZ = (size.X * sin + size.Z * cos) / 2,
+	}
+end
+
+local function placeAll(rows: { SafeZone.Placement }, groundY: number, deckY: number): { Footprint }
+	local named: { [string]: Model } = {}
+	local footprints: { Footprint } = {}
+
 	for _, row in rows do
 		local baseY = if row.on == "loft" then deckY else groundY
 		local ok, result = pcall(place, row, baseY)
@@ -744,8 +884,32 @@ local function placeAll(rows: { SafeZone.Placement }, groundY: number, deckY: nu
 			warn(`[SafeZoneService] placing "{row.asset}" failed: {result}`)
 		elseif result == nil then
 			warn(`[SafeZoneService] asset "{row.asset}" did not load; nothing placed`)
+		else
+			if row.name then
+				named[row.name] = result
+			end
+			if row.drapeOver then
+				local over = named[row.drapeOver]
+				if over then
+					drape(result, over, baseY + origin.Y)
+				else
+					warn(`[SafeZoneService] "{row.asset}" drapes over "{row.drapeOver}", which is not placed yet`)
+				end
+			end
+			--[[
+				Solid AND not a canopy. `collide` used to be opt-in and doubled
+				as "is this a building", which stopped working the moment it
+				became the default: reserving lawn under everything solid clears
+				a 54-stud circle for each sakura, which is most of the garden.
+			]]
+			local spec = Assets.get(row.asset)
+			if spec and spec.collide ~= false and not spec.canopy then
+				table.insert(footprints, footprintOf(row, result))
+			end
 		end
 	end
+
+	return footprints
 end
 
 --------------------------------------------------------------------------------
@@ -887,11 +1051,23 @@ local function rigYoroi(model: Model, height: number): BasePart?
 		end
 	end
 
+	--[[
+		Solid, like everything else on the plot.
+
+		Safe because of the anchoring above: joints propagate anchoring through
+		an assembly, so limbs joined to an anchored root cannot be shoved
+		anywhere by a player walking into them. Collision here only means Yoroi
+		occupies its own space instead of being a hologram of a bailiff.
+
+		The root is the exception. It is an invisible box sitting exactly on the
+		torso, so leaving it solid would give the torso two collision hulls.
+	]]
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
-			descendant.Anchored = descendant == root
-			descendant.CanCollide = false
-			descendant.CanQuery = false
+			local isRoot = descendant == root
+			descendant.Anchored = isRoot
+			descendant.CanCollide = not isRoot
+			descendant.CanQuery = not isRoot
 			descendant.CanTouch = false
 			if not jointed[descendant] then
 				local weld = Instance.new("WeldConstraint")
@@ -905,6 +1081,51 @@ local function rigYoroi(model: Model, height: number): BasePart?
 	model.PrimaryPart = root
 	model:SetAttribute(Skeleton.PROFILE_ATTRIBUTE, "yoroi")
 	return root
+end
+
+--[[
+	Where the attendant stands, derived from the booth that is already placed.
+
+	The booth is the thing that moves. It has been resized twice and re-yawed
+	twice, and both times Yoroi-san stayed at the coordinates written next to it
+	-- which is how it ended up standing inside its own counter. So this reads
+	the booth's recorded frame and measures off it, and the config now says
+	"just past the end of the counter" in units of the booth rather than in
+	studs of the world.
+
+	Standing at the END of the counter and not behind it is forced by the model.
+	ShopStall's back board sits at local X -1.60 and its counter spans -1.50 to
+	+1.50, so there is no gap to stand in -- and the board runs the full height
+	of the stall, so anything behind it is hidden completely. The open end is the
+	only place an attendant is both out of the geometry and visible.
+]]
+local function boothStation(): (CFrame?, number?)
+	local booth = houseFolder:FindFirstChild(SafeZone.YOROI.booth)
+	if not (booth and booth:IsA("Model")) then
+		return nil, nil
+	end
+
+	local centre = booth:GetAttribute("PlotCentre")
+	local size = booth:GetAttribute("PlotSize")
+	local yaw = booth:GetAttribute("PlotYaw")
+	if typeof(centre) ~= "Vector3" or typeof(size) ~= "Vector3" or type(yaw) ~= "number" then
+		return nil, nil
+	end
+
+	local spot = SafeZone.YOROI
+	local frame = CFrame.new(centre) * CFrame.Angles(0, math.rad(yaw), 0)
+	local station = frame * CFrame.new(spot.outFromCounter * size.X / 2, 0, spot.alongCounter * size.Z / 2)
+
+	--[[
+		Facing, derived rather than typed.
+
+		The booth serves along its own +X, which is the bearing yaw + 90. The rig
+		faces its own -X -- every part in it carries a 90 degree yaw, and "Right
+		Arm" sits at -Z where a standard R6 rig puts it at +X -- so a rig at yaw
+		phi faces the bearing phi - 90. Setting those equal gives phi = yaw + 180,
+		and `facingOffset` is that 180 with a name on it.
+	]]
+	return CFrame.new(station.Position), yaw + spot.facingOffset
 end
 
 local function buildYoroi(groundY: number)
@@ -923,9 +1144,15 @@ local function buildYoroi(groundY: number)
 		return
 	end
 
+	local station, facing = boothStation()
+	if not (station and facing) then
+		warn("[SafeZoneService] job booth is not placed; standing Yoroi-san at its fallback spot")
+		station, facing = toWorld(spot.x, 0, spot.z), spot.yaw
+	end
+
 	-- Feet on the ground: the rig's own extents are measured after scaling, and
 	-- the root sits at the torso, which is not the bottom of the model.
-	model:PivotTo(toWorld(spot.x, 0, spot.z) * CFrame.Angles(0, math.rad(spot.yaw), 0))
+	model:PivotTo(CFrame.new(station.Position) * CFrame.Angles(0, math.rad(facing), 0))
 	local box, size = model:GetBoundingBox()
 	local lift = (origin.Y + groundY + size.Y / 2) - box.Position.Y
 	model:PivotTo(model:GetPivot() + Vector3.new(0, lift, 0))
@@ -1104,50 +1331,72 @@ local function buildPathLanterns()
 end
 
 --[[
-	Ground that is clear to plant on: not on the path, not inside the house, and
-	not on the doorstep a player lands on when they travel to Town.
+	Ground that is clear to plant on: not on the paving, and not inside the house.
+
+	The paving is the path strip plus its 1.2-stud edging either side, so it ends
+	at 8.2 from the centre line and grass may start just past that. This used to
+	keep back pathWidth/2 + 6 -- a 26-stud-wide bald strip down the middle of the
+	garden for a 14-stud path -- and to leave a 20-stud square of bare ground on
+	the doorstep, which is paving too and does not need a lawn exclusion of its
+	own.
 ]]
 local function isClear(x: number, z: number): boolean
 	local garden = SafeZone.garden
-	if math.abs(x) < garden.pathWidth / 2 + 6 and z > garden.pathFrom - 6 and z < garden.pathTo + 6 then
+	local paved = garden.pathWidth / 2 + 1.2 + garden.grassPathMargin
+	if math.abs(x) < paved and z > garden.pathFrom - garden.grassPathMargin and z < garden.pathTo then
 		return false
 	end
-	if Vector2.new(x, z).Magnitude < dome.radius + 8 then
-		return false
-	end
-	local doorstep = SafeZone.DOORSTEP_OFFSET
-	return not (math.abs(x - doorstep.X) < 10 and math.abs(z - doorstep.Z) < 10)
+	return Vector2.new(x, z).Magnitude >= dome.radius + 2
 end
 
-local function scatterGrass(rng: Random)
+--[[
+	Lawn, by jittered grid.
+
+	One clump per cell, displaced by up to `grassJitter`, sized to overlap its
+	neighbours. Cells whose centre is on the paving or under the house are
+	skipped, so the grass runs right up to the kerb and stops.
+]]
+local function scatterGrass(rng: Random, occupied: { Footprint })
 	local garden = SafeZone.garden
+
+	local function isFree(x: number, z: number): boolean
+		for _, spot in occupied do
+			if math.abs(x - spot.x) < spot.halfX and math.abs(z - spot.z) < spot.halfZ then
+				return false
+			end
+		end
+		return true
+	end
+
 	local halfX = SafeZone.VOLUME.size.X / 2 - garden.fenceInset - 5
 	local frontZ = SafeZone.VOLUME.centreOffset.Z + SafeZone.VOLUME.size.Z / 2 - garden.fenceInset - 5
 	local backZ = SafeZone.VOLUME.centreOffset.Z - SafeZone.VOLUME.size.Z / 2 + garden.fenceInset + 5
 
-	local placed = 0
-	local attempts = 0
-	while placed < garden.grassCount and attempts < garden.grassCount * 8 do
-		attempts += 1
-		local x = rng:NextNumber(-halfX, halfX)
-		local z = rng:NextNumber(backZ, frontZ)
-		if not isClear(x, z) then
-			continue
-		end
+	local spacing = garden.grassSpacing
+	local columns = math.floor((halfX * 2) / spacing)
+	local rows = math.floor((frontZ - backZ) / spacing)
 
-		local clump = place({
-			asset = "grassPatch",
-			x = x,
-			z = z,
-			fit = rng:NextNumber(garden.grassFit[1], garden.grassFit[2]),
-			yaw = rng:NextNumber(0, 360),
-			sink = 0.6,
-		}, 0)
+	for column = 0, columns do
+		for row = 0, rows do
+			local x = -halfX + column * spacing + rng:NextNumber(-garden.grassJitter, garden.grassJitter)
+			local z = backZ + row * spacing + rng:NextNumber(-garden.grassJitter, garden.grassJitter)
+			if not isClear(x, z) or not isFree(x, z) then
+				continue
+			end
 
-		if not clump then
-			return
+			local clump = place({
+				asset = "grassPatch",
+				x = x,
+				z = z,
+				fit = rng:NextNumber(garden.grassFit[1], garden.grassFit[2]),
+				yaw = rng:NextNumber(0, 360),
+				sink = 0.6,
+			}, 0)
+
+			if not clump then
+				return
+			end
 		end
-		placed += 1
 	end
 end
 
@@ -1276,8 +1525,8 @@ local function build(rng: Random)
 	buildPathLanterns()
 
 	placeAll(SafeZone.interior, SafeZone.FLOOR_Y, deckY)
-	placeAll(SafeZone.exterior, SafeZone.FLOOR_Y, deckY)
-	scatterGrass(rng)
+	local outdoors = placeAll(SafeZone.exterior, SafeZone.FLOOR_Y, deckY)
+	scatterGrass(rng, outdoors)
 	buildYoroi(SafeZone.FLOOR_Y)
 
 	--[[

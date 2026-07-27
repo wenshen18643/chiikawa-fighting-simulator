@@ -181,6 +181,13 @@ SafeZone.DOORSTEP_OFFSET = Vector3.new(0, 3.5, 42)
 	`y` lifts the model's base above the surface it stands on; omitted means it
 	sits on the ground. `yaw` is degrees. `sink` buries it, for things that
 	should look planted rather than placed.
+
+	`pitch` and `roll` tip the model in its own yawed frame, and exist for two
+	jobs: standing up a model whose author left it lying on its side (the yogurt
+	tub's bowl points its open face at -Z, not up), and tipping something that is
+	meant to be in use (the watering can pours or it is a watering can nobody is
+	using). They are applied after `yaw`, and the model is re-measured afterwards
+	so a tilted thing still lands on the ground rather than through it.
 ]]
 export type Placement = {
 	asset: string,
@@ -189,10 +196,15 @@ export type Placement = {
 	fit: number,
 	y: number?,
 	yaw: number?,
+	pitch: number?,
+	roll: number?,
 	sink: number?,
 	name: string?,
 	-- "loft" measures `y` from the loft deck instead of the ground floor.
 	on: string?,
+	-- Names an already-placed model this one should be draped over; see
+	-- SafeZoneService.drape.
+	drapeOver: string?,
 }
 
 --[[
@@ -219,27 +231,53 @@ SafeZone.FOOD = {
 }
 
 -- Inside the dome. Ground floor unless `y` says otherwise.
+--[[
+	Surface heights, derived rather than guessed.
+
+	`fit` scales a model by its largest dimension, so every usable surface in here
+	is a fixed fraction of that model's `fit` and can be worked out exactly:
+
+	  LowTable    top is 2.59 of 9.44  -> 0.274 * fit -> 3.57 at fit 13
+	  TableCloth  adds 0.24 of 14.01   -> 0.017 * fit -> 0.25 at fit 14.5
+	  PicnicTable top is 3.79 of 14.78 -> 0.256 * fit -> 3.08 at fit 12
+
+	These were previously eyeballed, and every one of them was low: the crockery
+	sat 0.9 studs inside the table it was standing on and the cloth was buried in
+	the tabletop with only its frill showing, which is the floating hem in the
+	screenshot.
+]]
+SafeZone.SURFACE = {
+	lowTable = 3.57,
+	cloth = 3.82,
+	picnicTable = 3.08,
+}
+
 SafeZone.interior = {
-	{ asset = "lowTable", x = 0, z = -3, fit = 13 },
-	{ asset = "tableCloth", x = 0, z = -3, fit = 14, y = 2.5 },
+	{ asset = "lowTable", x = 0, z = -3, fit = 13, name = "LowTable" },
+	{ asset = "tableCloth", x = 0, z = -3, fit = 14.5, y = SafeZone.SURFACE.lowTable, drapeOver = "LowTable" },
 	{ asset = "floorCushion", x = -9, z = -3, fit = 5, yaw = 90 },
 	{ asset = "floorCushion", x = 9, z = -3, fit = 5, yaw = -90 },
 	{ asset = "floorCushion", x = 0, z = -12, fit = 5, yaw = 180 },
 
 	-- On the table, in descending order of absurdity.
-	{ asset = "ramen", x = 0, z = -3, fit = SafeZone.FOOD.ramen, y = 2.7 },
-	{ asset = "teaPot", x = -7, z = 2, fit = 4.5, y = 2.7 },
-	{ asset = "teaCup", x = 4, z = 2.5, fit = 2.4, y = 2.7 },
-	{ asset = "teaCup", x = 6.5, z = 1, fit = 2.4, y = 2.7 },
+	{ asset = "ramen", x = 0, z = -3, fit = SafeZone.FOOD.ramen, y = SafeZone.SURFACE.cloth },
+	{ asset = "teaPot", x = -5.5, z = 2.5, fit = 4.5, y = SafeZone.SURFACE.cloth },
+	{ asset = "teaCup", x = 4.5, z = 3, fit = 2.4, y = SafeZone.SURFACE.cloth },
+	{ asset = "teaCup", x = 6, z = 1.5, fit = 2.4, y = SafeZone.SURFACE.cloth },
 
-	-- On the floor, because they do not fit on the table.
-	{ asset = "dangoPlatter", x = 17, z = -14, fit = SafeZone.FOOD.dangoPlatter },
-	{ asset = "onigiri", x = -17, z = -13, fit = SafeZone.FOOD.onigiri },
+	--[[
+		On the floor, because they do not fit on the table.
+
+		Both of these used to stand inside the staircase. STAIR sweeps azimuth
+		128 to 260 at radius 23.5 with a width of 7.5, so it owns everything
+		between radius 19.75 and 27.25 in that arc -- and the dango platter sat at
+		azimuth 129.5 radius 22.0, the onigiri at azimuth 232.6 radius 21.4, which
+		is to say both of them were in the stairs. They are now on the east and
+		west of the room, in the arc the stair does not cross.
+	]]
+	{ asset = "dangoPlatter", x = 17, z = 10, fit = SafeZone.FOOD.dangoPlatter },
+	{ asset = "onigiri", x = -16, z = 14, fit = SafeZone.FOOD.onigiri },
 	{ asset = "kettle", x = -20, z = 3, fit = 5 },
-
-	-- Loft. The bed, and the breakfast you carried up there.
-	{ asset = "yogurtBerry", x = 9, z = -14, fit = SafeZone.FOOD.yogurtBerry, on = "loft" },
-	{ asset = "pancakes", x = 14, z = -9, fit = SafeZone.FOOD.pancakes, on = "loft" },
 } :: { Placement }
 
 -- The garden, the path, and the market frontage at the gate.
@@ -248,7 +286,12 @@ SafeZone.exterior = {
 	-- shot every player sees on their first frame outdoors.
 	{ asset = "sakuraTree", x = -42, z = 62, fit = 54, yaw = 25 },
 	{ asset = "sakuraTree", x = 42, z = 62, fit = 50, yaw = -40 },
-	{ asset = "sakuraTree", x = -20, z = -46, fit = 44, yaw = 150 },
+	--[[
+		The third sakura, behind the house. Moved out from (-20, -46): at 44 studs
+		across, its canopy reached to 22.6 studs of the plot centre and the dome's
+		shell is at 32, so the branches were growing through the roof.
+	]]
+	{ asset = "sakuraTree", x = -26, z = -54, fit = 44, yaw = 150 },
 
 	-- The gate itself.
 	{ asset = "lanternTall", x = -13, z = 99, fit = 22 },
@@ -258,34 +301,112 @@ SafeZone.exterior = {
 	-- Household clutter down the west side. A home reads as lived in from the
 	-- things left outside it, not from the things arranged inside it.
 	{ asset = "laundryLine", x = -48, z = 8, fit = 30, yaw = 8 },
-	{ asset = "wateringCan", x = 27, z = 39, fit = 5, yaw = 40 },
 
-	-- The picnic table, and lunch. This is the set piece the path walks you
-	-- past on the way out.
-	{ asset = "picnicTable", x = 47, z = 60, fit = 26, yaw = -22 },
-	{ asset = "dango", x = 47, z = 60, fit = SafeZone.FOOD.dango, y = 7.4 },
-	{ asset = "yogurtVanilla", x = 41, z = 55, fit = SafeZone.FOOD.yogurtVanilla, y = 7.4 },
+	--[[
+		The watering can, and the thing it waters.
 
-	-- Market frontage at the far end of the path.
-	{ asset = "shopBlue", x = -56, z = 104, fit = 34, yaw = 34 },
-	{ asset = "shopRed", x = 56, z = 104, fit = 32, yaw = -34 },
+		Its spout points along the model's own -Z and sits near the top, so a can
+		standing upright in an empty patch of lawn is a can nobody is using. Yawed
+		to 180 the spout points up the garden, pitched forward it pours, and the
+		two clumps below are what it pours onto.
+	]]
+	{ asset = "wateringCan", x = 24, z = 36, fit = 5, yaw = 180, pitch = -35 },
+	{ asset = "grassPatch", x = 24, z = 42, fit = 9, sink = 0.6 },
+	{ asset = "grassPatch", x = 28.5, z = 44, fit = 7, yaw = 40, sink = 0.6 },
+
+	--[[
+		The picnic table, and lunch. This is the set piece the path walks you
+		past on the way out.
+
+		Sized down from 26. `fit` is the largest dimension, and this model's is
+		its 14.78-stud length, so 26 put a table 12.5 studs TALL next to a 5-stud
+		character -- the tabletop alone was above their head. At 12 the top lands
+		at 3.08, which is a table a Chiikawa can reach.
+
+		Moved off the sakura at (42, 62) as well; at the old size and position the
+		trunk came up through the middle of it.
+	]]
+	{ asset = "picnicTable", x = 52, z = 56, fit = 12, yaw = -22 },
+	{ asset = "dango", x = 52, z = 56, fit = SafeZone.FOOD.dango, y = SafeZone.SURFACE.picnicTable, yaw = -22 },
+
+	--[[
+		The rest of lunch, on the grass, because SafeZone.FOOD means a stack of
+		pancakes is 10 studs across and the tabletop is 5.6. Same joke as the
+		interior floor, and the reason these are out here at all is that they were
+		on the loft: breakfast nobody was ever going to see, up a spiral stair.
+	]]
+	{ asset = "yogurtVanilla", x = 42, z = 51, fit = SafeZone.FOOD.yogurtVanilla, pitch = 90 },
+	{ asset = "pancakes", x = 66, z = 50, fit = SafeZone.FOOD.pancakes, yaw = 15 },
+	{ asset = "yogurtBerry", x = 46, z = 68, fit = SafeZone.FOOD.yogurtBerry, yaw = -30 },
+
+	-- Market frontage at the far end of the path. Both were about as big as the
+	-- house; the dome is 37 tall and shopBlue was 32.
+	{ asset = "shopBlue", x = -40, z = 100, fit = 20, yaw = 34 },
+	{ asset = "shopRed", x = 40, z = 100, fit = 18, yaw = -34 },
 
 	--[[
 		The job booth. Yoroi-san hand out weeding and subjugation work from a
 		desk, so the booth is the reason the plot has a gate at all -- you leave
 		the house to take a job. `yoroiKnight` is rigged and animated behind it;
 		see SafeZoneService.rigYoroi.
+
+		The stall's back board sits at lower local X than its counter, so the
+		model serves toward its own +X, and at yaw 118 it was serving the fence.
+		Yawed to -20 the counter faces the path and angles up toward the gate.
+
+		`fit` was 18 on a model whose largest dimension is its 9.2-stud height, so
+		the booth was 18 studs tall and 6 wide -- a chimney with a counter.
 	]]
-	{ asset = "shopStall", x = -30, z = 76, fit = 18, yaw = 118, name = "JobBooth" },
-	{ asset = "yoroiBeast", x = -20, z = 88, fit = 7, yaw = -140 },
+	{ asset = "shopStall", x = -18, z = 76, fit = 12, yaw = -20, name = "JobBooth" },
+	-- Sat clear of the attendant, which moved when the booth did.
+	{ asset = "yoroiBeast", x = -29, z = 92, fit = 7, yaw = -140 },
 } :: { Placement }
 
--- Where the rigged Yoroi-san stands, and which way it faces.
+--[[
+	Where the rigged Yoroi-san stands, and which way it faces.
+
+	The rig is built facing its own -X: every part in the model carries a 90
+	degree yaw, its arms and legs separate along Z, and its shoulder plates sit
+	at lower X than its torso. Everything else on this plot is authored facing
+	+Z, so the number here is 90 degrees out from what it looks like it says --
+	which is why Yoroi-san was standing beside its own counter looking off across
+	the garden. 160 turns it to face the same way the booth serves.
+
+	Position is derived from the booth rather than set near it: two studs behind
+	the counter's back face along the booth's own backward axis. It used to be
+	5.8 studs from the booth's CENTRE, which on an 18-stud booth is inside it.
+]]
 SafeZone.YOROI = {
-	x = -25,
-	z = 79,
-	yaw = 118,
+	booth = "JobBooth",
+	--[[
+		Position, in units of the booth's own half-extents rather than in studs.
+
+		`alongCounter` runs down the booth's long axis; past 1.0 is past the end
+		of it. `outFromCounter` runs across the serving side. Written this way so
+		resizing or re-yawing the booth carries the attendant with it -- the
+		previous version was a second pair of world coordinates that had to agree
+		with the booth's and did not.
+	]]
+	--[[
+		1.7, not 1.25. Both are "past the end of the counter", but the attendant
+		is 5.7 studs deep and stands turned 180 to the booth, so its own box
+		reaches back toward the stall -- at 1.25 the two still overlapped by 1.3
+		studs, which is now something you can walk into rather than something
+		that merely looks wrong. This leaves 1.4 studs of daylight.
+	]]
+	alongCounter = 1.7,
+	outFromCounter = 0.35,
+	--[[
+		Turned to face the way the booth serves. 180 rather than 0 because the rig
+		faces its own -X while the booth serves its own +X; see boothStation.
+	]]
+	facingOffset = 180,
 	height = 8.5, -- deliberately taller than the player: they are the authority
+
+	-- Used only if the booth failed to load and there is nothing to measure off.
+	x = -18,
+	z = 84,
+	yaw = 160,
 }
 
 --------------------------------------------------------------------------------
@@ -301,10 +422,25 @@ SafeZone.garden = {
 	postSpacing = 7.5,
 	gateGap = 11, -- half-width of the opening the path passes through
 
-	-- Scatter. `grassPatch` is a 10-stud clump of blades, so a dozen of them
-	-- cover ground that would otherwise need a hundred procedural tufts.
-	grassCount = 22,
-	grassFit = { 9, 15 },
+	--[[
+		Scatter. `grassPatch` is a 10-stud clump of blades.
+
+		A jittered grid, not 22 random points. Random scatter at that count left
+		most of the plot as bare ground with a few tufts on it, and raising the
+		count alone does not fix it -- uniform random clumps and leaves holes. The
+		grid guarantees coverage, the jitter takes the grid back out of it.
+
+		`spacing` is the cell; clumps are sized to overlap their neighbours so the
+		lawn is continuous. The model is 105 parts, so this is the one number here
+		that costs real frame time: 16 studs over this plot is around 90 clumps
+		once the path and the house are cut out of it.
+	]]
+	grassSpacing = 16,
+	grassJitter = 5,
+	grassFit = { 14, 20 },
+	-- Clearance from the paving's outer edge. The path is 14 wide with a 1.2
+	-- edging either side, so the pavement ends at 8.2 and grass starts just past.
+	grassPathMargin = 1.5,
 	lanternSpacing = 22, -- down both sides of the path
 }
 

@@ -108,9 +108,20 @@ local function prepare(model: Model, spec: Assets.AssetSpec)
 
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
+			--[[
+				Solid unless the spec opts out. See Config/Assets `collide`: the
+				default used to be the other way and it made the whole world a
+				painting -- you walked through the shops, the tables and the food.
+
+				CanQuery follows CanCollide rather than being pinned off. A prop
+				you can stand on is a prop the mouse and any future raycast
+				should be able to see; leaving it unqueryable means a solid table
+				that nothing can target and nothing can trace against.
+			]]
+			local solid = spec.collide ~= false
 			descendant.Anchored = true
-			descendant.CanCollide = spec.collide == true
-			descendant.CanQuery = false
+			descendant.CanCollide = solid
+			descendant.CanQuery = solid
 			descendant.CanTouch = false
 		elseif isContraband(descendant) then
 			descendant:Destroy()
