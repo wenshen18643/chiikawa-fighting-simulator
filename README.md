@@ -25,7 +25,8 @@ the real action; completing or deliberately skipping the lesson saves onboarding
 raises whichever skill you have selected, at base rate. A pad raises its own skill at ×2 up to
 ×5000 — so a district is worth walking to for the same reason it always was, without the game ever
 refusing a click. Standing on a pad you have *not* unlocked trains that pad's skill at base rate, so
-arriving somewhere early is never wasted. **Idling still only earns on a pad.**
+arriving somewhere early is never wasted. **Idling still only earns on a pad**, except Exam Prep:
+reading never advances while idle and requires a page flip for every point award.
 
 Running and jumping raise **Grit** — §4 defines it as endurance, and crossing this world is exactly
 that. It is a trickle next to clicking, so travel is productive rather than optimal.
@@ -39,6 +40,27 @@ screen from the thing it limits.
 Holding the mouse button does nothing after the first click. That is deliberate — see the §17
 deviations table in `docs/GAME.md`, which records both the original move to hold-to-work and its
 reversal.
+
+## Exam Prep and Kusatori Grade 5
+
+Pressing skill 4 opens a full-screen book. Exam Prep cannot be earned from the regular Work action or
+from passive pad ticks; every gain comes from clicking the book to flip one page. A usable Exam Prep
+desk still multiplies the value of each flip. Every accepted flip has a 10% chance to reveal a
+procedural plant fact, followed shortly by a three-image recall question. Correct answers add 20%
+Readiness; missed answers add 8% because reviewing a mistake is still learning. Nothing is lost.
+
+A correct recall also has a 30% chance to grant **Focus**: 2x Exam Prep points from page flips for
+the next 30 seconds. Winning Focus again refreshes its duration. It does not affect other skills.
+
+At 100% Readiness and 100 Kusatori, the pink bookmark offers the five-question Kusatori Grade 5
+exam. Four answers pass. A failed attempt preserves Readiness and asks for two correct review cards
+before the next attempt. Passing awards Kusatori certification order 1, which already feeds the
+shared gain and wage formulas (2x Kusatori gain and +50% base wage multiplier).
+
+Practice companions have small story moments rather than stat multipliers: Hachiware crosses out a
+distractor, while Usagi sometimes blurts out the answer. Exam questions never provide companion
+hints. The server owns questions, answers, readiness, attempts and the certification award; clients
+send only page, choice and sit-exam intent.
 
 ## Structure
 
@@ -59,6 +81,7 @@ src/
 │       ├── CurrencyService    the only writer of Yen/Stamps
 │       ├── StaminaService     stamina, rest state
 │       ├── WorkService        work actions: rate limit, validate, credit
+│       ├── StudyService       field notes, recall, Grade 5 exam, certification
 │       ├── RegionService      area unlock, gate access groups, fast travel
 │       ├── TrainingService    movement raises Grit; rejects spoofed distance
 │       ├── ReplicationService server -> client state snapshots
@@ -77,6 +100,7 @@ src/
 │       ├── HUD                identity block, side rail, toasts; hosts the rest
 │       ├── SkillBar           bottom-centre round skill buttons, numbered 1-4
 │       ├── WorkCore           above the bar: stamina ring + what/where
+│       ├── StudySession       open-book field notes, recall and exam UI
 │       ├── Minimap            local view + world strip, drawn from Layout
 │       ├── Atlas              full-screen map, ladder grid, guide (N)
 │       ├── ControlsPanel      responsive, paginated first-run Field Guide

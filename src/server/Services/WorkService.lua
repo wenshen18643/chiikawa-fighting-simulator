@@ -29,11 +29,13 @@ local Formulas = require(Shared.Modules.Formulas)
 local RateLimiter = require(Shared.Modules.RateLimiter)
 local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
+local SafeZone = require(Shared.Modules.Config.SafeZone)
 local Worksites = require(Shared.Modules.Config.Worksites)
 
 local CurrencyService = require(script.Parent.CurrencyService)
 local DataService = require(script.Parent.DataService)
 local NotifyService = require(script.Parent.NotifyService)
+local SafeZoneService = require(script.Parent.SafeZoneService)
 local SkillService = require(script.Parent.SkillService)
 local StaminaService = require(script.Parent.StaminaService)
 local WorksiteService = require(script.Parent.WorksiteService)
@@ -70,7 +72,14 @@ end
 
 	Returns the skill gain applied, or nil if nothing was credited.
 ]]
-local function credit(player: Player, profile: any, skillId: string, worksiteId: string?, actions: number)
+local function credit(
+	player: Player,
+	profile: any,
+	skillId: string,
+	worksiteId: string?,
+	actions: number,
+	actionMultiplier: number?
+)
 	if not Skills.exists(skillId) then
 		return nil
 	end
@@ -81,6 +90,9 @@ local function credit(player: Player, profile: any, skillId: string, worksiteId:
 	end
 
 	local gain = BigNumber.mulNumber(perAction, actions)
+	if actionMultiplier then
+		gain = BigNumber.mulNumber(gain, actionMultiplier)
+	end
 
 	SkillService.award(player, profile, skillId, gain)
 
@@ -210,13 +222,25 @@ local function onPerform(player: Player)
 		skill at base rate. The pad is worth between two and five thousand times
 		open ground, which never needed a wall to enforce.
 	]]
-	local spot = WorksiteService.getOccupied(player)
+	local attackingDummy = SafeZoneService.isAttackingTrainingDummy(player)
+	local spot = if attackingDummy then nil else WorksiteService.getOccupied(player)
 
 	-- Re-validate rather than trusting the throttled occupancy tick. A player
 	-- who has stepped off since the last tick falls through to free-form rather
 	-- than being refused.
 	if spot and not WorksiteService.validate(player, profile, spot) then
 		spot = nil
+	end
+
+	local worksite = if spot then Worksites.get(spot.worksiteId) else nil
+	local skillId = if attackingDummy then "tobatsu"
+		elseif worksite then (worksite :: any).skill
+		else freeformSkill(player, profile)
+
+	-- Exam Prep is earned only by page flips inside StudySession. A normal Work
+	-- click must not grant it (or consume stamina for an action that cannot pay).
+	if Skills.canonicalize(skillId) == "examprep" then
+		return
 	end
 
 	-- Over the rate cap: drop it silently. This is the one refusal that needs
@@ -231,9 +255,14 @@ local function onPerform(player: Player)
 		return
 	end
 
-	local worksite = if spot then Worksites.get(spot.worksiteId) else nil
-	local skillId = if worksite then (worksite :: any).skill else freeformSkill(player, profile)
-	local gain = credit(player, profile, skillId, spot and spot.worksiteId or nil, 1)
+	local gain = credit(
+		player,
+		profile,
+		skillId,
+		spot and spot.worksiteId or nil,
+		1,
+		if attackingDummy then SafeZone.trainingDummy.multiplier else nil
+	)
 	if not gain then
 		return
 	end
@@ -314,6 +343,11 @@ local function afkLoop()
 
 			local worksite = Worksites.get(spot.worksiteId)
 			if not worksite then
+				continue
+			end
+			-- Reading is never passive. The player has to turn the page in the
+			-- full-screen book for every Exam Prep gain.
+			if Skills.canonicalize(worksite.skill) == "examprep" then
 				continue
 			end
 

@@ -24,6 +24,7 @@ local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
@@ -44,11 +45,44 @@ local performRemote: RemoteEvent
 local selectRemote: RemoteEvent
 local lastSend = 0
 local isAnimating = false
+local inputLocks: { [string]: boolean } = {}
 
 -- Fired locally when an action begins (gesture animation starts).
 local startListeners: { (skillId: string?, duration: number) -> () } = {}
 -- Fired locally when an action animation finishes (stat reward requested).
 local completeListeners: { (skillId: string?) -> () } = {}
+local selectionListeners: { (skillId: string) -> () } = {}
+
+-- Mirror the server's spatial test only to choose the right local gesture.
+-- Reward authority remains entirely in SafeZoneService/WorkService.
+local function getTrainingDummySkill(): string?
+	local safeZone = Workspace:FindFirstChild("SafeZone")
+	local dummy = safeZone and safeZone:FindFirstChild("TrainingScarecrow") :: Model?
+	local root = Players.LocalPlayer.Character
+		and Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not dummy or not dummy.PrimaryPart or not root then
+		return nil
+	end
+
+	local offset = dummy.PrimaryPart.Position - root.Position
+	local planarOffset = Vector3.new(offset.X, 0, offset.Z)
+	local range = dummy:GetAttribute("AttackRange")
+	local facingMinimum = dummy:GetAttribute("FacingDotMinimum")
+	if type(range) ~= "number" or type(facingMinimum) ~= "number" then
+		return nil
+	end
+	if planarOffset.Magnitude > range or planarOffset.Magnitude < 0.01 then
+		return nil
+	end
+
+	local forward = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
+	if forward.Magnitude < 0.01 or forward.Unit:Dot(planarOffset.Unit) < facingMinimum then
+		return nil
+	end
+
+	local skillId = dummy:GetAttribute("TrainingSkill")
+	return if type(skillId) == "string" then skillId else nil
+end
 
 function WorkController.onStart(callback: (skillId: string?, duration: number) -> ())
 	table.insert(startListeners, callback)
@@ -56,6 +90,10 @@ end
 
 function WorkController.onComplete(callback: (skillId: string?) -> ())
 	table.insert(completeListeners, callback)
+end
+
+function WorkController.onSelected(callback: (skillId: string) -> ())
+	table.insert(selectionListeners, callback)
 end
 
 -- Backward compatibility for onClick listeners (subscribes to start by default)
@@ -66,6 +104,9 @@ function WorkController.onClick(callback: (skillId: string?) -> ())
 end
 
 local function tryPerform()
+	if next(inputLocks) ~= nil then
+		return
+	end
 	if isAnimating then
 		return
 	end
@@ -75,7 +116,13 @@ local function tryPerform()
 		return
 	end
 
-	local skillId = WorkController.getTrainingSkill() or "tobatsu"
+	local skillId = getTrainingDummySkill() or WorkController.getTrainingSkill() or "tobatsu"
+	if Skills.canonicalize(skillId) == "examprep" then
+		-- Study actions live inside the full-screen book. Work opens that book;
+		-- it never sends Work.Perform and therefore cannot grant Exam Prep.
+		WorkController.selectSkill("examprep")
+		return
+	end
 	local feedbackEntry = Feedback.get(skillId)
 	local duration = if feedbackEntry and feedbackEntry.gesture then feedbackEntry.gesture.duration else 0.38
 
@@ -95,6 +142,16 @@ local function tryPerform()
 		end
 		isAnimating = false
 	end)
+end
+
+-- Modal gameplay can temporarily own the click without disabling the bound
+-- touch button or stealing GUI activation through ContextActionService.
+function WorkController.setInputLocked(owner: string, locked: boolean)
+	if locked then
+		inputLocks[owner] = true
+	else
+		inputLocks[owner] = nil
+	end
 end
 
 local function onAction(_actionName: string, inputState: Enum.UserInputState)
@@ -154,10 +211,17 @@ end
 -- Asks the server to change which skill free-form training raises. The server
 -- validates and owns the value; this is a request, not an assignment.
 function WorkController.selectSkill(skillId: string)
+	if next(inputLocks) ~= nil then
+		return
+	end
 	if not Skills.exists(skillId) then
 		return
 	end
-	selectRemote:FireServer(skillId)
+	local canonical = Skills.canonicalize(skillId)
+	selectRemote:FireServer(canonical)
+	for _, listener in selectionListeners do
+		task.spawn(listener, canonical)
+	end
 end
 
 function WorkController.getPromptText(): string?
@@ -168,6 +232,9 @@ function WorkController.getPromptText(): string?
 	local skill = Skills.get(skillId)
 	if not skill then
 		return nil
+	end
+	if Skills.canonicalize(skillId) == "examprep" then
+		return if UserInputService.TouchEnabled then "Tap skill 4 to open book" else "Press 4 to open book"
 	end
 
 	local verb = if UserInputService.TouchEnabled then "Tap" else "Click"

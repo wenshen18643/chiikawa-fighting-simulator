@@ -34,6 +34,9 @@ local BOOT_ORDER = {
 	{ container = script.Controllers, name = "SoundController" },
 	{ container = script.Controllers, name = "WorldController" },
 	{ container = script.UI, name = "HUD" },
+	-- The open-book recall layer subscribes to completed Exam Prep gestures and
+	-- draws above the HUD when a study card or exam question arrives.
+	{ container = script.UI, name = "StudySession" },
 	{ container = script.UI, name = "ControlsPanel" },
 	-- Begins after the first-session Field Guide closes and acknowledges the
 	-- intro only after move, sprint, jump and work have actually been performed.

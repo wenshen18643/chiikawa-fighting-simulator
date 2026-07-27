@@ -205,8 +205,9 @@ local function showWorking(snapshot: any)
 	titleLabel.Text = worksite.name
 
 	local gain = snapshot.gainPerAction
-	detailLabel.Text =
-		`TIER {worksite.tier}  ·  x{worksite.multiplier}  ·  +{gain and BigNumber.toString(gain) or "0"} a click`
+	detailLabel.Text = if Skills.canonicalize(worksite.skill) == "examprep"
+		then `TIER {worksite.tier}  ·  x{worksite.multiplier}  ·  +{gain and BigNumber.toString(gain) or "0"} a page`
+		else `TIER {worksite.tier}  ·  x{worksite.multiplier}  ·  +{gain and BigNumber.toString(gain) or "0"} a click`
 	detailLabel.TextColor3 = UI.color.inkSoft
 
 	actionPill.BackgroundColor3 = if skill and skill.color then skill.color else (UI.color.leaf or Color3.fromRGB(126, 190, 104))
@@ -243,7 +244,9 @@ local function showIdle(snapshot: any)
 				`practising at base rate · pad needs {BigNumber.toString(BigNumber.coerce(worksite.requirement))}`
 			detailLabel.TextColor3 = UI.color.inkFaint
 			actionPill.BackgroundColor3 = if skill and skill.color then skill.color:Lerp(UI.color.paper or Color3.fromRGB(253, 251, 246), 0.35) else (UI.color.inkFaint or Color3.fromRGB(190, 182, 170))
-			actionLabel.Text = string.upper(`click to {skill and skill.verb or "work"}`)
+			actionLabel.Text = if Skills.canonicalize(worksite.skill) == "examprep"
+				then string.upper(if UserInputService.TouchEnabled then "tap skill 4 to open book" else "press 4 to open book")
+				else string.upper(`click to {skill and skill.verb or "work"}`)
 			return
 		end
 	end
@@ -269,9 +272,11 @@ local function showIdle(snapshot: any)
 	actionPill.BackgroundColor3 = if selectedDefinition and selectedDefinition.color
 		then selectedDefinition.color:Lerp(UI.color.paper or Color3.fromRGB(253, 251, 246), 0.3)
 		else (UI.color.paperDeep or Color3.fromRGB(244, 239, 230))
-	actionLabel.Text = string.upper(
-		`{if UserInputService.TouchEnabled then "tap" else "click"} to {selectedDefinition and selectedDefinition.verb or "work"}`
-	)
+	actionLabel.Text = if selected and Skills.canonicalize(selected) == "examprep"
+		then string.upper(if UserInputService.TouchEnabled then "tap skill 4 to open book" else "press 4 to open book")
+		else string.upper(
+			`{if UserInputService.TouchEnabled then "tap" else "click"} to {selectedDefinition and selectedDefinition.verb or "work"}`
+		)
 
 	if not target then
 		arrowGlyph.Visible = false

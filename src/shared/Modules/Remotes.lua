@@ -13,6 +13,11 @@
 	  - Notify.Message      server -> client, cozy toast copy (§2 rule 3).
 	  - Companion.Open      server -> client, the friend-stand roster.
 	  - Companion.Select    client -> server, which friend follows them.
+	  - Study.Page          client -> server, one completed study-page intent.
+	  - Study.Answer        client -> server, an option from the issued question.
+	  - Study.SitExam       client -> server, request to begin the Grade 5 exam.
+	  - Study.Close         client -> server, abandon the current book session.
+	  - Study.Event         server -> client, study/exam presentation payloads.
 
 	There is deliberately no currency remote the client can write to.
 ]]
@@ -54,6 +59,19 @@ local REMOTE_TREE = {
 		-- client cannot name a companion that was not offered to it.
 		Select = "RemoteEvent",
 		Act = "RemoteEvent",
+	},
+	Study = {
+		-- One page-complete intent after an Exam Prep work gesture. The server
+		-- independently verifies that the player is actually studying.
+		Page = "RemoteEvent",
+		-- The id of the plant button chosen for the currently issued question.
+		Answer = "RemoteEvent",
+		-- Requests the exam once the authoritative readiness requirements are met.
+		SitExam = "RemoteEvent",
+		-- Cancels any pending recall prompt or in-progress exam when the book closes.
+		Close = "RemoteEvent",
+		-- Preview, question, feedback and result payloads from server to client.
+		Event = "RemoteEvent",
 	},
 	Guide = {
 		-- Client tells the server the player has read the intro, so it stops

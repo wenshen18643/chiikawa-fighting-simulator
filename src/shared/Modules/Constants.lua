@@ -72,6 +72,26 @@ Constants.WORK = {
 	OFF_PAD_MULTIPLIER = 1,
 }
 
+--[[
+	The first certification slice: studying prepares the player for the canon
+	Kusatori Grade 5 exam. Page flips are their own server-validated action;
+	ordinary Work clicks and passive pad ticks never grant Exam Prep.
+]]
+Constants.STUDY = {
+	SUBJECT = "kusatori",
+	FACT_CHANCE = 0.1,
+	PREVIEW_DURATION = 3,
+	CORRECT_PROGRESS = 0.2,
+	LEARNING_PROGRESS = 0.08,
+	FOCUS_BUFF_CHANCE = 0.3,
+	FOCUS_BUFF_DURATION = 30,
+	FOCUS_BUFF_MULTIPLIER = 2,
+	EXAM_QUESTIONS = 5,
+	EXAM_PASSING_ANSWERS = 4,
+	REVIEW_AFTER_FAILURE = 2,
+	PAGE_DEBOUNCE = 0.35,
+}
+
 Constants.MOVEMENT = {
 	--[[
 		The world is ~27,000 studs across (Config/Layout.lua). Walking it at the
@@ -171,7 +191,7 @@ Constants.DATA = {
 	LOAD_RETRIES = 4,
 	RETRY_BACKOFF = 2,
 	-- Bump when PlayerProfile changes shape; DataService.migrate handles the gap.
-	SCHEMA_VERSION = 1,
+	SCHEMA_VERSION = 2,
 }
 
 Constants.REPLICATION = {

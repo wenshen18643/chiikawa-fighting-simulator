@@ -52,16 +52,19 @@ local function buildTemplate(): any
 	local skills = {}
 	local certifications = {}
 	local studyProgress = {}
+	local examAttempts = {}
 	for _, skillId in Skills.ORDER do
 		skills[skillId] = BigNumber.zero()
 		certifications[skillId] = 0
 		studyProgress[skillId] = 0
+		examAttempts[skillId] = 0
 	end
 
 	return {
 		skills = skills,
 		certifications = certifications,
 		studyProgress = studyProgress,
+		examAttempts = examAttempts,
 		currencies = {
 			yen = BigNumber.fromNumber(Constants.CURRENCY.STARTING_YEN),
 			stamps = BigNumber.fromNumber(Constants.CURRENCY.STARTING_STAMPS),
@@ -176,6 +179,14 @@ local function reconcile(profile: any): any
 		end
 		if type(profile.certifications[skillId]) ~= "number" then
 			profile.certifications[skillId] = 0
+		end
+		if type(profile.studyProgress[skillId]) ~= "number" then
+			profile.studyProgress[skillId] = 0
+		else
+			profile.studyProgress[skillId] = math.clamp(profile.studyProgress[skillId], 0, 1)
+		end
+		if type(profile.examAttempts[skillId]) ~= "number" then
+			profile.examAttempts[skillId] = 0
 		end
 	end
 

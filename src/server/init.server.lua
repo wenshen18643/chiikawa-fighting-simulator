@@ -40,6 +40,9 @@ local BOOT_ORDER = {
 	"CurrencyService",
 	"RegionService",
 	"WorkService",
+	-- Layers visual recall and the Kusatori Grade 5 exam over completed Exam
+	-- Prep gestures; depends on WorksiteService and profile state.
+	"StudyService",
 	-- After WorkService: both credit skills, and TrainingService reuses the
 	-- Work.Feedback remote WorkService resolves.
 	"TrainingService",

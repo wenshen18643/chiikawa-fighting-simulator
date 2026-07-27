@@ -152,7 +152,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 						{
 							label = "4 · Exam Prep",
 							value = "Studying at desks",
-							note = "A normal trainable skill in this build; certification exams are not playable yet.",
+							note = "Press 4 to open the book. Only page flips grant points; each has a 10% field-note chance.",
 							accent = "examprep",
 						},
 					},
@@ -164,7 +164,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 						"You start with 100 stamina. An accepted active action costs 1.",
 						"Stamina begins at 6 regeneration per second; Resilience improves the maximum and regeneration.",
 						"At zero, you rest for about 5 seconds and then continue.",
-						"Standing on a usable pad trains automatically at half rate and costs no stamina.",
+						"Standing on a usable pad trains automatically at half rate, except Exam Prep: every point needs a page flip.",
 						"Passive pad work only runs while you remain in the server; there is no offline progress.",
 					},
 				},
@@ -194,6 +194,16 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 				{
 					title = "Veteran shortcut",
 					body = "Push one useful skill to its next pad before spreading gains evenly. A new multiplier is an engine: once it opens, every future press and passive tick in that skill becomes stronger.",
+				},
+				{
+					title = "Kusatori Grade 5",
+					bullets = {
+						"Press 4, flip pages, and watch for the 10% chance that a field note appears.",
+						"Recall the right plant for a 30% chance at Focus: 2x Exam Prep from flips for 30 seconds.",
+						"At 100% Readiness and 100 Kusatori, sit the five-question exam from the pink bookmark.",
+						"Four correct answers pass. Failure keeps Readiness and asks for two short review cards.",
+						"Grade 5 doubles Kusatori gains and adds 50% to the base passive wage multiplier.",
+					},
 				},
 			},
 		},
@@ -229,7 +239,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 				{
 					title = "Friends and travel",
 					bullets = {
-						"Use the Friend Stand near Town spawn to choose a cosmetic follower. Companions grant no stat bonus.",
+						"Use the Friend Stand near Town spawn to choose a follower. Hachiware and Usagi can help during practice recall.",
 						"NPC dialogue advances in order each time you talk to that character.",
 						"Open regions are walkable and available for free fast travel in the Atlas.",
 						"Other players can see your work animations, but there is no trading, party reward or PvP.",
@@ -237,7 +247,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 				},
 				{
 					title = "Not playable yet",
-					body = "Crafting, recipes, gear, certification exams, Season resets, furniture placement and Comfort upgrades are future systems. NPCs and HUD labels may mention them, but they currently have no player-facing action.",
+					body = "Crafting, recipes, gear, higher certification grades, Season resets, furniture placement and Comfort upgrades are future systems. NPCs and HUD labels may mention them, but they currently have no player-facing action.",
 				},
 			},
 		},
@@ -291,7 +301,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 						{
 							label = "23–27 min",
 							value = "Sample the other skills",
-							note = "Visit the first Tobatsu, Resilience and Exam Prep pads and notice how a pad overrides your selection.",
+							note = "Visit the Exam Prep desk, turn pages toward a field note, and try its visual recall question.",
 							accent = "tobatsu",
 						},
 						{

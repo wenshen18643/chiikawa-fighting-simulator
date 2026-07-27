@@ -23,6 +23,7 @@ local Worksites = require(Shared.Modules.Config.Worksites)
 local DataService = require(script.Parent.DataService)
 local RegionService = require(script.Parent.RegionService)
 local StaminaService = require(script.Parent.StaminaService)
+local StudyService = require(script.Parent.StudyService)
 local WorksiteService = require(script.Parent.WorksiteService)
 
 local ReplicationService = {
@@ -53,6 +54,7 @@ local function buildSnapshot(player: Player, profile: any)
 		resting = StaminaService.isResting(player),
 		seasons = profile.seasons,
 		certifications = profile.certifications,
+		study = StudyService.snapshot(player, profile),
 		-- Which skill a click off a pad raises. Drives the HUD's selected-row
 		-- highlight and the work core's off-pad copy.
 		selectedSkill = profile.selectedSkill,
