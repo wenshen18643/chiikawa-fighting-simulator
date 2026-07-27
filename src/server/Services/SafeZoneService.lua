@@ -1,5 +1,5 @@
 --[[
-	The cottage you spawn in, and the volume in which nothing can touch you.
+	The dome you spawn in, and the volume in which nothing can touch you.
 
 	See docs/GAME.md §2 and §9.6, and Config/SafeZone.lua for the shape of the
 	building. This file turns that table into parts and owns what the volume
@@ -7,10 +7,10 @@
 
 	Two responsibilities that look unrelated and are not:
 
-	  1. It is a home. Three levels — a kitchen you walk into, a loft you sleep
-	     in, a roof deck with a view down the whole landmass — assembled from
-	     parts so it lives in version control and needs no uploaded assets, the
-	     same way NpcService assembles the cast.
+	  1. It is a home. One white round room, a loft you sleep in, and a garden
+	     with a job booth at the end of it, assembled from parts and from the
+	     models under assets/Models/ so it lives in version control and needs no
+	     uploaded ids, the same way NpcService assembles the cast.
 
 	  2. It is THE SAFE ZONE, and the only place in the codebase that is allowed
 	     to define what safety means. There is no damage in the game yet, so this
@@ -25,6 +25,22 @@
 	    which a ForceField does not stop.
 	  - isProtected() is the predicate future systems check before they resolve
 	    at all, so the other two never have to fire.
+
+	--------------------------------------------------------------------------
+	BUILDING A CURVE OUT OF PARTS
+	--------------------------------------------------------------------------
+
+	There is no flat face on this building, which changes how everything below
+	is written. Two ideas carry the whole file:
+
+	  `surfaceFrame(azimuth, y)` returns a CFrame sitting ON the shell with +Z
+	  pointing out of it, +Y running up the slope and +X tangential. Anything
+	  that belongs on the wall -- glass, window rims, the door surround -- is
+	  positioned in that frame and never in world space.
+
+	  `buildShell` walks the profile in rings and lays each ring as tilted
+	  blocks. Tilting each block to the local slope is the load-bearing detail:
+	  untilted rings stair-step, and a stair-stepped dome reads as a ziggurat.
 ]]
 
 local Players = game:GetService("Players")
@@ -35,8 +51,10 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
+local Assets = require(Shared.Modules.Config.Assets)
 local Remotes = require(Shared.Modules.Remotes)
 local SafeZone = require(Shared.Modules.Config.SafeZone)
+local Skeleton = require(Shared.Modules.Anim.Skeleton)
 local UI = require(Shared.UI)
 
 local AssetService = require(script.Parent.AssetService)
@@ -47,7 +65,9 @@ local SafeZoneService = {}
 local CHECK_INTERVAL = 0.2
 
 local palette = SafeZone.palette
+local dome = SafeZone.DOME
 local houseFolder: Folder
+local origin: Vector3
 local volumeCentre: Vector3
 local volumeHalf: Vector3
 
@@ -56,475 +76,1103 @@ local healthGuards: { [Player]: RBXScriptConnection } = {}
 local changedRemote: RemoteEvent?
 
 --------------------------------------------------------------------------------
--- Part helpers
+-- Geometry helpers
 --------------------------------------------------------------------------------
+
+local function toWorld(x: number, y: number, z: number): CFrame
+	return CFrame.new(origin + Vector3.new(x, y, z))
+end
 
 local function piece(config: { [string]: any }): Part
-	local p = Instance.new("Part")
-	p.Name = config.name or "Piece"
-	p.Anchored = true
-	p.CanCollide = config.collide ~= false
-	p.CanQuery = config.query ~= false
-	p.Size = config.size
-	p.Shape = config.shape or Enum.PartType.Block
-	p.Color = config.color or palette.plaster
-	p.Material = config.material or Enum.Material.SmoothPlastic
-	p.Transparency = config.transparency or 0
-	p.TopSurface = Enum.SurfaceType.Smooth
-	p.BottomSurface = Enum.SurfaceType.Smooth
-	p.CFrame = config.cframe
-	p.Parent = config.parent or houseFolder
-	return p
+	local part = Instance.new("Part")
+	part.Name = config.name or "Piece"
+	part.Anchored = true
+	part.CanCollide = config.collide ~= false
+	part.CanQuery = config.query ~= false
+	part.CanTouch = false
+	part.Size = config.size
+	part.Shape = config.shape or Enum.PartType.Block
+	part.Color = config.color or palette.shell
+	part.Material = config.material or Enum.Material.SmoothPlastic
+	part.Transparency = config.transparency or 0
+	part.CastShadow = config.castShadow ~= false
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	part.CFrame = config.cframe
+	part.Parent = config.parent or houseFolder
+	return part
+end
+
+-- A flat disc lying in the XZ plane. Cylinder's axis is its X axis, so every
+-- disc in this file needs the same roll and it is worth having once.
+local function disc(config: { [string]: any }): Part
+	config.shape = Enum.PartType.Cylinder
+	config.size = Vector3.new(config.thickness, config.diameter, config.diameter)
+	config.cframe = config.cframe * CFrame.Angles(0, 0, math.rad(90))
+	return piece(config)
+end
+
+-- Sweep parameter t (0 at the ground, 1 at the crown) for a given height.
+local function parameterAt(y: number): number
+	return math.asin(math.clamp(y / dome.height, 0, 1)) / (math.pi / 2)
+end
+
+--[[
+	How far the shell leans in at sweep parameter t, in radians from vertical.
+
+	Measured from the profile by finite difference rather than differentiated by
+	hand, so changing `bulge` in the config cannot silently desynchronise the
+	tilt from the shape it is supposed to be following.
+]]
+local function leanAt(t: number): number
+	local step = 0.004
+	local r0, y0 = SafeZone.profile(math.max(t - step, 0))
+	local r1, y1 = SafeZone.profile(math.min(t + step, 1))
+	return math.atan2(r0 - r1, math.max(y1 - y0, 1e-5))
+end
+
+--[[
+	A frame sitting on the shell: +Z out of the surface, +Y up its slope, +X
+	tangential. Everything mounted on the wall is placed relative to this.
+]]
+local function surfaceFrame(azimuth: number, y: number): CFrame
+	local t = parameterAt(y)
+	local radius = select(1, SafeZone.profile(t))
+	return CFrame.new(origin)
+		* CFrame.Angles(0, azimuth, 0)
+		* CFrame.new(0, y, radius)
+		* CFrame.Angles(-leanAt(t), 0, 0)
+end
+
+-- Signed difference between two azimuths in degrees, wrapped to [-180, 180].
+local function azimuthDelta(a: number, b: number): number
+	return (a - b + 540) % 360 - 180
 end
 
 --------------------------------------------------------------------------------
--- Shell
+-- The shell
 --------------------------------------------------------------------------------
 
 --[[
-	A wall face with at most one rectangular opening, built as the up-to-four
-	solid segments left around it.
+	Which opening, if any, swallows the ring segment centred at `azimuth`
+	spanning `yLow .. yHigh`.
 
-	Doing it this way rather than as a solid wall with a decorative window pasted
-	on is what makes the loft window a view instead of a picture — you can see
-	the districts through it, which is the whole point of putting the player's
-	bed above the town.
+	Round openings test against an ELLIPSE rather than the arc's bounding box.
+	That is the difference between a round window and a square hole with a round
+	frame leaning against it -- the rim drawn later would hide the corners at
+	eye level and expose them from every other angle.
+
+	Both branches test the ring's MIDPOINT, not its span. Overlap was tried on
+	the door first and is wrong: a ring is 3.5 studs tall, so "any part of this
+	ring is below the door head" opens the ring ABOVE the head as well and
+	leaves a slot over the arch that the door surround does not reach.
 ]]
--- selene: allow(unused_variable)
-local function wallFace(
-	toWorld: (number, number, number) -> CFrame,
-	config: {
-		name: string,
-		width: number,
-		height: number,
-		thickness: number,
-		-- Centre of the wall in cottage space.
-		x: number,
-		y: number,
-		z: number,
-		-- true when the wall runs along Z (the -X / +X sides).
-		sideways: boolean,
-		opening: { x: number, y: number, width: number, height: number }?,
-		color: Color3?,
-	}
-)
-	local opening = config.opening
-	local halfW, halfH = config.width / 2, config.height / 2
+local function openingAt(azimuth: number, yLow: number, yHigh: number)
+	local midY = (yLow + yHigh) / 2
+
+	for _, opening in SafeZone.OPENINGS do
+		local delta = azimuthDelta(azimuth, opening.azimuth)
+
+		if opening.kind == "round" then
+			local centreY = (opening.bottom + opening.top) / 2
+			local halfY = (opening.top - opening.bottom) / 2
+			local u = delta / opening.halfAngle
+			local v = (midY - centreY) / halfY
+			if u * u + v * v <= 1 then
+				return opening
+			end
+		elseif midY >= opening.bottom and midY <= opening.top and math.abs(delta) <= opening.halfAngle then
+			return opening
+		end
+	end
+	return nil
+end
+
+local function buildShell()
+	for ring = 0, dome.rings - 1 do
+		local t0, t1 = ring / dome.rings, (ring + 1) / dome.rings
+		local r0, y0 = SafeZone.profile(t0)
+		local r1, y1 = SafeZone.profile(t1)
+
+		local midRadius = (r0 + r1) / 2
+		local midHeight = (y0 + y1) / 2
+		local span = math.sqrt((r1 - r0) ^ 2 + (y1 - y0) ^ 2)
+		local lean = math.atan2(r0 - r1, math.max(y1 - y0, 1e-5))
+
+		-- Segment count follows the ring's circumference, so the crown is not
+		-- paying for the same 30 blocks the base needed.
+		local count = math.max(8, math.ceil(2 * math.pi * midRadius / dome.segmentArc))
+		local width = (2 * math.pi * midRadius / count) * dome.overlap
+
+		--[[
+			Alternate rings are nudged half a segment round. The seams then form
+			a running bond instead of stacking into continuous vertical lines up
+			the side of the building, which is what makes a segmented dome look
+			segmented.
+		]]
+		local phase = if ring % 2 == 1 then 0.5 else 0
+
+		for index = 0, count - 1 do
+			local turn = (index + phase) / count
+			if openingAt(turn * 360, y0, y1) then
+				continue
+			end
+
+			piece({
+				name = `Shell_{ring}_{index}`,
+				size = Vector3.new(width, span * dome.overlap, dome.wall),
+				color = if ring % 2 == 0 then palette.shell else palette.shellShade,
+				material = Enum.Material.SmoothPlastic,
+				cframe = CFrame.new(origin)
+					* CFrame.Angles(0, turn * math.pi * 2, 0)
+					* CFrame.new(0, midHeight, midRadius)
+					* CFrame.Angles(-lean, 0, 0),
+			})
+		end
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Openings
+--------------------------------------------------------------------------------
+
+--[[
+	How far the real edge of a hole can sit from the arc that asked for it.
+
+	An opening is cut by dropping whole segments, so its boundary lands on
+	whichever segment edge is nearest -- up to half a segment away, which at the
+	base of this dome is three and a half studs. Trim sized to the NOMINAL arc
+	therefore floats in the middle of the hole on one ring and sits inside solid
+	shell on the next.
+
+	Every surround below is widened by these instead. It is the difference
+	between a window and a window with daylight leaking round one side of it.
+]]
+local function horizontalSlack(y: number): number
+	local radius = select(1, SafeZone.profile(parameterAt(y)))
+	local count = math.max(8, math.ceil(2 * math.pi * radius / dome.segmentArc))
+	return math.pi * radius / count
+end
+
+local function verticalSlack(): number
+	return dome.height / dome.rings / 2
+end
+
+--[[
+	A rim of small blocks following an ellipse drawn ON the shell, plus the glass
+	behind it.
+
+	Offsets are taken in the window's own surface frame rather than recomputed
+	per block. Over ten studs of a thirty-two stud dome the flat-patch error is
+	well under the rim's own thickness, and the alternative -- a fresh
+	surfaceFrame per block -- makes the rim wobble where the two disagree.
+]]
+local function glazeRound(opening: { [string]: any })
+	local centreY = (opening.bottom + opening.top) / 2
+	local azimuth = math.rad(opening.azimuth)
+	local frame = surfaceFrame(azimuth, centreY)
+
+	local radius = select(1, SafeZone.profile(parameterAt(centreY)))
+	local halfWidth = radius * math.sin(math.rad(opening.halfAngle)) + horizontalSlack(centreY)
+	local halfHeight = (opening.top - opening.bottom) / 2 + verticalSlack()
+
+	-- Sized to the rim, not to the opening: the pane has to reach whatever the
+	-- rim is covering, or the gap between the two is a hole in the wall.
+	disc({
+		name = `{opening.name}Glass`,
+		thickness = 0.4,
+		diameter = math.max(halfWidth, halfHeight) * 2.1,
+		color = palette.glass,
+		material = Enum.Material.Glass,
+		transparency = 0.55,
+		collide = false,
+		castShadow = false,
+		-- Rotated so the disc's axis lies along the surface normal.
+		cframe = frame * CFrame.Angles(0, math.rad(90), 0) * CFrame.Angles(0, 0, math.rad(-90)),
+	})
+
+	local blocks = 30
+	for index = 0, blocks - 1 do
+		local angle = (index / blocks) * math.pi * 2
+		local u, v = math.cos(angle) * halfWidth, math.sin(angle) * halfHeight
+		-- Tangent to the ellipse, so consecutive blocks meet flush.
+		local tangent = math.atan2(halfHeight * math.cos(angle), -halfWidth * math.sin(angle))
+		local arc = 2 * math.pi * math.max(halfWidth, halfHeight) / blocks
+
+		piece({
+			name = `{opening.name}Rim_{index}`,
+			size = Vector3.new(arc * 1.6, 1.6, dome.wall + 1.6),
+			color = palette.trim,
+			collide = false,
+			cframe = frame * CFrame.new(u, v, 0) * CFrame.Angles(0, 0, tangent),
+		})
+	end
+end
+
+--[[
+	The door surround: two jambs up the sides and an arc across the head.
+
+	The head is sampled along the shell rather than drawn as a straight lintel,
+	because the shell is already leaning back by seventeen studs up and a
+	straight lintel would float off it at the middle.
+]]
+local function frameDoor(opening: { [string]: any })
+	local steps = 18
+	local rise = (opening.top - opening.bottom) / steps
 
 	--[[
-		Segments in the wall's own 2D space: `u` runs along the wall, `v` is up.
-		Emitted as (centre_u, centre_v, size_u, size_v).
+		Jambs are as wide as the quantisation can wander and are centred ON the
+		nominal edge, so whichever side of it a given ring's real edge fell,
+		the jamb is already covering it.
 	]]
-	local segments: { { number } } = {}
-
-	if not opening then
-		table.insert(segments, { 0, 0, config.width, config.height })
-	else
-		local oLeft, oRight = opening.x - opening.width / 2, opening.x + opening.width / 2
-		local oBottom, oTop = opening.y - opening.height / 2, opening.y + opening.height / 2
-
-		local belowHeight = oBottom + halfH
-		if belowHeight > 0.05 then
-			table.insert(segments, { 0, -halfH + belowHeight / 2, config.width, belowHeight })
-		end
-
-		local aboveHeight = halfH - oTop
-		if aboveHeight > 0.05 then
-			table.insert(segments, { 0, oTop + aboveHeight / 2, config.width, aboveHeight })
-		end
-
-		local leftWidth = oLeft + halfW
-		if leftWidth > 0.05 then
-			table.insert(segments, { -halfW + leftWidth / 2, opening.y, leftWidth, opening.height })
-		end
-
-		local rightWidth = halfW - oRight
-		if rightWidth > 0.05 then
-			table.insert(segments, { oRight + rightWidth / 2, opening.y, rightWidth, opening.height })
+	for _, side in { -1, 1 } do
+		local azimuth = math.rad(opening.azimuth + side * opening.halfAngle)
+		for index = 0, steps - 1 do
+			local y = opening.bottom + rise * index + rise / 2
+			piece({
+				name = `DoorJamb_{side}_{index}`,
+				size = Vector3.new(horizontalSlack(y) * 2.2, rise * 1.35, dome.wall + 1.6),
+				color = palette.trim,
+				collide = false,
+				cframe = surfaceFrame(azimuth, y),
+			})
 		end
 	end
 
-	for index, segment in segments do
-		local u, v, sizeU, sizeV = segment[1], segment[2], segment[3], segment[4]
-		local size = if config.sideways
-			then Vector3.new(config.thickness, sizeV, sizeU)
-			else Vector3.new(sizeU, sizeV, config.thickness)
-		local offsetU = if config.sideways then Vector3.new(0, 0, u) else Vector3.new(u, 0, 0)
+	--[[
+		The head is sampled along the shell rather than drawn as a straight
+		lintel: seventeen studs up the wall is already leaning back by twenty
+		degrees, and a straight lintel would leave the middle of the arch
+		floating off the surface.
+
+		It runs past the jambs at both ends and is deep enough to swallow a
+		ring's worth of vertical wander, so the three trim runs meet as corners
+		rather than as a T with daylight in it.
+	]]
+	local headY = opening.top + verticalSlack() * 0.6
+	local headSpan = opening.halfAngle + math.deg(horizontalSlack(headY) / dome.radius)
+
+	for index = 0, steps do
+		local azimuth = math.rad(opening.azimuth - headSpan + (headSpan * 2) * (index / steps))
+		local radius = select(1, SafeZone.profile(parameterAt(headY)))
+		local arc = 2 * radius * math.sin(math.rad(headSpan)) / steps
 
 		piece({
-			name = `{config.name}_{index}`,
-			size = size,
-			color = config.color or palette.plaster,
-			material = Enum.Material.Sand,
-			cframe = toWorld(config.x + offsetU.X, config.y + v, config.z + offsetU.Z),
+			name = `DoorHead_{index}`,
+			size = Vector3.new(arc * 1.7, verticalSlack() * 2.4, dome.wall + 1.6),
+			color = palette.trim,
+			collide = false,
+			cframe = surfaceFrame(azimuth, headY),
 		})
 	end
+
+	--[[
+		A door leaf propped open against the outside of the shell. Not a working
+		door: a closing one would eventually shut somebody out of their own safe
+		zone, and the whole point of the building is that it cannot.
+	]]
+	local leaf = surfaceFrame(math.rad(opening.azimuth - opening.halfAngle), opening.bottom + 7)
+	piece({
+		name = "DoorLeaf",
+		size = Vector3.new(0.5, 14, 12),
+		color = palette.timber,
+		material = Enum.Material.Wood,
+		collide = false,
+		cframe = leaf * CFrame.new(-1, 0, 2.5) * CFrame.Angles(0, math.rad(74), 0),
+	})
+
+	-- Threshold, so the doorway has a lip instead of ending at the grass.
+	piece({
+		name = "Threshold",
+		size = Vector3.new(18, 0.6, 6),
+		color = palette.stone,
+		material = Enum.Material.Concrete,
+		cframe = toWorld(0, SafeZone.FLOOR_Y - 0.3, dome.radius - 1),
+	})
+end
+
+--------------------------------------------------------------------------------
+-- Interior structure
+--------------------------------------------------------------------------------
+
+local function buildFloor()
+	-- The plinth reads as a base course and, more usefully, hides the ragged
+	-- bottom edge where the first ring of segments meets the ground.
+	disc({
+		name = "Plinth",
+		thickness = 1.6,
+		diameter = (dome.radius + 2.2) * 2,
+		color = palette.stone,
+		material = Enum.Material.Concrete,
+		cframe = toWorld(0, 0.2, 0),
+	})
+
+	disc({
+		name = "Floor",
+		thickness = 1.5,
+		diameter = (dome.radius - dome.wall + 1) * 2,
+		color = palette.floor,
+		material = Enum.Material.WoodPlanks,
+		cframe = toWorld(0, SafeZone.FLOOR_Y - 0.75, 0),
+	})
+
+	-- A round rug under the table, which is what stops the floor reading as a
+	-- disc of planks with furniture standing on it.
+	disc({
+		name = "Rug",
+		thickness = 0.2,
+		diameter = 30,
+		color = palette.mint,
+		material = Enum.Material.Fabric,
+		collide = false,
+		castShadow = false,
+		cframe = toWorld(0, SafeZone.FLOOR_Y + 0.1, -3),
+	})
 end
 
 --[[
-	A floor slab with a rectangular hole for the stairwell, built as the four
-	strips around it. Same idea as wallFace, in plan rather than elevation.
+	The loft deck: a half-disc across the back of the room, built as strips.
+
+	Each strip's depth is measured at whichever of its edges is further from the
+	centre, so every strip lands inside the circle. Taking the midpoint instead
+	pokes the corners of each strip through the wall.
 ]]
--- selene: allow(unused_variable)
-local function slabWithHole(
-	toWorld: (number, number, number) -> CFrame,
-	y: number,
-	hole: { x: number, z: number, width: number, depth: number }?
-)
-	local width, depth = SafeZone.WIDTH, SafeZone.DEPTH
-	local thickness = SafeZone.FLOOR_SLAB
+local function buildLoft(): number
+	local loft = SafeZone.LOFT
+	local radius = SafeZone.interiorRadiusAt(loft.y) - loft.inset
+	local deckY = loft.y
 
-	local strips: { { number } } = {}
-	if not hole then
-		strips = { { 0, 0, width, depth } }
-	else
-		local zNear = hole.z - hole.depth / 2 + depth / 2 -- distance from -Z edge
-		local zFar = depth / 2 - (hole.z + hole.depth / 2)
-		if zNear > 0.05 then
-			table.insert(strips, { 0, -depth / 2 + zNear / 2, width, zNear })
-		end
-		if zFar > 0.05 then
-			table.insert(strips, { 0, depth / 2 - zFar / 2, width, zFar })
+	for index = 0, loft.strips - 1 do
+		local x0 = -radius + 2 * radius * (index / loft.strips)
+		local x1 = -radius + 2 * radius * ((index + 1) / loft.strips)
+		local outer = math.max(math.abs(x0), math.abs(x1))
+		local back = -math.sqrt(math.max(radius * radius - outer * outer, 0))
+		local depth = loft.frontZ - back
+
+		if depth < 1 then
+			continue
 		end
 
-		local xLeft = hole.x - hole.width / 2 + width / 2
-		local xRight = width / 2 - (hole.x + hole.width / 2)
-		if xLeft > 0.05 then
-			table.insert(strips, { -width / 2 + xLeft / 2, hole.z, xLeft, hole.depth })
-		end
-		if xRight > 0.05 then
-			table.insert(strips, { width / 2 - xRight / 2, hole.z, xRight, hole.depth })
-		end
-	end
-
-	for index, strip in strips do
 		piece({
-			name = `Floor_{math.floor(y)}_{index}`,
-			size = Vector3.new(strip[3], thickness, strip[4]),
+			name = `LoftDeck_{index}`,
+			size = Vector3.new(x1 - x0, loft.slab, depth),
 			color = palette.floor,
 			material = Enum.Material.WoodPlanks,
-			cframe = toWorld(strip[1], y - thickness / 2, strip[2]),
-		})
-	end
-end
-
--- A run of steps climbing one storey. Alternates direction per floor so the
--- staircase zig-zags up the back wall instead of running the same way twice.
--- selene: allow(unused_variable)
-local function buildStairs(toWorld: (number, number, number) -> CFrame, fromY: number, rise: number, direction: number)
-	local steps = math.max(1, math.ceil(rise / SafeZone.STEP_RISE))
-	local stepRise = rise / steps
-	local run = steps * SafeZone.STEP_RUN
-	local stairZ = -SafeZone.DEPTH / 2 + SafeZone.WALL + SafeZone.STEP_WIDTH / 2
-
-	for index = 1, steps do
-		local height = stepRise * index
-		piece({
-			name = `Step_{index}`,
-			size = Vector3.new(SafeZone.STEP_RUN, height, SafeZone.STEP_WIDTH),
-			color = palette.timber,
-			material = Enum.Material.Wood,
-			cframe = toWorld(direction * (-run / 2 + (index - 0.5) * SafeZone.STEP_RUN), fromY + height / 2, stairZ),
+			cframe = toWorld((x0 + x1) / 2, deckY - loft.slab / 2, back + depth / 2),
 		})
 	end
 
-	return {
-		x = 0,
-		z = stairZ,
-		width = run + 3,
-		depth = SafeZone.STEP_WIDTH + 3,
-	}
-end
+	-- Railing along the open edge. Half-width is taken where the deck is still
+	-- at least a stud deep, so the rail stops with the floor rather than
+	-- running on past it into the wall.
+	local railHalf = math.sqrt(math.max(radius * radius - (math.abs(loft.frontZ) + 1) ^ 2, 0))
 
---------------------------------------------------------------------------------
--- Furnishing
---------------------------------------------------------------------------------
-
-local furnishers: { [string]: (any, (number, number, number) -> CFrame, number) -> () } = {}
-
-function furnishers.hearth(row, toWorld, y)
 	piece({
-		name = "Hearth",
-		size = Vector3.new(6, 4, 4),
-		color = palette.hearth,
-		material = Enum.Material.Slate,
-		cframe = toWorld(row.x, y + 2.0, row.z),
-	})
-	local fire = piece({
-		name = "HearthFire",
-		size = Vector3.new(3.5, 0.6, 2),
-		color = Color3.fromRGB(250, 190, 120),
-		material = Enum.Material.Neon,
-		transparency = 0.5,
-		collide = false,
-		cframe = toWorld(row.x, y + 1.2, row.z + 1),
-	})
-
-	local flame = Instance.new("Fire")
-	flame.Size = 3
-	flame.Heat = 2
-	flame.Color = Color3.fromRGB(252, 206, 140)
-	flame.SecondaryColor = Color3.fromRGB(228, 140, 96)
-	flame.Parent = fire
-
-	local light = Instance.new("PointLight")
-	light.Brightness = 0.15
-	light.Range = 8
-	light.Color = Color3.fromRGB(255, 208, 150)
-	light.Parent = fire
-
-	-- Small neat chimney piece
-	piece({
-		name = "Chimney",
-		size = Vector3.new(4, SafeZone.FLOOR_HEIGHT - 6, 3),
-		color = palette.plasterShade,
-		material = Enum.Material.Brick,
-		cframe = toWorld(row.x, y + 4 + (SafeZone.FLOOR_HEIGHT - 6) / 2, row.z - 0.5),
-	})
-end
-
-function furnishers.table(row, toWorld, y)
-	local radius = row.radius or 6
-	piece({
-		name = "TableTop",
-		shape = Enum.PartType.Cylinder,
-		size = Vector3.new(0.8, radius * 2, radius * 2),
+		name = "LoftRail",
+		size = Vector3.new(railHalf * 2, 0.7, 0.7),
 		color = palette.timber,
 		material = Enum.Material.Wood,
-		cframe = toWorld(row.x, y + 5, row.z) * CFrame.Angles(0, 0, math.rad(90)),
+		cframe = toWorld(0, deckY + loft.railHeight, loft.frontZ),
 	})
-	piece({
-		name = "TableLeg",
-		shape = Enum.PartType.Cylinder,
-		size = Vector3.new(5, 2.2, 2.2),
-		color = palette.timberDark,
-		material = Enum.Material.Wood,
-		cframe = toWorld(row.x, y + 2.5, row.z) * CFrame.Angles(0, 0, math.rad(90)),
-	})
-end
 
-function furnishers.stool(row, toWorld, y)
-	piece({
-		name = "Stool",
-		shape = Enum.PartType.Cylinder,
-		size = Vector3.new(0.7, 4.4, 4.4),
-		color = palette.timber,
-		material = Enum.Material.Wood,
-		cframe = toWorld(row.x, y + 3, row.z) * CFrame.Angles(0, 0, math.rad(90)),
-	})
-	piece({
-		name = "StoolLeg",
-		shape = Enum.PartType.Cylinder,
-		size = Vector3.new(3, 1.4, 1.4),
-		color = palette.timberDark,
-		material = Enum.Material.Wood,
-		cframe = toWorld(row.x, y + 1.5, row.z) * CFrame.Angles(0, 0, math.rad(90)),
-	})
-end
-
-function furnishers.futon(row, toWorld, y)
-	piece({
-		name = "Futon",
-		size = Vector3.new(11, 1.6, 16),
-		color = palette.fabric,
-		material = Enum.Material.Fabric,
-		cframe = toWorld(row.x, y + 0.8, row.z),
-	})
-	piece({
-		name = "Pillow",
-		size = Vector3.new(7, 1.8, 4),
-		color = Color3.fromRGB(252, 246, 238),
-		material = Enum.Material.Fabric,
-		collide = false,
-		cframe = toWorld(row.x, y + 2.4, row.z - 5.5),
-	})
-end
-
-function furnishers.shelf(row, toWorld, y)
-	local width = row.width or 10
-	for index = 1, 3 do
+	local posts = 9
+	for index = 0, posts do
 		piece({
-			name = `Shelf_{index}`,
-			size = Vector3.new(width, 0.6, 4),
+			name = `LoftPost_{index}`,
+			size = Vector3.new(0.5, loft.railHeight, 0.5),
 			color = palette.timber,
 			material = Enum.Material.Wood,
 			collide = false,
-			cframe = toWorld(row.x, y + 3 + (index - 1) * 3.4, row.z),
+			cframe = toWorld(-railHalf + (railHalf * 2) * (index / posts), deckY + loft.railHeight / 2, loft.frontZ),
 		})
 	end
-	for _, side in { -1, 1 } do
-		piece({
-			name = "ShelfSide",
-			size = Vector3.new(0.7, 10.6, 4),
-			color = palette.timberDark,
-			material = Enum.Material.Wood,
-			collide = false,
-			cframe = toWorld(row.x + side * width / 2, y + 6, row.z),
-		})
-	end
-end
 
-function furnishers.rug(row, toWorld, y)
-	local radius = row.radius or 10
-	piece({
-		name = "Rug",
-		shape = Enum.PartType.Cylinder,
-		size = Vector3.new(0.2, radius * 2, radius * 2),
-		color = palette.leaf,
-		material = Enum.Material.Fabric,
-		collide = false,
-		cframe = toWorld(row.x, y + 0.1, row.z) * CFrame.Angles(0, 0, math.rad(90)),
-	})
-end
-
-function furnishers.lamp(row, toWorld, y)
-	local bulb = piece({
-		name = "Lantern",
-		shape = Enum.PartType.Ball,
-		size = Vector3.new(2.4, 2.8, 2.4),
-		color = palette.lamp,
-		material = Enum.Material.SmoothPlastic,
-		collide = false,
-		cframe = toWorld(row.x, y + SafeZone.FLOOR_HEIGHT - 3.5, row.z),
-	})
-	piece({
-		name = "LanternCord",
-		size = Vector3.new(0.3, 3, 0.3),
-		color = palette.timberDark,
-		collide = false,
-		cframe = toWorld(row.x, y + SafeZone.FLOOR_HEIGHT - 0.5, row.z),
-	})
-
-	local light = Instance.new("PointLight")
-	light.Brightness = 0.1
-	light.Range = 8
-	light.Color = Color3.fromRGB(255, 220, 180)
-	light.Parent = bulb
-end
-
-function furnishers.plant(row, toWorld, y)
-	piece({
-		name = "Pot",
-		shape = Enum.PartType.Cylinder,
-		size = Vector3.new(4, 4.4, 4.4),
-		color = Color3.fromRGB(198, 146, 120),
-		cframe = toWorld(row.x, y + 2, row.z) * CFrame.Angles(0, 0, math.rad(90)),
-	})
-	piece({
-		name = "Leaves",
-		shape = Enum.PartType.Ball,
-		size = Vector3.new(7, 8, 7),
-		color = palette.leaf,
-		material = Enum.Material.Grass,
-		collide = false,
-		cframe = toWorld(row.x, y + 7, row.z),
-	})
-end
-
-function furnishers.crate(row, toWorld, y)
-	local scale = row.scale or 1
-	piece({
-		name = "Crate",
-		size = Vector3.new(5 * scale, 5 * scale, 5 * scale),
-		color = palette.timber,
-		material = Enum.Material.WoodPlanks,
-		cframe = toWorld(row.x, y + 2.5 * scale, row.z),
-	})
+	return deckY
 end
 
 --[[
-	The wall §6's certificates will hang on. Empty for now and labelled as such —
-	an obviously-reserved space reads as a promise, where a blank wall reads as
-	an unfinished room.
+	A stair that spirals up the inside of the shell.
+
+	Straight flights were tried first and a straight flight in a round room
+	either cuts across the middle of the only floor you have, or runs into the
+	curve and has to stop early. Following the wall costs nothing and leaves the
+	floor clear.
+
+	Treads are thicker than their own rise so consecutive steps overlap into a
+	continuous ribbon rather than fifteen floating slabs.
 ]]
-function furnishers.certificateBoard(row, toWorld, y)
+local function buildStair(deckY: number)
+	local stair = SafeZone.STAIR
+
+	for index = 1, stair.steps do
+		local fraction = index / stair.steps
+		local azimuth = math.rad(stair.fromAzimuth + stair.sweep * fraction)
+		local top = deckY * fraction
+
+		piece({
+			name = `Step_{index}`,
+			size = Vector3.new(stair.length, 1.7, stair.width),
+			color = palette.timber,
+			material = Enum.Material.Wood,
+			cframe = CFrame.new(origin)
+				* CFrame.Angles(0, azimuth, 0)
+				* CFrame.new(0, top - 0.85 + SafeZone.FLOOR_Y, stair.radius),
+		})
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Fixtures
+--------------------------------------------------------------------------------
+
+local function buildChimney()
+	-- Set back from the crown so it breaks the silhouette rather than sitting
+	-- on top of it like a handle.
+	local frame = surfaceFrame(math.rad(150), dome.height * 0.82)
+
+	local stack = piece({
+		name = "Chimney",
+		shape = Enum.PartType.Cylinder,
+		size = Vector3.new(7, 4.6, 4.6),
+		color = palette.shellShade,
+		cframe = frame * CFrame.new(0, 0, 2.4) * CFrame.Angles(0, math.rad(90), 0),
+	})
+	piece({
+		name = "ChimneyCap",
+		shape = Enum.PartType.Cylinder,
+		size = Vector3.new(1.2, 6, 6),
+		color = palette.trim,
+		collide = false,
+		cframe = frame * CFrame.new(0, 0, 6) * CFrame.Angles(0, math.rad(90), 0),
+	})
+
+	local smoke = Instance.new("ParticleEmitter")
+	smoke.Name = "Smoke"
+	smoke.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	smoke.Color = ColorSequence.new(Color3.fromRGB(252, 250, 246))
+	smoke.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.25, 0.72),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	smoke.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 2.5),
+		NumberSequenceKeypoint.new(1, 9),
+	})
+	smoke.Rate = 5
+	smoke.Lifetime = NumberRange.new(3.5, 5)
+	smoke.Speed = NumberRange.new(3, 5)
+	smoke.SpreadAngle = Vector2.new(9, 9)
+	smoke.Acceleration = Vector3.new(1.5, 2.5, 0)
+	smoke.LightEmission = 0.35
+	smoke.Parent = stack
+end
+
+--[[
+	The wall §6's certificates will hang on. Empty for now and labelled as such
+	-- an obviously-reserved space reads as a promise, where a blank wall reads
+	as an unfinished room.
+
+	On the shell rather than free-standing, since there is no flat wall to lean
+	it against.
+]]
+local function buildCertificateBoard()
+	local frame = surfaceFrame(math.rad(-140), 9)
+
 	local board = piece({
 		name = "CertificateBoard",
-		size = Vector3.new(0.4, 4, 8),
+		size = Vector3.new(16, 9, 0.6),
 		color = palette.timber,
 		material = Enum.Material.Wood,
 		collide = false,
-		cframe = toWorld(row.x, y + 6, row.z),
+		cframe = frame * CFrame.new(0, 0, -0.4),
 	})
 
 	UI.sign(board, {
 		name = "BoardSign",
 		title = "Certificates",
 		subtitle = "nothing to hang here yet",
-		offset = Vector3.new(-1, 0, 0),
-		extent = UDim2.fromScale(8, 3),
-		maxDistance = 40,
+		offset = Vector3.new(0, 7, 0),
+		extent = UDim2.fromScale(9, 3.5),
+		maxDistance = 60,
 	})
 end
 
-function furnishers.railing(_row, toWorld, y)
-	local halfW, halfD = SafeZone.WIDTH / 2, SafeZone.DEPTH / 2
-	local height = 5
+--[[
+	The bed.
 
-	local sides = {
-		{ size = Vector3.new(SafeZone.WIDTH, height, 1), x = 0, z = -halfD },
-		{ size = Vector3.new(SafeZone.WIDTH, height, 1), x = 0, z = halfD },
-		{ size = Vector3.new(1, height, SafeZone.DEPTH), x = -halfW, z = 0 },
-		{ size = Vector3.new(1, height, SafeZone.DEPTH), x = halfW, z = 0 },
+	Sized and placed against the deck's own radius rather than by eye. The deck
+	is a half-disc, so its far corners are much closer to the middle than its
+	waist is -- a bed that fits alongside the stair at x = -7 hangs its back
+	corner into the wall if it is pushed two studs further out. Measured here so
+	changing LOFT.inset or the dome's bulge moves the bed instead of burying it.
+]]
+local function buildFuton(deckY: number)
+	local loft = SafeZone.LOFT
+	local deckRadius = SafeZone.interiorRadiusAt(loft.y) - loft.inset
+
+	local width, depth = 12, 15
+	local x = -7
+	--[[
+		Furthest the bed's centre can sit back with both far corners still on
+		deck. The margin is not slop: the deck is strips, and each strip's depth
+		is taken at its outer edge, so the real floor is a notch inside the
+		circle this is measured against.
+	]]
+	local usable = deckRadius - 1.5
+	local back = -math.sqrt(math.max(usable * usable - (math.abs(x) + width / 2) ^ 2, 0))
+	local z = math.min(back + depth / 2, loft.frontZ - depth / 2)
+
+	piece({
+		name = "Futon",
+		size = Vector3.new(width, 1.4, depth),
+		color = palette.fabric,
+		material = Enum.Material.Fabric,
+		cframe = toWorld(x, deckY + 0.7, z),
+	})
+	piece({
+		name = "Duvet",
+		size = Vector3.new(width + 0.6, 1.8, depth * 0.6),
+		color = palette.linen,
+		material = Enum.Material.Fabric,
+		collide = false,
+		cframe = toWorld(x, deckY + 1.9, z + depth * 0.2),
+	})
+	piece({
+		name = "Pillow",
+		size = Vector3.new(width * 0.62, 2, 4.2),
+		color = palette.linen,
+		material = Enum.Material.Fabric,
+		collide = false,
+		cframe = toWorld(x, deckY + 2.2, z - depth / 2 + 2.6),
+	})
+end
+
+--[[
+	Lighting, hung rather than baked.
+
+	Two lamps and a fire's worth of warm light, all low-brightness: the shell is
+	near-white and takes very little to blow out. The point is that the inside
+	is warmer than the daylight outside it, not that it is bright.
+]]
+local function buildLamps(deckY: number)
+	local spots = {
+		{ x = 0, y = dome.height * 0.62, z = 0, range = 34, brightness = 1.1 },
+		{ x = -9, y = deckY + 9, z = -12, range = 20, brightness = 0.7 },
 	}
 
-	for index, side in sides do
-		piece({
-			name = `Railing_{index}`,
-			size = side.size,
-			color = palette.timber,
-			material = Enum.Material.Wood,
-			cframe = toWorld(side.x, y + height / 2, side.z),
+	for index, spot in spots do
+		local bulb = piece({
+			name = `Lantern_{index}`,
+			shape = Enum.PartType.Ball,
+			size = Vector3.new(3.6, 3.6, 3.6),
+			color = palette.honey,
+			material = Enum.Material.Neon,
+			collide = false,
+			castShadow = false,
+			cframe = toWorld(spot.x, spot.y, spot.z),
 		})
+		piece({
+			name = `LanternCord_{index}`,
+			size = Vector3.new(0.2, 6, 0.2),
+			color = palette.timberDark,
+			collide = false,
+			castShadow = false,
+			cframe = toWorld(spot.x, spot.y + 4.8, spot.z),
+		})
+
+		local light = Instance.new("PointLight")
+		light.Brightness = spot.brightness
+		light.Range = spot.range
+		light.Color = Color3.fromRGB(255, 226, 186)
+		light.Shadows = false
+		light.Parent = bulb
 	end
 end
 
 --------------------------------------------------------------------------------
--- Roof
+-- Placing models
 --------------------------------------------------------------------------------
 
 --[[
-	A cupola on the roof deck rather than a roof over the whole house: the deck
-	is the reward for climbing, so it cannot be under anything. The dome is a
-	half-buried ball, which is the cheapest shape that reads as round.
+	Put a loaded model down at a target SIZE rather than a target scale.
+
+	Two things here are worth not rediscovering:
+
+	  Sizing is driven by the model's largest dimension. These came from a dozen
+	  toolbox authors working at a dozen scales, and "make it thirteen studs"
+	  is the only instruction that means the same thing to all of them.
+
+	  Placement is done twice. A Model's pivot is wherever its author left it,
+	  which is frequently not the centre of its geometry, so pivoting to the
+	  target and stopping puts the model somewhere near where you asked. The
+	  second pass measures where the bounding box actually landed and corrects
+	  by the difference, which is exact regardless of the pivot.
+
+	  The height is measured AFTER the rotation, and measured against the WORLD
+	  up axis rather than read off the box. Yaw alone cannot change a model's
+	  vertical extent so this never mattered before, but `pitch` and `roll` can:
+	  a can tipped 35 degrees forward is shorter than the can standing up, and
+	  sizing it upright buries the spout in the lawn.
+
+	  Both GetBoundingBox and GetExtentsSize are oriented to the model's PIVOT,
+	  not to the world -- so once the model is tilted, `size.Y` is its own height
+	  and not the height of the hole it needs in the ground. `worldHeight` below
+	  projects the box's three axes onto world up, which is that height.
 ]]
--- selene: allow(unused_variable)
-local function buildRoof(toWorld: (number, number, number) -> CFrame, deckY: number)
-	local diameter = 22
+local function worldHeight(cframe: CFrame, size: Vector3): number
+	return math.abs(cframe.XVector.Y) * size.X
+		+ math.abs(cframe.YVector.Y) * size.Y
+		+ math.abs(cframe.ZVector.Y) * size.Z
+end
+local function place(row: SafeZone.Placement, baseY: number): Model?
+	local model = AssetService.clone(row.asset)
+	if not model then
+		return nil
+	end
 
-	piece({
-		name = "CupolaDrum",
-		shape = Enum.PartType.Cylinder,
-		size = Vector3.new(9, diameter, diameter),
-		color = palette.plaster,
-		material = Enum.Material.Sand,
-		cframe = toWorld(0, deckY + 4.5, 0) * CFrame.Angles(0, 0, math.rad(90)),
-	})
-	piece({
-		name = "CupolaDome",
-		shape = Enum.PartType.Ball,
-		size = Vector3.new(diameter + 2, diameter + 2, diameter + 2),
-		color = palette.roof,
-		material = Enum.Material.Slate,
-		cframe = toWorld(0, deckY + 9, 0),
-	})
-	piece({
-		name = "CupolaFinial",
-		shape = Enum.PartType.Ball,
-		size = Vector3.new(3.4, 3.4, 3.4),
-		color = palette.roofDeep,
-		collide = false,
-		cframe = toWorld(0, deckY + 21, 0),
-	})
+	local extents = model:GetExtentsSize()
+	local largest = math.max(extents.X, extents.Y, extents.Z)
+	if largest > 0.01 then
+		model:ScaleTo(model:GetScale() * (row.fit / largest))
+		extents *= row.fit / largest
+	end
 
-	-- Eaves: a thin overhang all the way round, so the roofline has a shadow.
-	piece({
-		name = "Eaves",
-		size = Vector3.new(SafeZone.WIDTH + 6, 1.2, SafeZone.DEPTH + 6),
-		color = palette.roofDeep,
-		material = Enum.Material.Slate,
-		collide = false,
-		cframe = toWorld(0, deckY - 1.4, 0),
+	local target = toWorld(row.x, 0, row.z)
+		* CFrame.Angles(0, math.rad(row.yaw or 0), 0)
+		* CFrame.Angles(math.rad(row.pitch or 0), 0, math.rad(row.roll or 0))
+	model:PivotTo(target)
+
+	local landedCFrame, landedSize = model:GetBoundingBox()
+	local height = worldHeight(landedCFrame, landedSize)
+	local wanted = origin + Vector3.new(row.x, baseY + (row.y or 0) + height / 2 - (row.sink or 0), row.z)
+	model:PivotTo(model:GetPivot() + (wanted - landedCFrame.Position))
+
+	if row.name then
+		model.Name = row.name
+	end
+
+	--[[
+		Where this ended up, in the model's OWN frame, recorded for anything that
+		has to be positioned against it.
+
+		`extents` is measured before the model is ever rotated, so it is the
+		authored-orientation size -- which is the only frame in which "the long
+		axis of the counter" means anything. Reading it back off the placed model
+		does not work: GetExtentsSize is oriented to the pivot, and a prop yawed
+		twenty degrees reports a box that is a blend of its own two axes.
+
+		This exists because Yoroi-san's position used to be a second set of
+		hand-written coordinates that had to agree with the booth's, and did not:
+		the booth moved and resized twice while the attendant stayed where it
+		was, standing inside the counter.
+	]]
+	model:SetAttribute("PlotSize", extents)
+	model:SetAttribute("PlotCentre", wanted)
+	model:SetAttribute("PlotYaw", row.yaw or 0)
+
+	model.Parent = houseFolder
+	return model
+end
+
+--[[
+	Give a flat cloth the shape of the table under it.
+
+	TableCloth is a 12.6 x 0.24 x 12.7 sheet with a scalloped frill around its
+	rim and no drape whatsoever, so laid on a table it is a lid: the frill hangs
+	in mid-air off every edge with nothing joining it to the furniture. Nothing
+	in the model can be posed into a skirt either -- the frill pieces are all at
+	the same height as the sheet.
+
+	So the skirt is built. Four panels drop from the cloth's own rim to just
+	above the floor, taking their colour and material from the sheet, sized to
+	the CLOTH rather than to the table so the hem lines up with the frill that is
+	already there. The panels overlap at the corners rather than mitring.
+]]
+local function drape(cloth: Model, table_: Model, groundY: number)
+	local sheet: BasePart? = nil
+	local best = 0
+	for _, descendant in cloth:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			local area = descendant.Size.X * descendant.Size.Z
+			if area > best then
+				sheet, best = descendant, area
+			end
+		end
+	end
+	if not sheet then
+		return
+	end
+
+	local clothCFrame, clothSize = cloth:GetBoundingBox()
+	local tableCFrame, tableSize = table_:GetBoundingBox()
+
+	local hemTop = clothCFrame.Position.Y - worldHeight(clothCFrame, clothSize) / 2
+	local hemBottom = math.max(groundY + 0.1, tableCFrame.Position.Y - worldHeight(tableCFrame, tableSize) / 2 + 0.1)
+	local drop = hemTop - hemBottom
+	if drop <= 0.2 then
+		return
+	end
+
+	-- The cloth's own yaw, kept upright: panels hang plumb whatever the sheet is
+	-- turned to, which they would not if they inherited its full rotation.
+	local look = clothCFrame.LookVector
+	local frame = CFrame.new(clothCFrame.Position.X, hemBottom + drop / 2, clothCFrame.Position.Z)
+		* CFrame.Angles(0, math.atan2(look.X, look.Z), 0)
+
+	local thickness = math.max(sheet.Size.Y, 0.16)
+
+	local sides = {
+		{ size = Vector3.new(clothSize.X, drop, thickness), offset = Vector3.new(0, 0, clothSize.Z / 2) },
+		{ size = Vector3.new(clothSize.X, drop, thickness), offset = Vector3.new(0, 0, -clothSize.Z / 2) },
+		{ size = Vector3.new(thickness, drop, clothSize.Z), offset = Vector3.new(clothSize.X / 2, 0, 0) },
+		{ size = Vector3.new(thickness, drop, clothSize.Z), offset = Vector3.new(-clothSize.X / 2, 0, 0) },
+	}
+
+	for index, side in sides do
+		local panel = Instance.new("Part")
+		panel.Name = `ClothSkirt{index}`
+		panel.Size = side.size
+		panel.CFrame = frame * CFrame.new(side.offset)
+		panel.Color = sheet.Color
+		panel.Material = sheet.Material
+		panel.Anchored = true
+		panel.CanCollide = false
+		panel.CanQuery = false
+		panel.CanTouch = false
+		panel.TopSurface = Enum.SurfaceType.Smooth
+		panel.BottomSurface = Enum.SurfaceType.Smooth
+		panel.Parent = cloth
+	end
+end
+
+--[[
+	Footprints of what has already been placed, in plot coordinates.
+
+	Only used by the lawn. Scattering 22 clumps at random almost never landed one
+	inside a shop; covering the plot on a grid lands several, and a clump of grass
+	standing up through a shop floor is worse than a bare patch.
+
+	SOLID THINGS ONLY -- the ones Config/Assets marks `collide`, which is the
+	shops, the booth and the picnic table. A sakura is 54 studs of canopy over a
+	trunk you can walk up to, and reserving its bounding box would clear a
+	54-stud circle of lawn to protect a tree that grass is supposed to grow
+	under.
+]]
+export type Footprint = { x: number, z: number, halfX: number, halfZ: number }
+
+local function footprintOf(row: SafeZone.Placement, model: Model): Footprint
+	local _, size = model:GetBoundingBox()
+	local yaw = math.rad(row.yaw or 0)
+	local cos, sin = math.abs(math.cos(yaw)), math.abs(math.sin(yaw))
+	return {
+		x = row.x,
+		z = row.z,
+		halfX = (size.X * cos + size.Z * sin) / 2,
+		halfZ = (size.X * sin + size.Z * cos) / 2,
+	}
+end
+
+local function placeAll(rows: { SafeZone.Placement }, groundY: number, deckY: number): { Footprint }
+	local named: { [string]: Model } = {}
+	local footprints: { Footprint } = {}
+
+	for _, row in rows do
+		local baseY = if row.on == "loft" then deckY else groundY
+		local ok, result = pcall(place, row, baseY)
+		if not ok then
+			warn(`[SafeZoneService] placing "{row.asset}" failed: {result}`)
+		elseif result == nil then
+			warn(`[SafeZoneService] asset "{row.asset}" did not load; nothing placed`)
+		else
+			if row.name then
+				named[row.name] = result
+			end
+			if row.drapeOver then
+				local over = named[row.drapeOver]
+				if over then
+					drape(result, over, baseY + origin.Y)
+				else
+					warn(`[SafeZoneService] "{row.asset}" drapes over "{row.drapeOver}", which is not placed yet`)
+				end
+			end
+			--[[
+				Solid AND not a canopy. `collide` used to be opt-in and doubled
+				as "is this a building", which stopped working the moment it
+				became the default: reserving lawn under everything solid clears
+				a 54-stud circle for each sakura, which is most of the garden.
+			]]
+			local spec = Assets.get(row.asset)
+			if spec and spec.collide ~= false and not spec.canopy then
+				table.insert(footprints, footprintOf(row, result))
+			end
+		end
+	end
+
+	return footprints
+end
+
+--------------------------------------------------------------------------------
+-- Yoroi-san
+--------------------------------------------------------------------------------
+
+--[[
+	R6 joint names, keyed by the limb the joint drives.
+
+	The rig is renamed from this rather than trusting the names it shipped with.
+	See rigYoroi: one of its two `Snap`s is called "Neck" and connects nothing,
+	while the one that actually holds the head on is called "Snap". Deriving the
+	name from the child part is the only version of this that cannot be lied to.
+]]
+local YOROI_JOINTS = {
+	Head = "Neck",
+	["Left Arm"] = "Left Shoulder",
+	["Right Arm"] = "Right Shoulder",
+	["Left Leg"] = "Left Hip",
+	["Right Leg"] = "Right Hip",
+}
+
+--[[
+	Make the job-booth attendant animatable.
+
+	The model is a legacy R6 rig: the right six parts with the right names, held
+	together by `Motor` and `Snap`. Those are the pre-Motor6D joint classes and
+	nothing in Roblox's animation stack -- or in Anim/Machine -- will touch
+	them, which is why this arrives as a statue and not as a character.
+
+	Converting the classes is the easy half. The rig underneath them is wrong in
+	three separate ways, and all three are silent:
+
+	  BOTH SHOULDERS ARE BACKWARDS. `Right Shoulder` has Part0 = Right Arm and
+	  Part1 = Torso. A Motor6D moves its Part1, so driving that joint swings the
+	  BODY around a stationary arm. Every joint is therefore re-pointed away
+	  from the Torso, swapping C0 and C1 with it so the rest pose is unchanged.
+
+	  THE NECK IS A DECOY. There are two Snaps: one named "Neck" with Part0 and
+	  Part1 both null, and one named "Snap" that actually holds the head on.
+	  Joints are dropped if either part is missing and renamed afterwards from
+	  YOROI_JOINTS, so the profile binds to the joint that exists rather than to
+	  the one with the right name.
+
+	  THERE IS NO ROOT. No HumanoidRootPart means no joint for a root track to
+	  drive, and the whole body would be rigid while its limbs moved. An
+	  invisible root joined to the Torso gives Machine the one joint it needs to
+	  breathe.
+
+	Order matters. ScaleTo runs FIRST, because it rewrites Motor6D offsets to
+	match and any joint built afterwards would be measured against parts that
+	have already moved.
+
+	Note `ClassName` and not `IsA` on the conversion. Motor6D inherits from
+	Motor, so `IsA("Motor")` is true of the very objects being created and the
+	loop would eat its own output.
+]]
+local function rigYoroi(model: Model, height: number): BasePart?
+	local extents = model:GetExtentsSize()
+	if extents.Y > 0.01 then
+		model:ScaleTo(model:GetScale() * (height / extents.Y))
+	end
+
+	local torso = model:FindFirstChild("Torso", true)
+	if not (torso and torso:IsA("BasePart")) then
+		warn("[SafeZoneService] yoroiKnight has no Torso; leaving it unrigged")
+		return nil
+	end
+
+	for _, descendant in model:GetDescendants() do
+		if descendant.ClassName ~= "Motor" and descendant.ClassName ~= "Snap" then
+			continue
+		end
+
+		local legacy = descendant :: any
+		local part0, part1 = legacy.Part0, legacy.Part1
+		local c0, c1 = legacy.C0, legacy.C1
+		legacy:Destroy()
+
+		if not (part0 and part1) then
+			continue
+		end
+
+		-- Point the joint away from the Torso, so Part1 is always the limb.
+		if part1 == torso then
+			part0, part1 = part1, part0
+			c0, c1 = c1, c0
+		end
+
+		local named = YOROI_JOINTS[part1.Name]
+		if not named then
+			continue
+		end
+
+		local motor = Instance.new("Motor6D")
+		motor.Name = named
+		motor.Part0 = part0
+		motor.Part1 = part1
+		motor.C0 = c0
+		motor.C1 = c1
+		motor.Parent = part0
+	end
+
+	local root = Instance.new("Part")
+	root.Name = "HumanoidRootPart"
+	root.Size = torso.Size
+	root.CFrame = torso.CFrame
+	root.Transparency = 1
+	root.CanCollide = false
+	root.CanQuery = false
+	root.CanTouch = false
+	root.Anchored = true
+	root.Parent = model
+
+	local rootJoint = Instance.new("Motor6D")
+	rootJoint.Name = "RootJoint"
+	rootJoint.Part0 = root
+	rootJoint.Part1 = torso
+	rootJoint.C0 = CFrame.new()
+	rootJoint.C1 = CFrame.new()
+	rootJoint.Parent = root
+
+	--[[
+		Anything the rig left loose -- the two shoulder plates -- is welded to
+		the torso so it travels with the animation instead of hanging in the air
+		where the model was authored.
+
+		Everything except the root is unanchored. An anchored part ignores its
+		joints, so a rig anchored part-by-part animates nothing; anchoring only
+		the root holds the whole assembly in place through the joints while
+		leaving Motor6D.Transform free to move it.
+	]]
+	local jointed: { [BasePart]: boolean } = { [root] = true, [torso] = true }
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("Motor6D") then
+			if descendant.Part1 then
+				jointed[descendant.Part1] = true
+			end
+		end
+	end
+
+	--[[
+		Solid, like everything else on the plot.
+
+		Safe because of the anchoring above: joints propagate anchoring through
+		an assembly, so limbs joined to an anchored root cannot be shoved
+		anywhere by a player walking into them. Collision here only means Yoroi
+		occupies its own space instead of being a hologram of a bailiff.
+
+		The root is the exception. It is an invisible box sitting exactly on the
+		torso, so leaving it solid would give the torso two collision hulls.
+	]]
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			local isRoot = descendant == root
+			descendant.Anchored = isRoot
+			descendant.CanCollide = not isRoot
+			descendant.CanQuery = not isRoot
+			descendant.CanTouch = false
+			if not jointed[descendant] then
+				local weld = Instance.new("WeldConstraint")
+				weld.Part0 = torso
+				weld.Part1 = descendant
+				weld.Parent = torso
+			end
+		end
+	end
+
+	model.PrimaryPart = root
+	model:SetAttribute(Skeleton.PROFILE_ATTRIBUTE, "yoroi")
+	return root
+end
+
+--[[
+	Where the attendant stands, derived from the booth that is already placed.
+
+	The booth is the thing that moves. It has been resized twice and re-yawed
+	twice, and both times Yoroi-san stayed at the coordinates written next to it
+	-- which is how it ended up standing inside its own counter. So this reads
+	the booth's recorded frame and measures off it, and the config now says
+	"just past the end of the counter" in units of the booth rather than in
+	studs of the world.
+
+	Standing at the END of the counter and not behind it is forced by the model.
+	ShopStall's back board sits at local X -1.60 and its counter spans -1.50 to
+	+1.50, so there is no gap to stand in -- and the board runs the full height
+	of the stall, so anything behind it is hidden completely. The open end is the
+	only place an attendant is both out of the geometry and visible.
+]]
+local function boothStation(): (CFrame?, number?)
+	local booth = houseFolder:FindFirstChild(SafeZone.YOROI.booth)
+	if not (booth and booth:IsA("Model")) then
+		return nil, nil
+	end
+
+	local centre = booth:GetAttribute("PlotCentre")
+	local size = booth:GetAttribute("PlotSize")
+	local yaw = booth:GetAttribute("PlotYaw")
+	if typeof(centre) ~= "Vector3" or typeof(size) ~= "Vector3" or type(yaw) ~= "number" then
+		return nil, nil
+	end
+
+	local spot = SafeZone.YOROI
+	local frame = CFrame.new(centre) * CFrame.Angles(0, math.rad(yaw), 0)
+	local station = frame * CFrame.new(spot.outFromCounter * size.X / 2, 0, spot.alongCounter * size.Z / 2)
+
+	--[[
+		Facing, derived rather than typed.
+
+		The booth serves along its own +X, which is the bearing yaw + 90. The rig
+		faces its own -X -- every part in it carries a 90 degree yaw, and "Right
+		Arm" sits at -Z where a standard R6 rig puts it at +X -- so a rig at yaw
+		phi faces the bearing phi - 90. Setting those equal gives phi = yaw + 180,
+		and `facingOffset` is that 180 with a name on it.
+	]]
+	return CFrame.new(station.Position), yaw + spot.facingOffset
+end
+
+local function buildYoroi(groundY: number)
+	local model = AssetService.clone("yoroiKnight")
+	if not model then
+		warn("[SafeZoneService] yoroiKnight did not load; the job booth is unstaffed")
+		return
+	end
+
+	local spot = SafeZone.YOROI
+	model.Name = "YoroiSan"
+
+	local root = rigYoroi(model, spot.height)
+	if not root then
+		model:Destroy()
+		return
+	end
+
+	local station, facing = boothStation()
+	if not (station and facing) then
+		warn("[SafeZoneService] job booth is not placed; standing Yoroi-san at its fallback spot")
+		station, facing = toWorld(spot.x, 0, spot.z), spot.yaw
+	end
+
+	-- Feet on the ground: the rig's own extents are measured after scaling, and
+	-- the root sits at the torso, which is not the bottom of the model.
+	model:PivotTo(CFrame.new(station.Position) * CFrame.Angles(0, math.rad(facing), 0))
+	local box, size = model:GetBoundingBox()
+	local lift = (origin.Y + groundY + size.Y / 2) - box.Position.Y
+	model:PivotTo(model:GetPivot() + Vector3.new(0, lift, 0))
+
+	--[[
+		Parented last, and only once it is rigged and standing.
+
+		SafeZoneAnimController binds on ChildAdded and reads the profile
+		attribute to decide whether a model is animatable. Parenting first would
+		make that a race against the rig it is waiting for.
+	]]
+	model.Parent = houseFolder
+
+	UI.sign(root, {
+		name = "BoothSign",
+		title = "Weeding — apply here",
+		subtitle = "certification raises the rate",
+		offset = Vector3.new(0, 9, 0),
+		extent = UDim2.fromScale(16, 4.5),
+		maxDistance = 140,
 	})
 end
 
@@ -532,382 +1180,224 @@ end
 -- Garden
 --------------------------------------------------------------------------------
 
-local function buildGarden(toWorld: (number, number, number) -> CFrame, rng: Random)
-	-- The garden is built during boot, before a background download can finish.
-	-- Wait a moment for it rather than always losing that race — see
-	-- AssetService.waitFor.
-	AssetService.waitFor("naturePack", 4)
+local function buildPath()
+	local garden = SafeZone.garden
+	local length = garden.pathTo - garden.pathFrom
+	local centre = (garden.pathFrom + garden.pathTo) / 2
 
+	piece({
+		name = "Path",
+		size = Vector3.new(garden.pathWidth, 0.4, length),
+		color = palette.stone,
+		material = Enum.Material.Cobblestone,
+		collide = false,
+		castShadow = false,
+		cframe = toWorld(0, SafeZone.FLOOR_Y - 0.4, centre),
+	})
+
+	-- Edging. The strip alone reads as a texture change in the ground; two
+	-- lines of trim either side is what makes it read as a made path.
+	for _, side in { -1, 1 } do
+		piece({
+			name = "PathEdge",
+			size = Vector3.new(1.2, 0.6, length),
+			color = palette.trim,
+			collide = false,
+			castShadow = false,
+			cframe = toWorld(side * (garden.pathWidth / 2 + 0.6), SafeZone.FLOOR_Y - 0.35, centre),
+		})
+	end
+end
+
+--[[
+	A picket fence marking the safe volume.
+
+	Legibility is the point: the boundary is a real rule, so it has to be
+	something the player can see rather than a line they discover by being hurt
+	on the far side of it. The front is left open where the path crosses it.
+
+	Round caps, not points. A pointed picket is a fence; a round-topped one is
+	the same fence drawn by somebody being nice about it, and that is the whole
+	register this plot is supposed to be in.
+]]
+local function buildFence()
 	local garden = SafeZone.garden
 	local halfX = SafeZone.VOLUME.size.X / 2 - garden.fenceInset
 	local frontZ = SafeZone.VOLUME.centreOffset.Z + SafeZone.VOLUME.size.Z / 2 - garden.fenceInset
 	local backZ = SafeZone.VOLUME.centreOffset.Z - SafeZone.VOLUME.size.Z / 2 + garden.fenceInset
 
-	-- The path out of the front door: the line the player is meant to walk, and
-	-- the thing that makes "step outside" a direction rather than a guess.
-	piece({
-		name = "Path",
-		size = Vector3.new(garden.pathWidth, 0.4, garden.pathLength),
-		color = Color3.fromRGB(226, 214, 192),
-		material = Enum.Material.Cobblestone,
-		collide = false,
-		cframe = toWorld(0, 0.2, SafeZone.DEPTH / 2 + garden.pathLength / 2),
-	})
+	local function post(x: number, z: number)
+		if math.abs(x) < garden.gateGap and math.abs(z - frontZ) < 0.01 then
+			return
+		end
+		piece({
+			name = "FencePost",
+			size = Vector3.new(1.1, garden.fenceHeight, 1.1),
+			color = palette.linen,
+			collide = false,
+			cframe = toWorld(x, garden.fenceHeight / 2, z),
+		})
+		piece({
+			name = "FenceCap",
+			shape = Enum.PartType.Ball,
+			size = Vector3.new(1.5, 1.5, 1.5),
+			color = palette.trim,
+			collide = false,
+			castShadow = false,
+			cframe = toWorld(x, garden.fenceHeight, z),
+		})
+	end
 
-	--[[
-		A picket fence marking the safe volume. Legibility is the point: the
-		boundary is a real rule, so it has to be something the player can see
-		rather than a line they discover by being hurt on the far side of it.
-		The front is left open where the path crosses it.
-	]]
-	local function fenceRun(fromX: number, toX: number, z: number, skipGate: boolean)
-		local span = toX - fromX
-		local count = math.max(1, math.floor(math.abs(span) / garden.postSpacing))
-		for index = 0, count do
-			local x = fromX + span * (index / count)
-			if skipGate and math.abs(x) < garden.pathWidth / 2 + 2 then
-				continue
+	local function rails(fromX: number, fromZ: number, toX: number, toZ: number, gate: boolean)
+		local length = (Vector2.new(toX, toZ) - Vector2.new(fromX, fromZ)).Magnitude
+		local yaw = math.atan2(toX - fromX, toZ - fromZ)
+		for _, height in { garden.fenceHeight * 0.35, garden.fenceHeight * 0.72 } do
+			if gate then
+				-- Two runs either side of the opening the path passes through.
+				local span = (length / 2) - garden.gateGap
+				for _, side in { -1, 1 } do
+					piece({
+						name = "FenceRail",
+						size = Vector3.new(0.5, 0.5, span),
+						color = palette.linen,
+						collide = false,
+						castShadow = false,
+						cframe = toWorld((fromX + toX) / 2, height, (fromZ + toZ) / 2)
+							* CFrame.Angles(0, yaw, 0)
+							* CFrame.new(0, 0, side * (garden.gateGap + span / 2)),
+					})
+				end
+			else
+				piece({
+					name = "FenceRail",
+					size = Vector3.new(0.5, 0.5, length),
+					color = palette.linen,
+					collide = false,
+					castShadow = false,
+					cframe = toWorld((fromX + toX) / 2, height, (fromZ + toZ) / 2) * CFrame.Angles(0, yaw, 0),
+				})
 			end
-			piece({
-				name = "FencePost",
-				size = Vector3.new(1, garden.fenceHeight, 1),
-				color = palette.timber,
-				material = Enum.Material.Wood,
-				collide = false,
-				cframe = toWorld(x, garden.fenceHeight / 2, z),
-			})
 		end
 	end
 
-	fenceRun(-halfX, halfX, frontZ, true)
-	fenceRun(-halfX, halfX, backZ, false)
+	local runs = {
+		{ fromX = -halfX, fromZ = frontZ, toX = halfX, toZ = frontZ, gate = true },
+		{ fromX = -halfX, fromZ = backZ, toX = halfX, toZ = backZ, gate = false },
+		{ fromX = -halfX, fromZ = backZ, toX = -halfX, toZ = frontZ, gate = false },
+		{ fromX = halfX, fromZ = backZ, toX = halfX, toZ = frontZ, gate = false },
+	}
 
-	local sideCount = math.max(1, math.floor((frontZ - backZ) / garden.postSpacing))
-	for _, side in { -1, 1 } do
-		for index = 0, sideCount do
-			local z = backZ + (frontZ - backZ) * (index / sideCount)
+	for _, run in runs do
+		local length = (Vector2.new(run.toX, run.toZ) - Vector2.new(run.fromX, run.fromZ)).Magnitude
+		local count = math.max(1, math.floor(length / garden.postSpacing))
+		for index = 0, count do
+			local alpha = index / count
+			post(run.fromX + (run.toX - run.fromX) * alpha, run.fromZ + (run.toZ - run.fromZ) * alpha)
+		end
+		rails(run.fromX, run.fromZ, run.toX, run.toZ, run.gate)
+	end
+end
+
+local function buildPathLanterns()
+	local garden = SafeZone.garden
+	local count = math.floor((garden.pathTo - garden.pathFrom) / garden.lanternSpacing)
+
+	for index = 1, count do
+		local z = garden.pathFrom + garden.lanternSpacing * index
+		for _, side in { -1, 1 } do
+			local x = side * (garden.pathWidth / 2 + 4.5)
+
 			piece({
-				name = "FencePost",
-				size = Vector3.new(1, garden.fenceHeight, 1),
-				color = palette.timber,
+				name = "LanternPost",
+				size = Vector3.new(0.7, 9, 0.7),
+				color = palette.timberDark,
 				material = Enum.Material.Wood,
 				collide = false,
-				cframe = toWorld(side * halfX, garden.fenceHeight / 2, z),
+				cframe = toWorld(x, 4.5, z),
 			})
+
+			local head = place({ asset = "lantern", x = x, z = z, fit = 6, y = 8.4 }, 0)
+			local anchor = head and head.PrimaryPart or (head and head:FindFirstChildWhichIsA("BasePart", true))
+			if anchor then
+				local glow = Instance.new("PointLight")
+				glow.Brightness = 1.6
+				glow.Range = 26
+				glow.Color = Color3.fromRGB(255, 214, 158)
+				glow.Shadows = false
+				glow.Parent = anchor
+			end
 		end
 	end
+end
 
-	--[[
-		Ground that is clear to plant on: not on the path, not inside the house,
-		not on the doorstep a player lands on when they travel to Town.
-	]]
-	local function isClear(x: number, z: number): boolean
-		if math.abs(x) < garden.pathWidth / 2 + 3 then
-			return false
-		end
-		if math.abs(x) < SafeZone.WIDTH / 2 + 2 and math.abs(z) < SafeZone.DEPTH / 2 + 2 then
-			return false
-		end
-		local doorstep = SafeZone.DOORSTEP_OFFSET
-		if math.abs(x - doorstep.X) < 8 and math.abs(z - doorstep.Z) < 8 then
-			return false
+--[[
+	Ground that is clear to plant on: not on the paving, and not inside the house.
+
+	The paving is the path strip plus its 1.2-stud edging either side, so it ends
+	at 8.2 from the centre line and grass may start just past that. This used to
+	keep back pathWidth/2 + 6 -- a 26-stud-wide bald strip down the middle of the
+	garden for a 14-stud path -- and to leave a 20-stud square of bare ground on
+	the doorstep, which is paving too and does not need a lawn exclusion of its
+	own.
+]]
+local function isClear(x: number, z: number): boolean
+	local garden = SafeZone.garden
+	local paved = garden.pathWidth / 2 + 1.2 + garden.grassPathMargin
+	if math.abs(x) < paved and z > garden.pathFrom - garden.grassPathMargin and z < garden.pathTo then
+		return false
+	end
+	return Vector2.new(x, z).Magnitude >= dome.radius + 2
+end
+
+--[[
+	Lawn, by jittered grid.
+
+	One clump per cell, displaced by up to `grassJitter`, sized to overlap its
+	neighbours. Cells whose centre is on the paving or under the house are
+	skipped, so the grass runs right up to the kerb and stops.
+]]
+local function scatterGrass(rng: Random, occupied: { Footprint })
+	local garden = SafeZone.garden
+
+	local function isFree(x: number, z: number): boolean
+		for _, spot in occupied do
+			if math.abs(x - spot.x) < spot.halfX and math.abs(z - spot.z) < spot.halfZ then
+				return false
+			end
 		end
 		return true
 	end
 
-	--[[
-		Plant one thing, preferring a model out of the nature pack and falling
-		back to a ball of foliage.
+	local halfX = SafeZone.VOLUME.size.X / 2 - garden.fenceInset - 5
+	local frontZ = SafeZone.VOLUME.centreOffset.Z + SafeZone.VOLUME.size.Z / 2 - garden.fenceInset - 5
+	local backZ = SafeZone.VOLUME.centreOffset.Z - SafeZone.VOLUME.size.Z / 2 + garden.fenceInset + 5
 
-		`match` picks the kind by name. The pack is public and does load, but its
-		child names are only known at runtime, so matching is a loose substring
-		with the procedural bush behind it -- the garden is the first thing every
-		player sees and must never depend on a download.
-	]]
-	local function plant(x: number, z: number, match: string, targetHeight: number?): boolean
-		local model = AssetService.clonePackItem("naturePack", rng, match)
-		if model then
-			local extents = model:GetExtentsSize()
-			if extents.Y > 0.01 and extents.Y < 60 then
-				if targetHeight then
-					model:ScaleTo(model:GetScale() * (targetHeight / extents.Y))
-					extents = model:GetExtentsSize()
-				end
-				model:PivotTo(
-					toWorld(x, extents.Y / 2, z) * CFrame.Angles(0, rng:NextNumber() * math.pi * 2, 0)
-				)
-				model.Parent = houseFolder
-				return true
+	local spacing = garden.grassSpacing
+	local columns = math.floor((halfX * 2) / spacing)
+	local rows = math.floor((frontZ - backZ) / spacing)
+
+	for column = 0, columns do
+		for row = 0, rows do
+			local x = -halfX + column * spacing + rng:NextNumber(-garden.grassJitter, garden.grassJitter)
+			local z = backZ + row * spacing + rng:NextNumber(-garden.grassJitter, garden.grassJitter)
+			if not isClear(x, z) or not isFree(x, z) then
+				continue
 			end
-			model:Destroy()
-		end
 
-		local size = targetHeight or rng:NextNumber(3, 6)
-		piece({
-			name = "GardenBush",
-			shape = Enum.PartType.Ball,
-			size = Vector3.new(size, size * 0.8, size),
-			color = palette.leaf,
-			material = Enum.Material.Grass,
-			collide = false,
-			cframe = toWorld(x, size * 0.3, z),
-		})
-		return false
-	end
+			local clump = place({
+				asset = "grassPatch",
+				x = x,
+				z = z,
+				fit = rng:NextNumber(garden.grassFit[1], garden.grassFit[2]),
+				yaw = rng:NextNumber(0, 360),
+				sink = 0.6,
+			}, 0)
 
-	--[[
-		Two trees flanking the gate, so the way out is framed rather than a gap
-		in a fence line. Placed rather than scattered: this is the shot every
-		player sees on their first frame outdoors.
-	]]
-	for _, side in { -1, 1 } do
-		plant(side * (garden.pathWidth / 2 + 9), frontZ - 7, "tree", 22)
-	end
-
-	-- Flower beds hugging both sides of the path, which is what makes the path
-	-- read as tended rather than as a strip of different-coloured ground.
-	local bedZStart = SafeZone.DEPTH / 2 + 3
-	local bedZEnd = SafeZone.DEPTH / 2 + garden.pathLength - 2
-	for _, side in { -1, 1 } do
-		local steps = 6
-		for index = 0, steps do
-			local z = bedZStart + (bedZEnd - bedZStart) * (index / steps)
-			local x = side * (garden.pathWidth / 2 + 2.5)
-			plant(x, z, "flower", rng:NextNumber(2.2, 3.4))
+			if not clump then
+				return
+			end
 		end
 	end
-
-	-- Lanterns down the path. §2: the cottage is the one place that is always
-	-- welcoming, and light is the cheapest way to say so.
-	for _, side in { -1, 1 } do
-		for _, z in { SafeZone.DEPTH / 2 + 8, SafeZone.DEPTH / 2 + 24 } do
-			local x = side * (garden.pathWidth / 2 + 5)
-			piece({
-				name = "GardenLanternPost",
-				size = Vector3.new(0.8, 7, 0.8),
-				color = palette.timberDark,
-				material = Enum.Material.Wood,
-				collide = false,
-				cframe = toWorld(x, 3.5, z),
-			})
-			local head = piece({
-				name = "GardenLantern",
-				shape = Enum.PartType.Ball,
-				size = Vector3.new(2.4, 2.4, 2.4),
-				color = Color3.fromRGB(255, 226, 150),
-				material = Enum.Material.Neon,
-				collide = false,
-				cframe = toWorld(x, 7.6, z),
-			})
-			local glow = Instance.new("PointLight")
-			glow.Brightness = 1.5
-			glow.Range = 24
-			glow.Color = Color3.fromRGB(255, 220, 160)
-			glow.Parent = head
-		end
-	end
-
-	-- The rest of the plot: a mix of bushes and grass tufts, path kept clear.
-	for _ = 1, garden.plantCount do
-		local x = rng:NextNumber(-halfX + 4, halfX - 4)
-		local z = rng:NextNumber(backZ + 4, frontZ - 4)
-		if not isClear(x, z) then
-			continue
-		end
-		local kind = if rng:NextNumber() > 0.45 then "bush" else "grass"
-		plant(x, z, kind, rng:NextNumber(3, 6))
-	end
-end
-
---------------------------------------------------------------------------------
--- Assembly
---------------------------------------------------------------------------------
-
-local function buildCottage(origin: Vector3, rng: Random)
-	local function toWorld(x: number, y: number, z: number): CFrame
-		return CFrame.new(origin + Vector3.new(x, y, z))
-	end
-
-	local enclosedFloors = SafeZone.FLOORS - 1 -- the top level is an open deck
-	local storey = SafeZone.FLOOR_HEIGHT + SafeZone.FLOOR_SLAB
-	local halfW, halfD = SafeZone.WIDTH / 2, SafeZone.DEPTH / 2
-
-	-- Ground slab, solid: nothing needs a hole down into the plaza.
-	slabWithHole(toWorld, SafeZone.FLOOR_SLAB, nil)
-
-	local holes: { any } = {}
-	for floor = 0, enclosedFloors - 1 do
-		local base = floor * storey
-		local walkY = base + SafeZone.FLOOR_SLAB
-
-		-- Stairs up to the next level, alternating direction each storey.
-		holes[floor + 1] = buildStairs(toWorld, walkY, storey, if floor % 2 == 0 then 1 else -1)
-
-		local isGround = floor == 0
-		local wallCentreY = base + storey / 2
-
-		-- Front (+Z): the door downstairs, a wide window upstairs.
-		wallFace(toWorld, {
-			name = `WallFront_{floor}`,
-			width = SafeZone.WIDTH,
-			height = storey,
-			thickness = SafeZone.WALL,
-			x = 0,
-			y = wallCentreY,
-			z = halfD,
-			sideways = false,
-			opening = if isGround
-				then {
-					x = 0,
-					y = walkY - wallCentreY + SafeZone.DOOR_HEIGHT / 2,
-					width = SafeZone.DOOR_WIDTH,
-					height = SafeZone.DOOR_HEIGHT,
-				}
-				else { x = 0, y = 1, width = 18, height = 9 },
-		})
-
-		-- Back (-Z): solid, where the stairs run up inside.
-		wallFace(toWorld, {
-			name = `WallBack_{floor}`,
-			width = SafeZone.WIDTH,
-			height = storey,
-			thickness = SafeZone.WALL,
-			x = 0,
-			y = wallCentreY,
-			z = -halfD,
-			sideways = false,
-			opening = nil,
-		})
-
-		-- Sides: a round-ish window each, on both storeys.
-		for _, side in { -1, 1 } do
-			wallFace(toWorld, {
-				name = `WallSide_{floor}_{side}`,
-				width = SafeZone.DEPTH,
-				height = storey,
-				thickness = SafeZone.WALL,
-				x = side * halfW,
-				y = wallCentreY,
-				z = 0,
-				sideways = true,
-				opening = {
-					x = if isGround then 8 else 0,
-					y = 1,
-					width = SafeZone.WINDOW_RADIUS * 2,
-					height = SafeZone.WINDOW_RADIUS * 2,
-				},
-			})
-		end
-	end
-
-	-- Upper floors, each with the stairwell from the storey below punched out.
-	for floor = 1, enclosedFloors do
-		slabWithHole(toWorld, floor * storey + SafeZone.FLOOR_SLAB, holes[floor])
-	end
-
-	local deckY = enclosedFloors * storey + SafeZone.FLOOR_SLAB
-
-	--------------------------------------------------------------------------
-	-- Glazing
-	--------------------------------------------------------------------------
-
-	-- Loft window: a disc of glass in the opening, with a ring in front of it.
-	piece({
-		name = "LoftGlass",
-		size = Vector3.new(18, 9, 0.4),
-		color = palette.glass,
-		material = Enum.Material.Glass,
-		transparency = 0.55,
-		collide = false,
-		cframe = toWorld(0, storey + storey / 2 + 1, halfD),
-	})
-	for _, side in { -1, 1 } do
-		piece({
-			name = "LoftMullion",
-			size = Vector3.new(0.8, 9, 1),
-			color = palette.timberDark,
-			material = Enum.Material.Wood,
-			collide = false,
-			cframe = toWorld(side * 4.5, storey + storey / 2 + 1, halfD),
-		})
-	end
-
-	for floor = 0, enclosedFloors - 1 do
-		local base = floor * storey
-		for _, side in { -1, 1 } do
-			piece({
-				name = "SideGlass",
-				shape = Enum.PartType.Cylinder,
-				size = Vector3.new(0.4, SafeZone.WINDOW_RADIUS * 2, SafeZone.WINDOW_RADIUS * 2),
-				color = palette.glass,
-				material = Enum.Material.Glass,
-				transparency = 0.5,
-				collide = false,
-				cframe = toWorld(side * halfW, base + storey / 2 + 1, if floor == 0 then 8 else 0),
-			})
-		end
-	end
-
-	-- Door frame and a door leaf propped open. Not a working door: a closing one
-	-- would eventually shut somebody out of their own safe zone.
-	piece({
-		name = "DoorFrame",
-		size = Vector3.new(SafeZone.DOOR_WIDTH + 2.4, SafeZone.DOOR_HEIGHT + 1.6, 1),
-		color = palette.timberDark,
-		material = Enum.Material.Wood,
-		collide = false,
-		cframe = toWorld(0, SafeZone.FLOOR_SLAB + SafeZone.DOOR_HEIGHT / 2, halfD + 0.3),
-	})
-	piece({
-		name = "DoorLeaf",
-		size = Vector3.new(0.6, SafeZone.DOOR_HEIGHT, SafeZone.DOOR_WIDTH * 0.9),
-		color = palette.timber,
-		material = Enum.Material.Wood,
-		collide = false,
-		cframe = toWorld(
-			-SafeZone.DOOR_WIDTH / 2 - 0.5,
-			SafeZone.FLOOR_SLAB + SafeZone.DOOR_HEIGHT / 2,
-			halfD + SafeZone.DOOR_WIDTH * 0.45
-		),
-	})
-
-	buildRoof(toWorld, deckY)
-
-	--------------------------------------------------------------------------
-	-- Furniture
-	--------------------------------------------------------------------------
-
-	for _, row in SafeZone.furniture do
-		local furnish = furnishers[row.kind]
-		if not furnish then
-			warn(`[SafeZoneService] no furnisher for "{row.kind}"`)
-			continue
-		end
-		local ok, err = pcall(furnish, row, toWorld, row.floor * storey + SafeZone.FLOOR_SLAB)
-		if not ok then
-			warn(`[SafeZoneService] furnishing "{row.kind}" failed: {err}`)
-		end
-	end
-
-	buildGarden(toWorld, rng)
-
-	-- A nameplate over the door, so the building says what it is.
-	local plate = piece({
-		name = "HomeSign",
-		size = Vector3.new(14, 3, 0.6),
-		color = palette.timberDark,
-		material = Enum.Material.Wood,
-		collide = false,
-		cframe = toWorld(0, SafeZone.FLOOR_SLAB + SafeZone.DOOR_HEIGHT + 3.5, halfD + 0.4),
-	})
-	UI.sign(plate, {
-		name = "HomeSignLabel",
-		title = "Home",
-		subtitle = "nothing can reach you here",
-		offset = Vector3.new(0, 3, 0),
-		extent = UDim2.fromScale(16, 5),
-		maxDistance = 220,
-	})
 end
 
 --------------------------------------------------------------------------------
@@ -936,8 +1426,8 @@ local function setForceField(character: Model, enabled: boolean)
 	if enabled then
 		if not existing then
 			local field = Instance.new("ForceField")
-			-- The sparkle bubble would sit over the whole cottage interior and
-			-- read as a hazard warning, which is the opposite of the intent.
+			-- The sparkle bubble would sit over the whole interior and read as a
+			-- hazard warning, which is the opposite of the intent.
 			field.Visible = false
 			field.Parent = character
 		end
@@ -1008,12 +1498,73 @@ local function track()
 end
 
 --------------------------------------------------------------------------------
+-- Assembly
+--------------------------------------------------------------------------------
+
+local function build(rng: Random)
+	buildShell()
+	buildFloor()
+
+	for _, opening in SafeZone.OPENINGS do
+		if opening.kind == "round" then
+			glazeRound(opening)
+		else
+			frameDoor(opening)
+		end
+	end
+
+	local deckY = buildLoft()
+	buildStair(deckY)
+	buildChimney()
+	buildCertificateBoard()
+	buildFuton(deckY)
+	buildLamps(deckY)
+
+	buildPath()
+	buildFence()
+	buildPathLanterns()
+
+	placeAll(SafeZone.interior, SafeZone.FLOOR_Y, deckY)
+	local outdoors = placeAll(SafeZone.exterior, SafeZone.FLOOR_Y, deckY)
+	scatterGrass(rng, outdoors)
+	buildYoroi(SafeZone.FLOOR_Y)
+
+	--[[
+		The nameplate over the door.
+
+		§the house was won in a lottery run by a yogurt conglomerate, which is
+		the only fact about this building the source material actually states.
+		It goes on the sign because a plaque explaining how you came to own the
+		place is exactly what somebody who won a house would put up.
+	]]
+	local plate = piece({
+		name = "HomeSign",
+		size = Vector3.new(17, 3.4, 0.6),
+		color = palette.timberDark,
+		material = Enum.Material.Wood,
+		collide = false,
+		cframe = surfaceFrame(0, SafeZone.OPENINGS[1].top + 3.4) * CFrame.new(0, 0, 0.6),
+	})
+	UI.sign(plate, {
+		name = "HomeSignLabel",
+		title = "Home",
+		subtitle = "won in the yogurt draw · nothing can reach you here",
+		offset = Vector3.new(0, 4, 0),
+		extent = UDim2.fromScale(20, 5),
+		maxDistance = 240,
+	})
+end
+
+--------------------------------------------------------------------------------
 -- Public
 --------------------------------------------------------------------------------
 
+-- Spawning at the back of the room facing the door means the first frame of the
+-- game is the room, the doorway, and the garden framed through it.
 function SafeZoneService.getSpawnCFrame(): CFrame
 	local town = Areas.BY_ID[Areas.STARTING_AREA]
-	return CFrame.new(town.origin + Vector3.new(0, Constants.WORLD.PLATFORM_TOP, 0) + SafeZone.SPAWN_OFFSET)
+	local position = town.origin + Vector3.new(0, Constants.WORLD.PLATFORM_TOP, 0) + SafeZone.SPAWN_OFFSET
+	return CFrame.lookAt(position, position + Vector3.new(0, 0, 1))
 end
 
 -- Where fast travel to Town lands you: outside your own front door, facing the
@@ -1037,12 +1588,12 @@ function SafeZoneService.init()
 	houseFolder.Parent = Workspace
 
 	local town = Areas.BY_ID[Areas.STARTING_AREA]
-	local origin = town.origin + Vector3.new(0, Constants.WORLD.PLATFORM_TOP, 0)
+	origin = town.origin + Vector3.new(0, Constants.WORLD.PLATFORM_TOP, 0)
 
 	volumeCentre = origin + SafeZone.VOLUME.centreOffset
 	volumeHalf = SafeZone.VOLUME.size / 2
 
-	buildCottage(origin, Random.new(20260726))
+	build(Random.new(20260727))
 
 	--[[
 		The spawn. This replaces the bare SpawnLocation WorldService used to drop

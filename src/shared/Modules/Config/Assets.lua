@@ -62,8 +62,31 @@ export type AssetSpec = {
 	-- Multiplied onto the model after load. Uploaded models arrive at whatever
 	-- scale their author chose, which is rarely this world's scale.
 	scale: number?,
-	-- Decor is non-colliding by default; set true for things worth bumping into.
+	--[[
+		Whether the model is solid. DEFAULTS TO TRUE.
+
+		It used to default to false, on the reasoning that scenery is cheaper
+		without collision geometry. That is true and it was still the wrong
+		default: a plot of props you walk through is a painting of a plot. If a
+		thing is standing in the world at a size you can see, you should be able
+		to bump into it and stand on it.
+
+		So the exceptions are now written down instead. Set false for foliage --
+		anything made of hundreds of thin blades or leaves, where the collision
+		hulls cost real frame time and the only thing they buy you is tripping
+		over grass.
+	]]
 	collide: boolean?,
+	--[[
+		True for models that are mostly air: a tree is a wide canopy over a thin
+		trunk, so its bounding box is a poor description of the ground it
+		occupies.
+
+		Only the lawn cares. It reserves ground under solid props so grass does
+		not grow up through a shop floor, and a 54-stud sakura would clear a
+		54-stud circle of the lawn it is supposed to be standing in.
+	]]
+	canopy: boolean?,
 	--[[
 		Case-insensitive substrings. A pack child whose name contains any of
 		them is not a prop and is dropped at load.
@@ -76,17 +99,32 @@ export type AssetSpec = {
 	exclude: { string }?,
 }
 
+--[[
+	----------------------------------------------------------------------------
+	A NOTE ON `collide = false` BELOW
+	----------------------------------------------------------------------------
+
+	Every row down to `naturePack` is world scatter: Areas/Area.lua spreads these
+	across six islands, hundreds at a time. They are pinned non-colliding
+	deliberately, so flipping the default did not silently make six islands'
+	worth of foliage solid and did not change how any area already plays.
+
+	The safe zone's own props further down take the new default and are solid.
+	If world scatter should become solid too, that is a separate decision about
+	six areas, taken with their part counts in front of you -- not a side effect
+	of dressing one garden.
+]]
 Assets.MODELS = {
 	-- Still blank in docs/ASSETS.md. These fall back to their procedural
 	-- versions; wiring is in place, so filling an id in here is the only step.
-	tree = { id = 0, kind = "model", scale = 1 },
-	grass = { id = 0, kind = "model", scale = 1 },
-	stone = { id = 0, kind = "model", scale = 1 },
+	tree = { id = 0, kind = "model", scale = 1, collide = false, canopy = true },
+	grass = { id = 0, kind = "model", scale = 1, collide = false },
+	stone = { id = 0, kind = "model", scale = 1, collide = false },
 
-	log = { id = 9731248486, kind = "model", scale = 1 },
-	bush = { id = 11337757315, kind = "model", scale = 1 },
+	log = { id = 9731248486, kind = "model", scale = 1, collide = false },
+	bush = { id = 11337757315, kind = "model", scale = 1, collide = false },
 	house = { id = 136868946197723, kind = "model", scale = 1, collide = true },
-	terrain = { id = 97974769788038, kind = "model", scale = 1 },
+	terrain = { id = 97974769788038, kind = "model", scale = 1, collide = false },
 	-- Replaced 71032774784968, which was private to another account and always
 	-- failed with "User is not authorized to access Asset".
 	--[[
@@ -95,7 +133,7 @@ Assets.MODELS = {
 		Tree 1/2/Tree, Bush 1/2, Grass 1-3, Flower 1-3, Rock 1-5, Mushroom 1/2,
 		plus the two grass-painting wands excluded below.
 	]]
-	naturePack = { id = 82060619904561, kind = "pack", scale = 1, exclude = { "wand" } },
+	naturePack = { id = 82060619904561, kind = "pack", scale = 1, collide = false, exclude = { "wand" } },
 
 	--[[
 		----------------------------------------------------------------------
@@ -174,6 +212,84 @@ Assets.MODELS = {
 		through AssetService, and it is not a reason to keep trusting the fetch.
 	]]
 	chiikawa = { id = 103908480888538, kind = "model", template = "Chiikawa", scale = 1 },
+
+	--[[
+		----------------------------------------------------------------------
+		SAFE ZONE -- the home plot dressing
+		----------------------------------------------------------------------
+
+		All local, all `template`, so none of them make a web call and the
+		cottage cannot half-build because a download lost a race.
+
+		Every one arrived from the toolbox and every one went through
+		tools/model-hygiene before it was committed. Nine of them shipped
+		scripts: four carried the same `require(<id parked in a NumberPose>)`
+		backdoor documented above, and LaundryLine additionally shipped a
+		ScreenGui holding a TextBox and two TextButtons nested under a
+		LocalScript -- a command bar. All stripped; geometry untouched.
+
+		`scale` stays 1 on every row. Nothing here is placed at its authored
+		size: SafeZoneService sizes each prop to a target measured in studs
+		(Config/SafeZone.lua), because a toolbox model's scale says only what
+		its author was working at and these came from a dozen different authors.
+	]]
+	-- Canopy: grass grows under a tree, so the lawn ignores its footprint.
+	sakuraTree = { id = 0, kind = "model", template = "SakuraTree", scale = 1, canopy = true },
+	--[[
+		The lawn, and the one prop here that stays walk-through. It is 105 unions
+		of blade, laid on a grid across the whole plot -- solid, that is thousands
+		of collision hulls whose only effect is that you trip on grass.
+	]]
+	grassPatch = { id = 0, kind = "model", template = "GrassPatch", scale = 1, collide = false },
+	lantern = { id = 0, kind = "model", template = "Lantern", scale = 1 },
+	lanternTall = { id = 0, kind = "model", template = "LanternTall", scale = 1 },
+	mailBox = { id = 0, kind = "model", template = "MailBox", scale = 1 },
+	laundryLine = { id = 0, kind = "model", template = "LaundryLine", scale = 1 },
+	wateringCan = { id = 0, kind = "model", template = "WateringCan", scale = 1 },
+	picnicTable = { id = 0, kind = "model", template = "PicnicTable", scale = 1 },
+	lowTable = { id = 0, kind = "model", template = "LowTable", scale = 1 },
+	tableCloth = { id = 0, kind = "model", template = "TableCloth", scale = 1 },
+	floorCushion = { id = 0, kind = "model", template = "FloorCushion", scale = 1 },
+	kettle = { id = 0, kind = "model", template = "Kettle", scale = 1 },
+	teaPot = { id = 0, kind = "model", template = "TeaPot", scale = 1 },
+	teaCup = { id = 0, kind = "model", template = "TeaCup", scale = 1 },
+
+	-- The three market buildings. Solid, because a shop you can walk through
+	-- reads as a poster of a shop.
+	shopBlue = { id = 0, kind = "model", template = "ShopBlue", scale = 1 },
+	shopRed = { id = 0, kind = "model", template = "ShopRed", scale = 1 },
+	shopStall = { id = 0, kind = "model", template = "ShopStall", scale = 1 },
+
+	--[[
+		Food. Deliberately built oversized -- see SafeZone.FOOD. A bowl of ramen
+		taller than the character eating it is the single most recognisable
+		visual joke in the source material, and it only lands if the food is
+		scaled against the CHARACTER rather than against the table.
+	]]
+	ramen = { id = 0, kind = "model", template = "Ramen", scale = 1 },
+	onigiri = { id = 0, kind = "model", template = "Onigiri", scale = 1 },
+	dango = { id = 0, kind = "model", template = "Dango", scale = 1 },
+	dangoPlatter = { id = 0, kind = "model", template = "DangoPlatter", scale = 1 },
+	pancakes = { id = 0, kind = "model", template = "Pancakes", scale = 1 },
+	yogurtBerry = { id = 0, kind = "model", template = "YogurtBerry", scale = 1 },
+	--[[
+		The yogurt gag: §the house was won in a lottery run by a yogurt
+		conglomerate, so a tub of it on the doorstep is the deed to the building.
+	]]
+	yogurtVanilla = { id = 0, kind = "model", template = "YogurtVanilla", scale = 1 },
+
+	--[[
+		The Yoroi-san pair. `yoroiKnight` is a legacy R6 rig -- Torso, Head, four
+		limbs, joined by `Motor` and `Snap`, which are the pre-Motor6D joint
+		classes and are NOT animatable. SafeZoneService.rigYoroi converts them
+		and hangs a root joint off an invisible HumanoidRootPart, after which the
+		ordinary Anim/Machine drives it like any companion.
+
+		`yoroiBeast` is the four-legged one and is welded solid, so it is set
+		dressing rather than a rig.
+	]]
+	yoroiKnight = { id = 0, kind = "model", template = "YoroiKnight", scale = 1 },
+	yoroiBeast = { id = 0, kind = "model", template = "YoroiBeast", scale = 1 },
 } :: { [string]: AssetSpec }
 
 function Assets.get(key: string): AssetSpec?
