@@ -13,7 +13,6 @@ return Area.define({
 	gate = { skillTotal = 0, certificationTotal = 0 },
 	origin = Vector3.new(0, 0, 0),
 	terrain = { material = "LeafyGrass", islandSize = 2600 },
-	bridgeTo = "woods",
 	palette = {
 		ground = Color3.fromRGB(150, 200, 130),
 		prop = Color3.fromRGB(122, 168, 96),

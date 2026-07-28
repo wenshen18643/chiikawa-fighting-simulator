@@ -17,7 +17,9 @@ local Area = require(script.Area)
 export type AreaDefinition = Area.AreaDefinition
 export type DecorateContext = Area.DecorateContext
 
-local ORDER = { "Town", "Woods", "Riverside", "Mountain", "Island", "Ruins" }
+-- Keep later area modules in the project for future restoration, but only
+-- register Town while the experience is scoped to its starting region.
+local ORDER = { "Town" }
 
 Areas.ALL = {} :: { AreaDefinition }
 Areas.BY_ID = {} :: { [number]: AreaDefinition }
@@ -39,11 +41,9 @@ end
 Areas.STARTING_AREA = 1
 
 --[[
-	The world is ONE landmass: areas sit edge to edge along +X and are joined by
-	land bridges, not reached by teleport. `bridgeTo` names the neighbour to the
-	east, and this validates the chain at load — a bridge pointing at a missing
-	area, at itself, or backwards would otherwise show up as a hole in the ground
-	somewhere in the middle of a 27,000-stud world.
+	When multiple areas are active, they form one landmass along +X and are
+	joined by land bridges. `bridgeTo` names the neighbour to the east, and this
+	validates every active connection at load.
 ]]
 for _, area in Areas.ALL do
 	if area.bridgeTo == nil then
