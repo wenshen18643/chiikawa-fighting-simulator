@@ -19,11 +19,21 @@ local EXPECTED = {
 		health = 8,
 		joints = { "RootJoint", "Neck", "Left Shoulder", "Right Shoulder", "Left Hip", "Right Hip" },
 	},
-	spider = {
-		modelName = "Spider",
+	wolf = {
+		modelName = "Wolf",
 		population = 3,
 		health = 30,
-		joints = { "RootJoint" },
+		joints = {
+			"RootJoint",
+			"Neck",
+			"FrontLeftJoint",
+			"FrontRightJoint",
+			"BackLeftJoint",
+			"BackRightJoint",
+			"TailJoint",
+			"LeftEarJoint",
+			"RightEarJoint",
+		},
 	},
 }
 
@@ -66,7 +76,7 @@ repeat
 until os.clock() >= deadline
 
 assert(mobs, "Workspace.Mobs was not created")
-assert(populationReady(mobs), "expected 6 frogs, 4 ducks, and 3 spiders")
+assert(populationReady(mobs), "expected 6 frogs, 4 ducks, and 3 wolves")
 
 for _, model in mobs:GetChildren() do
 	assert(model:IsA("Model"), "Mobs contains a non-model child")
@@ -97,7 +107,7 @@ end
 
 assert(not PhysicsService:CollisionGroupsAreCollidable("Mobs", "Access_1"), "mobs still collide with players")
 assert((Mobs.get("duck") :: any).behavior == "flee", "duck is not configured to flee")
-assert((Mobs.get("spider") :: any).behavior == "fight", "spider is not configured to fight")
+assert((Mobs.get("wolf") :: any).behavior == "fight", "wolf is not configured to fight")
 
 for mobId, expected in EXPECTED do
 	local modelName = `{expected.modelName}_1`
@@ -122,5 +132,5 @@ for mobId, expected in EXPECTED do
 	assert(populationReady(mobs), `population changed after respawning {modelName}`)
 end
 
-print("[MobSmoke] PASS: 6 frogs, 4 fleeing ducks, and 3 hostile spiders are clean, rigged, and respawn")
+print("[MobSmoke] PASS: 6 frogs, 4 fleeing ducks, and 3 hostile wolves are clean, rigged, and respawn")
 RunService:Stop()

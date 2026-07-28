@@ -108,11 +108,19 @@ Skeleton.PROFILES = {
 		},
 		fallback = "Torso",
 	},
-	spider = {
+	wolf = {
 		joints = {
 			root = "RootJoint",
+			head = "Neck",
+			frontL = "FrontLeftJoint",
+			frontR = "FrontRightJoint",
+			backL = "BackLeftJoint",
+			backR = "BackRightJoint",
+			tail = "TailJoint",
+			earL = "LeftEarJoint",
+			earR = "RightEarJoint",
 		},
-		fallback = "Spider",
+		fallback = "Torso",
 	},
 } :: { [string]: Profile }
 

@@ -41,7 +41,7 @@ export type MobDefinition = FightMobDefinition | FleeMobDefinition
 
 local Mobs = {}
 
-Mobs.ORDER = { "mushroom_frog", "duck", "spider" }
+Mobs.ORDER = { "mushroom_frog", "duck", "wolf" }
 
 Mobs.DEFINITIONS = {
 	mushroom_frog = {
@@ -94,13 +94,13 @@ Mobs.DEFINITIONS = {
 		hitGainMultiplier = 1.5,
 		damageStatScale = 0.01,
 	},
-	spider = {
-		id = "spider",
-		name = "Spider",
-		modelName = "Spider",
-		assetKey = "spider",
-		rigProfile = "spider",
-		animProfile = "spider",
+	wolf = {
+		id = "wolf",
+		name = "Wolf",
+		modelName = "Wolf",
+		assetKey = "wolf",
+		rigProfile = "wolf",
+		animProfile = "wolf",
 		behavior = "fight",
 		regionId = 1,
 		population = 3,

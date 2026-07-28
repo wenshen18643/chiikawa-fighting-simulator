@@ -211,7 +211,13 @@ end
 
 function Mob._validTarget(self: MobActor): (Model?, BasePart?, Humanoid?)
 	local player = self._target
-	if not player or player.Parent ~= Players or SafeZoneService.isProtected(player) then
+	if not player or player.Parent ~= Players then
+		return nil, nil, nil
+	end
+	-- Home prevents hostile mobs from pursuing or damaging a player. A passive
+	-- Duck may still regard that player as a threat so a hit inside the garden
+	-- actually makes it flee instead of immediately cancelling the flee state.
+	if self._definition.behavior == "fight" and SafeZoneService.isProtected(player) then
 		return nil, nil, nil
 	end
 	local character, root, humanoid = characterParts(player)
@@ -544,9 +550,6 @@ local function clearLineOfSight(playerCharacter: Model, targetModel: Model, from
 end
 
 local function findAttackTarget(player: Player): MobActor?
-	if SafeZoneService.isProtected(player) then
-		return nil
-	end
 	local character, playerRoot, playerHumanoid = characterParts(player)
 	if not character or not playerRoot or not playerHumanoid or playerHumanoid.Health <= 0 then
 		return nil
@@ -560,11 +563,17 @@ local function findAttackTarget(player: Player): MobActor?
 
 	local best: MobActor? = nil
 	local bestDistance = math.huge
+	local playerProtected = SafeZoneService.isProtected(player)
 	for _, actor in actors do
 		if actor._destroyed or actor._humanoid.Health <= 0 or actor._model.Parent ~= folder then
 			continue
 		end
 		local definition = actor._definition
+		-- Players may scare passive mobs from Home, but cannot safely farm hostile
+		-- mobs which would be forbidden from retaliating across the boundary.
+		if playerProtected and definition.behavior == "fight" then
+			continue
+		end
 		local offset = actor._root.Position - playerRoot.Position
 		local planar = Vector3.new(offset.X, 0, offset.Z)
 		local distance = planar.Magnitude

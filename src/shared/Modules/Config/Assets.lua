@@ -216,7 +216,7 @@ Assets.MODELS = {
 	-- Clean local geometry. MobService supplies the authoritative rig and AI.
 	mushroomFrog = { id = 0, kind = "model", template = "MushroomFrog", scale = 1, collide = false },
 	duck = { id = 0, kind = "model", template = "Duck", scale = 1, collide = false },
-	spider = { id = 0, kind = "model", template = "Spider", scale = 1, collide = false },
+	wolf = { id = 0, kind = "model", template = "Wolf", scale = 1, collide = false },
 
 	--[[
 		----------------------------------------------------------------------

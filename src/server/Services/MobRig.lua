@@ -190,33 +190,68 @@ local function rigDuck(model: Model): (BasePart?, BasePart?)
 	return root, head
 end
 
-local function largestPart(model: Model): BasePart?
-	local largest: BasePart? = nil
-	local largestVolume = 0
-	for _, descendant in model:GetDescendants() do
-		if descendant:IsA("BasePart") then
-			local size = descendant.Size
-			local volume = size.X * size.Y * size.Z
-			if volume > largestVolume then
-				largest, largestVolume = descendant, volume
-			end
-		end
-	end
-	return largest
-end
-
-local function rigSpider(model: Model): (BasePart?, BasePart?)
-	local body = largestPart(model)
-	if not body then
+local function rigWolf(model: Model): (BasePart?, BasePart?)
+	local root = namedPart(model, "HumanoidRootPart")
+	local torso = namedPart(model, "Torso")
+	local head = namedPart(model, "Head")
+	local frontLeft = namedPart(model, "LeftHand")
+	local frontRight = namedPart(model, "RightHand")
+	local backLeft = namedPart(model, "LeftFoot")
+	local backRight = namedPart(model, "RightFoot")
+	local tail = namedPart(model, "Tail")
+	local leftEar = namedPart(model, "LeftEar")
+	local rightEar = namedPart(model, "RightEar")
+	if
+		not root
+		or not torso
+		or not head
+		or not frontLeft
+		or not frontRight
+		or not backLeft
+		or not backRight
+		or not tail
+		or not leftEar
+		or not rightEar
+	then
 		return nil, nil
 	end
 
-	local root = Instance.new("Part")
-	root.Name = "HumanoidRootPart"
-	root.Parent = model
-	configureRoot(root, body, bottomOf(body).Y, body.Size.X * 0.7, body.Size.Z * 0.7)
-	connectAt(root, body, "RootJoint", body.Position)
-	return root, body
+	local feetBottom = math.min(
+		bottomOf(frontLeft).Y,
+		bottomOf(frontRight).Y,
+		bottomOf(backLeft).Y,
+		bottomOf(backRight).Y
+	)
+	configureRoot(root, torso, feetBottom, torso.Size.X, torso.Size.Z)
+	connectAt(root, torso, "RootJoint", torso.Position)
+	connectAt(torso, head, "Neck", (torso.Position + head.Position) / 2)
+	connectAt(torso, frontLeft, "FrontLeftJoint", topOf(frontLeft))
+	connectAt(torso, frontRight, "FrontRightJoint", topOf(frontRight))
+	connectAt(torso, backLeft, "BackLeftJoint", topOf(backLeft))
+	connectAt(torso, backRight, "BackRightJoint", topOf(backRight))
+	connectAt(torso, tail, "TailJoint", (torso.Position + tail.Position) / 2)
+	connectAt(head, leftEar, "LeftEarJoint", bottomOf(leftEar))
+	connectAt(head, rightEar, "RightEarJoint", bottomOf(rightEar))
+
+	local articulated = {
+		[root] = true,
+		[torso] = true,
+		[head] = true,
+		[frontLeft] = true,
+		[frontRight] = true,
+		[backLeft] = true,
+		[backRight] = true,
+		[tail] = true,
+		[leftEar] = true,
+		[rightEar] = true,
+	}
+	weldLoose(model, articulated, torso, {
+		Nose = head,
+		Eyes = head,
+		DisplayEyes = head,
+		Tounge = head,
+	})
+	return root, head
 end
 
 local function addHealthDisplay(model: Model, adornee: BasePart, definition: Mobs.MobDefinition): Frame
@@ -301,8 +336,8 @@ function MobRig.rig(
 		root, displayPart = rigMushroomFrog(model)
 	elseif definition.rigProfile == "duck" then
 		root, displayPart = rigDuck(model)
-	elseif definition.rigProfile == "spider" then
-		root, displayPart = rigSpider(model)
+	elseif definition.rigProfile == "wolf" then
+		root, displayPart = rigWolf(model)
 	end
 	if not root or not displayPart then
 		return nil, nil, nil

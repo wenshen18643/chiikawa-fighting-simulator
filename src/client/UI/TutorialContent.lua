@@ -96,7 +96,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 				{
 					title = "Nothing is lost",
 					body = "Sprinting is free. Running out of stamina causes a short rest, not a failure. "
-						.. "Mushroom Frogs and Spiders can hurt you outside Home; Ducks flee when struck. "
+						.. "Mushroom Frogs and Wolves can hurt you outside Home; Ducks flee when struck. "
 						.. "Character defeat loses nothing and there is no PvP.",
 				},
 			},
