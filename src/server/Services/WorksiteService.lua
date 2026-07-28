@@ -18,6 +18,7 @@ local Skills = require(Shared.Modules.Config.Skills)
 local Worksites = require(Shared.Modules.Config.Worksites)
 
 local DataService = require(script.Parent.DataService)
+local WeedService = require(script.Parent.WeedService)
 local WorldService = require(script.Parent.WorldService)
 
 local WorksiteService = {}
@@ -173,6 +174,12 @@ local function buildWorksite(worksite: Worksites.WorksiteDefinition, cframe: CFr
 		prop:ScaleTo(propScale)
 		local _, sizeAfter = prop:GetBoundingBox()
 		prop:PivotTo(pivotBefore + Vector3.new(0, (sizeAfter.Y - sizeBefore.Y) / 2, 0))
+	end
+
+	if prop and (worksite.skill == "kusatori" or worksite.skill == "agility" or worksite.skill == "weeding") then
+		WeedService.registerPatch(prop, function(child)
+			return child.Name:match("^WeedSprout_") ~= nil
+		end)
 	end
 
 	return part

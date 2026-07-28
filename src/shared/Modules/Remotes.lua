@@ -59,6 +59,7 @@ local REMOTE_TREE = {
 		-- client cannot name a companion that was not offered to it.
 		Select = "RemoteEvent",
 		Act = "RemoteEvent",
+		Shelf = "RemoteEvent",
 	},
 	Study = {
 		-- One page-complete intent after an Exam Prep work gesture. The server

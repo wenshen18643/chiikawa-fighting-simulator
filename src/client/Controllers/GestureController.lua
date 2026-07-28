@@ -116,6 +116,12 @@ local BOOK_FLIP_TIME = 0.22
 
 local SASUMATA_SKILLS = { tobatsu = true, subjugation = true, strength = true }
 local BOOK_SKILLS = { examprep = true, special = true, craft = true }
+local KUSATORI_SKILLS = { kusatori = true, weeding = true, agility = true }
+
+local PROP_NAMES = { "EquippedSasumata", "EquippedOpenBook", "EquippedWeedTuft" }
+
+local TUFT_SHOW_T = 0.55
+local TUFT_HIDE_T = 0.98
 
 type Rig = {
 	joints: Skeleton.Joints,
@@ -146,6 +152,7 @@ local remoteRigs: { [Model]: Rig } = {}
 local remotePhase: { [Model]: number } = {}
 
 local books: { [Model]: BookState } = {}
+local tuftShown: { [Model]: boolean } = {}
 
 local function bookState(character: Model): BookState
 	local state = books[character]
@@ -412,6 +419,40 @@ local function buildSasumata(scale: number): Model
 	return model
 end
 
+local function buildWeedTuft(scale: number): Model
+	local model = Instance.new("Model")
+	model.Name = "EquippedWeedTuft"
+
+	local root = Instance.new("Part")
+	root.Name = "Root"
+	root.Size = Vector3.new(0.45, 0.35, 0.45) * scale
+	root.Color = Color3.fromRGB(72, 54, 40)
+	root.Material = Enum.Material.Ground
+	root.CFrame = CFrame.new()
+	decorate(root, model)
+	model.PrimaryPart = root
+
+	for i = 1, 5 do
+		local angle = (i / 5) * math.pi * 2
+		local blade = Instance.new("Part")
+		blade.Name = `Blade_{i}`
+		blade.Size = Vector3.new(0.14, 1.1, 0.14) * scale
+		blade.Color = if i % 2 == 0 then Color3.fromRGB(126, 190, 104) else Color3.fromRGB(96, 162, 78)
+		blade.Material = Enum.Material.Grass
+		blade.CFrame = root.CFrame
+			* CFrame.new(math.cos(angle) * 0.14 * scale, 0.65 * scale, math.sin(angle) * 0.14 * scale)
+			* CFrame.Angles(math.rad(14 * math.cos(angle)), 0, math.rad(14 * math.sin(angle)))
+		decorate(blade, model)
+
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = root
+		weld.Part1 = blade
+		weld.Parent = root
+	end
+
+	return model
+end
+
 --[[
 	The open book. Ruled lines are thin parts rather than a texture: the project
 	does not commit guessed asset ids, and a page needs about six of them.
@@ -603,19 +644,53 @@ local function propScaleFor(character: Model): number
 	return tierScale(if type(tier) == "number" then tier else 1)
 end
 
+local function removeProps(character: Model)
+	for _, name in PROP_NAMES do
+		local prop = character:FindFirstChild(name)
+		if prop then
+			prop:Destroy()
+		end
+	end
+	tuftShown[character] = nil
+end
+
+local function setTuftVisible(character: Model, visible: boolean)
+	if tuftShown[character] == visible then
+		return
+	end
+	tuftShown[character] = visible
+
+	local tuft = character:FindFirstChild("EquippedWeedTuft")
+	if not tuft then
+		return
+	end
+	for _, part in tuft:GetDescendants() do
+		if part:IsA("BasePart") then
+			part.Transparency = if visible then 0 else 1
+		end
+	end
+end
+
 local function attachSkillProp(character: Model, skillId: string)
-	local wantsSasumata = SASUMATA_SKILLS[skillId] == true
-	local wantsBook = BOOK_SKILLS[skillId] == true
-	if not wantsSasumata and not wantsBook then
+	local targetName: string? = nil
+	if SASUMATA_SKILLS[skillId] then
+		targetName = "EquippedSasumata"
+	elseif BOOK_SKILLS[skillId] then
+		targetName = "EquippedOpenBook"
+	elseif KUSATORI_SKILLS[skillId] then
+		targetName = "EquippedWeedTuft"
+	end
+	if not targetName then
 		return
 	end
 
-	local targetName = if wantsSasumata then "EquippedSasumata" else "EquippedOpenBook"
-	local otherName = if wantsSasumata then "EquippedOpenBook" else "EquippedSasumata"
-
-	local other = character:FindFirstChild(otherName)
-	if other then
-		other:Destroy()
+	for _, name in PROP_NAMES do
+		if name ~= targetName then
+			local other = character:FindFirstChild(name)
+			if other then
+				other:Destroy()
+			end
+		end
 	end
 
 	local scale = propScaleFor(character)
@@ -635,16 +710,28 @@ local function attachSkillProp(character: Model, skillId: string)
 
 	local model: Model
 	local grip: CFrame
-	if wantsSasumata then
+	if targetName == "EquippedSasumata" then
 		model = buildSasumata(scale)
 		grip = CFrame.new(0, -0.35, -0.3) * CFrame.Angles(math.rad(-100), 0, 0)
-	else
+	elseif targetName == "EquippedOpenBook" then
 		model = buildOpenBook(scale)
 		grip = CFrame.new(0, -0.25, -0.45) * CFrame.Angles(math.rad(-70), math.rad(90), 0)
+	else
+		model = buildWeedTuft(scale)
+		grip = CFrame.new(0, -0.3, -0.25) * CFrame.Angles(math.rad(-80), 0, 0)
 	end
 
 	model:SetAttribute("Scale", scale)
 	model.Parent = character
+
+	if targetName == "EquippedWeedTuft" then
+		tuftShown[character] = false
+		for _, part in model:GetDescendants() do
+			if part:IsA("BasePart") then
+				part.Transparency = 1
+			end
+		end
+	end
 
 	--[[
 		A Weld with an explicit C0, not PivotTo plus a WeldConstraint. The
@@ -701,11 +788,25 @@ function GestureController.play(skillId: string?, duration: number?)
 	}
 end
 
+local function tuftPhase(skillId: string?, t: number): boolean
+	return skillId ~= nil
+		and KUSATORI_SKILLS[skillId] == true
+		and t >= TUFT_SHOW_T
+		and t <= TUFT_HIDE_T
+end
+
 local function stepLocalProps(dt: number)
 	local character = localCharacter
 	if not character then
 		return
 	end
+
+	local visible = false
+	if playing then
+		local t = math.clamp((os.clock() - playing.startedAt) / playing.duration, 0, 1)
+		visible = tuftPhase(playing.skillId, t)
+	end
+	setTuftVisible(character, visible)
 
 	stepBook(character, dt, playing ~= nil and BOOK_SKILLS[playing.skillId] == true)
 end
@@ -758,6 +859,15 @@ local function stepRemoteProps(dt: number)
 
 		if type(skillId) == "string" then
 			attachSkillProp(character, skillId)
+
+			if KUSATORI_SKILLS[skillId] then
+				local phase = remotePhase[character] or 0
+				local definition = PlayerAnims.get(skillId)
+				local length = if definition then definition.length else 1
+				setTuftVisible(character, tuftPhase(skillId, ((os.clock() + phase) % length) / length))
+			else
+				setTuftVisible(character, false)
+			end
 		end
 
 		if studying then
@@ -781,6 +891,7 @@ local function stepRemote(constraints: boolean)
 			remoteRigs[character] = nil
 			remotePhase[character] = nil
 			books[character] = nil
+			tuftShown[character] = nil
 			continue
 		end
 
@@ -811,6 +922,7 @@ function GestureController.init()
 	local function bindLocal(character: Model)
 		if localCharacter then
 			books[localCharacter] = nil
+			tuftShown[localCharacter] = nil
 		end
 		localCharacter = character
 		localRig = nil
@@ -866,7 +978,17 @@ function GestureController.init()
 		so those joints keep the Character + 1 binding. Props are welds and are
 		stepped once, on the earlier of the two.
 	]]
+	local lastTrainingSkill: string? = nil
+
 	RunService.PreSimulation:Connect(function(dt)
+		local trainingSkill = WorkController.getTrainingSkill()
+		if trainingSkill ~= lastTrainingSkill then
+			lastTrainingSkill = trainingSkill
+			if localCharacter then
+				removeProps(localCharacter)
+			end
+		end
+
 		stepLocal(true)
 		stepRemote(true)
 		stepLocalProps(dt)

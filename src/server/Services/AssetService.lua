@@ -106,6 +106,50 @@ local function prepare(model: Model, spec: Assets.AssetSpec)
 		end
 	end
 
+	--[[
+		Unwrap Accessories, and strip the avatar-scaling machinery off what comes
+		out.
+
+		This is what made Hachiware immune to resizing. Its entire visible body is
+		one MeshPart called Handle sitting inside an Accessory, and that Handle
+		carries a WrapLayer -- it was authored as layered clothing. Two things
+		follow, and both of them beat ScaleTo:
+
+		  - A WrapLayer'd MeshPart is rendered from its cage, not from its Size.
+		    ScaleTo sets Size, so GetExtentsSize afterwards reports the number
+		    that was asked for while the pixels do not move. The service's own
+		    "now followed by" line was reporting a 3.4-stud companion next to a
+		    7.4-stud one on screen.
+		  - OriginalSize is the hook Roblox's own accessory fitting uses to put a
+		    Handle back the way its author left it.
+
+		Nothing here is ever worn by a character, so none of that has a job to do.
+		Flattened and stripped, the Handle is an ordinary rigid MeshPart and
+		scales like every other asset in the library -- which is the whole reason
+		Chiikawa and Usagi never showed this.
+	]]
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("Accessory") then
+			local parent = descendant.Parent
+			for _, child in descendant:GetChildren() do
+				if child:IsA("BasePart") then
+					child.Parent = parent
+				end
+			end
+			descendant:Destroy()
+		end
+	end
+
+	for _, descendant in model:GetDescendants() do
+		if
+			descendant:IsA("WrapLayer")
+			or descendant:IsA("WrapTarget")
+			or (descendant:IsA("Vector3Value") and descendant.Name == "OriginalSize")
+		then
+			descendant:Destroy()
+		end
+	end
+
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
 			--[[

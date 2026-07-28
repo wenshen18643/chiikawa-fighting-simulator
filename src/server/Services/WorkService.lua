@@ -28,6 +28,7 @@ local Constants = require(Shared.Modules.Constants)
 local Formulas = require(Shared.Modules.Formulas)
 local RateLimiter = require(Shared.Modules.RateLimiter)
 local Remotes = require(Shared.Modules.Remotes)
+local Companions = require(Shared.Modules.Config.Companions)
 local Skills = require(Shared.Modules.Config.Skills)
 local SafeZone = require(Shared.Modules.Config.SafeZone)
 local Worksites = require(Shared.Modules.Config.Worksites)
@@ -38,6 +39,7 @@ local NotifyService = require(script.Parent.NotifyService)
 local SafeZoneService = require(script.Parent.SafeZoneService)
 local SkillService = require(script.Parent.SkillService)
 local StaminaService = require(script.Parent.StaminaService)
+local WeedService = require(script.Parent.WeedService)
 local WorksiteService = require(script.Parent.WorksiteService)
 
 local WorkService = {
@@ -101,7 +103,19 @@ local function credit(
 		CurrencyService.award(profile, "yen", yen)
 	end
 
-	return gain
+	local bonus: any = nil
+	local companions = profile.companions
+	local selected = if type(companions) == "table" then companions.selected else nil
+	local spec = if type(selected) == "string" then Companions.get(selected) else nil
+	if spec and spec.skill and Skills.canonicalize(spec.skill) == Skills.canonicalize(skillId) then
+		local candidate = BigNumber.mulNumber(gain, 0.5)
+		if not BigNumber.isZero(candidate) then
+			bonus = candidate
+			SkillService.award(player, profile, skillId, bonus)
+		end
+	end
+
+	return gain, bonus
 end
 
 --[[
@@ -250,12 +264,25 @@ local function onPerform(player: Player)
 		return
 	end
 
+	if Skills.canonicalize(skillId) == "kusatori" then
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		local section = if root and root:IsA("BasePart")
+			then WeedService.nearestPullable(root.Position, WeedService.PULL_RADIUS)
+			else nil
+		if not section then
+			explain(player, "No weeds in reach — pull from a grass patch.")
+			return
+		end
+		WeedService.pull(section)
+	end
+
 	if not StaminaService.tryConsume(player, profile) then
 		explain(player, "Catching your breath for a moment. You are still earning.")
 		return
 	end
 
-	local gain = credit(
+	local gain, bonus = credit(
 		player,
 		profile,
 		skillId,
@@ -288,7 +315,8 @@ local function onPerform(player: Player)
 		skillId,
 		gain,
 		spot and spot.worksiteId or nil,
-		spot and spot.regionId or nil
+		spot and spot.regionId or nil,
+		bonus
 	)
 end
 

@@ -58,6 +58,7 @@ local Skeleton = require(Shared.Modules.Anim.Skeleton)
 local UI = require(Shared.UI)
 
 local AssetService = require(script.Parent.AssetService)
+local WeedService = require(script.Parent.WeedService)
 local WorldService = require(script.Parent.WorldService)
 
 local SafeZoneService = {}
@@ -366,21 +367,6 @@ local function frameDoor(opening: { [string]: any })
 		})
 	end
 
-	--[[
-		A door leaf propped open against the outside of the shell. Not a working
-		door: a closing one would eventually shut somebody out of their own safe
-		zone, and the whole point of the building is that it cannot.
-	]]
-	local leaf = surfaceFrame(math.rad(opening.azimuth - opening.halfAngle), opening.bottom + 7)
-	piece({
-		name = "DoorLeaf",
-		size = Vector3.new(0.5, 14, 12),
-		color = palette.timber,
-		material = Enum.Material.Wood,
-		collide = false,
-		cframe = leaf * CFrame.new(-1, 0, 2.5) * CFrame.Angles(0, math.rad(74), 0),
-	})
-
 	-- Threshold, so the doorway has a lip instead of ending at the grass.
 	piece({
 		name = "Threshold",
@@ -389,6 +375,156 @@ local function frameDoor(opening: { [string]: any })
 		material = Enum.Material.Concrete,
 		cframe = toWorld(0, SafeZone.FLOOR_Y - 0.3, dome.radius - 1),
 	})
+end
+
+local DOOR_OPEN_ANGLE = math.rad(100)
+local DOOR_TRIGGER_RANGE = 12
+local DOOR_SWING_SPEED = 2.8
+
+--[[
+	The leaf is sized off the aperture frameDoor actually leaves, not off the
+	nominal arc in Config/SafeZone. Those are not the same number: the jambs are
+	`horizontalSlack * 2.2` wide and centred ON the nominal edge, so half of each
+	one juts back into the hole, and the head blocks hang `verticalSlack * 1.2`
+	below their own centre. A leaf sized to the config arc came out covering
+	about half of what the player sees.
+
+	Height wins over width. The leaf's authored aspect (5.51 wide to 9.83 tall)
+	is narrower than the aperture's, so filling the width would leave a gap
+	under the arch, whereas filling the height overlaps each jamb by under a
+	stud -- which is where a door sits against its stop anyway.
+]]
+local function buildStrawberryDoor(opening: { [string]: any })
+	local model = AssetService.clone("strawberryDoor")
+	if not model then
+		warn("[SafeZoneService] strawberryDoor asset unavailable - the doorway stays bare")
+		return
+	end
+	model.Name = "StrawberryDoor"
+
+	for _, descendant in model:GetDescendants() do
+		if
+			descendant:IsA("Camera")
+			or descendant:IsA("Folder")
+			or descendant:IsA("StringValue")
+			or descendant:IsA("NumberValue")
+		then
+			descendant:Destroy()
+		end
+	end
+
+	local sill = SafeZone.FLOOR_Y
+	local head = opening.top - verticalSlack() * 0.6
+	local doorHeight = head - sill
+
+	--[[
+		Which way round the leaf is, taken from its proportions instead of
+		assumed.
+
+		This is what hung it edge-on. The exporter left a ninety degree yaw on
+		the model's WorldPivot, so in the leaf's OWN space the five-and-a-half
+		stud width is X and the one-and-a-half stud thickness is Z -- the mirror
+		of what the world-space file looks like, and the mirror of what the old
+		`CFrame.Angles(0, -90, 0)` here corrected for. The two cancelled the
+		wrong way: the width ended up pointing out of the wall and the thickness
+		spanning the doorway, which is a full-height three-stud plank standing in
+		the middle of the arch.
+
+		A door is taller than it is wide and wider than it is thick, and that
+		ordering survives any rotation an exporter cares to leave behind, so the
+		axes are read off the bounding box rather than named. GetBoundingBox, not
+		GetExtentsSize: its size is documented to be in the pivot's own frame,
+		which is the frame the answer has to be expressed in.
+	]]
+	local _, extents = model:GetBoundingBox()
+	local axes = { Vector3.xAxis, Vector3.yAxis, Vector3.zAxis }
+	local spans = { extents.X, extents.Y, extents.Z }
+	local tallest, thinnest = 1, 1
+	for index = 2, 3 do
+		if spans[index] > spans[tallest] then
+			tallest = index
+		end
+		if spans[index] < spans[thinnest] then
+			thinnest = index
+		end
+	end
+
+	local up = axes[tallest]
+	local through = axes[thinnest]
+	local across = up:Cross(through)
+
+	local scale = doorHeight / spans[tallest]
+	model:ScaleTo(scale)
+	local doorWidth = math.abs(across:Dot(extents)) * scale
+
+	-- Turns the leaf's own axes onto the surface frame's: width along its X,
+	-- height up its Y, thickness out through its Z.
+	local upright = CFrame.fromMatrix(Vector3.zero, across, up, through):Inverse()
+
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.Anchored = true
+			descendant.CanCollide = false
+			descendant.CanTouch = false
+		end
+	end
+
+	--[[
+		Hung in the doorway's own frame rather than on a vertical axis: the shell
+		leans back about nine degrees at this height, and a leaf standing plumb in
+		a leaning wall meets the head trim at one edge and floats off it at the
+		other. Swinging about the frame's Y keeps it in the wall's plane the whole
+		way round.
+	]]
+	local centreY = sill + doorHeight / 2
+	local frame = surfaceFrame(math.rad(opening.azimuth), centreY)
+	model:PivotTo(frame * upright)
+	local boxCFrame = model:GetBoundingBox()
+	model:PivotTo(model:GetPivot() + (frame.Position - boxCFrame.Position))
+
+	--[[
+		Hinge and swing are both stated in the DOORWAY's frame, not the leaf's.
+		`upright` is whatever it takes to turn this particular export the right
+		way up, and hanging the swing off that would put the hinge wherever the
+		exporter's pivot happened to point. The doorway's frame is fixed: X runs
+		along the wall, Y up its slope, Z out through it.
+	]]
+	local hinge = frame * CFrame.new(doorWidth / 2, 0, 0)
+	local rel = frame:Inverse() * model:GetPivot()
+
+	local threshold = surfaceFrame(math.rad(opening.azimuth), sill)
+
+	model.Parent = houseFolder
+
+	local angle = 0
+	local side = -1
+	RunService.Heartbeat:Connect(function(delta)
+		local nearest: number? = nil
+		local nearestSide = side
+		for _, player in Players:GetPlayers() do
+			local character = player.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			if root and root:IsA("BasePart") then
+				local offset = threshold:PointToObjectSpace(root.Position)
+				local distance = offset.Magnitude
+				if distance <= DOOR_TRIGGER_RANGE and (nearest == nil or distance < nearest) then
+					nearest = distance
+					nearestSide = if offset.Z >= 0 then -1 else 1
+				end
+			end
+		end
+
+		if nearest and math.abs(angle) < 0.02 then
+			side = nearestSide
+		end
+
+		local target = if nearest then DOOR_OPEN_ANGLE * side else 0
+		local step = math.clamp(target - angle, -DOOR_SWING_SPEED * delta, DOOR_SWING_SPEED * delta)
+		if step ~= 0 then
+			angle += step
+			model:PivotTo(hinge * CFrame.Angles(0, angle, 0) * hinge:Inverse() * frame * rel)
+		end
+	end)
 end
 
 --------------------------------------------------------------------------------
@@ -745,7 +881,11 @@ local function place(row: SafeZone.Placement, baseY: number): Model?
 
 	local landedCFrame, landedSize = model:GetBoundingBox()
 	local height = worldHeight(landedCFrame, landedSize)
-	local wanted = origin + Vector3.new(row.x, baseY + (row.y or 0) + height / 2 - (row.sink or 0), row.z)
+	local sink = row.sink or 0
+	if row.asset == "grassPatch" then
+		sink = height / 2
+	end
+	local wanted = origin + Vector3.new(row.x, baseY + (row.y or 0) + height / 2 - sink, row.z)
 	model:PivotTo(model:GetPivot() + (wanted - landedCFrame.Position))
 
 	if row.name then
@@ -1396,6 +1536,10 @@ local function scatterGrass(rng: Random, occupied: { Footprint })
 			if not clump then
 				return
 			end
+
+			WeedService.registerPatch(clump, function(child)
+				return child:IsA("Model")
+			end)
 		end
 	end
 end
@@ -1510,6 +1654,7 @@ local function build(rng: Random)
 			glazeRound(opening)
 		else
 			frameDoor(opening)
+			buildStrawberryDoor(opening)
 		end
 	end
 
