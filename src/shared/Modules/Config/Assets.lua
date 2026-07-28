@@ -241,6 +241,8 @@ Assets.MODELS = {
 		of collision hulls whose only effect is that you trip on grass.
 	]]
 	grassPatch = { id = 0, kind = "model", template = "GrassPatch", scale = 1, collide = false },
+	friendStand = { id = 0, kind = "model", template = "FriendStand", scale = 1 },
+	strawberryDoor = { id = 0, kind = "model", template = "StrawberryDoor", scale = 1 },
 	lantern = { id = 0, kind = "model", template = "Lantern", scale = 1 },
 	lanternTall = { id = 0, kind = "model", template = "LanternTall", scale = 1 },
 	mailBox = { id = 0, kind = "model", template = "MailBox", scale = 1 },

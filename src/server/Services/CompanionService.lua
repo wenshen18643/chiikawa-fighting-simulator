@@ -1,6 +1,6 @@
 --[[
-	Gives every player a companion that trails them, and a stand in town where
-	they choose which one.
+	Gives every player a companion that trails them, and a stand where they
+	choose which one.
 
 	--------------------------------------------------------------------------
 	CONSTRAINTS, NOT A HEARTBEAT LOOP
@@ -46,27 +46,27 @@
 	removes a row rather than producing a button that does nothing.
 ]]
 
+local Debris = game:GetService("Debris")
 local PhysicsService = game:GetService("PhysicsService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Assets = require(Shared.Modules.Config.Assets)
 local Companions = require(Shared.Modules.Config.Companions)
-local Constants = require(Shared.Modules.Constants)
 local Mascot = require(Shared.Modules.Mascot)
 local Npcs = require(Shared.Modules.Config.Npcs)
 local Remotes = require(Shared.Modules.Remotes)
 local Skeleton = require(Shared.Modules.Anim.Skeleton)
 local Skills = require(Shared.Modules.Config.Skills)
-local Areas = require(Shared.Areas)
 local UI = require(Shared.UI)
 
 local AssetService = require(script.Parent.AssetService)
 local DataService = require(script.Parent.DataService)
 local NotifyService = require(script.Parent.NotifyService)
-local WorldService = require(script.Parent.WorldService)
 
 local CompanionService = {}
 
@@ -131,13 +131,20 @@ local ANIM_ACTION_ATTRIBUTE = "AnimAction"
 local ANIM_SKILL_ATTRIBUTE = "AnimSkill"
 local ACT_COOLDOWN = 0.12
 
-local STAND_OFFSET = Vector3.new(9, 0, -7)
+local COMPANION_ID_ATTRIBUTE = "CompanionId"
+local SHELF_PLUSHIE_SIZE = 1.5
+local TOSS_HAND_OFFSET = CFrame.new(1.2, 0.7, -1.9)
+local TOSS_TO_HAND = 0.26
+local TOSS_TO_APEX = 0.5
+local TOSS_HEIGHT = 11
 
 local folder: Folder
 local resolved = false
 local reported = false
 local active: { [Player]: Model } = {}
 local lastAct: { [Player]: number } = {}
+local standSlots: { [string]: Model } = {}
+local tossGeneration: { [Player]: number } = {}
 local collisionGroupReady = false
 
 --------------------------------------------------------------------------------
@@ -330,14 +337,14 @@ local function roster(): { { id: string, name: string, blurb: string } }
 			table.insert(out, { id = spec.id, name = spec.name, blurb = spec.blurb })
 		end
 	end
+	table.insert(out, { id = Companions.NONE, name = "No one", blurb = "Walk alone." })
 	return out
 end
 
 --[[
 	Waits briefly for the profile rather than reading it optimistically: a
-	player whose data is still loading would otherwise be handed the default
-	companion and then watch it swap, which reads as a bug even though the
-	saved choice arrives a moment later.
+	player whose data is still loading would otherwise read as walking alone,
+	and their saved friend would never show up at all.
 ]]
 local function selectionFor(player: Player): string
 	local profile = DataService.await(player, 5)
@@ -345,7 +352,7 @@ local function selectionFor(player: Player): string
 	if type(saved) == "string" and Companions.get(saved) then
 		return saved
 	end
-	return Companions.DEFAULT
+	return Companions.NONE
 end
 
 local function remember(player: Player, id: string)
@@ -401,6 +408,10 @@ end
 -- Spawning
 --------------------------------------------------------------------------------
 
+local function sendShelf(player: Player, id: string)
+	Remotes.event("Companion", "Shelf"):FireClient(player, id)
+end
+
 local function despawn(player: Player)
 	local existing = active[player]
 	if existing then
@@ -425,6 +436,7 @@ local function spawn(player: Player, character: Model, trigger: string)
 	local wanted = selectionFor(player)
 	if wanted == Companions.NONE then
 		despawn(player)
+		sendShelf(player, Companions.NONE)
 		return
 	end
 
@@ -475,6 +487,7 @@ local function spawn(player: Player, character: Model, trigger: string)
 	end
 
 	despawn(player)
+	sendShelf(player, spec.id)
 	model.Name = `Companion_{player.Name}`
 	model:SetAttribute(ANIM_OWNER_ATTRIBUTE, player.UserId)
 
@@ -604,20 +617,6 @@ end
 -- The friend stand
 --------------------------------------------------------------------------------
 
-local function slab(parent: Model, name: string, size: Vector3, cframe: CFrame, color: Color3): Part
-	local part = Instance.new("Part")
-	part.Name = name
-	part.Size = size
-	part.CFrame = cframe
-	part.Color = color
-	part.Material = Enum.Material.WoodPlanks
-	part.Anchored = true
-	part.TopSurface = Enum.SurfaceType.Smooth
-	part.BottomSurface = Enum.SurfaceType.Smooth
-	part.Parent = parent
-	return part
-end
-
 --[[
 	A table you press E at.
 
@@ -626,28 +625,74 @@ end
 	stand on. It is also self-explaining -- a prompt on a table with friends
 	carved into the sign needs no tutorial line.
 ]]
-local function buildStand(base: CFrame): Model
-	local model = Instance.new("Model")
+local function buildStand(base: CFrame): Model?
+	local model = AssetService.clone("friendStand")
+	if not model then
+		warn("[CompanionService] friendStand asset unavailable - the friend stand was not built")
+		return nil
+	end
 	model.Name = "FriendStand"
 
-	local wood = Color3.fromRGB(176, 132, 92)
-	local woodDeep = Color3.fromRGB(140, 102, 68)
-
-	local topHeight = 3
-	local top = slab(model, "Top", Vector3.new(7, 0.4, 3.4), base * CFrame.new(0, topHeight, 0), wood)
-	model.PrimaryPart = top
-
-	for _, x in { -3, 3 } do
-		for _, z in { -1.4, 1.4 } do
-			slab(model, "Leg", Vector3.new(0.4, topHeight, 0.4), base * CFrame.new(x, topHeight / 2, z), woodDeep)
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("Camera") then
+			descendant:Destroy()
 		end
 	end
 
-	UI.sign(top, {
+	local size = model:GetExtentsSize()
+	local largest = math.max(size.X, size.Y, size.Z)
+	if largest > 0.01 then
+		local scale = 7 / largest
+		if math.abs(scale - 1) > 0.01 then
+			model:ScaleTo(scale)
+		end
+	end
+
+	local primary: BasePart?
+	local primaryVolume = 0
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.Anchored = true
+			local volume = descendant.Size.X * descendant.Size.Y * descendant.Size.Z
+			if volume > primaryVolume then
+				primary, primaryVolume = descendant, volume
+			end
+		end
+	end
+	if not primary then
+		warn("[CompanionService] friendStand has no BaseParts - the friend stand was not built")
+		model:Destroy()
+		return nil
+	end
+	model.PrimaryPart = primary
+
+	model:PivotTo(base)
+	local boxCFrame, boxSize = model:GetBoundingBox()
+	local bottom = boxCFrame.Position - boxCFrame.YVector * (boxSize.Y / 2)
+	model:PivotTo(model:GetPivot() + Vector3.new(0, base.Position.Y - bottom.Y, 0))
+
+	local pivot = model:GetPivot()
+	local topY = base.Position.Y + boxSize.Y
+
+	local shelfY = topY
+	local boards: { BasePart } = {}
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") and descendant.Size.Y < 0.5 then
+			table.insert(boards, descendant)
+		end
+	end
+	table.sort(boards, function(a: BasePart, b: BasePart)
+		return (a.Position.Y + a.Size.Y / 2) > (b.Position.Y + b.Size.Y / 2)
+	end)
+	if #boards >= 2 then
+		shelfY = boards[2].Position.Y + boards[2].Size.Y / 2
+	end
+
+	UI.sign(primary, {
 		name = "StandSign",
 		title = "Friend Stand",
 		subtitle = "Press E to choose who follows you",
-		offset = Vector3.new(0, 3.4, 0),
+		offset = Vector3.new(0, topY + 2.5 - primary.Position.Y, 0),
 		extent = UDim2.fromScale(12, 3.4),
 		maxDistance = 120,
 	})
@@ -660,13 +705,247 @@ local function buildStand(base: CFrame): Model
 	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = 14
 	prompt.RequiresLineOfSight = false
-	prompt.Parent = top
+	prompt.Parent = primary
 
 	prompt.Triggered:Connect(function(player)
 		Remotes.event("Companion", "Open"):FireClient(player, roster(), selectionFor(player))
 	end)
 
+	local across = { -2.2, 0, 2.2 }
+	local alongX = boxSize.X >= boxSize.Z
+	local plushies = Instance.new("Model")
+	plushies.Name = "Plushies"
+
+	for index, spec in Companions.LIST do
+		local key = spec.assetKey
+		local plushie = if spec.kind == "asset" and key then AssetService.clone(key) else nil
+		if plushie then
+			for _, descendant in plushie:GetDescendants() do
+				if descendant:IsA("LuaSourceContainer") or descendant:IsA("Humanoid") then
+					descendant:Destroy()
+				end
+			end
+
+			local plushieSize = plushie:GetExtentsSize()
+			local plushieLargest = math.max(plushieSize.X, plushieSize.Y, plushieSize.Z)
+			if plushieLargest > 0.01 then
+				local scale = SHELF_PLUSHIE_SIZE / plushieLargest
+				if math.abs(scale - 1) > 0.01 then
+					plushie:ScaleTo(scale)
+				end
+			end
+
+			for _, descendant in plushie:GetDescendants() do
+				if descendant:IsA("BasePart") then
+					descendant.Anchored = true
+					descendant.CanCollide = false
+					descendant.CanQuery = false
+					descendant.CanTouch = false
+				end
+			end
+
+			plushie.Name = spec.name
+			plushie:SetAttribute(COMPANION_ID_ATTRIBUTE, spec.id)
+			standSlots[spec.id] = plushie
+
+			local offset = across[index] or 0
+			local slot = if alongX
+				then Vector3.new(offset, shelfY - pivot.Position.Y, 0)
+				else Vector3.new(0, shelfY - pivot.Position.Y, offset)
+			plushie:PivotTo(pivot * CFrame.new(slot))
+			local plushieBox, plushieBoxSize = plushie:GetBoundingBox()
+			local plushieBottom = plushieBox.Position - plushieBox.YVector * (plushieBoxSize.Y / 2)
+			plushie:PivotTo(plushie:GetPivot() + Vector3.new(0, shelfY - plushieBottom.Y, 0))
+
+			plushie.Parent = plushies
+		end
+	end
+
+	plushies.Parent = model
+
 	return model
+end
+
+--------------------------------------------------------------------------------
+-- Picking a friend off the shelf
+--------------------------------------------------------------------------------
+
+local function burst(at: CFrame, size: number)
+	local anchor = Instance.new("Part")
+	anchor.Name = "FriendBurst"
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.CanQuery = false
+	anchor.CanTouch = false
+	anchor.CastShadow = false
+	anchor.Transparency = 1
+	anchor.Size = Vector3.one
+	anchor.CFrame = at
+	anchor.Parent = folder
+
+	local light = Instance.new("PointLight")
+	light.Brightness = 9
+	light.Range = size * 7
+	light.Color = Color3.fromRGB(255, 240, 208)
+	light.Parent = anchor
+	TweenService:Create(light, TweenInfo.new(0.5), { Brightness = 0 }):Play()
+
+	local sparks = Instance.new("ParticleEmitter")
+	sparks.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	sparks.Rate = 0
+	sparks.Speed = NumberRange.new(16, 34)
+	sparks.Lifetime = NumberRange.new(0.35, 0.8)
+	sparks.SpreadAngle = Vector2.new(180, 180)
+	sparks.Rotation = NumberRange.new(0, 360)
+	sparks.RotSpeed = NumberRange.new(-180, 180)
+	sparks.Drag = 3.5
+	sparks.LightEmission = 1
+	sparks.Color = ColorSequence.new(Color3.fromRGB(255, 236, 190), Color3.fromRGB(255, 178, 206))
+	sparks.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, size * 0.45),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	sparks.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	sparks.Parent = anchor
+	sparks:Emit(70)
+
+	local shell = Instance.new("Part")
+	shell.Name = "FriendBurstShell"
+	shell.Shape = Enum.PartType.Ball
+	shell.Material = Enum.Material.Neon
+	shell.Color = Color3.fromRGB(255, 246, 224)
+	shell.Anchored = true
+	shell.CanCollide = false
+	shell.CanQuery = false
+	shell.CanTouch = false
+	shell.CastShadow = false
+	shell.Size = Vector3.one * (size * 0.4)
+	shell.CFrame = at
+	shell.Parent = folder
+	TweenService:Create(shell, TweenInfo.new(0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+		Size = Vector3.one * (size * 3.4),
+		Transparency = 1,
+	}):Play()
+
+	Debris:AddItem(anchor, 1.6)
+	Debris:AddItem(shell, 0.6)
+end
+
+local function dressToss(flying: Model): BasePart?
+	local core: BasePart? = nil
+	local coreVolume = 0
+	for _, descendant in flying:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.Anchored = true
+			descendant.CanCollide = false
+			descendant.CanQuery = false
+			descendant.CanTouch = false
+			descendant.CastShadow = false
+			local size = descendant.Size
+			local volume = size.X * size.Y * size.Z
+			if volume > coreVolume then
+				core, coreVolume = descendant, volume
+			end
+		end
+	end
+
+	if not core then
+		return nil
+	end
+
+	local top = Instance.new("Attachment")
+	top.Position = Vector3.new(0, core.Size.Y * 0.5, 0)
+	top.Parent = core
+
+	local bottom = Instance.new("Attachment")
+	bottom.Position = Vector3.new(0, -core.Size.Y * 0.5, 0)
+	bottom.Parent = core
+
+	local trail = Instance.new("Trail")
+	trail.Attachment0 = top
+	trail.Attachment1 = bottom
+	trail.Lifetime = 0.32
+	trail.LightEmission = 1
+	trail.FaceCamera = true
+	trail.Color = ColorSequence.new(Color3.fromRGB(255, 226, 240), Color3.fromRGB(198, 232, 255))
+	trail.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.25),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	trail.Parent = core
+
+	return core
+end
+
+local function toss(player: Player, spec: Companions.CompanionSpec)
+	local generation = (tossGeneration[player] or 0) + 1
+	tossGeneration[player] = generation
+
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local source = standSlots[spec.id]
+	if not root or not root:IsA("BasePart") or not source or not source.Parent then
+		respawnCompanion(player, "selected")
+		return
+	end
+
+	despawn(player)
+
+	local flying = source:Clone()
+	flying.Name = "FriendToss"
+	flying.PrimaryPart = dressToss(flying)
+	flying.Parent = folder
+
+	local baseScale = flying:GetScale()
+	local finalSize = TARGET_HEIGHT * (spec.scale or 1)
+	local grow = finalSize / SHELF_PLUSHIE_SIZE
+	local from = source:GetPivot().Position
+	local spin = 0
+
+	local function alive(): boolean
+		return tossGeneration[player] == generation and flying.Parent ~= nil and root.Parent ~= nil
+	end
+
+	local start = os.clock()
+	while alive() do
+		local alpha = math.clamp((os.clock() - start) / TOSS_TO_HAND, 0, 1)
+		local eased = 1 - (1 - alpha) ^ 3
+		spin += 0.14
+		local hand = (root.CFrame * TOSS_HAND_OFFSET).Position
+		flying:PivotTo(CFrame.new(from:Lerp(hand, eased)) * CFrame.Angles(0, spin, 0))
+		if alpha >= 1 then
+			break
+		end
+		RunService.Heartbeat:Wait()
+	end
+
+	local launch = flying:GetPivot().Position
+	local apex = launch + Vector3.new(0, TOSS_HEIGHT, 0)
+	start = os.clock()
+	while alive() do
+		local alpha = math.clamp((os.clock() - start) / TOSS_TO_APEX, 0, 1)
+		local eased = 1 - (1 - alpha) ^ 2
+		spin += 0.38
+		flying:PivotTo(CFrame.new(launch:Lerp(apex, eased)) * CFrame.Angles(spin * 0.4, spin, 0))
+		flying:ScaleTo(baseScale * (1 + (grow - 1) * eased))
+		if alpha >= 1 then
+			break
+		end
+		RunService.Heartbeat:Wait()
+	end
+
+	local landed = flying:GetPivot()
+	flying:Destroy()
+
+	if tossGeneration[player] ~= generation then
+		return
+	end
+
+	burst(landed, finalSize)
+	respawnCompanion(player, "selected")
 end
 
 --------------------------------------------------------------------------------
@@ -679,6 +958,15 @@ end
 	an id it was never given does nothing.
 ]]
 function CompanionService.select(player: Player, id: string): boolean
+	if id == Companions.NONE then
+		remember(player, id)
+		tossGeneration[player] = (tossGeneration[player] or 0) + 1
+		despawn(player)
+		sendShelf(player, id)
+		NotifyService.send(player, "Walking alone for now.", "info")
+		return true
+	end
+
 	local spec = Companions.get(id)
 	if not spec or not isAvailable(spec) then
 		warn(`[CompanionService] {player.Name} asked for "{id}", which is not on this server's roster`)
@@ -686,14 +974,9 @@ function CompanionService.select(player: Player, id: string): boolean
 	end
 
 	remember(player, id)
+	sendShelf(player, id)
 
-	if id == Companions.NONE then
-		despawn(player)
-		NotifyService.send(player, "Walking alone for now.", "info")
-		return true
-	end
-
-	respawnCompanion(player, "selected")
+	task.spawn(toss, player, spec)
 	NotifyService.send(player, `{spec.name} is following you now.`, "info")
 	return true
 end
@@ -733,19 +1016,9 @@ function CompanionService.init()
 	folder.Name = "Companions"
 	folder.Parent = Workspace
 
-	local spawnCFrame = WorldService.getSpawnCFrame(Areas.STARTING_AREA)
-	if spawnCFrame then
-		--[[
-			Keep the spawn's facing, drop its height: the stand sits on the
-			ground plane every plaza and pad presents, not at whatever Y the
-			spawn point happens to float at.
-		]]
-		local base = spawnCFrame * CFrame.new(STAND_OFFSET)
-		local ground = CFrame.new(Vector3.new(base.Position.X, Constants.WORLD.PLATFORM_TOP, base.Position.Z))
-			* (base - base.Position)
-		buildStand(ground).Parent = folder
-	else
-		warn("[CompanionService] no spawn for the starting area - the friend stand was not built")
+	local stand = buildStand(CFrame.new(15, 1.75, -3) * CFrame.Angles(0, math.rad(-80), 0))
+	if stand then
+		stand.Parent = folder
 	end
 
 	Remotes.event("Companion", "Select").OnServerEvent:Connect(function(player, id)
@@ -760,6 +1033,7 @@ function CompanionService.init()
 
 	Players.PlayerRemoving:Connect(function(player)
 		lastAct[player] = nil
+		tossGeneration[player] = nil
 		despawn(player)
 	end)
 

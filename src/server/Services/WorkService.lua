@@ -28,6 +28,7 @@ local Constants = require(Shared.Modules.Constants)
 local Formulas = require(Shared.Modules.Formulas)
 local RateLimiter = require(Shared.Modules.RateLimiter)
 local Remotes = require(Shared.Modules.Remotes)
+local Companions = require(Shared.Modules.Config.Companions)
 local Skills = require(Shared.Modules.Config.Skills)
 local Worksites = require(Shared.Modules.Config.Worksites)
 
@@ -90,7 +91,19 @@ local function credit(player: Player, profile: any, skillId: string, worksiteId:
 		CurrencyService.award(profile, "yen", yen)
 	end
 
-	return gain
+	local bonus: any = nil
+	local companions = profile.companions
+	local selected = if type(companions) == "table" then companions.selected else nil
+	local spec = if type(selected) == "string" then Companions.get(selected) else nil
+	if spec and spec.skill and Skills.canonicalize(spec.skill) == Skills.canonicalize(skillId) then
+		local candidate = BigNumber.mulNumber(gain, 0.5)
+		if not BigNumber.isZero(candidate) then
+			bonus = candidate
+			SkillService.award(player, profile, skillId, bonus)
+		end
+	end
+
+	return gain, bonus
 end
 
 --[[
@@ -248,7 +261,7 @@ local function onPerform(player: Player)
 		return
 	end
 
-	local gain = credit(player, profile, skillId, spot and spot.worksiteId or nil, 1)
+	local gain, bonus = credit(player, profile, skillId, spot and spot.worksiteId or nil, 1)
 	if not gain then
 		return
 	end
@@ -274,7 +287,8 @@ local function onPerform(player: Player)
 		skillId,
 		gain,
 		spot and spot.worksiteId or nil,
-		spot and spot.regionId or nil
+		spot and spot.regionId or nil,
+		bonus
 	)
 end
 

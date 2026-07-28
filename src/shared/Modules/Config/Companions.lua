@@ -56,21 +56,10 @@ export type CompanionSpec = {
 		the automatic fit.
 	]]
 	scale: number?,
+	skill: string?,
 }
 
---[[
-	The "no companion" sentinel.
-
-	NO LONGER OFFERED IN THE MENU -- it was removed from LIST, so `Companions.get`
-	does not resolve it and `CompanionService.select` will reject it. The
-	constant stays because CompanionService still reads it in `spawn` and
-	`select` as the "walk alone" state, and because a save written before the
-	roster was trimmed can still hold it (`selectionFor` falls through to
-	DEFAULT in that case, so those players quietly gain a companion).
-
-	Deleting the constant means deleting that handling too. Left in place so
-	re-offering the option is a one-line change to LIST rather than a rewrite.
-]]
+-- The "walk alone" sentinel, offered as the last row of the menu.
 Companions.NONE = "none"
 
 Companions.LIST = {
@@ -87,6 +76,7 @@ Companions.LIST = {
 			not a question being asked.
 		]]
 		assetKey = "chiikawa",
+		skill = "resilience",
 	},
 	{
 		id = "hachiware",
@@ -106,6 +96,7 @@ Companions.LIST = {
 			bulk (2.05 -> 1.31) while keeping height and silhouette close.
 		]]
 		scale = 0.86,
+		skill = "examprep",
 	},
 	{
 		id = "usagi",
@@ -113,12 +104,13 @@ Companions.LIST = {
 		blurb = "Says one thing, loudly, forever.",
 		kind = "asset",
 		assetKey = "usagi",
+		skill = "tobatsu",
 	},
 } :: { CompanionSpec }
 
 --[[
-	What a player who has never opened the menu gets, and what an unavailable
-	choice falls back to.
+	What an unavailable choice falls back to. A player who has never opened
+	the menu gets Companions.NONE instead -- see selectionFor.
 
 	MUST BE SOMETHING THAT CANNOT FAIL TO LOAD. It is the end of the fallback
 	chain: if the default itself is unavailable, a player gets no companion and

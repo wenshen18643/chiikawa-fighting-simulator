@@ -54,6 +54,7 @@ local REMOTE_TREE = {
 		-- client cannot name a companion that was not offered to it.
 		Select = "RemoteEvent",
 		Act = "RemoteEvent",
+		Shelf = "RemoteEvent",
 	},
 	Guide = {
 		-- Client tells the server the player has read the intro, so it stops

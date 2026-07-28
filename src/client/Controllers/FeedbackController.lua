@@ -47,14 +47,14 @@ local function skillColor(skillId: string?): Color3
 	return skill and skill.color or UI.color.leaf
 end
 
-local function showGain(gain: any, skillId: string?)
+local function showGain(gain: any, skillId: string?, offsetX: number?, offsetY: number?, sizeScale: number?)
 	if activePopups >= MAX_POPUPS or not popupLayer then
 		return
 	end
 	activePopups += 1
 
 	local magnitude = math.max(BigNumber.log10(gain), 0)
-	local size = math.clamp(20 + magnitude * 2.4, 20, 44)
+	local size = math.clamp(20 + magnitude * 2.4, 20, 44) * (sizeScale or 1)
 	local color = skillColor(skillId)
 
 	local label = UI.label(popupLayer, "Gain", {
@@ -63,9 +63,9 @@ local function showGain(gain: any, skillId: string?)
 		size = size,
 		color = color,
 		align = Enum.TextXAlignment.Center,
-		extent = UDim2.fromOffset(200, 36),
+		extent = UDim2.fromOffset(200 * (sizeScale or 1), 36 * (sizeScale or 1)),
 		anchor = Vector2.new(0.5, 0.5),
-		position = UDim2.new(0.5, math.random(-48, 48), 0.60, math.random(-14, 14)),
+		position = UDim2.new(0.5, offsetX or math.random(-48, 48), 0.60, offsetY or math.random(-14, 14)),
 		zIndex = 9,
 	})
 	label.TextStrokeTransparency = 0.5
@@ -443,8 +443,15 @@ function FeedbackController.init()
 
 	WorkController.onComplete(onLocalClick)
 
-	Remotes.event("Work", "Feedback").OnClientEvent:Connect(function(skillId, gain, worksiteId, regionId)
-		showGain(gain, skillId)
+	Remotes.event("Work", "Feedback").OnClientEvent:Connect(function(skillId, gain, worksiteId, regionId, companionGain)
+		local jx = math.random(-48, 48)
+		local jy = math.random(-14, 14)
+
+		showGain(gain, skillId, jx, jy, 1)
+
+		if companionGain and not BigNumber.isZero(companionGain) then
+			showGain(companionGain, skillId, jx + 110, jy + 14, 0.6)
+		end
 
 		if worksiteId and regionId then
 			ripple(worksiteId, regionId)

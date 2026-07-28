@@ -63,6 +63,26 @@ function Machine.new(model: Model, joints: { [string]: Motor6D }, set: any)
 	local rootJoint = joints.root
 	self.propAnchor = (rootJoint and rootJoint.Part1) or self.root
 
+	--[[
+		Measured HERE, once, and never again -- because this is the only moment
+		the model holds nothing but the companion.
+
+		propPlacement reads self.model:GetBoundingBox(), and play() used to call
+		it one line after parenting the new prop into that same model. Props are
+		built at the origin (Props.build positions everything relative to a
+		PrimaryPart whose CFrame it never sets), so the box being measured ran
+		from the companion all the way back to (0, 0, 0) and `reach` came out as
+		half the distance to the middle of the map. The prop landed there.
+
+		A live flash burst does the same thing more quietly, since Props.flash
+		parents into the model too and lingers for its Debris window.
+
+		Nothing is lost by taking it early: the offset is returned in the
+		anchor's own space, so it tracks the body wherever the animation puts it,
+		and self.propScale one line above is already measured once this way.
+	]]
+	self.propBase = self:propPlacement()
+
 	for name in joints do
 		self.jointSeed[name] = hashName(name)
 	end
@@ -145,9 +165,16 @@ function Machine:play(clipName: string, now: number)
 	if prop and self.propAnchor then
 		local model, rotation = Props.build(prop.builder, self.propScale)
 		if model and rotation then
+			local offset = self.propBase * rotation
+			-- Placed before it is parented. Props.build leaves everything at the
+			-- origin and update() does not run until the next render step, which
+			-- is one frame of a camera sitting on the middle of the map.
+			if model.PrimaryPart then
+				model:PivotTo(self.propAnchor.CFrame * offset)
+			end
 			model.Parent = self.model
 			self.prop = model
-			self.propOffset = self:propPlacement() * rotation
+			self.propOffset = offset
 		end
 	end
 
@@ -267,7 +294,7 @@ function Machine:update(dt: number, now: number)
 				self.flashed = true
 				local anchor = self.propAnchor
 				if anchor then
-					local offset = self.propOffset or self:propPlacement()
+					local offset = self.propOffset or self.propBase
 					Props.flash(anchor.CFrame * offset, self.propScale, self.model)
 				end
 			end
