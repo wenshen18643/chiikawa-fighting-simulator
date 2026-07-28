@@ -17,7 +17,9 @@ local Area = require(script.Area)
 export type AreaDefinition = Area.AreaDefinition
 export type DecorateContext = Area.DecorateContext
 
-local ORDER = { "Town", "Woods", "Riverside", "Mountain", "Island", "Ruins" }
+-- Town is the whole world. The five eastern areas were removed; the ladder now
+-- runs three tiers deep inside this one island (Config/Worksites).
+local ORDER = { "Town" }
 
 Areas.ALL = {} :: { AreaDefinition }
 Areas.BY_ID = {} :: { [number]: AreaDefinition }

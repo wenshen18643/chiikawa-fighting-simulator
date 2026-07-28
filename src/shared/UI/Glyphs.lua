@@ -111,14 +111,26 @@ shapes.heart = shapes.lightbulb
 
 function shapes.lock(ctx)
 	shape(ctx, { name = "Shackle", x = 0.5, y = 0.34, w = 0.44, h = 0.44, round = 0.5 })
-	shape(ctx, { name = "ShackleHole", x = 0.5, y = 0.34, w = 0.22, h = 0.22, round = 0.5, color = Theme.color.paper, layer = 1 })
+	shape(ctx, {
+		name = "ShackleHole",
+		x = 0.5,
+		y = 0.34,
+		w = 0.22,
+		h = 0.22,
+		round = 0.5,
+		color = Theme.color.paper,
+		layer = 1,
+	})
 	shape(ctx, { name = "Body", x = 0.5, y = 0.66, w = 0.66, h = 0.44, round = 0.22, layer = 2 })
 end
 
 function shapes.pin(ctx)
 	dot(ctx, 0.5, 0.38, 0.56)
 	shape(ctx, { name = "Point", x = 0.5, y = 0.62, w = 0.34, h = 0.34, rot = 45, round = 0.1 })
-	shape(ctx, { name = "Hole", x = 0.5, y = 0.38, w = 0.2, h = 0.2, round = 0.5, color = Theme.color.paper, layer = 3 })
+	shape(
+		ctx,
+		{ name = "Hole", x = 0.5, y = 0.38, w = 0.2, h = 0.2, round = 0.5, color = Theme.color.paper, layer = 3 }
+	)
 end
 
 function shapes.coin(ctx)
@@ -176,6 +188,110 @@ end
 function shapes.spark(ctx)
 	bar(ctx, { x = 0.5, y = 0.5, w = 0.18, h = 0.8 })
 	bar(ctx, { x = 0.5, y = 0.5, w = 0.8, h = 0.18 })
+end
+
+--------------------------------------------------------------------------------
+-- Food
+--------------------------------------------------------------------------------
+
+function shapes.carrot(ctx)
+	bar(ctx, { x = 0.5, y = 0.6, w = 0.34, h = 0.48, round = 0.5 })
+	shape(ctx, { name = "Tip", x = 0.5, y = 0.88, w = 0.22, h = 0.22, rot = 45, round = 0.08 })
+	dot(ctx, 0.34, 0.26, 0.2, { h = 0.3, rot = -28 })
+	dot(ctx, 0.5, 0.2, 0.2, { h = 0.32 })
+	dot(ctx, 0.66, 0.26, 0.2, { h = 0.3, rot = 28 })
+end
+
+function shapes.potato(ctx)
+	dot(ctx, 0.5, 0.54, 0.8, { h = 0.58, rot = -12 })
+	dot(ctx, 0.34, 0.44, 0.12, { color = Theme.color.paper, layer = 1 })
+	dot(ctx, 0.56, 0.62, 0.1, { color = Theme.color.paper, layer = 1 })
+	dot(ctx, 0.68, 0.42, 0.09, { color = Theme.color.paper, layer = 1 })
+end
+
+function shapes.rice(ctx)
+	shape(ctx, { name = "Mound", x = 0.5, y = 0.62, w = 0.72, h = 0.4, round = 0.5 })
+	dot(ctx, 0.33, 0.34, 0.15, { h = 0.24, rot = -30 })
+	dot(ctx, 0.5, 0.28, 0.15, { h = 0.24 })
+	dot(ctx, 0.67, 0.34, 0.15, { h = 0.24, rot = 30 })
+end
+
+function shapes.berry(ctx)
+	bar(ctx, { x = 0.52, y = 0.16, w = 0.08, h = 0.22, rot = -16 })
+	dot(ctx, 0.5, 0.42, 0.4, { layer = 1 })
+	dot(ctx, 0.34, 0.66, 0.4, { layer = 1 })
+	dot(ctx, 0.66, 0.66, 0.4, { layer = 1 })
+end
+
+function shapes.mushroom(ctx)
+	shape(ctx, { name = "Cap", x = 0.5, y = 0.42, w = 0.84, h = 0.46, round = 0.5 })
+	shape(ctx, { name = "CapCut", x = 0.5, y = 0.64, w = 0.9, h = 0.2, color = Theme.color.paper, layer = 1 })
+	shape(ctx, { name = "Stem", x = 0.5, y = 0.72, w = 0.3, h = 0.42, round = 0.25, layer = 2 })
+	dot(ctx, 0.36, 0.34, 0.15, { color = Theme.color.paper, layer = 3 })
+	dot(ctx, 0.62, 0.3, 0.11, { color = Theme.color.paper, layer = 3 })
+end
+
+function shapes.sausage(ctx)
+	bar(ctx, { x = 0.5, y = 0.5, w = 0.78, h = 0.34, round = 0.5, rot = -20 })
+	dot(ctx, 0.14, 0.64, 0.14)
+	dot(ctx, 0.86, 0.36, 0.14)
+end
+
+function shapes.onigiri(ctx)
+	shape(ctx, { name = "Body", x = 0.5, y = 0.46, w = 0.56, h = 0.56, rot = 45, round = 0.18 })
+	shape(ctx, { name = "Gap", x = 0.5, y = 0.74, w = 0.94, h = 0.06, color = Theme.color.paper, layer = 1 })
+	shape(ctx, { name = "Nori", x = 0.5, y = 0.84, w = 0.46, h = 0.18, round = 0.2, layer = 2 })
+end
+
+function shapes.dango(ctx)
+	bar(ctx, { x = 0.5, y = 0.5, w = 0.08, h = 0.96, round = 0.5 })
+	dot(ctx, 0.5, 0.24, 0.4, { layer = 1 })
+	dot(ctx, 0.5, 0.51, 0.4, { layer = 1 })
+	dot(ctx, 0.5, 0.78, 0.4, { layer = 1 })
+	shape(ctx, { name = "Seam", x = 0.5, y = 0.375, w = 0.5, h = 0.03, color = Theme.color.paper, layer = 2 })
+	shape(ctx, { name = "Seam", x = 0.5, y = 0.645, w = 0.5, h = 0.03, color = Theme.color.paper, layer = 2 })
+end
+
+function shapes.yogurt(ctx)
+	dot(ctx, 0.5, 0.2, 0.2, { h = 0.16 })
+	dot(ctx, 0.5, 0.32, 0.36, { h = 0.24 })
+	bar(ctx, { x = 0.5, y = 0.44, w = 0.78, h = 0.13, layer = 1 })
+	shape(ctx, { name = "Cup", x = 0.5, y = 0.7, w = 0.6, h = 0.46, round = 0.24, layer = 1 })
+end
+
+function shapes.tea(ctx)
+	shape(ctx, { name = "Handle", x = 0.82, y = 0.6, w = 0.26, h = 0.26, round = 0.5 })
+	shape(ctx, {
+		name = "HandleHole",
+		x = 0.82,
+		y = 0.6,
+		w = 0.11,
+		h = 0.11,
+		round = 0.5,
+		color = Theme.color.paper,
+		layer = 1,
+	})
+	shape(ctx, { name = "Cup", x = 0.44, y = 0.62, w = 0.58, h = 0.44, round = 0.3, layer = 2 })
+	bar(ctx, { x = 0.5, y = 0.9, w = 0.56, h = 0.09, layer = 2 })
+	bar(ctx, { x = 0.34, y = 0.22, w = 0.07, h = 0.26, rot = 14 })
+	bar(ctx, { x = 0.54, y = 0.18, w = 0.07, h = 0.3, rot = -14 })
+end
+
+function shapes.pancakes(ctx)
+	dot(ctx, 0.5, 0.34, 0.62, { h = 0.2 })
+	dot(ctx, 0.5, 0.52, 0.72, { h = 0.2 })
+	dot(ctx, 0.5, 0.7, 0.8, { h = 0.2 })
+	shape(ctx, { name = "Seam", x = 0.5, y = 0.43, w = 0.66, h = 0.03, color = Theme.color.paper, layer = 1 })
+	shape(ctx, { name = "Seam", x = 0.5, y = 0.61, w = 0.76, h = 0.03, color = Theme.color.paper, layer = 1 })
+	dot(ctx, 0.5, 0.2, 0.28, { h = 0.14, layer = 2 })
+end
+
+function shapes.platter(ctx)
+	dot(ctx, 0.5, 0.18, 0.16)
+	dot(ctx, 0.5, 0.46, 0.74, { h = 0.5, layer = 1 })
+	shape(ctx, { name = "DomeCut", x = 0.5, y = 0.76, w = 0.86, h = 0.22, color = Theme.color.paper, layer = 2 })
+	bar(ctx, { x = 0.5, y = 0.72, w = 0.96, h = 0.12, layer = 3 })
+	bar(ctx, { x = 0.5, y = 0.85, w = 0.42, h = 0.08, layer = 3 })
 end
 
 Glyphs.FOR_SKILL = {

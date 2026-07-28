@@ -80,6 +80,7 @@ local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Clip = require(Shared.Modules.Anim.Clip)
+local Feedback = require(Shared.Modules.Config.Feedback)
 local PlayerAnims = require(Shared.Modules.Config.PlayerAnims)
 local Skeleton = require(Shared.Modules.Anim.Skeleton)
 
@@ -91,6 +92,13 @@ local GestureController = {}
 local WORKING_ATTRIBUTE = "WorkingSkill"
 -- Set alongside it; scales the held prop so higher tiers swing bigger tools.
 local TIER_ATTRIBUTE = "WorkTier"
+-- Set by the server per forage pluck: ForageClipAt (an os.clock stamp) changing
+-- fires the clip named in ForageClip once, rather than looping it.
+local FORAGE_CLIP_ATTRIBUTE = "ForageClip"
+local FORAGE_STAMP_ATTRIBUTE = "ForageClipAt"
+-- Held true by the server while a character stirs at the kitchen.
+local COOKING_ATTRIBUTE = "Cooking"
+local COOKING_CLIP = "cook_stir"
 
 -- Weight envelope, in seconds. Short enough to feel immediate, long enough that
 -- neither end of a gesture is a step change.
@@ -136,6 +144,12 @@ type Playing = {
 	duration: number,
 }
 
+type ForageShot = {
+	clipId: string,
+	startedAt: number,
+	duration: number,
+}
+
 type BookState = {
 	open: number,
 	flipFrom: number,
@@ -150,6 +164,9 @@ local playing: Playing? = nil
 
 local remoteRigs: { [Model]: Rig } = {}
 local remotePhase: { [Model]: number } = {}
+
+local forageStamps: { [Model]: number? } = {}
+local forageShots: { [Model]: ForageShot } = {}
 
 local books: { [Model]: BookState } = {}
 local tuftShown: { [Model]: boolean } = {}
@@ -491,9 +508,7 @@ local function buildOpenBook(scale: number): Model
 	local function page(name: string, cover: boolean): BasePart
 		local part = Instance.new("Part")
 		part.Name = name
-		part.Size = if cover
-			then Vector3.new(1.0, 0.04, 1.4) * scale
-			else Vector3.new(0.95, 0.06, 1.35) * scale
+		part.Size = if cover then Vector3.new(1.0, 0.04, 1.4) * scale else Vector3.new(0.95, 0.06, 1.35) * scale
 		part.Color = if cover then Color3.fromRGB(240, 90, 150) else Color3.fromRGB(252, 250, 242)
 		part.Material = Enum.Material.SmoothPlastic
 		decorate(part, model)
@@ -789,10 +804,7 @@ function GestureController.play(skillId: string?, duration: number?)
 end
 
 local function tuftPhase(skillId: string?, t: number): boolean
-	return skillId ~= nil
-		and KUSATORI_SKILLS[skillId] == true
-		and t >= TUFT_SHOW_T
-		and t <= TUFT_HIDE_T
+	return skillId ~= nil and KUSATORI_SKILLS[skillId] == true and t >= TUFT_SHOW_T and t <= TUFT_HIDE_T
 end
 
 local function stepLocalProps(dt: number)
@@ -892,23 +904,77 @@ local function stepRemote(constraints: boolean)
 			remotePhase[character] = nil
 			books[character] = nil
 			tuftShown[character] = nil
-			continue
-		end
-
-		local skillId = character:GetAttribute(WORKING_ATTRIBUTE)
-		if type(skillId) ~= "string" then
-			continue
-		end
-
-		local definition = PlayerAnims.get(skillId)
-		if not definition then
+			forageStamps[character] = nil
+			forageShots[character] = nil
 			continue
 		end
 
 		local phase = remotePhase[character] or 0
-		local t = ((os.clock() + phase) % definition.length) / definition.length
 
-		applyRig(rig, definition, t, 1, constraints)
+		-- The looping work gesture the server says this character is doing.
+		local skillId = character:GetAttribute(WORKING_ATTRIBUTE)
+		if type(skillId) == "string" then
+			local definition = PlayerAnims.get(skillId)
+			if definition then
+				local t = ((os.clock() + phase) % definition.length) / definition.length
+				applyRig(rig, definition, t, 1, constraints)
+			end
+		end
+
+		-- Stirring cycles while the server holds Cooking = true; releasing the
+		-- attribute simply stops the writes and the walk cycle takes back over.
+		if character:GetAttribute(COOKING_ATTRIBUTE) == true then
+			local definition = PlayerAnims.get(COOKING_CLIP)
+			if definition then
+				local t = ((os.clock() + phase) % definition.length) / definition.length
+				applyRig(rig, definition, t, 1, constraints)
+			end
+		end
+
+		--[[
+			One shot per pluck. ForageClipAt is a stamp the server bumps every
+			time; seeing a new one fires the clip named in ForageClip once, with
+			the same blend envelope as a local gesture. Applied last so the pluck
+			reads over any loop already running. The stamp is only consumed once
+			the clip name is readable, so a stamp that replicates a frame ahead
+			of its clip retries rather than dropping the pluck.
+		]]
+		local stamp = character:GetAttribute(FORAGE_STAMP_ATTRIBUTE)
+		if type(stamp) == "number" and forageStamps[character] ~= stamp then
+			local clipId = character:GetAttribute(FORAGE_CLIP_ATTRIBUTE)
+			local definition = if type(clipId) == "string" then PlayerAnims.get(clipId) else nil
+			if definition and clipId then
+				forageStamps[character] = stamp
+				local entry = Feedback.get(clipId :: string)
+				forageShots[character] = {
+					clipId = clipId :: string,
+					startedAt = os.clock(),
+					duration = if entry and entry.gesture then entry.gesture.duration else definition.length,
+				}
+			end
+		end
+
+		local shot = forageShots[character]
+		if shot then
+			local definition = PlayerAnims.get(shot.clipId)
+			if not definition then
+				forageShots[character] = nil
+			else
+				local elapsed = os.clock() - shot.startedAt
+				if elapsed >= shot.duration + BLEND_OUT then
+					forageShots[character] = nil
+				else
+					local t = math.clamp(elapsed / shot.duration, 0, 1)
+					local weight: number
+					if elapsed < shot.duration then
+						weight = smoothstep(elapsed / BLEND_IN)
+					else
+						weight = smoothstep(1 - (elapsed - shot.duration) / BLEND_OUT)
+					end
+					applyRig(rig, definition, t, weight, constraints)
+				end
+			end
+		end
 	end
 end
 
@@ -937,8 +1003,10 @@ function GestureController.init()
 	end
 	localPlayer.CharacterAdded:Connect(bindLocal)
 
-	WorkController.onStart(function(skillId, duration)
-		GestureController.play(skillId or WorkController.getTrainingSkill() or "tobatsu", duration)
+	-- clipId overrides the skill when the click is aimed at something specific:
+	-- a carrot is dug, not weeded. See WorkController.kusatoriClip.
+	WorkController.onStart(function(skillId, duration, clipId)
+		GestureController.play(clipId or skillId or WorkController.getTrainingSkill() or "tobatsu", duration)
 	end)
 
 	local function watch(player: Player)
@@ -946,6 +1014,11 @@ function GestureController.init()
 			return
 		end
 		local function bindRemote(character: Model)
+			-- Seed the stamp so a pluck from before this client arrived (or
+			-- before the character streamed in) is not replayed as new.
+			local stamp = character:GetAttribute(FORAGE_STAMP_ATTRIBUTE)
+			forageStamps[character] = if type(stamp) == "number" then stamp else nil
+			forageShots[character] = nil
 			bindRig(character, function(rig)
 				remoteRigs[character] = rig
 				remotePhase[character] = math.random() * 1000

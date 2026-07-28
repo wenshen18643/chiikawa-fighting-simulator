@@ -7,7 +7,19 @@
 	4. Exam Prep (Studying) — Studying at a tiny desk
 ]]
 
-export type SkillId = "tobatsu" | "resilience" | "kusatori" | "examprep" | "strength" | "durability" | "agility" | "special" | "weeding" | "subjugation" | "grit" | "craft"
+export type SkillId =
+	"tobatsu"
+	| "resilience"
+	| "kusatori"
+	| "examprep"
+	| "strength"
+	| "durability"
+	| "agility"
+	| "special"
+	| "weeding"
+	| "subjugation"
+	| "grit"
+	| "craft"
 
 export type SkillDefinition = {
 	id: string,

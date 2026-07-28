@@ -226,14 +226,10 @@ local function completeStep()
 				return
 			end
 			panel.Visible = true
-			TweenService:Create(
-				panel,
-				TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-				{
-					Position = UDim2.new(0.5, 0, 0, 18),
-					Size = UDim2.new(0.9, 0, 0, 150),
-				}
-			):Play()
+			TweenService:Create(panel, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+				Position = UDim2.new(0.5, 0, 0, 18),
+				Size = UDim2.new(0.9, 0, 0, 150),
+			}):Play()
 			transitioning = false
 		end)
 	end)

@@ -114,10 +114,8 @@ end
 
 local function awardPage(player: Player, profile: any): BigNumber.BigNum
 	local worksiteId = studyWorksite(player, profile)
-	local gain = BigNumber.mulNumber(
-		Formulas.gainMultiplier(profile, "examprep", worksiteId),
-		Constants.STUDY.PAGE_BASE_GAIN
-	)
+	local gain =
+		BigNumber.mulNumber(Formulas.gainMultiplier(profile, "examprep", worksiteId), Constants.STUDY.PAGE_BASE_GAIN)
 	if not worksiteId then
 		gain = BigNumber.mulNumber(gain, Constants.WORK.OFF_PAD_MULTIPLIER)
 		if WorksiteService.isInSkillDistrict(player, "examprep") then

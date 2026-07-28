@@ -33,6 +33,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
 local Layout = require(Shared.Modules.Config.Layout)
+local Sections = require(Shared.Modules.Config.Sections)
 
 local TerrainBuilder = {}
 
@@ -44,6 +45,67 @@ local WORLD = Constants.WORLD
 TerrainBuilder.ready = false
 
 local filled = 0
+
+--------------------------------------------------------------------------------
+-- Relief
+--------------------------------------------------------------------------------
+
+--[[
+	The island used to be a flat slab and read like one. Now it has a height
+	field: gentle rolling noise everywhere, and a rim of mountains around the
+	shore that frames the world and gives the eye somewhere to go.
+
+	Everything that must stay flat — plaza, districts, the east-west road, the
+	safe-zone plot — is protected by a mask built from Layout.reservedZones:
+	inside a zone the height is 0, and it ramps up over MASK_FADE studs so pads
+	get a sloped approach rather than a cliff through their middle.
+
+	Props do not care: WorldService seats them by raycast, so decoration
+	follows whatever ground this builds.
+]]
+local MASK_FADE = 70
+
+local MOUNTAINS = {
+	{ x = -540, z = 540, h = 42, r = 150 },
+	{ x = 545, z = 505, h = 36, r = 120 },
+	{ x = -520, z = -545, h = 48, r = 160 },
+	{ x = 520, z = -540, h = 30, r = 110 },
+	{ x = 0, z = 595, h = 22, r = 130 },
+	{ x = -605, z = 60, h = 26, r = 120 },
+	{ x = 610, z = -40, h = 24, r = 110 },
+}
+
+local function edgeDistance(zones: { Layout.Zone }, x: number, z: number): number
+	local best = math.huge
+	for _, zone in zones do
+		local distance
+		if zone.kind == "circle" then
+			local dx, dz = x - zone.x, z - zone.z
+			distance = math.sqrt(dx * dx + dz * dz) - (zone.radius or 0)
+		else
+			distance = math.max(math.abs(x - zone.x) - (zone.halfX or 0), math.abs(z - zone.z) - (zone.halfZ or 0))
+		end
+		best = math.min(best, distance)
+	end
+	return best
+end
+
+local function heightAt(zones: { Layout.Zone }, x: number, z: number): number
+	local mask = math.clamp(edgeDistance(zones, x, z) / MASK_FADE, 0, 1)
+	if mask <= 0 then
+		return 0
+	end
+
+	local rolling = math.noise(x / 260, z / 260, 7) * 5 + math.noise(x / 95, z / 95, 13) * 2.5
+	local hills = 0
+	for _, mountain in MOUNTAINS do
+		local dx, dz = x - mountain.x, z - mountain.z
+		hills += mountain.h * math.exp(-(dx * dx + dz * dz) / (2 * mountain.r * mountain.r))
+	end
+
+	-- Only ever RAISE. Digging would undermine the plaza, the pads and the shore.
+	return math.max(0, rolling + hills) * mask
+end
 
 local function materialOf(name: string): Enum.Material
 	local material = (Enum.Material :: any)[name]
@@ -118,6 +180,96 @@ function TerrainBuilder.buildArea(area: Areas.AreaDefinition, yield: boolean)
 		materialOf(area.terrain.material),
 		yield
 	)
+
+	if not Sections.THEMES[area.key] and area.key ~= "town" then
+		return
+	end
+
+	--[[
+		Section ground. Each themed square gets its own terrain material laid
+		over the base surface — farm is turned earth, the thicket is snow, the
+		knoll is rock — and then the relief pass raises hills and mountains on
+		top of that. The patchwork IS the section grid, readable from any hill.
+	]]
+	local zones = Layout.reservedZones(area)
+	for _, cell in Sections.cells() do
+		TerrainBuilder.paintCell(area, cell, zones, yield)
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Per cell
+--------------------------------------------------------------------------------
+
+local SUB = 4
+local CLEAR_HEIGHT = 200
+
+function TerrainBuilder.paintCell(
+	area: Areas.AreaDefinition,
+	cell: Sections.Cell,
+	zones: { Layout.Zone },
+	yield: boolean
+)
+	local top = WORLD.TERRAIN_TOP
+	local theme = Sections.THEMES[cell.theme]
+	local baseMaterial = materialOf(area.terrain.material)
+	local material = materialOf(if theme then theme.material else area.terrain.material)
+
+	Workspace.Terrain:FillBlock(
+		CFrame.new(area.origin + Vector3.new(cell.cx, top - 0.8, cell.cz)),
+		Vector3.new(Sections.SIZE + 1, 1.6, Sections.SIZE + 1),
+		material
+	)
+
+	local subSize = Sections.SIZE / SUB
+	for ti = 1, SUB do
+		for tj = 1, SUB do
+			local sx = cell.minX + (ti - 0.5) * subSize
+			local sz = cell.minZ + (tj - 0.5) * subSize
+			local h = heightAt(zones, sx, sz)
+			if h > 0.5 then
+				Workspace.Terrain:FillBlock(
+					CFrame.new(area.origin + Vector3.new(sx, top + h / 2, sz)),
+					Vector3.new(subSize + 1, h, subSize + 1),
+					if h > 16 then Enum.Material.Rock elseif theme then material else baseMaterial
+				)
+				filled += 1
+				if yield and filled % WORLD.TERRAIN_YIELD_EVERY == 0 then
+					RunService.Heartbeat:Wait()
+				end
+			end
+		end
+	end
+end
+
+function TerrainBuilder.clearCell(area: Areas.AreaDefinition, cell: Sections.Cell)
+	Workspace.Terrain:FillBlock(
+		CFrame.new(area.origin + Vector3.new(cell.cx, WORLD.TERRAIN_TOP + CLEAR_HEIGHT / 4, cell.cz)),
+		Vector3.new(Sections.SIZE, CLEAR_HEIGHT, Sections.SIZE),
+		Enum.Material.Air
+	)
+end
+
+function TerrainBuilder.buildCell(area: Areas.AreaDefinition, cell: Sections.Cell, yield: boolean)
+	local top = WORLD.TERRAIN_TOP
+	local surfaceDepth = WORLD.ISLAND_DEPTH / 2
+	local coreDepth = WORLD.ISLAND_DEPTH
+	local size = Sections.SIZE + 1
+
+	fillBox(
+		area.origin + Vector3.new(cell.cx, top - surfaceDepth - coreDepth / 2, cell.cz),
+		Vector3.new(size, coreDepth, size),
+		Enum.Material.Rock,
+		yield
+	)
+	fillBox(
+		area.origin + Vector3.new(cell.cx, top - surfaceDepth / 2, cell.cz),
+		Vector3.new(size, surfaceDepth, size),
+		materialOf(area.terrain.material),
+		yield
+	)
+
+	TerrainBuilder.paintCell(area, cell, Layout.reservedZones(area), yield)
 end
 
 --[[

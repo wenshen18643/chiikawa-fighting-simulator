@@ -235,6 +235,64 @@ Feedback.SKILLS = {
 		},
 		sound = sound(0.38),
 	},
+
+	--[[
+		Farm plucks and kitchen gestures — full-body clips in Config/PlayerAnims,
+		one per ingredient (Config/Ingredients). Only `gesture.duration` is read:
+		it is the window the clip is time-fitted to, locally and for spectators.
+	]]
+	farm_carrot = {
+		gesture = { duration = 1.0 },
+		sound = sound(0.4),
+	},
+	farm_potato = {
+		gesture = { duration = 1.2 },
+		sound = sound(0.4),
+	},
+	farm_rice = {
+		gesture = { duration = 1.1 },
+		sound = sound(0.4),
+	},
+	farm_berry_shake = {
+		gesture = { duration = 1.0 },
+		sound = sound(0.4),
+	},
+	farm_berry_pick = {
+		gesture = { duration = 0.9 },
+		sound = sound(0.4),
+	},
+	farm_berry_pluck = {
+		gesture = { duration = 1.0 },
+		sound = sound(0.4),
+	},
+	farm_berry_reach = {
+		gesture = { duration = 1.2 },
+		sound = sound(0.4),
+	},
+	farm_mushroom_twist = {
+		gesture = { duration = 0.9 },
+		sound = sound(0.4),
+	},
+	farm_mushroom_pull = {
+		gesture = { duration = 1.1 },
+		sound = sound(0.4),
+	},
+	farm_sausage_pull = {
+		gesture = { duration = 1.2 },
+		sound = sound(0.4),
+	},
+	farm_sausage_yank = {
+		gesture = { duration = 1.3 },
+		sound = sound(0.4),
+	},
+	cook_stir = {
+		gesture = { duration = 1.2 },
+		sound = sound(0.35),
+	},
+	cook_complete = {
+		gesture = { duration = 1.35 },
+		sound = sound(0.35),
+	},
 } :: { [string]: SkillFeedback }
 
 -- Aliases

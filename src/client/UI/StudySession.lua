@@ -143,9 +143,7 @@ local function drawPlant(parent: Instance, definition: any, zIndex: number): Fra
 		leaf.AnchorPoint = Vector2.new(0.5, 0.5)
 		local radians = math.rad(angle)
 		leaf.Position = UDim2.fromScale(0.5 + math.sin(radians) * 0.21, 0.57 - math.cos(radians) * 0.08)
-		leaf.Size = if definition.leafShape == "narrow"
-			then UDim2.fromScale(0.13, 0.34)
-			else UDim2.fromScale(0.3, 0.18)
+		leaf.Size = if definition.leafShape == "narrow" then UDim2.fromScale(0.13, 0.34) else UDim2.fromScale(0.3, 0.18)
 		leaf.Rotation = angle
 		leaf.BackgroundColor3 = definition.leafColor
 		leaf.BorderSizePixel = 0
@@ -286,7 +284,9 @@ local function updateReadingStats()
 	end
 	if readingFocusLabel and readingFocusLabel.Parent then
 		local remaining = math.max(0, (study.focusExpiresAt or 0) - os.time())
-		readingFocusLabel.Text = if remaining > 0 then `FOCUS x2  •  {remaining}s` else "10% chance to find a field note"
+		readingFocusLabel.Text = if remaining > 0
+			then `FOCUS x2  •  {remaining}s`
+			else "10% chance to find a field note"
 		readingFocusLabel.TextColor3 = if remaining > 0 then BOOK_GOLD else Color3.fromRGB(128, 105, 102)
 	end
 end
@@ -579,7 +579,8 @@ local function addOption(
 		zIndex = 47,
 	})
 	textLabel(button, "Choose", {
-		text = if optionId == crossedOut then "crossed out"
+		text = if optionId == crossedOut
+			then "crossed out"
 			elseif locked and optionId == correctId then "correct plant"
 			elseif locked and optionId == selectedId then "your answer"
 			else "choose this plant",

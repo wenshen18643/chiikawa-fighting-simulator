@@ -35,6 +35,10 @@ local BOOT_ORDER = {
 	{ container = script.Controllers, name = "SoundController" },
 	{ container = script.Controllers, name = "WorldController" },
 	{ container = script.UI, name = "HUD" },
+	-- HUD's rail button toggles the inventory; the kitchen panel opens itself
+	-- from the pot's prompt.
+	{ container = script.UI, name = "InventoryMenu" },
+	{ container = script.UI, name = "CookingMenu" },
 	-- The open-book recall layer subscribes to completed Exam Prep gestures and
 	-- draws above the HUD when a study card or exam question arrives.
 	{ container = script.UI, name = "StudySession" },

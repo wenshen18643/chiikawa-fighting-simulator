@@ -36,6 +36,11 @@ local BOOT_ORDER = {
 	-- spawning waits on the AssetService download.
 	"CompanionService",
 	"WorksiteService",
+	-- After WorksiteService: the groves stand on the retired resilience pad
+	-- spots, and the kitchen needs Town's region folder and the pot asset.
+	"ForagingService",
+	"CookingService",
+	"InventoryService",
 	"StaminaService",
 	"CurrencyService",
 	"RegionService",
@@ -48,6 +53,8 @@ local BOOT_ORDER = {
 	"TrainingService",
 	"GuideService",
 	"ReplicationService",
+	-- Studio-only section grid overlay. Last: it reads the world, nothing reads it.
+	"BoardService",
 }
 
 local failures: { string } = {}

@@ -16,14 +16,22 @@ export type WorksiteDefinition = {
 
 local Worksites = {}
 
+--[[
+	Three tiers, all in Town.
+
+	The world used to be six islands and this ladder ran seven deep, one new
+	tier per island. Town is now the whole game, so the ladder is as deep as one
+	island can hold: the tier-3 pad already sits 652 studs out of a 1300-stud
+	half-width, and a fourth would stand in the fence.
+
+	The top multiplier is unchanged from the old tier-3 rung rather than being
+	rescaled — the ceiling on a skill is what the pad pays times how fast you
+	click, and cutting the ladder was a map decision, not an economy one.
+]]
 local TIERS = {
 	{ tier = 1, requirement = { m = 0, e = 0 }, multiplier = 2, homeRegion = 1 },
 	{ tier = 2, requirement = { m = 1, e = 4 }, multiplier = 6, homeRegion = 1 },
-	{ tier = 3, requirement = { m = 1, e = 5 }, multiplier = 25, homeRegion = 2 },
-	{ tier = 4, requirement = { m = 1, e = 6 }, multiplier = 50, homeRegion = 3 },
-	{ tier = 5, requirement = { m = 1, e = 7 }, multiplier = 500, homeRegion = 4 },
-	{ tier = 6, requirement = { m = 1, e = 8 }, multiplier = 1000, homeRegion = 5 },
-	{ tier = 7, requirement = { m = 1, e = 9 }, multiplier = 5000, homeRegion = 6 },
+	{ tier = 3, requirement = { m = 1, e = 5 }, multiplier = 25, homeRegion = 1 },
 }
 
 local NAMES = {
@@ -31,37 +39,19 @@ local NAMES = {
 		"Sasumata Yard",
 		"Training Dummy Grounds",
 		"Misty Beast Trail",
-		"Chimera Cave",
-		"Mountain Subjugation",
-		"Grand Sentinel Arena",
-		"Legendary Sasumata Field",
 	},
-	resilience = {
-		"Waterfall Springs",
-		"Crying Boulder",
-		"Rainy Cliffside",
-		"Storm Mountain Peak",
-		"Chimera Impact Zone",
-		"Endless Waterfall",
-		"Iron Resilience Shrine",
-	},
+	-- Resilience pads are retired in favor of cooking: the skill is trained at
+	-- the kitchen now, so it deliberately has no worksite names. The skill itself remains.
+	resilience = {},
 	kusatori = {
 		"Roadside Weed Patch",
 		"Kusatori Park",
-		"Overgrown Riverbank",
-		"Terraced Meadow",
 		"The Giant Weed Field",
-		"Ancient Botanical Ruins",
-		"The Endless Kusatori Prairie",
 	},
 	examprep = {
 		"Tiny Study Desk",
 		"Pochette Study Nook",
 		"Library Corner",
-		"Exam Hall Alcove",
-		"Master Intelligence Atelier",
-		"Grand Academy Hall",
-		"The Endless Study Desk",
 	},
 }
 
@@ -86,6 +76,11 @@ for _, skillId in Skills.ORDER do
 	local ladder = {}
 	for _, tier in TIERS do
 		local name = names[tier.tier]
+		-- An empty name list is a deliberate retirement (see NAMES.resilience),
+		-- not a missing name: the ladder just has no rungs and nothing is built.
+		if #names == 0 then
+			break
+		end
 		assert(name, `Worksites: {skillId} is missing a name for tier {tier.tier}`)
 
 		local definition: WorksiteDefinition = {

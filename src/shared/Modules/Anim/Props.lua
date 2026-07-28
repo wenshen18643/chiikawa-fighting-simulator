@@ -50,13 +50,8 @@ function BUILDERS.camera(size: number): (Model, CFrame)
 	lens.Shape = Enum.PartType.Cylinder
 	lens.CFrame = body.CFrame * CFrame.new(0, 0, -0.31 * size) * CFrame.Angles(0, math.rad(90), 0)
 
-	local glass = piece(
-		model,
-		"Glass",
-		Vector3.new(0.1, 0.25, 0.25) * size,
-		Color3.fromRGB(150, 210, 235),
-		Enum.Material.Glass
-	)
+	local glass =
+		piece(model, "Glass", Vector3.new(0.1, 0.25, 0.25) * size, Color3.fromRGB(150, 210, 235), Enum.Material.Glass)
 	glass.Shape = Enum.PartType.Cylinder
 	glass.CFrame = body.CFrame * CFrame.new(0, 0, -0.43 * size) * CFrame.Angles(0, math.rad(90), 0)
 
@@ -102,9 +97,7 @@ function BUILDERS.book(size: number): (Model, CFrame)
 			Color3.fromRGB(178, 96, 88),
 			Enum.Material.SmoothPlastic
 		)
-		cover.CFrame = spine.CFrame
-			* CFrame.new(side * 0.38 * size, 0, 0)
-			* CFrame.Angles(math.rad(side * -18), 0, 0)
+		cover.CFrame = spine.CFrame * CFrame.new(side * 0.38 * size, 0, 0) * CFrame.Angles(math.rad(side * -18), 0, 0)
 
 		local pages = piece(
 			model,

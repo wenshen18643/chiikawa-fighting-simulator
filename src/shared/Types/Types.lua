@@ -24,6 +24,7 @@ export type Currencies = {
 	yen: BigNum,
 	stamps: BigNum,
 	ingredients: { [string]: number },
+	seasonings: { [string]: number },
 	materials: { [string]: number },
 }
 
@@ -46,6 +47,7 @@ export type Boost = {
 	id: string,
 	multiplier: number,
 	skill: string?, -- nil == applies to every skill
+	stat: string?, -- "yen" | "staminaRegen": multiplies that number instead of a skill
 	expiresAt: number,
 }
 
@@ -74,6 +76,7 @@ export type PlayerProfile = {
 	companions: { Companion },
 	gear: Gear,
 	recipes: { string },
+	dishes: { [string]: number }, -- cooked dishes owned, recipeId -> count
 	workOrders: { completed: { string }, active: { [string]: number } },
 	unlockedWorksites: { [string]: boolean },
 	unlockedRegions: { [string]: boolean }, -- string keys: JSON has no integer keys
@@ -111,6 +114,10 @@ export type StateSnapshot = {
 	yenPerMinute: BigNum,
 	regionId: number,
 	unlockedRegions: { [string]: boolean },
+	ingredients: { [string]: number },
+	seasonings: { [string]: number },
+	dishes: { [string]: number },
+	boosts: { Boost },
 	showIntro: boolean,
 }
 

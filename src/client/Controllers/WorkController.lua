@@ -30,6 +30,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Remotes = require(Shared.Modules.Remotes)
+local Ingredients = require(Shared.Modules.Config.Ingredients)
 local Skills = require(Shared.Modules.Config.Skills)
 local Worksites = require(Shared.Modules.Config.Worksites)
 
@@ -42,6 +43,9 @@ local WorkController = {}
 
 local ACTION_NAME = "Work"
 local WEED_RADIUS = 14
+-- Mirrors Constants.FORAGE.PULL_RADIUS; the server still decides what was hit.
+local FORAGE_RADIUS = Constants.FORAGE.PULL_RADIUS
+local FORAGE_TAG = "Forage"
 
 local performRemote: RemoteEvent
 local selectRemote: RemoteEvent
@@ -105,23 +109,50 @@ function WorkController.onClick(callback: (skillId: string?) -> ())
 	end)
 end
 
-local function weedsNear(): boolean
+local function nearestTagged(tag: string, radius: number): Model?
 	local player = Players.LocalPlayer
 	local character = player and player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if not root or not root:IsA("BasePart") then
-		return false
+		return nil
 	end
 
-	for _, patch in CollectionService:GetTagged("Weed") do
-		if patch:IsA("Model") then
-			local delta = patch:GetPivot().Position - root.Position
-			if Vector3.new(delta.X, 0, delta.Z).Magnitude <= WEED_RADIUS then
-				return true
+	local best: Model? = nil
+	local bestDist = radius
+	for _, model in CollectionService:GetTagged(tag) do
+		if model:IsA("Model") then
+			local delta = model:GetPivot().Position - root.Position
+			local dist = Vector3.new(delta.X, 0, delta.Z).Magnitude
+			if dist < bestDist then
+				bestDist = dist
+				best = model
 			end
 		end
 	end
-	return false
+	return best
+end
+
+--[[
+	Which clip a Kusatori click should play, guessed locally.
+
+	The server decides what the click actually hits; this only decides what the
+	character looks like while it happens. Waiting for the answer would put a
+	sixth of a second of nothing between the click and the dig, which is the
+	difference between a game that responds and one that lags.
+
+	Returns nil when there is nothing in reach, which is how the caller knows
+	to play no gesture at all rather than swinging at the lawn.
+]]
+local function kusatoriClip(): string?
+	local node = nearestTagged(FORAGE_TAG, FORAGE_RADIUS)
+	if node then
+		local ingredientId = node:GetAttribute("IngredientId")
+		local def = if type(ingredientId) == "string" then Ingredients.get(ingredientId) else nil
+		if def then
+			return def.clip
+		end
+	end
+	return if nearestTagged("Weed", WEED_RADIUS) then "kusatori" else nil
 end
 
 local function tryPerform()
@@ -144,25 +175,33 @@ local function tryPerform()
 		WorkController.selectSkill("examprep")
 		return
 	end
-	local feedbackEntry = Feedback.get(skillId)
-	local duration = if feedbackEntry and feedbackEntry.gesture then feedbackEntry.gesture.duration else 0.38
+	--[[
+		Kusatori is the one skill whose gesture depends on WHAT is in front of
+		you: a weed is yanked, a carrot is dug, a sausage is hauled off a
+		branch. Every other skill has one clip and plays it.
+	]]
+	local clipId: string? = skillId
+	if Skills.canonicalize(skillId) == "kusatori" then
+		clipId = kusatoriClip()
+	end
 
-	local showGesture = Skills.canonicalize(skillId) ~= "kusatori" or weedsNear()
+	local feedbackEntry = Feedback.get(clipId or skillId)
+	local duration = if feedbackEntry and feedbackEntry.gesture then feedbackEntry.gesture.duration else 0.38
 
 	isAnimating = true
 	lastSend = now
 
 	-- 1. Fire animation start immediately so the character begins the pose
-	if showGesture then
+	if clipId then
 		for _, listener in startListeners do
-			task.spawn(listener, skillId, duration)
+			task.spawn(listener, skillId, duration, clipId)
 		end
 	end
 
 	-- 2. Wait for the animation duration, then send perform intent and award completion feedback
 	task.delay(duration, function()
 		performRemote:FireServer()
-		if showGesture then
+		if clipId then
 			for _, listener in completeListeners do
 				task.spawn(listener, skillId)
 			end
@@ -237,6 +276,12 @@ end
 
 -- Asks the server to change which skill free-form training raises. The server
 -- validates and owns the value; this is a request, not an assignment.
+-- Resilience is trained by cooking and moving, not by clicking; the server
+-- refuses it too. One rule, read by the skill bar and by selectSkill.
+function WorkController.isSelectable(skillId: string): boolean
+	return Skills.canonicalize(skillId) ~= "resilience"
+end
+
 function WorkController.selectSkill(skillId: string)
 	if next(inputLocks) ~= nil then
 		return
@@ -245,6 +290,9 @@ function WorkController.selectSkill(skillId: string)
 		return
 	end
 	local canonical = Skills.canonicalize(skillId)
+	if not WorkController.isSelectable(canonical) then
+		return
+	end
 	selectRemote:FireServer(canonical)
 	for _, listener in selectionListeners do
 		task.spawn(listener, canonical)

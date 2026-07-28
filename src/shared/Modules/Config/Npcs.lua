@@ -55,7 +55,7 @@ Npcs.DEFINITIONS = {
 		name = "Little One",
 		role = "your friend",
 		regionId = 1,
-		offset = Vector3.new(-78, 0, 186),
+		offset = Vector3.new(-62, 0, 128),
 		build = { bodyColor = WHITE, bellyColor = CREAM, earStyle = "round", height = 3.2, blush = true },
 		lines = {
 			"Weeds! There are so many weeds.",
@@ -68,12 +68,12 @@ Npcs.DEFINITIONS = {
 		name = "Halfsie",
 		role = "cheerful",
 		regionId = 1,
-		offset = Vector3.new(78, 0, 186),
+		offset = Vector3.new(62, 0, 128),
 		build = { bodyColor = WHITE, bellyColor = BLUE, earStyle = "tall", earColor = BLUE, height = 3.6, blush = true },
 		lines = {
 			"The pay is per minute, so standing around still counts!",
 			"Higher grade means better wages. That's the whole trick.",
-			"Wanna go to the Woods later? I found a cave.",
+			"Wanna go past the weed field later? I found a sausage tree.",
 		},
 	},
 	{
@@ -81,7 +81,7 @@ Npcs.DEFINITIONS = {
 		name = "Labour Official",
 		role = "assigns work and pay",
 		regionId = 1,
-		offset = Vector3.new(0, 0, -196),
+		offset = Vector3.new(0, 0, -132),
 		build = { bodyColor = ARMOUR, bellyColor = ARMOUR, earStyle = "none", height = 5.2, blush = false },
 		lines = {
 			"Work is posted daily. Take what you can carry.",
@@ -94,7 +94,7 @@ Npcs.DEFINITIONS = {
 		name = "Ramen Cook",
 		role = "runs the shop",
 		regionId = 1,
-		offset = Vector3.new(-592, 0, 606),
+		offset = Vector3.new(-232, 0, 268),
 		build = { bodyColor = ARMOUR, bellyColor = YELLOW, earStyle = "none", height = 5.0, blush = false },
 		lines = {
 			"Hot bowl? It'll do more for you than a cold one.",
@@ -102,13 +102,18 @@ Npcs.DEFINITIONS = {
 		},
 	},
 
-	-- Region 2: the woods.
+	--[[
+		Everyone below used to live in one of the five eastern areas. Those are
+		gone and Town is the whole world, so they moved in rather than being
+		deleted: the cast is the reason the place feels inhabited, and a town
+		with four people in it is a diorama.
+	]]
 	{
 		id = "hoppy",
 		name = "Hoppy",
 		role = "loud",
-		regionId = 2,
-		offset = Vector3.new(-104, 0, 232),
+		regionId = 1,
+		offset = Vector3.new(150, 0, 132),
 		build = {
 			bodyColor = CREAM,
 			bellyColor = WHITE,
@@ -122,23 +127,22 @@ Npcs.DEFINITIONS = {
 	{
 		id = "forager",
 		name = "Forager",
-		role = "knows the woods",
-		regionId = 2,
-		offset = Vector3.new(-720, 0, 610),
+		role = "knows where things grow",
+		regionId = 1,
+		offset = Vector3.new(44, 0, 196),
 		build = { bodyColor = BROWN, bellyColor = CREAM, earStyle = "round", height = 3.4, blush = true },
 		lines = {
-			"Mushrooms here. Don't eat the ones that look back at you.",
-			"Critters are gentle. Just shoo them along.",
+			"Carrots and potatoes are under the soil. You have to dig for those.",
+			"Mushrooms out past the pads. Don't eat the ones that look back at you.",
+			"Sausages grow on trees out east. You'll need stronger hands first.",
 		},
 	},
-
-	-- Region 3: riverside market.
 	{
 		id = "shopkeep",
 		name = "Shopkeep",
 		role = "sells things",
-		regionId = 3,
-		offset = Vector3.new(0, 0, 906),
+		regionId = 1,
+		offset = Vector3.new(-128, 0, 74),
 		build = { bodyColor = PINK, bellyColor = WHITE, earStyle = "round", height = 3.6, blush = true },
 		lines = {
 			"Charm gets you a discount. I don't make the rules.",
@@ -149,8 +153,8 @@ Npcs.DEFINITIONS = {
 		id = "pochette_official",
 		name = "Pochette Official",
 		role = "makes things by hand",
-		regionId = 3,
-		offset = Vector3.new(-150, 0, 246),
+		regionId = 1,
+		offset = Vector3.new(128, 0, 74),
 		build = { bodyColor = ARMOUR, bellyColor = PINK, earStyle = "none", height = 5.0, blush = false },
 		lines = {
 			"Everything here is handmade. Including the mistakes.",
@@ -158,46 +162,41 @@ Npcs.DEFINITIONS = {
 		},
 	},
 
-	-- Region 4: the mountain.
 	{
 		id = "bath_keeper",
 		name = "Bath Keeper",
-		role = "minds the hot springs",
-		regionId = 4,
-		offset = Vector3.new(-1100, 0, 1120),
+		role = "minds the waterfall",
+		regionId = 1,
+		offset = Vector3.new(396, 0, -280),
 		build = { bodyColor = WHITE, bellyColor = PINK, earStyle = "pointed", height = 3.8, blush = true },
 		lines = {
-			"Cold outside, warm inside. That's the whole mountain.",
-			"Grit is just staying put a bit longer than is comfortable.",
+			"Cold water, warm heart. Sit under it a while.",
+			"Resilience is just staying put a bit longer than is comfortable.",
 		},
 	},
-
-	-- Region 5: the island.
 	{
 		id = "shore_cook",
 		name = "Shore Cook",
-		role = "seaside kitchen",
-		regionId = 5,
-		offset = Vector3.new(-1264, 0, 1266),
+		role = "helps at the kitchen",
+		regionId = 1,
+		offset = Vector3.new(34, 0, -108),
 		build = { bodyColor = YELLOW, bellyColor = WHITE, earStyle = "pointed", height = 3.8, blush = true },
 		lines = {
 			"Salt, heat, patience. Mostly patience.",
-			"The ferry takes ages. Bring something to do.",
+			"Bring me anything you dug up. I'll tell you what it goes in.",
 		},
 	},
-
-	-- Region 6: the ruins.
 	{
 		id = "quiet_one",
 		name = "Quiet One",
 		role = "has been here a while",
-		regionId = 6,
-		offset = Vector3.new(0, 0, 1410),
+		regionId = 1,
+		offset = Vector3.new(-212, 0, 452),
 		build = { bodyColor = CREAM, bellyColor = CREAM, earStyle = "round", height = 3.4, blush = false },
 		lines = {
 			"...",
-			"The weeds here are older than the walls.",
-			"You got far. Well done.",
+			"The weeds here are older than the fence.",
+			"You keep going. That's the whole of it.",
 		},
 	},
 } :: { NpcDefinition }

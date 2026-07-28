@@ -29,8 +29,7 @@ local IDENTITY = CFrame.new()
 local function catmullRom(p0: number, p1: number, p2: number, p3: number, a: number): number
 	local a2 = a * a
 	local a3 = a2 * a
-	return 0.5
-		* ((2 * p1) + (-p0 + p2) * a + (2 * p0 - 5 * p1 + 4 * p2 - p3) * a2 + (-p0 + 3 * p1 - 3 * p2 + p3) * a3)
+	return 0.5 * ((2 * p1) + (-p0 + p2) * a + (2 * p0 - 5 * p1 + 4 * p2 - p3) * a2 + (-p0 + 3 * p1 - 3 * p2 + p3) * a3)
 end
 
 local function channel(key: Key, name: string): number
@@ -108,8 +107,7 @@ function Clip.sample(track: Track, phase: number, looped: boolean): CFrame
 
 	local values = {}
 	for _, name in CHANNELS do
-		values[name] =
-			catmullRom(channel(p0, name), channel(p1, name), channel(p2, name), channel(p3, name), alpha)
+		values[name] = catmullRom(channel(p0, name), channel(p1, name), channel(p2, name), channel(p3, name), alpha)
 	end
 	return toCFrame(values)
 end

@@ -67,7 +67,13 @@ export type SkillEntry = {
 
 local holder: Frame
 
-local function buildCell(parent: Instance, index: number, skillId: string, tierCount: number): SkillEntry
+local function buildCell(
+	parent: Instance,
+	index: number,
+	skillId: string,
+	tierCount: number,
+	onBlocked: (string) -> ()
+): SkillEntry
 	local definition = Skills.get(skillId)
 	local accent = (definition and definition.color) or UI.color.leaf
 
@@ -144,7 +150,11 @@ local function buildCell(parent: Instance, index: number, skillId: string, tierC
 	})
 
 	button.Activated:Connect(function()
-		WorkController.selectSkill(skillId)
+		if WorkController.isSelectable(skillId) then
+			WorkController.selectSkill(skillId)
+		else
+			onBlocked(skillId)
+		end
 	end)
 
 	local value, setValue = UI.ticker(cell, "Value", {
@@ -228,7 +238,7 @@ end
 	Build the bar. Returns the entries keyed by skill id, plus the holder so the
 	caller can hide it on a compact screen.
 ]]
-function SkillBar.build(parent: Instance): ({ [string]: SkillEntry }, Frame)
+function SkillBar.build(parent: Instance, onBlocked: (string) -> ()): ({ [string]: SkillEntry }, Frame)
 	local count = #Skills.ORDER
 	local tierCount = #Worksites.getLadder(Skills.ORDER[1])
 
@@ -251,7 +261,7 @@ function SkillBar.build(parent: Instance): ({ [string]: SkillEntry }, Frame)
 
 	local entries: { [string]: SkillEntry } = {}
 	for index, skillId in Skills.ORDER do
-		entries[skillId] = buildCell(holder, index, skillId, tierCount)
+		entries[skillId] = buildCell(holder, index, skillId, tierCount, onBlocked)
 	end
 
 	return entries, holder
