@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Certifications = require(Shared.Modules.Config.Certifications)
+local ChiikawaFacts = require(Shared.Modules.Config.ChiikawaFacts)
 local Constants = require(Shared.Modules.Constants)
 local ExamQuestions = require(Shared.Modules.Config.ExamQuestions)
 local Formulas = require(Shared.Modules.Formulas)
@@ -29,6 +30,7 @@ local StudyService = {}
 type Prompt = {
 	mode: "study" | "exam",
 	questionId: string,
+	factId: number?,
 	options: { string },
 	phase: "preview" | "answer" | "locked",
 }
@@ -42,6 +44,7 @@ type ExamSession = {
 local pageCounts: { [Player]: number } = {}
 local lastPages: { [Player]: number } = {}
 local lastQuestions: { [Player]: string } = {}
+local lastFacts: { [Player]: number } = {}
 local prompts: { [Player]: Prompt } = {}
 local exams: { [Player]: ExamSession } = {}
 local reviewRemaining: { [Player]: number } = {}
@@ -131,6 +134,16 @@ local function pickQuestion(player: Player): string
 	return choices[1]
 end
 
+local function pickFact(player: Player): number
+	local factId = ChiikawaFacts.pickId(rngFor(player), lastFacts[player])
+	lastFacts[player] = factId
+	return factId
+end
+
+local function currentFact(player: Player): number
+	return lastFacts[player] or pickFact(player)
+end
+
 local function helperFor(player: Player, profile: any, prompt: Prompt): any?
 	local selected = profile.companions and profile.companions.selected
 	local rng = rngFor(player)
@@ -157,15 +170,17 @@ local function helperFor(player: Player, profile: any, prompt: Prompt): any?
 	return nil
 end
 
-local function sendStudyQuestion(player: Player, profile: any)
+local function sendStudyQuestion(player: Player, profile: any, pageFactId: number?)
 	if prompts[player] or exams[player] then
 		return
 	end
 
 	local questionId = pickQuestion(player)
+	local factId = pageFactId or pickFact(player)
 	local prompt: Prompt = {
 		mode = "study",
 		questionId = questionId,
+		factId = factId,
 		options = ExamQuestions.optionsFor(questionId, rngFor(player)),
 		phase = "preview",
 	}
@@ -173,6 +188,7 @@ local function sendStudyQuestion(player: Player, profile: any)
 	eventRemote:FireClient(player, {
 		kind = "preview",
 		questionId = questionId,
+		factId = factId,
 		readiness = readiness(profile),
 	})
 
@@ -208,16 +224,18 @@ local function onPage(player: Player)
 	lastPages[player] = now
 	pageCounts[player] = (pageCounts[player] or 0) + 1
 	local gain = awardPage(player, profile)
+	local factId = pickFact(player)
 
 	eventRemote:FireClient(player, {
 		kind = "page",
 		page = pageCounts[player],
 		gain = gain,
+		factId = factId,
 		focusExpiresAt = focusExpiresAt(profile),
 	})
 
 	if rngFor(player):NextNumber() <= Constants.STUDY.FACT_CHANCE then
-		sendStudyQuestion(player, profile)
+		sendStudyQuestion(player, profile, factId)
 	end
 end
 
@@ -412,6 +430,7 @@ function StudyService.snapshot(player: Player, profile: any): any
 		certificationOrder = profile.certifications[subject] or 0,
 		reviewRemaining = reviewRemaining[player] or 0,
 		focusExpiresAt = focusExpiresAt(profile),
+		factId = currentFact(player),
 	}
 end
 
@@ -426,6 +445,7 @@ function StudyService.init()
 		pageCounts[player] = nil
 		lastPages[player] = nil
 		lastQuestions[player] = nil
+		lastFacts[player] = nil
 		prompts[player] = nil
 		exams[player] = nil
 		reviewRemaining[player] = nil

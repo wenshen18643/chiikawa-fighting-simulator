@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
+local ChiikawaFacts = require(Shared.Modules.Config.ChiikawaFacts)
 local ExamQuestions = require(Shared.Modules.Config.ExamQuestions)
 local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
@@ -59,6 +60,7 @@ local pageNumber = 0
 local latestStudy: any = nil
 local readingPageLabel: TextLabel? = nil
 local readingGainLabel: TextLabel? = nil
+local readingFactLabel: TextLabel? = nil
 local readingFocusLabel: TextLabel? = nil
 local readingReadinessFill: Frame? = nil
 local readingReadinessLabel: TextLabel? = nil
@@ -233,29 +235,31 @@ local function addPlantStudyCard(questionId: string)
 	addPageNumber(leftPage, "LOOK")
 end
 
-local function addLesson(questionId: string)
-	local definition = ExamQuestions.get(questionId)
-	if not definition then
-		return
-	end
+local function addLesson(factId: number?)
+	local fact = ChiikawaFacts.get(factId) or "Chiikawa's world is full of kind friends and surprising challenges."
 
 	textLabel(rightPage, "Remember", {
-		text = "Remember this",
+		text = "Chiikawa note",
 		font = UI.font.display,
 		size = UI.text.title,
 		color = BOOK_PENCIL,
 		position = UDim2.fromScale(0.1, 0.11),
 		extent = UDim2.fromScale(0.8, 0.1),
 	})
-	textLabel(rightPage, "Lesson", {
-		text = definition.lesson,
+	local factLabel = textLabel(rightPage, "Lesson", {
+		text = fact,
 		font = UI.font.bold,
 		size = UI.text.title,
+		scaled = true,
 		wrapped = true,
 		verticalAlign = Enum.TextYAlignment.Top,
 		position = UDim2.fromScale(0.1, 0.27),
-		extent = UDim2.fromScale(0.8, 0.36),
+		extent = UDim2.fromScale(0.8, 0.38),
 	})
+	local textSizeConstraint = Instance.new("UITextSizeConstraint")
+	textSizeConstraint.MinTextSize = UI.text.small
+	textSizeConstraint.MaxTextSize = UI.text.title
+	textSizeConstraint.Parent = factLabel
 	textLabel(rightPage, "Instruction", {
 		text = "The page will turn in a moment...",
 		font = UI.font.light,
@@ -265,7 +269,7 @@ local function addLesson(questionId: string)
 		position = UDim2.fromScale(0.1, 0.68),
 		extent = UDim2.fromScale(0.8, 0.12),
 	})
-	addPageNumber(rightPage, "NOTICE  •  REMEMBER")
+	addPageNumber(rightPage, "A LITTLE CHIIKAWA FACT")
 end
 
 local function updateReadingStats()
@@ -385,15 +389,22 @@ local function renderReading()
 		position = UDim2.fromScale(0.3, 0.07),
 		extent = UDim2.fromScale(0.62, 0.08),
 	})
-	textLabel(leftPage, "Title", {
-		text = "Small pages,\nsteady progress",
+	local readingFact = ChiikawaFacts.get(latestStudy and latestStudy.factId)
+		or "Chiikawa's world is full of kind friends and surprising challenges."
+	readingFactLabel = textLabel(leftPage, "Fact", {
+		text = readingFact,
 		font = UI.font.display,
 		size = UI.text.display,
+		scaled = true,
 		wrapped = true,
 		verticalAlign = Enum.TextYAlignment.Top,
 		position = UDim2.fromScale(0.08, 0.17),
 		extent = UDim2.fromScale(0.84, 0.2),
 	})
+	local headlineSizeConstraint = Instance.new("UITextSizeConstraint")
+	headlineSizeConstraint.MinTextSize = UI.text.small
+	headlineSizeConstraint.MaxTextSize = UI.text.display
+	headlineSizeConstraint.Parent = readingFactLabel
 	readingReadinessLabel = textLabel(leftPage, "Readiness", {
 		text = "GRADE 5 READINESS  0%",
 		font = UI.font.bold,
@@ -678,7 +689,7 @@ local function renderPreview(payload: any)
 	clearPage(leftPage)
 	clearPage(rightPage)
 	addPlantStudyCard(payload.questionId)
-	addLesson(payload.questionId)
+	addLesson(payload.factId)
 end
 
 local function renderResult(payload: any)
@@ -1014,6 +1025,9 @@ local function onStudyEvent(payload: any)
 	end
 	if payload.kind == "page" then
 		pageNumber = if type(payload.page) == "number" then payload.page else pageNumber + 1
+		if latestStudy and type(payload.factId) == "number" then
+			latestStudy.factId = payload.factId
+		end
 		if latestStudy and type(payload.focusExpiresAt) == "number" then
 			latestStudy.focusExpiresAt = payload.focusExpiresAt
 			latestStudy.readiness = payload.readiness or latestStudy.readiness
@@ -1025,6 +1039,12 @@ local function onStudyEvent(payload: any)
 		end
 		if readingGainLabel and readingGainLabel.Parent and BigNumber.isValid(payload.gain) then
 			readingGainLabel.Text = `+{BigNumber.toString(payload.gain)} Exam Prep`
+		end
+		if readingFactLabel and readingFactLabel.Parent then
+			local fact = ChiikawaFacts.get(payload.factId)
+			if fact then
+				readingFactLabel.Text = fact
+			end
 		end
 		showPageGain(payload.gain)
 		updateReadingStats()

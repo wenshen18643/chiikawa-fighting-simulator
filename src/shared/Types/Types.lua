@@ -104,6 +104,7 @@ export type StateSnapshot = {
 		certificationOrder: number,
 		reviewRemaining: number,
 		focusExpiresAt: number,
+		factId: number,
 	},
 	currentWorksite: string?,
 	gainPerAction: BigNum?,
