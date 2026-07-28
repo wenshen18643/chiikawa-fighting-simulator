@@ -199,7 +199,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 					title = "Kusatori Grade 5",
 					bullets = {
 						"Press 4, flip pages, and watch for the 10% chance that a field note appears.",
-						"Recall the right plant for a 30% chance at Focus: 2x Exam Prep from flips for 30 seconds.",
+						"Recall the right plant for a 15% chance at Focus: 2x Exam Prep from flips for 30 seconds.",
 						"At 100% Readiness and 100 Kusatori, sit the five-question exam from the pink bookmark.",
 						"Four correct answers pass. Failure keeps Readiness and asks for two short review cards.",
 						"Grade 5 doubles Kusatori gains and adds 50% to the base passive wage multiplier.",

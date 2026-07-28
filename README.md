@@ -44,12 +44,14 @@ reversal.
 ## Exam Prep and Kusatori Grade 5
 
 Pressing skill 4 opens a full-screen book. Exam Prep cannot be earned from the regular Work action or
-from passive pad ticks; every gain comes from clicking the book to flip one page. A usable Exam Prep
-desk still multiplies the value of each flip. Every accepted flip has a 10% chance to reveal a
+from passive pad ticks; every gain comes from clicking the book to flip one page. Each page has a base
+value of 2 Exam Prep. Standing anywhere on the Exam Prep district's Study Deck doubles that to 4; an
+occupied study pad uses its own configured multiplier instead, so the deck bonus never double-stacks
+with pad tiers. Every accepted flip has a 10% chance to reveal a
 procedural plant fact, followed shortly by a three-image recall question. Correct answers add 20%
 Readiness; missed answers add 8% because reviewing a mistake is still learning. Nothing is lost.
 
-A correct recall also has a 30% chance to grant **Focus**: 2x Exam Prep points from page flips for
+A correct recall also has a 15% chance to grant **Focus**: 2x Exam Prep points from page flips for
 the next 30 seconds. Winning Focus again refreshes its duration. It does not affect other skills.
 
 At 100% Readiness and 100 Kusatori, the pink bookmark offers the five-question Kusatori Grade 5

@@ -316,6 +316,34 @@ function WorksiteService.getBlocked(player: Player): Occupancy?
 	return blocked[player]
 end
 
+function WorksiteService.isInSkillDistrict(player: Player, skillId: string): boolean
+	if not Skills.exists(skillId) then
+		return false
+	end
+
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not root then
+		return false
+	end
+
+	local canonical = Skills.canonicalize(skillId)
+	local area = Layout.areaAt(root.Position)
+	local profile = DataService.get(player)
+	if not profile or not profile.unlockedRegions[tostring(area.id)] then
+		return false
+	end
+	local district = Layout.districtFor(area, canonical)
+	local point = district.plateCFrame:PointToObjectSpace(root.Position)
+	local half = district.plateSize / 2
+	local tolerance = Constants.WORK.POSITION_TOLERANCE
+
+	return math.abs(point.X) <= half.X + tolerance
+		and math.abs(point.Z) <= half.Z + tolerance
+		and point.Y >= -tolerance
+		and point.Y <= half.Y + 12
+end
+
 function WorksiteService.explain(profile: any, spot: Occupancy): string?
 	local _, reason = WorksiteService.canUse(profile, spot.worksiteId, spot.regionId)
 	return reason
