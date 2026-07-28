@@ -411,9 +411,7 @@ function ControlTutorial.init()
 		if not step then
 			return
 		end
-		if step.id == "move" and isMoving() then
-			completeStep()
-		elseif step.id == "run" and MovementController.isSprinting() then
+		if (step.id == "move" and isMoving()) or (step.id == "run" and MovementController.isSprinting()) then
 			completeStep()
 		end
 	end)
