@@ -29,6 +29,8 @@ local BOOT_ORDER = {
 	"WorldService",
 	"SafeZoneService",
 	"NpcService",
+	-- Owns the first hostile-capable actors before WorkService resolves attacks.
+	"MobService",
 	-- After SafeZoneService, which is what moves Town's spawn onto the cottage
 	-- doorstep: the probes are placed relative to the FINAL spawn.
 	"AssetProbeService",

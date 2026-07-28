@@ -85,6 +85,35 @@ Skeleton.PROFILES = {
 		},
 		fallback = "Torso",
 	},
+	mushroomFrog = {
+		joints = {
+			root = "RootJoint",
+			head = "Neck",
+			armL = "LeftShoulder",
+			armR = "RightShoulder",
+			legL = "LeftHip",
+			legR = "RightHip",
+			hat = "HatJoint",
+		},
+		fallback = "Torso",
+	},
+	duck = {
+		joints = {
+			root = "RootJoint",
+			head = "Neck",
+			armL = "Left Shoulder",
+			armR = "Right Shoulder",
+			legL = "Left Hip",
+			legR = "Right Hip",
+		},
+		fallback = "Torso",
+	},
+	spider = {
+		joints = {
+			root = "RootJoint",
+		},
+		fallback = "Spider",
+	},
 } :: { [string]: Profile }
 
 Skeleton.PLAYER_PROFILES = {
@@ -200,7 +229,11 @@ end
 	`inverse * P * basis`. That is what lets one clip drive an R6 shoulder, an
 	R15 shoulder and a hand-built Motor6D without per-rig sign tables.
 ]]
-function Skeleton.basisFor(model: Instance, joints: Joints, root: BasePart): ({ [string]: CFrame }, { [string]: CFrame })
+function Skeleton.basisFor(
+	model: Instance,
+	joints: Joints,
+	root: BasePart
+): ({ [string]: CFrame }, { [string]: CFrame })
 	local jointsByChild: { [BasePart]: Joint } = {}
 	for _, descendant in model:GetDescendants() do
 		if Skeleton.isJoint(descendant) then

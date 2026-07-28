@@ -261,6 +261,25 @@ function Layout.padPosition(area: Areas.AreaDefinition, worksiteId: string): Vec
 	return nil
 end
 
+-- Deterministic habitat slots around the area's configured centre. Mob
+-- placement stays in the same config-derived coordinate system as the world.
+function Layout.mobSpawnCFrames(area: Areas.AreaDefinition, population: number, radius: number): { CFrame }
+	local centre = area.origin
+	local result = {}
+
+	for index = 1, population do
+		local angle = (index - 1) / population * math.pi * 2
+		local position = Vector3.new(
+			centre.X + math.cos(angle) * radius,
+			area.origin.Y + WORLD.PLATFORM_TOP,
+			centre.Z + math.sin(angle) * radius
+		)
+		table.insert(result, CFrame.lookAt(position, Vector3.new(centre.X, position.Y, centre.Z)))
+	end
+
+	return result
+end
+
 --------------------------------------------------------------------------------
 -- Reserved ground
 --------------------------------------------------------------------------------

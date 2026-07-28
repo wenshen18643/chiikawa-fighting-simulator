@@ -213,6 +213,11 @@ Assets.MODELS = {
 	]]
 	chiikawa = { id = 103908480888538, kind = "model", template = "Chiikawa", scale = 1 },
 
+	-- Clean local geometry. MobService supplies the authoritative rig and AI.
+	mushroomFrog = { id = 0, kind = "model", template = "MushroomFrog", scale = 1, collide = false },
+	duck = { id = 0, kind = "model", template = "Duck", scale = 1, collide = false },
+	spider = { id = 0, kind = "model", template = "Spider", scale = 1, collide = false },
+
 	--[[
 		----------------------------------------------------------------------
 		SAFE ZONE -- the home plot dressing

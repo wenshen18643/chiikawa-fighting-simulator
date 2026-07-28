@@ -64,6 +64,25 @@ something.
 Both are un-ignored under `assets/` and ignored everywhere else, so a stray
 export elsewhere in the repo will not be committed by accident.
 
+### If the source is a binary `.rbxm`
+
+The XML hygiene scripts intentionally do not parse binary files. Do not put a
+binary toolbox model straight under `assets/Models/`: use Rojo to decode it
+without opening Studio or running its scripts, then extract geometry only.
+
+```powershell
+tools\rojo.exe build default.project.json -o "$env:TEMP/model-extract.rbxlx"
+python tools/model-hygiene/extract_geometry.py `
+    "$env:TEMP/model-extract.rbxlx" `
+    "Model name inside the file" `
+    assets/Models/YourModel.rbxmx
+```
+
+Quarantine or delete the original `.rbxm` outside the repository, then run the
+normal scanner and attribute dump on the extracted `.rbxmx`. The extractor
+keeps Models, Parts, meshes, textures and decals; scripts, values, bundled UI,
+attachments, animation controllers and legacy joints are discarded.
+
 ---
 
 ## 2. Scan it — this is the important step

@@ -30,6 +30,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Remotes = require(Shared.Modules.Remotes)
+local Mobs = require(Shared.Modules.Config.Mobs)
 local Skills = require(Shared.Modules.Config.Skills)
 local Worksites = require(Shared.Modules.Config.Worksites)
 
@@ -55,35 +56,56 @@ local startListeners: { (skillId: string?, duration: number) -> () } = {}
 local completeListeners: { (skillId: string?) -> () } = {}
 local selectionListeners: { (skillId: string) -> () } = {}
 
--- Mirror the server's spatial test only to choose the right local gesture.
--- Reward authority remains entirely in SafeZoneService/WorkService.
-local function getTrainingDummySkill(): string?
-	local safeZone = Workspace:FindFirstChild("SafeZone")
-	local dummy = safeZone and safeZone:FindFirstChild("TrainingScarecrow") :: Model?
+-- Mirrors the server strike cone only so the local gesture uses the sasumata.
+-- The server independently resolves the target and owns all combat outcomes.
+local function getMobSkill(): string?
+	local mobs = Workspace:FindFirstChild("Mobs")
 	local root = Players.LocalPlayer.Character
 		and Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-	if not dummy or not dummy.PrimaryPart or not root then
-		return nil
-	end
-
-	local offset = dummy.PrimaryPart.Position - root.Position
-	local planarOffset = Vector3.new(offset.X, 0, offset.Z)
-	local range = dummy:GetAttribute("AttackRange")
-	local facingMinimum = dummy:GetAttribute("FacingDotMinimum")
-	if type(range) ~= "number" or type(facingMinimum) ~= "number" then
-		return nil
-	end
-	if planarOffset.Magnitude > range or planarOffset.Magnitude < 0.01 then
+	if not mobs or not root then
 		return nil
 	end
 
 	local forward = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
-	if forward.Magnitude < 0.01 or forward.Unit:Dot(planarOffset.Unit) < facingMinimum then
+	if forward.Magnitude < 0.01 then
 		return nil
 	end
+	forward = forward.Unit
 
-	local skillId = dummy:GetAttribute("TrainingSkill")
-	return if type(skillId) == "string" then skillId else nil
+	for _, child in mobs:GetChildren() do
+		if not child:IsA("Model") then
+			continue
+		end
+		local mobId = child:GetAttribute("MobId")
+		local definition = if type(mobId) == "string" then Mobs.get(mobId) else nil
+		if not definition then
+			continue
+		end
+		local mobRoot = child.PrimaryPart or child:FindFirstChild("HumanoidRootPart", true) :: BasePart?
+		local humanoid = child:FindFirstChildOfClass("Humanoid")
+		if not mobRoot or not humanoid or humanoid.Health <= 0 then
+			continue
+		end
+
+		local offset = mobRoot.Position - root.Position
+		local planar = Vector3.new(offset.X, 0, offset.Z)
+		if
+			planar.Magnitude <= 0.01
+			or planar.Magnitude > definition.playerAttackRange
+			or forward:Dot(planar.Unit) < definition.playerFacingMinimum
+		then
+			continue
+		end
+
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = { Players.LocalPlayer.Character :: Model, child }
+		if Workspace:Raycast(root.Position, mobRoot.Position - root.Position, params) == nil then
+			return "tobatsu"
+		end
+	end
+
+	return nil
 end
 
 function WorkController.onStart(callback: (skillId: string?, duration: number) -> ())
@@ -137,7 +159,7 @@ local function tryPerform()
 		return
 	end
 
-	local skillId = getTrainingDummySkill() or WorkController.getTrainingSkill() or "tobatsu"
+	local skillId = getMobSkill() or WorkController.getTrainingSkill() or "tobatsu"
 	if Skills.canonicalize(skillId) == "examprep" then
 		-- Study actions live inside the full-screen book. Work opens that book;
 		-- it never sends Work.Perform and therefore cannot grant Exam Prep.

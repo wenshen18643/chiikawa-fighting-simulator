@@ -95,7 +95,9 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 				},
 				{
 					title = "Nothing is lost",
-					body = "Sprinting is free. Running out of stamina causes a short rest, not a failure. Falling out of the world returns you safely, and the current build has no enemy damage or PvP.",
+					body = "Sprinting is free. Running out of stamina causes a short rest, not a failure. "
+						.. "Mushroom Frogs and Spiders can hurt you outside Home; Ducks flee when struck. "
+						.. "Character defeat loses nothing and there is no PvP.",
 				},
 			},
 		},
@@ -103,7 +105,10 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 			key = "controls",
 			label = "Controls",
 			title = "Controls",
-			kicker = if device == "touch" then "TOUCH" elseif device == "gamepad" then "CONTROLLER" else "KEYBOARD + MOUSE",
+			kicker = if device == "touch"
+				then "TOUCH"
+				elseif device == "gamepad" then "CONTROLLER"
+				else "KEYBOARD + MOUSE",
 			accent = "resilience",
 			blocks = {
 				{
@@ -134,7 +139,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 						{
 							label = "1 · Tobatsu",
 							value = "Sasumata and subduing practice",
-							note = "The work button is also your attack. Face the scarecrow outside Home for 2× Tobatsu.",
+							note = "The work button is also your attack. Face a nearby mob to earn bonus Tobatsu; stronger mobs pay more.",
 							accent = "tobatsu",
 						},
 						{

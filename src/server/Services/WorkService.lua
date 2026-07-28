@@ -30,13 +30,12 @@ local RateLimiter = require(Shared.Modules.RateLimiter)
 local Remotes = require(Shared.Modules.Remotes)
 local Companions = require(Shared.Modules.Config.Companions)
 local Skills = require(Shared.Modules.Config.Skills)
-local SafeZone = require(Shared.Modules.Config.SafeZone)
 local Worksites = require(Shared.Modules.Config.Worksites)
 
 local CurrencyService = require(script.Parent.CurrencyService)
 local DataService = require(script.Parent.DataService)
+local MobService = require(script.Parent.MobService)
 local NotifyService = require(script.Parent.NotifyService)
-local SafeZoneService = require(script.Parent.SafeZoneService)
 local SkillService = require(script.Parent.SkillService)
 local StaminaService = require(script.Parent.StaminaService)
 local WeedService = require(script.Parent.WeedService)
@@ -80,7 +79,8 @@ local function credit(
 	skillId: string,
 	worksiteId: string?,
 	actions: number,
-	actionMultiplier: number?
+	actionMultiplier: number?,
+	grantYen: boolean?
 )
 	if not Skills.exists(skillId) then
 		return nil
@@ -98,9 +98,11 @@ local function credit(
 
 	SkillService.award(player, profile, skillId, gain)
 
-	local yen = Formulas.yenForGain(skillId, gain)
-	if not BigNumber.isZero(yen) then
-		CurrencyService.award(profile, "yen", yen)
+	if grantYen ~= false then
+		local yen = Formulas.yenForGain(skillId, gain)
+		if not BigNumber.isZero(yen) then
+			CurrencyService.award(profile, "yen", yen)
+		end
 	end
 
 	local bonus: any = nil
@@ -222,6 +224,32 @@ local function onPerform(player: Player)
 		return
 	end
 
+	-- A mob in the server-validated strike cone wins over pads and free-form
+	-- training. The client still sends no target, stat, or damage value.
+	if MobService.canAttack(player) then
+		if not limiterFor(player, profile):consume() then
+			return
+		end
+		if not StaminaService.tryConsume(player, profile) then
+			explain(player, "Catching your breath for a moment. You are still earning.")
+			return
+		end
+
+		local currentTobatsu = SkillService.get(profile, "tobatsu")
+		local hitDefinition = MobService.tryAttack(player, BigNumber.toNumber(currentTobatsu))
+		if not hitDefinition then
+			return
+		end
+
+		local gain, bonus = credit(player, profile, "tobatsu", nil, 1, hitDefinition.hitGainMultiplier, false)
+		if not gain then
+			return
+		end
+		markWorking(player, "tobatsu", 1)
+		WorkService.feedback:FireClient(player, "tobatsu", gain, nil, nil, bonus)
+		return
+	end
+
 	--[[
 		A pad is a MULTIPLIER, not a gate.
 
@@ -236,8 +264,7 @@ local function onPerform(player: Player)
 		skill at base rate. The pad is worth between two and five thousand times
 		open ground, which never needed a wall to enforce.
 	]]
-	local attackingDummy = SafeZoneService.isAttackingTrainingDummy(player)
-	local spot = if attackingDummy then nil else WorksiteService.getOccupied(player)
+	local spot = WorksiteService.getOccupied(player)
 
 	-- Re-validate rather than trusting the throttled occupancy tick. A player
 	-- who has stepped off since the last tick falls through to free-form rather
@@ -247,9 +274,7 @@ local function onPerform(player: Player)
 	end
 
 	local worksite = if spot then Worksites.get(spot.worksiteId) else nil
-	local skillId = if attackingDummy then "tobatsu"
-		elseif worksite then (worksite :: any).skill
-		else freeformSkill(player, profile)
+	local skillId = if worksite then (worksite :: any).skill else freeformSkill(player, profile)
 
 	-- Exam Prep is earned only by page flips inside StudySession. A normal Work
 	-- click must not grant it (or consume stamina for an action that cannot pay).
@@ -282,14 +307,7 @@ local function onPerform(player: Player)
 		return
 	end
 
-	local gain, bonus = credit(
-		player,
-		profile,
-		skillId,
-		spot and spot.worksiteId or nil,
-		1,
-		if attackingDummy then SafeZone.trainingDummy.multiplier else nil
-	)
+	local gain, bonus = credit(player, profile, skillId, spot and spot.worksiteId or nil, 1, nil)
 	if not gain then
 		return
 	end
