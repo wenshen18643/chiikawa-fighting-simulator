@@ -34,6 +34,11 @@ export type DecorateContext = {
 	parent: Folder,
 	rng: Random,
 	isReserved: (x: number, z: number) -> boolean,
+	-- Where the plaza ends and where the pads start, so area files place things
+	-- relative to the town instead of to a hardcoded island size.
+	plazaRadius: number,
+	districtRadius: number,
+	padSpacing: number,
 	helpers: typeof(Area.helpers),
 	UI: typeof(UI),
 	--[[
@@ -51,6 +56,8 @@ export type DecorateContext = {
 	model: ((key: string) -> Model?)?,
 	-- `match` selects by name within the pack: "tree", "bush", "grass".
 	packItem: ((key: string, match: string?) -> Model?)?,
+	-- Real surface height at (x, z), terrain rounding included. Server-only.
+	groundY: ((x: number, z: number) -> number)?,
 }
 
 --[[
@@ -59,6 +66,13 @@ export type DecorateContext = {
 	Returns nil when there is no such asset, which is the signal for the caller
 	to build its procedural version instead.
 ]]
+local function groundAt(ctx: DecorateContext, x: number, z: number): number
+	if ctx.groundY then
+		return ctx.groundY(x, z)
+	end
+	return Constants.WORLD.TERRAIN_TOP
+end
+
 local function placeAsset(ctx: DecorateContext, key: string, x: number, z: number, config: { [string]: any }?): Model?
 	local get = ctx.model
 	if not get then
@@ -71,19 +85,50 @@ local function placeAsset(ctx: DecorateContext, key: string, x: number, z: numbe
 	end
 
 	local options = config or {}
+
+	--[[
+		Some models are authored lying along their X or Z axis (the sausage
+		trees most notably). Stand them up BEFORE any height is measured: a
+		lying tree's Y extent is its trunk width, so scaling first sizes by the
+		wrong axis and seating first buries the crown.
+	]]
+	if options.upright then
+		local extents = model:GetExtentsSize()
+		if extents.Y < extents.X or extents.Y < extents.Z then
+			local fix = if extents.X > extents.Z then CFrame.Angles(0, 0, math.rad(90)) else CFrame.Angles(math.rad(90), 0, 0)
+			model:PivotTo(model:GetPivot() * fix)
+		end
+	end
+
 	local scale = options.scale
 	if scale and scale ~= 1 then
 		model:ScaleTo(model:GetScale() * scale)
 	end
 
+	--[[
+		`height` is the honest one. Uploaded models arrive at whatever scale
+		their author worked at, so a per-asset multiplier is a number somebody
+		has to guess and re-guess every time an asset is replaced. Asking for
+		"this should be nine studs tall" is a decision about the scene, and it
+		survives swapping the model underneath it.
+	]]
+	if options.height then
+		local extents = model:GetExtentsSize()
+		if extents.Y > 0.01 then
+			model:ScaleTo(model:GetScale() * (options.height / extents.Y))
+		end
+	end
+
 	local size = model:GetExtentsSize()
-	local base = ctx.origin
-		+ Vector3.new(x, Constants.WORLD.TERRAIN_TOP + (options.y or 0) + size.Y / 2, z)
+	local base = ctx.origin + Vector3.new(x, groundAt(ctx, x, z) + (options.y or 0) + size.Y / 2, z)
 
 	local pivot = CFrame.new(base)
 	local spin = options.rotation
 	if spin then
 		pivot *= CFrame.Angles(0, spin, 0)
+	end
+	if options.pitch or options.roll then
+		pivot *= CFrame.Angles(math.rad(options.pitch or 0), 0, math.rad(options.roll or 0))
 	end
 
 	model:PivotTo(pivot)
@@ -110,12 +155,27 @@ export type AreaDefinition = {
 
 Area.helpers = {}
 
+-- Decor smaller than this stops casting shadows.
+local SHADOW_MIN_SIZE = 6
+
 function Area.helpers.block(ctx: DecorateContext, config: { [string]: any }): Part
 	local part = Instance.new("Part")
 	part.Name = config.name or "Decor"
 	part.Anchored = true
 	part.CanCollide = config.collide ~= false
+	--[[
+		Scenery is not a trigger and rarely a raycast target. Touch is the
+		expensive one: every decor part left touchable joins the broadphase the
+		character is tested against on every step, and an area scatters
+		hundreds. Small parts also stop casting shadows -- a pebble's shadow
+		costs a shadow-map draw and is worth nothing.
+	]]
+	part.CanTouch = false
+	part.CanQuery = config.collide ~= false
 	part.Size = config.size
+	if math.max(config.size.X, config.size.Y, config.size.Z) < SHADOW_MIN_SIZE then
+		part.CastShadow = false
+	end
 	part.Shape = config.shape or Enum.PartType.Block
 	part.Color = config.color or ctx.area.palette.prop
 	part.Material = config.material or Enum.Material.SmoothPlastic
@@ -123,7 +183,7 @@ function Area.helpers.block(ctx: DecorateContext, config: { [string]: any }): Pa
 	part.TopSurface = Enum.SurfaceType.Smooth
 	part.BottomSurface = Enum.SurfaceType.Smooth
 
-	local groundY = Constants.WORLD.TERRAIN_TOP + (config.y or 0)
+	local groundY = groundAt(ctx, config.x or 0, config.z or 0) + (config.y or 0)
 	if config.cframe then
 		part.CFrame = config.cframe
 	else
@@ -159,7 +219,7 @@ function Area.helpers.tree(ctx: DecorateContext, x: number, z: number, height: n
 			-- Re-seat it: scaling about the pivot moves where the base sits.
 			local size = asset:GetExtentsSize()
 			asset:PivotTo(
-				CFrame.new(ctx.origin + Vector3.new(x, Constants.WORLD.TERRAIN_TOP + size.Y / 2, z))
+				CFrame.new(ctx.origin + Vector3.new(x, groundAt(ctx, x, z) + size.Y / 2, z))
 					* CFrame.Angles(0, ctx.rng:NextNumber() * math.pi * 2, 0)
 			)
 		end
@@ -182,6 +242,7 @@ function Area.helpers.tree(ctx: DecorateContext, x: number, z: number, height: n
 	]]
 	local rng = ctx.rng
 	local lean = if rng then (rng:NextNumber() - 0.5) * 0.14 else 0
+	local gy = groundAt(ctx, x, z)
 
 	local trunk = Area.helpers.block(ctx, {
 		name = "Trunk",
@@ -190,7 +251,7 @@ function Area.helpers.tree(ctx: DecorateContext, x: number, z: number, height: n
 		color = Color3.fromRGB(122, 96, 74),
 		material = Enum.Material.Wood,
 		-- Cylinders are long on X, so stand it up, then lean it slightly.
-		cframe = CFrame.new(ctx.origin + Vector3.new(x, Constants.WORLD.TERRAIN_TOP + height / 2 - 1, z))
+		cframe = CFrame.new(ctx.origin + Vector3.new(x, gy + height / 2 - 1, z))
 			* CFrame.Angles(lean, 0, math.rad(90) + lean),
 	})
 
@@ -201,8 +262,7 @@ function Area.helpers.tree(ctx: DecorateContext, x: number, z: number, height: n
 		size = Vector3.new(2.4, 2.9, 2.9),
 		color = Color3.fromRGB(104, 80, 60),
 		material = Enum.Material.Wood,
-		cframe = CFrame.new(ctx.origin + Vector3.new(x, Constants.WORLD.TERRAIN_TOP + 0.2, z))
-			* CFrame.Angles(0, 0, math.rad(90)),
+		cframe = CFrame.new(ctx.origin + Vector3.new(x, gy + 0.2, z)) * CFrame.Angles(0, 0, math.rad(90)),
 		collide = false,
 	})
 
@@ -350,8 +410,7 @@ function Area.helpers.natureProp(ctx: DecorateContext, x: number, z: number, mat
 
 	local spin = if ctx.rng then ctx.rng:NextNumber() * math.pi * 2 else 0
 	model:PivotTo(
-		CFrame.new(ctx.origin + Vector3.new(x, Constants.WORLD.TERRAIN_TOP + size.Y / 2, z))
-			* CFrame.Angles(0, spin, 0)
+		CFrame.new(ctx.origin + Vector3.new(x, groundAt(ctx, x, z) + size.Y / 2, z)) * CFrame.Angles(0, spin, 0)
 	)
 	model.Parent = ctx.parent
 	return model
@@ -394,6 +453,7 @@ function Area.helpers.studyDesk(ctx: DecorateContext, config: { [string]: any })
 	local model = Instance.new("Model")
 	model.Name = "StudyDeskProp"
 	local x, z, y = config.x or 0, config.z or 0, config.y or 3.2
+	local gy = groundAt(ctx, x, z)
 
 	-- Round Oval Tabletop in Cute Pastel Pink
 	local top = Area.helpers.block(ctx, {
@@ -402,7 +462,7 @@ function Area.helpers.studyDesk(ctx: DecorateContext, config: { [string]: any })
 		size = Vector3.new(0.6, 9.5, 6.2),
 		color = Color3.fromRGB(245, 175, 195),
 		material = Enum.Material.SmoothPlastic,
-		cframe = CFrame.new(ctx.origin + Vector3.new(x, Constants.WORLD.TERRAIN_TOP + y, z)) * CFrame.Angles(0, 0, math.rad(90)),
+		cframe = CFrame.new(ctx.origin + Vector3.new(x, gy + y, z)) * CFrame.Angles(0, 0, math.rad(90)),
 		parent = model,
 	})
 
@@ -551,6 +611,7 @@ function Area.helpers.weedingPatch(ctx: DecorateContext, config: { [string]: any
 	local model = Instance.new("Model")
 	model.Name = "WeedingPatchProp"
 	local x, z, y = config.x or 0, config.z or 0, config.y or 1.5
+	local gy = groundAt(ctx, x, z)
 
 	local soil = Area.helpers.block(ctx, {
 		name = "SoilMound",
@@ -558,7 +619,7 @@ function Area.helpers.weedingPatch(ctx: DecorateContext, config: { [string]: any
 		size = Vector3.new(1.2, 10.0, 10.0),
 		color = Color3.fromRGB(110, 85, 65),
 		material = Enum.Material.Ground,
-		cframe = CFrame.new(ctx.origin + Vector3.new(x, Constants.WORLD.TERRAIN_TOP + y, z)) * CFrame.Angles(0, 0, math.rad(90)),
+		cframe = CFrame.new(ctx.origin + Vector3.new(x, gy + y, z)) * CFrame.Angles(0, 0, math.rad(90)),
 		parent = model,
 	})
 
@@ -573,7 +634,8 @@ function Area.helpers.weedingPatch(ctx: DecorateContext, config: { [string]: any
 			size = Vector3.new(0.6, 2.2, 0.6),
 			color = if i % 2 == 0 then Color3.fromRGB(126, 190, 104) else Color3.fromRGB(96, 162, 78),
 			material = Enum.Material.Grass,
-			cframe = CFrame.new(ctx.origin + Vector3.new(gx, Constants.WORLD.TERRAIN_TOP + y + 1.2, gz)) * CFrame.Angles(0, angle, math.rad(15)),
+			cframe = CFrame.new(ctx.origin + Vector3.new(gx, gy + y + 1.2, gz))
+				* CFrame.Angles(0, angle, math.rad(15)),
 			parent = model,
 		})
 	end
@@ -711,6 +773,77 @@ function Area.helpers.waterfallZone(ctx: DecorateContext, config: { [string]: an
 
 	model.Parent = config.parent or ctx.parent
 	return model
+end
+
+--[[
+	One uploaded prop, sized against the player rather than against whatever
+	scale it was authored at. Returns nil if the asset did not load, so callers
+	can fall back to parts.
+]]
+function Area.helpers.prop(ctx: DecorateContext, key: string, x: number, z: number, config: { [string]: any }?): Model?
+	local options = config or {}
+	return placeAsset(ctx, key, x, z, {
+		height = options.height,
+		rotation = options.rotation or ctx.rng:NextNumber() * math.pi * 2,
+		y = options.y,
+		parent = options.parent,
+		upright = options.upright,
+		pitch = options.pitch,
+		roll = options.roll,
+	})
+end
+
+--[[
+	A path, as round stepping stones.
+
+	Stones rather than a paved strip: a strip is a road, and this is a town
+	where everything is soft and slightly too round. They are also cheap and
+	forgiving — laid on a hillside a continuous strip would either float or
+	sink, while separate discs just follow the ground one at a time.
+
+	Non-collidable and set just above the terrain: the path is a suggestion,
+	never a kerb to trip on.
+]]
+function Area.helpers.path(ctx: DecorateContext, config: { [string]: any })
+	local from = Vector2.new(config.fromX, config.fromZ)
+	local to = Vector2.new(config.toX, config.toZ)
+	local span = to - from
+	local length = span.Magnitude
+	if length < 1 then
+		return
+	end
+
+	local direction = span.Unit
+	local spacing = config.spacing or 9
+	local width = config.width or 7
+	local steps = math.floor(length / spacing)
+
+	for index = 0, steps do
+		local along = from + direction * (index * spacing)
+		-- Sideways wobble, so the line reads as walked rather than surveyed.
+		local drift = ctx.rng:NextNumber(-1.4, 1.4)
+		local size = width * ctx.rng:NextNumber(0.82, 1.1)
+		local stoneX = along.X - direction.Y * drift
+		local stoneZ = along.Y + direction.X * drift
+
+		local stone = Instance.new("Part")
+		stone.Name = "PathStone"
+		stone.Shape = Enum.PartType.Cylinder
+		stone.Size = Vector3.new(0.5, size, size)
+		stone.CFrame = CFrame.new(
+			ctx.origin + Vector3.new(stoneX, groundAt(ctx, stoneX, stoneZ) + 0.16, stoneZ)
+		) * CFrame.Angles(0, 0, math.rad(90))
+		stone.Color = if ctx.rng:NextNumber() > 0.82
+			then config.accent or Color3.fromRGB(244, 206, 210)
+			else config.color or Color3.fromRGB(246, 240, 228)
+		stone.Material = Enum.Material.SmoothPlastic
+		stone.Anchored = true
+		stone.CanCollide = false
+		stone.CanQuery = false
+		stone.CanTouch = false
+		stone.CastShadow = false
+		stone.Parent = ctx.parent
+	end
 end
 
 function Area.helpers.scatter(ctx: DecorateContext, count: number, place: (x: number, z: number) -> ())

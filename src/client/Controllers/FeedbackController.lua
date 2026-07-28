@@ -374,6 +374,13 @@ local function rumble()
 	end)
 end
 
+function FeedbackController.celebrate(skillId: string?)
+	burst(skillId)
+	pulseVignette(skillId)
+	kickCamera(0.8)
+	rumble()
+end
+
 local function onLocalClick(skillId: string?)
 	burst(skillId)
 	pulseVignette(skillId)
@@ -456,6 +463,14 @@ function FeedbackController.init()
 		if worksiteId and regionId then
 			ripple(worksiteId, regionId)
 		end
+	end)
+
+	Remotes.event("Forage", "Event").OnClientEvent:Connect(function(kind, _ingredientId, gain)
+		if kind ~= "success" then
+			return
+		end
+		showGain(gain, "kusatori")
+		burst("kusatori")
 	end)
 
 	RunService.RenderStepped:Connect(function(delta)

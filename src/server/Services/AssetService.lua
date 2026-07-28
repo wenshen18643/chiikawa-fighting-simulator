@@ -77,6 +77,9 @@ local function isContraband(descendant: Instance): boolean
 		or descendant:IsA("PostEffect")
 end
 
+-- Props smaller than this stop casting shadows.
+local SHADOW_MIN_SIZE = 6
+
 --[[
 	Make an uploaded model safe to scatter.
 
@@ -167,6 +170,25 @@ local function prepare(model: Model, spec: Assets.AssetSpec)
 			descendant.CanCollide = solid
 			descendant.CanQuery = solid
 			descendant.CanTouch = false
+
+			--[[
+				Streaming cost, not looks.
+
+				Uploaded props arrive with per-triangle collision meshes and cast
+				shadows from every leaf. Both are paid per streamed-in instance,
+				which is exactly the moment the player is running and the frame
+				budget is already gone. A box hull around a bush is invisible;
+				the hitch it removes is not. Anything under SHADOW_MIN_SIZE stops
+				casting: a flower's shadow is two pixels.
+			]]
+			if descendant:IsA("MeshPart") or descendant:IsA("UnionOperation") then
+				pcall(function()
+					(descendant :: any).CollisionFidelity = Enum.CollisionFidelity.Box
+				end)
+			end
+			if math.max(descendant.Size.X, descendant.Size.Y, descendant.Size.Z) < SHADOW_MIN_SIZE then
+				descendant.CastShadow = false
+			end
 		elseif isContraband(descendant) then
 			descendant:Destroy()
 		end

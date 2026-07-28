@@ -36,6 +36,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
+local SafeZone = require(Shared.Modules.Config.SafeZone)
 local Skills = require(Shared.Modules.Config.Skills)
 local Worksites = require(Shared.Modules.Config.Worksites)
 
@@ -300,6 +301,20 @@ function Layout.reservedZones(area: Areas.AreaDefinition): { Zone }
 		x = 0,
 		z = 0,
 		radius = Layout.plazaDiameter(area) / 2 + 60,
+	})
+
+	--[[
+		The home plot. The plaza circle above does not reach its corners (the
+		garden fence sits at ~172 studs on the diagonal against the circle's
+		145), and scatter — now dense, with sections planting whole farms —
+		was free to grow a tilled row inside the player's own garden.
+	]]
+	table.insert(zones, {
+		kind = "rect",
+		x = SafeZone.VOLUME.centreOffset.X,
+		z = SafeZone.VOLUME.centreOffset.Z,
+		halfX = SafeZone.VOLUME.size.X / 2 + 10,
+		halfZ = SafeZone.VOLUME.size.Z / 2 + 10,
 	})
 
 	for _, district in Layout.districts(area) do

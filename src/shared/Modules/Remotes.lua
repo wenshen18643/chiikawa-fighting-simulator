@@ -18,6 +18,12 @@
 	  - Study.SitExam       client -> server, request to begin the Grade 5 exam.
 	  - Study.Close         client -> server, abandon the current book session.
 	  - Study.Event         server -> client, study/exam presentation payloads.
+	  - Forage.Event        server -> client, pluck progress/success for VFX.
+	  - Cook.Open           server -> client, open the kitchen UI.
+	  - Cook.Select         client -> server, chosen recipe id, validated server-side.
+	  - Cook.Click          client -> server, one stir click, intent only.
+	  - Cook.Event          server -> client, cook session lifecycle payloads.
+	  - Inventory.Eat       client -> server, dish id to consume, validated.
 
 	There is deliberately no currency remote the client can write to.
 ]]
@@ -74,6 +80,17 @@ local REMOTE_TREE = {
 		-- Preview, question, feedback and result payloads from server to client.
 		Event = "RemoteEvent",
 	},
+	-- Plucking itself uses server ProximityPrompts, so there is deliberately no
+	-- Forage.Pluck remote; this only carries the presentation back down.
+	Forage = { Event = "RemoteEvent" }, -- server -> client: pluck progress/success for VFX
+	Cook = {
+		Open = "RemoteEvent", -- server -> client: open the kitchen UI (station proximity prompt)
+		Select = "RemoteEvent", -- client -> server: chosen recipe id, validated server-side
+		Click = "RemoteEvent", -- client -> server: one stir click, arg-less intent
+		Event = "RemoteEvent", -- server -> client: cook session lifecycle (started/progress/done/cancelled)
+	},
+	-- client -> server: an item id to consume, validated
+	Inventory = { Eat = "RemoteEvent", UseSeasoning = "RemoteEvent" },
 	Guide = {
 		-- Client tells the server the player has read the intro, so it stops
 		-- being offered. One remote beats a client-side flag that forgets.

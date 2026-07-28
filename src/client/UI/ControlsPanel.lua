@@ -160,7 +160,6 @@ local function addStandardRow(parent: Instance, index: number, rowData: Tutorial
 		})
 		note.LayoutOrder = 3
 	end
-
 end
 
 --[[

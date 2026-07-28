@@ -231,6 +231,173 @@ local function buildWallSide(
 end
 
 --[[
+	The picket fence you can actually see, in front of the invisible wall.
+
+	Same fence as the safe zone garden (SafeZoneService.buildFence): posts with
+	round caps and two rails. A world edge that is only an invisible wall reads
+	as a bug the first time you walk into it — the fence turns "you cannot go
+	there" into "the town ends here", which is a different feeling entirely.
+
+	Drawn a little inside the wall so you bump the fence, not the air in front
+	of it, and left non-collidable itself: the wall is the rule, this is the
+	sign. Posts are far enough apart that a whole 2,600-stud side is a few
+	hundred parts rather than a few thousand, and streaming only ever loads the
+	stretch you are standing next to.
+]]
+local FENCE = {
+	SPACING = 18,
+	HEIGHT = 7,
+	POST = 1.3,
+	INSET = 6,
+	RAIL = 0.6,
+	RAIL_SEGMENT = 180,
+	POST_COLOR = Color3.fromRGB(253, 250, 246),
+	CAP_COLOR = Color3.fromRGB(244, 186, 190),
+}
+
+local function buildFenceRun(parent: Folder, from: Vector3, to: Vector3)
+	local span = to - from
+	local length = span.Magnitude
+	if length < FENCE.SPACING then
+		return
+	end
+
+	local direction = span.Unit
+	local yaw = math.atan2(direction.X, direction.Z)
+	local posts = math.floor(length / FENCE.SPACING)
+
+	for index = 0, posts do
+		local at = from + direction * (index * FENCE.SPACING)
+		part({
+			Name = "FencePost",
+			Size = Vector3.new(FENCE.POST, FENCE.HEIGHT, FENCE.POST),
+			Position = at + Vector3.new(0, FENCE.HEIGHT / 2, 0),
+			Color = FENCE.POST_COLOR,
+			Material = Enum.Material.SmoothPlastic,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			CastShadow = false,
+			Parent = parent,
+		})
+		part({
+			Name = "FenceCap",
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(FENCE.POST * 1.5, FENCE.POST * 1.5, FENCE.POST * 1.5),
+			Position = at + Vector3.new(0, FENCE.HEIGHT, 0),
+			Color = FENCE.CAP_COLOR,
+			Material = Enum.Material.SmoothPlastic,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			CastShadow = false,
+			Parent = parent,
+		})
+	end
+
+	--[[
+		Rails in segments, not one part per side.
+
+		A Town side is 2,588 studs and a Part cannot exceed 2,048, so the first
+		version of this asked for a size the engine will not give — and a rail
+		that long would also be streamed in from anywhere on the map, which is
+		the opposite of what the fence is for. Segments are capped well under
+		the limit so each one streams with the stretch of fence it belongs to.
+	]]
+	local segments = math.max(1, math.ceil(length / FENCE.RAIL_SEGMENT))
+	local segmentLength = length / segments
+
+	for step = 0, segments - 1 do
+		local centre = from + direction * (step * segmentLength + segmentLength / 2)
+		for _, fraction in { 0.38, 0.74 } do
+			part({
+				Name = "FenceRail",
+				Size = Vector3.new(FENCE.RAIL, FENCE.RAIL, segmentLength),
+				CFrame = CFrame.new(centre + Vector3.new(0, FENCE.HEIGHT * fraction, 0)) * CFrame.Angles(0, yaw, 0),
+				Color = FENCE.POST_COLOR,
+				Material = Enum.Material.SmoothPlastic,
+				CanCollide = false,
+				CanQuery = false,
+				CanTouch = false,
+				CastShadow = false,
+				Parent = parent,
+			})
+		end
+	end
+end
+
+--[[
+	A gate in the fence: two taller posts, a lintel across them, and the two
+	leaves standing open.
+
+	Open rather than closed, and non-collidable: it marks the way in, it does
+	not ask to be used. A gate you have to interact with at the edge of a lawn
+	is a door to nowhere.
+]]
+local function buildFenceGate(parent: Folder, at: Vector3, yaw: number)
+	local width = 16
+	local height = FENCE.HEIGHT * 1.5
+	local base = CFrame.new(at) * CFrame.Angles(0, yaw, 0)
+
+	for _, side in { -1, 1 } do
+		part({
+			Name = "GatePost",
+			Size = Vector3.new(FENCE.POST * 1.6, height, FENCE.POST * 1.6),
+			CFrame = base * CFrame.new(side * width / 2, height / 2, 0),
+			Color = FENCE.POST_COLOR,
+			Material = Enum.Material.SmoothPlastic,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Parent = parent,
+		})
+		part({
+			Name = "GateFinial",
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(2.4, 2.4, 2.4),
+			CFrame = base * CFrame.new(side * width / 2, height + 0.6, 0),
+			Color = FENCE.CAP_COLOR,
+			Material = Enum.Material.SmoothPlastic,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			CastShadow = false,
+			Parent = parent,
+		})
+
+		-- A leaf swung back against the fence, so the opening stays walkable.
+		part({
+			Name = "GateLeaf",
+			Size = Vector3.new(0.5, FENCE.HEIGHT, width / 2),
+			CFrame = base
+				* CFrame.new(side * width / 2, FENCE.HEIGHT / 2, 0)
+				* CFrame.Angles(0, side * math.rad(70), 0)
+				* CFrame.new(0, 0, -width / 4),
+			Color = FENCE.POST_COLOR,
+			Material = Enum.Material.SmoothPlastic,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			CastShadow = false,
+			Parent = parent,
+		})
+	end
+
+	part({
+		Name = "GateLintel",
+		Size = Vector3.new(width + 3, 1.4, 1.4),
+		CFrame = base * CFrame.new(0, height, 0),
+		Color = FENCE.CAP_COLOR,
+		Material = Enum.Material.SmoothPlastic,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		CastShadow = false,
+		Parent = parent,
+	})
+end
+
+--[[
 	Fences an area's footprint, leaving openings wherever a land bridge meets it.
 
 	This is per-area rather than one rectangle around the whole landmass because
@@ -245,6 +412,25 @@ local function buildBoundary(area: Areas.AreaDefinition, parent: Folder, hasWest
 	buildWallSide(area, parent, "South", Vector3.new(0, 0, -half), "x", 0)
 	buildWallSide(area, parent, "West", Vector3.new(-half, 0, 0), "z", if hasWestBridge then bridgeGap else 0)
 	buildWallSide(area, parent, "East", Vector3.new(half, 0, 0), "z", if area.bridgeTo then bridgeGap else 0)
+
+	local fence = Instance.new("Folder")
+	fence.Name = "Fence"
+	fence.Parent = parent
+
+	local edge = half - FENCE.INSET
+	local y = WORLD.TERRAIN_TOP
+	local corners = {
+		area.origin + Vector3.new(-edge, y, -edge),
+		area.origin + Vector3.new(edge, y, -edge),
+		area.origin + Vector3.new(edge, y, edge),
+		area.origin + Vector3.new(-edge, y, edge),
+	}
+	for index, from in corners do
+		buildFenceRun(fence, from, corners[index % #corners + 1])
+	end
+
+	-- One gate on the south side, where the road out of the plaza runs.
+	buildFenceGate(fence, area.origin + Vector3.new(0, y, -edge), 0)
 end
 
 --------------------------------------------------------------------------------
@@ -412,11 +598,49 @@ local function decorateArea(area: Areas.AreaDefinition, parent: Folder)
 	]]
 	local packRng = Random.new(area.id * 104729)
 
+	--[[
+		Real surface height, terrain rounding included. Smooth terrain renders a
+		stud or two above its nominal fill top, so anything seated at
+		TERRAIN_TOP is buried by that much — which is where the sunk paths and
+		half-buried shops came from. Raycasts against everything EXCEPT the
+		scenery being placed (so plazas and pads count as ground, props do not),
+		memoised per 8-stud cell so a scatter of hundreds stays cheap.
+	]]
+	local groundParams = RaycastParams.new()
+	groundParams.FilterType = Enum.RaycastFilterType.Exclude
+	groundParams.FilterDescendantsInstances = { scenery }
+
+	local groundCache: { [string]: number } = {}
+	local function groundY(x: number, z: number): number
+		local key = `{math.floor(x / 8)}:{math.floor(z / 8)}`
+		local cached = groundCache[key]
+		if cached then
+			return cached
+		end
+		local hit = Workspace:Raycast(area.origin + Vector3.new(x, 160, z), Vector3.new(0, -320, 0), groundParams)
+		local y = if hit then hit.Position.Y else WORLD.TERRAIN_TOP + 1.5
+		groundCache[key] = y
+		return y
+	end
+
 	local ctx = {
 		area = area,
 		origin = area.origin,
 		parent = scenery,
 		rng = Random.new(area.id * 7919),
+		groundY = groundY,
+		--[[
+			The measurements an area file needs to place anything relative to
+			the town rather than to a number somebody typed.
+
+			Handed in for the same reason isReserved is: Layout is required
+			here already, and an area file that computed the plaza radius itself
+			would be a second copy of that formula waiting to disagree with the
+			first the next time an island is resized.
+		]]
+		plazaRadius = Layout.plazaDiameter(area) / 2,
+		districtRadius = Layout.districtRadius(area),
+		padSpacing = Layout.padSpacing(area),
 		isReserved = function(x: number, z: number): boolean
 			return Layout.isReserved(zones, x, z)
 		end,
@@ -591,7 +815,14 @@ end
 ]]
 local function applyOptionalWorkspaceSettings()
 	local ok = pcall(function()
-		Workspace.StreamingIntegrityMode = Enum.StreamingIntegrityMode.MinimumRadiusPause
+		--[[
+			MinimumRadiusPause used to be set here, and it is what the running-
+			around stutter actually was: it freezes the character whenever the
+			full min radius has not arrived, so sprinting across an area at 30
+			studs/s hard-stops every time streaming falls behind. Default still
+			refuses to drop you through unloaded ground, without the hitching.
+		]]
+		Workspace.StreamingIntegrityMode = Enum.StreamingIntegrityMode.Default
 	end)
 
 	if not ok then
@@ -645,7 +876,21 @@ function WorldService.init()
 		folder.Parent = worldFolder
 
 		buildPlaza(region, folder)
-		buildBoundary(region, folder, hasWestBridge[region.id] == true)
+
+		--[[
+			Guarded for the same reason decorateArea is, and learned the hard
+			way: the fence threw once and took the REST of init with it — no
+			decor, no bridges, no lighting, no streaming settings — while
+			terrain, pads and NPCs still appeared because those come from other
+			services that only need the region folder. The result was a world
+			that looked half-built rather than broken, which is a much harder
+			thing to diagnose than a warning.
+		]]
+		local fenced, fenceErr = pcall(buildBoundary, region, folder, hasWestBridge[region.id] == true)
+		if not fenced then
+			warn(`[WorldService] area "{region.key}" boundary failed: {fenceErr}`)
+		end
+
 		decorateArea(region, folder)
 	end
 

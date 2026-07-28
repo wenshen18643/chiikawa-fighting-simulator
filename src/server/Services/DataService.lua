@@ -69,6 +69,7 @@ local function buildTemplate(): any
 			yen = BigNumber.fromNumber(Constants.CURRENCY.STARTING_YEN),
 			stamps = BigNumber.fromNumber(Constants.CURRENCY.STARTING_STAMPS),
 			ingredients = {},
+			seasonings = {},
 			materials = {},
 		},
 		seasons = 0,
@@ -85,6 +86,8 @@ local function buildTemplate(): any
 		companions = {},
 		gear = {},
 		recipes = {},
+		-- Cooked dishes owned, {recipeId = count}.
+		dishes = {},
 		workOrders = { completed = {}, active = {} },
 		unlockedWorksites = {},
 		-- String keys throughout: DataStore serialises through JSON, which has
@@ -127,6 +130,7 @@ end
 -- player spent or unlocks they lost to a season reset.
 local OPEN_MAPS = {
 	ingredients = true,
+	seasonings = true,
 	materials = true,
 	unlockedWorksites = true,
 	unlockedRegions = true,
@@ -134,6 +138,7 @@ local OPEN_MAPS = {
 	companions = true,
 	boosts = true,
 	recipes = true,
+	dishes = true,
 	furniture = true,
 	active = true,
 	completed = true,

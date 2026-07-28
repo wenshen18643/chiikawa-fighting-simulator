@@ -29,11 +29,13 @@ local Formulas = require(Shared.Modules.Formulas)
 local RateLimiter = require(Shared.Modules.RateLimiter)
 local Remotes = require(Shared.Modules.Remotes)
 local Companions = require(Shared.Modules.Config.Companions)
+local Seasonings = require(Shared.Modules.Config.Seasonings)
 local Skills = require(Shared.Modules.Config.Skills)
 local Worksites = require(Shared.Modules.Config.Worksites)
 
 local CurrencyService = require(script.Parent.CurrencyService)
 local DataService = require(script.Parent.DataService)
+local ForagingService = require(script.Parent.ForagingService)
 local MobService = require(script.Parent.MobService)
 local NotifyService = require(script.Parent.NotifyService)
 local SkillService = require(script.Parent.SkillService)
@@ -140,7 +142,13 @@ local function freeformSkill(player: Player, profile: any): string
 
 	local selected = profile.selectedSkill
 	if type(selected) == "string" and Skills.exists(selected) then
-		return Skills.canonicalize(selected)
+		local canonical = Skills.canonicalize(selected)
+		-- Old profiles may still have resilience selected; it is trained by
+		-- cooking now, so fall back to the first skill instead.
+		if canonical == "resilience" then
+			return Skills.ORDER[1]
+		end
+		return canonical
 	end
 	return Skills.ORDER[1]
 end
@@ -160,6 +168,81 @@ local function explain(player: Player, message: string)
 	end
 	lastExplained[player] = now
 	NotifyService.send(player, message, "info")
+end
+
+--------------------------------------------------------------------------------
+-- Pulling
+--------------------------------------------------------------------------------
+
+local seasoningRng = Random.new()
+
+--[[
+	A weed sometimes leaves a seasoning behind.
+
+	Rolled here rather than in WeedService because WeedService knows about
+	geometry and regrow timers, not about profiles: it answers "is this patch
+	pulled", and what the pull was worth is this service's question.
+]]
+local function rollSeasoning(player: Player, profile: any)
+	if seasoningRng:NextNumber() > Seasonings.DROP_CHANCE then
+		return
+	end
+	local def = Seasonings.roll(seasoningRng)
+	if not def then
+		return
+	end
+
+	local seasonings = profile.currencies.seasonings
+	seasonings[def.id] = (seasonings[def.id] or 0) + 1
+	NotifyService.send(player, `Found {def.name} in the weeds!`, "reward")
+end
+
+--[[
+	One Kusatori click, spent on whatever is nearest: a weed or something
+	growing. Returns false when there is nothing in reach, which is the only
+	case that refuses the click.
+
+	Nearest of either rather than weeds-first, because the two grow side by
+	side and "why did that click pull the grass instead of the carrot I was
+	standing on" is not a question the player should have to ask.
+]]
+local function pullSomething(player: Player, profile: any): boolean
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root or not root:IsA("BasePart") then
+		return false
+	end
+
+	local section = WeedService.nearestPullable(root.Position, WeedService.PULL_RADIUS)
+	local node = ForagingService.nearestPullable(root.Position, ForagingService.PULL_RADIUS)
+
+	if section and node then
+		local weedDist = (Vector3.new(section.center.X, 0, section.center.Z) - Vector3.new(
+			root.Position.X,
+			0,
+			root.Position.Z
+		)).Magnitude
+		local nodeDist = (Vector3.new(node.center.X, 0, node.center.Z) - Vector3.new(
+			root.Position.X,
+			0,
+			root.Position.Z
+		)).Magnitude
+		if nodeDist <= weedDist then
+			section = nil
+		else
+			node = nil
+		end
+	end
+
+	if node then
+		return ForagingService.pull(player, profile, node)
+	end
+	if section then
+		WeedService.pull(section)
+		rollSeasoning(player, profile)
+		return true
+	end
+	return false
 end
 
 --[[
@@ -290,16 +373,10 @@ local function onPerform(player: Player)
 	end
 
 	if Skills.canonicalize(skillId) == "kusatori" then
-		local character = player.Character
-		local root = character and character:FindFirstChild("HumanoidRootPart")
-		local section = if root and root:IsA("BasePart")
-			then WeedService.nearestPullable(root.Position, WeedService.PULL_RADIUS)
-			else nil
-		if not section then
-			explain(player, "No weeds in reach — pull from a grass patch.")
+		if not pullSomething(player, profile) then
+			explain(player, "Nothing to pull here — find weeds or something growing.")
 			return
 		end
-		WeedService.pull(section)
 	end
 
 	if not StaminaService.tryConsume(player, profile) then
@@ -347,6 +424,11 @@ end
 ]]
 local function onSelectSkill(player: Player, skillId: any)
 	if type(skillId) ~= "string" or not Skills.exists(skillId) then
+		return
+	end
+
+	-- Resilience is trained by cooking now, not selectable for click-training.
+	if Skills.canonicalize(skillId) == "resilience" then
 		return
 	end
 

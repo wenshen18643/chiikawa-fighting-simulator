@@ -296,12 +296,14 @@ end
 local function validateEverySkillIsTrainable()
 	for _, area in Areas.ALL do
 		for _, skillId in Skills.ORDER do
+			-- A retired ladder (resilience) is deliberately empty, not a config bug.
+			if #Worksites.getLadder(skillId) == 0 then
+				continue
+			end
 			local available = Worksites.getInRegionForSkill(area.id, skillId)
 			local entry = available[1]
 			if not entry or not BigNumber.isZero(BigNumber.coerce(entry.requirement)) then
-				warn(
-					`[WorksiteService] area "{area.key}" has no zero-requirement {skillId} worksite.`
-				)
+				warn(`[WorksiteService] area "{area.key}" has no zero-requirement {skillId} worksite.`)
 			end
 		end
 	end

@@ -94,6 +94,36 @@ Constants.STUDY = {
 	PAGE_DEBOUNCE = 0.35,
 }
 
+--[[
+	Foraging. Plucking an ingredient node is click-gated by kusatori
+	(Config/Ingredients.lua): at the node's gateExponent it opens at minClicks,
+	and each exponent you are short adds CLICKS_PER_EXPONENT_BEHIND clicks.
+]]
+Constants.FORAGE = {
+	CLICKS_PER_EXPONENT_BEHIND = 3, -- under the gate, each missing kusatori exponent adds this many clicks
+	-- Reach of one Work click, the same rule weeds use. Slightly longer than
+	-- the weed radius because a sausage tree is a wide thing to stand next to.
+	PULL_RADIUS = 14,
+	CLUMP_SPREAD = 8, -- studs between the nodes inside one clump
+	DIRT_PATCH_SIZE = 4.5, -- the dug soil left under a ground crop
+}
+
+--[[
+	Cooking. Stirring a dish is click-gated by resilience: every resilience
+	exponent shaves CLICKS_PER_RESILIENCE_EXPONENT clicks off baseClicks, down
+	to MIN_CLICKS_FRACTION of the base. Each click invested also trains
+	resilience, which is how the retired pads' skill is earned now.
+]]
+Constants.COOKING = {
+	STATION_OFFSET_ANGLE = 270, -- degrees on the plaza, away from the safe-zone dome side
+	STATION_OFFSET_RADIUS = 0.72, -- fraction of plaza radius
+	STATION_RADIUS = 18, -- how close you must stand to cook
+	MIN_CLICKS_FRACTION = 0.25, -- resilience can cut clicks to this fraction of base
+	CLICKS_PER_RESILIENCE_EXPONENT = 1,
+	MAX_CLICKS_PER_SECOND = 8,
+	XP_PER_CLICK = 1, -- resilience gain per click invested, times gainPerAction
+}
+
 Constants.MOVEMENT = {
 	--[[
 		The world is ~27,000 studs across (Config/Layout.lua). Walking it at the

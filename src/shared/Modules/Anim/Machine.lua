@@ -126,9 +126,7 @@ function Machine:propPlacement(): CFrame
 
 	local boxCFrame, boxSize = self.model:GetBoundingBox()
 	local reach = boxSize.Z * 0.5 + self.propScale * 0.55
-	local desired = CFrame.new(boxCFrame.Position)
-		* anchor.CFrame.Rotation
-		* CFrame.new(0, boxSize.Y * 0.06, -reach)
+	local desired = CFrame.new(boxCFrame.Position) * anchor.CFrame.Rotation * CFrame.new(0, boxSize.Y * 0.06, -reach)
 
 	return anchor.CFrame:Inverse() * desired
 end

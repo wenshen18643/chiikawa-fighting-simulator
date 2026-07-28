@@ -268,6 +268,26 @@ Assets.MODELS = {
 	shopStall = { id = 0, kind = "model", template = "ShopStall", scale = 1 },
 
 	--[[
+		The town proper: three houses, the plaza fountain, flower beds, a bench
+		and a bridge. Placed by height from the area file rather than by a scale
+		here, so "a house is 18 studs tall" is a decision about the scene.
+
+		FlowerBed1 arrived from the toolbox carrying the same require-an-
+		attribute backdoor as the three character models (id 129781504223456,
+		parked on a ModuleScript attribute). It was quarantined and stripped
+		before being committed. See docs/how_to_load_models.md.
+	]]
+	house1 = { id = 0, kind = "model", template = "House1", scale = 1 },
+	house2 = { id = 0, kind = "model", template = "House2", scale = 1 },
+	house3 = { id = 0, kind = "model", template = "House3", scale = 1 },
+	fountain = { id = 0, kind = "model", template = "Fountain", scale = 1 },
+	flowerBed1 = { id = 0, kind = "model", template = "FlowerBed1", scale = 1, collide = false },
+	flowerBed2 = { id = 0, kind = "model", template = "FlowerBed2", scale = 1, collide = false },
+	flowerBed3 = { id = 0, kind = "model", template = "FlowerBed3", scale = 1, collide = false },
+	pinkBench = { id = 0, kind = "model", template = "PinkBench", scale = 1 },
+	bridge = { id = 0, kind = "model", template = "Bridge", scale = 1 },
+
+	--[[
 		Food. Deliberately built oversized -- see SafeZone.FOOD. A bowl of ramen
 		taller than the character eating it is the single most recognisable
 		visual joke in the source material, and it only lands if the food is
@@ -297,6 +317,34 @@ Assets.MODELS = {
 	]]
 	yoroiKnight = { id = 0, kind = "model", template = "YoroiKnight", scale = 1 },
 	yoroiBeast = { id = 0, kind = "model", template = "YoroiBeast", scale = 1 },
+
+	--[[
+		----------------------------------------------------------------------
+		FORAGE & KITCHEN -- interactive nodes and the cooking station
+		----------------------------------------------------------------------
+
+		All local templates. These are props the player walks up to and works,
+		not scatter: the bushes, mushrooms, sausage trees and vegetables are
+		forage nodes that regrow after a pluck (Config/Ingredients.lua), and the
+		CookingPot is the kitchen station (Config/Recipes.lua).
+
+		Bushes, mushrooms and the vegetables stay walk-through. They are thin
+		foliage at ground level, and solid hulls there cost real frame time only
+		to trip the player over a carrot. The sausage trees and the pot are
+		solid -- a tree you walk through reads as a painting of a tree.
+	]]
+	blackBerryBush = { id = 0, kind = "model", template = "BlackBerryBush", scale = 1, collide = false },
+	blueBerryBush = { id = 0, kind = "model", template = "BlueBerryBush", scale = 1, collide = false },
+	whiteBerryBush = { id = 0, kind = "model", template = "WhiteBerryBush", scale = 1, collide = false },
+	purpleBerryBush = { id = 0, kind = "model", template = "PurpleBerryBush", scale = 1, collide = false },
+	brownMushroom = { id = 0, kind = "model", template = "BrownMushroom", scale = 1, collide = false },
+	whiteMushroom = { id = 0, kind = "model", template = "WhiteMushroom", scale = 1, collide = false },
+	pinkSausageTree = { id = 0, kind = "model", template = "PinkSausageTree", scale = 1, collide = true },
+	yellowSausageTree = { id = 0, kind = "model", template = "YellowSausageTree", scale = 1, collide = true },
+	riceCookerSprout = { id = 0, kind = "model", template = "RiceCookerSprout", scale = 1, collide = false },
+	carrot = { id = 0, kind = "model", template = "Carrot", scale = 1, collide = false },
+	potato = { id = 0, kind = "model", template = "Potato", scale = 1, collide = false },
+	cookingPot = { id = 0, kind = "model", template = "CookingPot", scale = 1, collide = true },
 } :: { [string]: AssetSpec }
 
 function Assets.get(key: string): AssetSpec?

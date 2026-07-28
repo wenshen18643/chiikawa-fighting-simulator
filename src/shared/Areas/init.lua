@@ -17,8 +17,8 @@ local Area = require(script.Area)
 export type AreaDefinition = Area.AreaDefinition
 export type DecorateContext = Area.DecorateContext
 
--- Keep later area modules in the project for future restoration, but only
--- register Town while the experience is scoped to its starting region.
+-- Town is the whole world. The five eastern areas were removed; the ladder now
+-- runs three tiers deep inside this one island (Config/Worksites).
 local ORDER = { "Town" }
 
 Areas.ALL = {} :: { AreaDefinition }

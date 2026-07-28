@@ -60,6 +60,21 @@ function Formulas.boostMultiplier(profile: any, skillId: string): number
 	return multiplier
 end
 
+--[[
+	Same product as boostMultiplier, but over boosts aimed at a non-skill
+	number ("yen", "staminaRegen") rather than at a skill.
+]]
+function Formulas.boostStatMultiplier(profile: any, stat: string): number
+	local now = os.time()
+	local multiplier = 1
+	for _, boost in profile.boosts do
+		if boost.expiresAt > now and boost.stat == stat then
+			multiplier *= boost.multiplier or 1
+		end
+	end
+	return multiplier
+end
+
 function Formulas.maxActionsPerSecond(profile: any): number
 	local passId = Constants.WORK.NO_LIMIT_GAMEPASS_ID
 	if passId ~= 0 and profile.gamepasses[passId] then
@@ -81,7 +96,8 @@ end
 function Formulas.staminaRegenPerSecond(profile: any): number
 	local resilienceVal = profile.skills.resilience or profile.skills.grit or profile.skills.durability
 	local gritLog = if BigNumber.isValid(resilienceVal) then math.max(BigNumber.log10(resilienceVal), 0) else 0
-	return Constants.STAMINA.REGEN_PER_SECOND + gritLog * Constants.STAMINA.REGEN_PER_GRIT_LOG
+	return (Constants.STAMINA.REGEN_PER_SECOND + gritLog * Constants.STAMINA.REGEN_PER_GRIT_LOG)
+		* Formulas.boostStatMultiplier(profile, "staminaRegen")
 end
 
 function Formulas.yenPerMinute(profile: any): BigNum
@@ -96,6 +112,8 @@ function Formulas.yenPerMinute(profile: any): BigNum
 	local kusatoriVal = profile.skills.kusatori or profile.skills.weeding or profile.skills.agility
 	local weedingLog = if BigNumber.isValid(kusatoriVal) then math.max(BigNumber.log10(kusatoriVal), 0) else 0
 	wage = BigNumber.mulNumber(wage, 1 + weedingLog)
+
+	wage = BigNumber.mulNumber(wage, Formulas.boostStatMultiplier(profile, "yen"))
 
 	return wage
 end

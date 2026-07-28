@@ -533,9 +533,9 @@ function Atlas.build(parent: Instance)
 			Atlas.toggle()
 		end
 		return Enum.ContextActionResult.Sink
-	-- N, not M: M now toggles the minimap, which is the thing players reach for
-	-- constantly. The Atlas is the occasional full-screen one and keeps its
-	-- side-rail button.
+		-- N, not M: M now toggles the minimap, which is the thing players reach for
+		-- constantly. The Atlas is the occasional full-screen one and keeps its
+		-- side-rail button.
 	end, false, Enum.KeyCode.N, Enum.KeyCode.ButtonSelect)
 
 	return scrim

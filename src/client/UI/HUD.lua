@@ -32,6 +32,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Certifications = require(Shared.Modules.Config.Certifications)
 local Remotes = require(Shared.Modules.Remotes)
+local Skills = require(Shared.Modules.Config.Skills)
 local Worksites = require(Shared.Modules.Config.Worksites)
 local UI = require(Shared.UI)
 
@@ -39,6 +40,7 @@ local UI = require(Shared.UI)
 local StateController = require(script.Parent.Parent.Controllers.StateController)
 local Atlas = require(script.Parent.Atlas)
 local ControlsPanel = require(script.Parent.ControlsPanel)
+local InventoryMenu = require(script.Parent.InventoryMenu)
 local Minimap = require(script.Parent.Minimap)
 local SkillBar = require(script.Parent.SkillBar)
 local WorkCore = require(script.Parent.WorkCore)
@@ -60,9 +62,12 @@ local wageLabel: TextLabel
 local stampLabel: TextLabel
 local seasonChip: Frame
 local toastHolder: Frame
+local buffHolder: Frame
 
 local activeSkill: string? = nil
 local selectedSkill: string? = nil
+local buffChips: { TextLabel } = {}
+local buffKey = ""
 
 --------------------------------------------------------------------------------
 -- Identity
@@ -214,6 +219,87 @@ local function buildIdentity(parent: Instance)
 end
 
 --------------------------------------------------------------------------------
+-- Active buffs
+--------------------------------------------------------------------------------
+
+local function buffLabel(boost: any): string
+	if boost.skill then
+		local skill = Skills.get(boost.skill)
+		return if skill then string.upper(string.sub(skill.name, 1, 3)) else "ALL"
+	end
+	if boost.stat == "yen" then
+		return "YEN"
+	end
+	if boost.stat == "staminaRegen" then
+		return "STA"
+	end
+	return "ALL"
+end
+
+local function buffColor(boost: any): Color3
+	return (boost.skill and UI.color[boost.skill]) or UI.color.gold
+end
+
+local function buildBuffs(parent: Instance)
+	buffHolder = Instance.new("Frame")
+	buffHolder.Name = "Buffs"
+	buffHolder.Position = UDim2.fromOffset(18, 140)
+	buffHolder.Size = UDim2.fromOffset(300, 24)
+	buffHolder.BackgroundTransparency = 1
+	buffHolder.Visible = false
+	buffHolder.ZIndex = 4
+	buffHolder.Parent = parent
+
+	UI.list(buffHolder, UI.space.tight).FillDirection = Enum.FillDirection.Horizontal
+end
+
+local function updateBuffs(boosts: { any }?)
+	local now = os.time()
+	local active = {}
+	local key = ""
+
+	local all: { any } = boosts or {}
+	for _, boost in all do
+		if (boost.expiresAt or 0) - now > 0 then
+			table.insert(active, boost)
+			key ..= `{boost.id};`
+		end
+	end
+
+	-- Chips are rebuilt only when the set changes; the countdown is text.
+	if key ~= buffKey then
+		buffKey = key
+		buffChips = {}
+		for _, child in buffHolder:GetChildren() do
+			if child:IsA("GuiObject") then
+				child:Destroy()
+			end
+		end
+
+		for index, boost in active do
+			local chip = UI.chip(buffHolder, boost.id, {
+				text = "",
+				textSize = 11,
+				color = buffColor(boost),
+				textColor = UI.color.paperDeep,
+				extent = UDim2.fromOffset(96, 24),
+				zIndex = 5,
+			})
+			chip.LayoutOrder = index
+			table.insert(buffChips, chip:FindFirstChild("Text") :: TextLabel)
+		end
+	end
+
+	-- Same key means the same boosts in the same order, so index matches.
+	for index, label in buffChips do
+		local boost = active[index]
+		label.Text = `x{boost.multiplier} {buffLabel(boost)} {boost.expiresAt - now}s`
+	end
+
+	buffHolder.Visible = #active > 0
+end
+
+--------------------------------------------------------------------------------
 -- Side rail
 --------------------------------------------------------------------------------
 
@@ -227,7 +313,7 @@ end
 local function buildSideRail(parent: Instance, buttons: { { glyph: string, hint: string, activated: () -> () } })
 	local rail = Instance.new("Frame")
 	rail.Name = "SideRail"
-	rail.Position = UDim2.fromOffset(18, 150)
+	rail.Position = UDim2.fromOffset(18, 174)
 	rail.Size = UDim2.fromOffset(52, #buttons * 60)
 	rail.BackgroundTransparency = 1
 	rail.ZIndex = 4
@@ -409,6 +495,8 @@ local function update(snapshot: any)
 	wageLabel.Text = `{BigNumber.toString(snapshot.yenPerMinute)} / min`
 	stampLabel.Text = `{BigNumber.toString(snapshot.stamps)} stamps`
 
+	updateBuffs(snapshot.boosts)
+
 	local season = (snapshot.seasons or 0) + 1
 	local seasonText = seasonChip:FindFirstChild("Text") :: TextLabel?
 	if seasonText then
@@ -477,10 +565,7 @@ local function applyResponsiveLayout()
 	-- The skill bar stays at every width — it is the primary control, not a
 	-- side panel. It only shrinks, so four buttons still fit on a phone.
 	if skillBarHolder then
-		skillBarHolder.Size = UDim2.fromOffset(
-			if compact then 300 else 4 * 82 + 3 * 10,
-			if compact then 92 else 106
-		)
+		skillBarHolder.Size = UDim2.fromOffset(if compact then 300 else 4 * 82 + 3 * 10, if compact then 92 else 106)
 	end
 
 	-- On a narrow screen the identity card sheds its lower half rather than
@@ -499,9 +584,12 @@ function HUD.init()
 	screen.Parent = playerGui
 
 	buildIdentity(screen)
+	buildBuffs(screen)
 	buildToasts(screen)
 
-	skillEntries, skillBarHolder = SkillBar.build(screen)
+	skillEntries, skillBarHolder = SkillBar.build(screen, function()
+		showToast("Resilience grows from cooking, running and jumping.", "info")
+	end)
 	Minimap.build(screen)
 	WorkCore.build(screen)
 
@@ -518,15 +606,34 @@ function HUD.init()
 	-- A permanent way in, since not every player will try the M key. The bottom
 	-- right is the skill bar's now, so these live on the left rail instead.
 	buildSideRail(screen, {
-		{ glyph = "pin", hint = "M", activated = function()
-			Minimap.toggle()
-		end },
-		{ glyph = "map", hint = "N", activated = function()
-			Atlas.toggle()
-		end },
-		{ glyph = "help", hint = "H", activated = function()
-			ControlsPanel.setOpen(true)
-		end },
+		{
+			glyph = "pin",
+			hint = "M",
+			activated = function()
+				Minimap.toggle()
+			end,
+		},
+		{
+			glyph = "map",
+			hint = "N",
+			activated = function()
+				Atlas.toggle()
+			end,
+		},
+		{
+			glyph = "platter",
+			hint = "I",
+			activated = function()
+				InventoryMenu.toggle()
+			end,
+		},
+		{
+			glyph = "help",
+			hint = "H",
+			activated = function()
+				ControlsPanel.setOpen(true)
+			end,
+		},
 	})
 
 	applyResponsiveLayout()
