@@ -115,8 +115,6 @@ Constants.FORAGE = {
 	resilience, which is how the retired pads' skill is earned now.
 ]]
 Constants.COOKING = {
-	STATION_OFFSET_ANGLE = 270, -- degrees on the plaza, away from the safe-zone dome side
-	STATION_OFFSET_RADIUS = 0.72, -- fraction of plaza radius
 	STATION_RADIUS = 18, -- how close you must stand to cook
 	MIN_CLICKS_FRACTION = 0.25, -- resilience can cut clicks to this fraction of base
 	CLICKS_PER_RESILIENCE_EXPONENT = 1,

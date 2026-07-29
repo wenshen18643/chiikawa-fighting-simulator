@@ -37,12 +37,20 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
 local SafeZone = require(Shared.Modules.Config.SafeZone)
+local Sections = require(Shared.Modules.Config.Sections)
 local Skills = require(Shared.Modules.Config.Skills)
 local Worksites = require(Shared.Modules.Config.Worksites)
 
 local Layout = {}
 
 local WORLD = Constants.WORLD
+
+-- The B5 kitchen is a landmark rather than section scatter. Its XZ placement
+-- lives here so terrain reservation, world construction and any future map UI
+-- share one streaming-safe source of truth.
+Layout.KITCHEN_CELL = "B5"
+Layout.KITCHEN_FOOTPRINT = Vector2.new(52, 42)
+Layout.KITCHEN_SIZE = Vector3.new(Layout.KITCHEN_FOOTPRINT.X, 30, Layout.KITCHEN_FOOTPRINT.Y)
 
 export type Zone = {
 	kind: string, -- "circle" | "rect"
@@ -136,6 +144,18 @@ end
 -- safe-zone cottage's doorstep; every other area uses its plaza.
 function Layout.spawnCFrame(area: Areas.AreaDefinition): CFrame
 	return CFrame.new(area.origin + Vector3.new(0, WORLD.PLATFORM_TOP + 5, 0))
+end
+
+-- Centre of the kitchen footprint, facing the Town plaza. Y is the area's
+-- nominal origin; the server builder raycasts only to seat the configured XZ
+-- position on the rendered terrain surface.
+function Layout.kitchenCFrame(area: Areas.AreaDefinition): CFrame
+	local cell = Sections.byCoord(Layout.KITCHEN_CELL)
+	assert(cell, `Layout: kitchen cell "{Layout.KITCHEN_CELL}" is invalid`)
+
+	local centre = area.origin + Vector3.new(cell.cx, 0, cell.cz)
+	local plaza = Vector3.new(area.origin.X, centre.Y, area.origin.Z)
+	return CFrame.lookAt(centre, plaza)
 end
 
 --------------------------------------------------------------------------------
@@ -316,6 +336,30 @@ function Layout.reservedZones(area: Areas.AreaDefinition): { Zone }
 		halfX = SafeZone.VOLUME.size.X / 2 + 10,
 		halfZ = SafeZone.VOLUME.size.Z / 2 + 10,
 	})
+
+	if area.id == Areas.STARTING_AREA then
+		local kitchenFrame = Layout.kitchenCFrame(area)
+		local kitchenOffset = kitchenFrame.Position - area.origin
+		local half = Layout.KITCHEN_SIZE / 2
+		table.insert(zones, {
+			kind = "circle",
+			x = kitchenOffset.X,
+			z = kitchenOffset.Z,
+			-- The rotated rectangular cottage plus room for its porch and eaves.
+			radius = math.sqrt(half.X * half.X + half.Z * half.Z) + 10,
+		})
+
+		-- Keep the final stretch of the district path clear too. SectionDressing's
+		-- B5 path ends sixty studs before the cell centre; the builder's stones
+		-- bridge that exact gap to the porch.
+		local approach = kitchenFrame:PointToWorldSpace(Vector3.new(0, 0, -44.5)) - area.origin
+		table.insert(zones, {
+			kind = "circle",
+			x = approach.X,
+			z = approach.Z,
+			radius = 20,
+		})
+	end
 
 	for _, district in Layout.districts(area) do
 		local offset = district.plateCFrame.Position - area.origin
