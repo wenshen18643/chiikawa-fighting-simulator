@@ -290,11 +290,10 @@ Constants.WORLD = {
 	--[[
 		Terrain:FillBlock is bounded by the number of voxels one call may touch,
 		and a 6,000-stud area is far past it. TerrainBuilder tiles every fill at
-		this edge length (1024 studs = 256 x 256 cells per layer) and yields
-		every few tiles so world generation never blocks the server.
+		this edge length (1024 studs = 256 x 256 cells per layer) and spends a
+		frame budget between tiles so world generation never blocks the server.
 	]]
 	TERRAIN_TILE = 1024,
-	TERRAIN_YIELD_EVERY = 6,
 
 	-- Isthmus between neighbouring areas: the land bridge you physically walk
 	-- across, and where the area gate stands.

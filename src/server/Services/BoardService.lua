@@ -163,7 +163,7 @@ function BoardService.rebuild(coord: string): boolean
 		return false
 	end
 	TerrainBuilder.clearCell(area(), cell)
-	TerrainBuilder.buildCell(area(), cell, false)
+	TerrainBuilder.buildCell(area(), cell, nil)
 	return true
 end
 

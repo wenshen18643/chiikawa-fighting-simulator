@@ -33,6 +33,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Budget = require(Shared.Modules.Budget)
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
 local Layout = require(Shared.Modules.Config.Layout)
@@ -255,7 +256,7 @@ local FENCE = {
 	CAP_COLOR = Color3.fromRGB(244, 186, 190),
 }
 
-local function buildFenceRun(parent: Folder, from: Vector3, to: Vector3)
+local function buildFenceRun(parent: Folder, from: Vector3, to: Vector3, step: (() -> ())?)
 	local span = to - from
 	local length = span.Magnitude
 	if length < FENCE.SPACING then
@@ -268,6 +269,9 @@ local function buildFenceRun(parent: Folder, from: Vector3, to: Vector3)
 
 	for index = 0, posts do
 		local at = from + direction * (index * FENCE.SPACING)
+		if step then
+			step()
+		end
 		part({
 			Name = "FencePost",
 			Size = Vector3.new(FENCE.POST, FENCE.HEIGHT, FENCE.POST),
@@ -307,8 +311,8 @@ local function buildFenceRun(parent: Folder, from: Vector3, to: Vector3)
 	local segments = math.max(1, math.ceil(length / FENCE.RAIL_SEGMENT))
 	local segmentLength = length / segments
 
-	for step = 0, segments - 1 do
-		local centre = from + direction * (step * segmentLength + segmentLength / 2)
+	for segment = 0, segments - 1 do
+		local centre = from + direction * (segment * segmentLength + segmentLength / 2)
 		for _, fraction in { 0.38, 0.74 } do
 			part({
 				Name = "FenceRail",
@@ -398,13 +402,16 @@ local function buildFenceGate(parent: Folder, at: Vector3, yaw: number)
 end
 
 --[[
-	Fences an area's footprint, leaving openings wherever a land bridge meets it.
+	Walls an area's footprint, leaving openings wherever a land bridge meets it.
 
 	This is per-area rather than one rectangle around the whole landmass because
 	the areas are different sizes: a single perimeter at the outermost bound
 	would leave Town's northern edge unfenced by 1,700 studs of nothing.
+
+	Four parts, and the only thing between a player and the void, so it is built
+	on the boot path. The fence in front of it is a sign, not a rule — see below.
 ]]
-local function buildBoundary(area: Areas.AreaDefinition, parent: Folder, hasWestBridge: boolean)
+local function buildWalls(area: Areas.AreaDefinition, parent: Folder, hasWestBridge: boolean)
 	local half = Layout.halfSize(area)
 	local bridgeGap = WORLD.BRIDGE_WIDTH
 
@@ -412,6 +419,10 @@ local function buildBoundary(area: Areas.AreaDefinition, parent: Folder, hasWest
 	buildWallSide(area, parent, "South", Vector3.new(0, 0, -half), "x", 0)
 	buildWallSide(area, parent, "West", Vector3.new(-half, 0, 0), "z", if hasWestBridge then bridgeGap else 0)
 	buildWallSide(area, parent, "East", Vector3.new(half, 0, 0), "z", if area.bridgeTo then bridgeGap else 0)
+end
+
+local function buildFence(area: Areas.AreaDefinition, parent: Folder, step: (() -> ())?)
+	local half = Layout.halfSize(area)
 
 	local fence = Instance.new("Folder")
 	fence.Name = "Fence"
@@ -426,7 +437,7 @@ local function buildBoundary(area: Areas.AreaDefinition, parent: Folder, hasWest
 		area.origin + Vector3.new(-edge, y, edge),
 	}
 	for index, from in corners do
-		buildFenceRun(fence, from, corners[index % #corners + 1])
+		buildFenceRun(fence, from, corners[index % #corners + 1], step)
 	end
 
 	-- One gate on the south side, where the road out of the plaza runs.
@@ -580,7 +591,7 @@ end
 	`isReserved` is handed over as a closure rather than as a zone list so that
 	Areas never has to require Layout — see Areas/Area.lua.
 ]]
-local function decorateArea(area: Areas.AreaDefinition, parent: Folder)
+local function decorateArea(area: Areas.AreaDefinition, parent: Folder, step: (() -> ())?)
 	if not area.decorate then
 		return
 	end
@@ -608,7 +619,8 @@ local function decorateArea(area: Areas.AreaDefinition, parent: Folder)
 	]]
 	local groundParams = RaycastParams.new()
 	groundParams.FilterType = Enum.RaycastFilterType.Exclude
-	groundParams.FilterDescendantsInstances = { scenery }
+	local ignored: { Instance } = { scenery }
+	groundParams.FilterDescendantsInstances = ignored
 
 	local groundCache: { [string]: number } = {}
 	local function groundY(x: number, z: number): number
@@ -617,8 +629,34 @@ local function decorateArea(area: Areas.AreaDefinition, parent: Folder)
 		if cached then
 			return cached
 		end
-		local hit = Workspace:Raycast(area.origin + Vector3.new(x, 160, z), Vector3.new(0, -320, 0), groundParams)
-		local y = if hit then hit.Position.Y else WORLD.TERRAIN_TOP + 1.5
+
+		--[[
+			Terrain and ANCHORED geometry are ground; nothing else is. The world
+			is dressed after the first NPCs, mobs and players exist, so a cast can
+			land on somebody walking past — and a prop seated on a head stays on
+			that head forever. A live hit is filtered out rather than merely
+			skipped, so each character costs one wasted cast for the whole pass
+			rather than one per sample.
+		]]
+		local origin = area.origin + Vector3.new(x, 160, z)
+		local y = WORLD.TERRAIN_TOP + 1.5
+
+		for _ = 1, 4 do
+			local hit = Workspace:Raycast(origin, Vector3.new(0, -320, 0), groundParams)
+			if not hit then
+				break
+			end
+
+			local instance = hit.Instance
+			if instance == Workspace.Terrain or instance.Anchored then
+				y = hit.Position.Y
+				break
+			end
+
+			table.insert(ignored, instance:FindFirstAncestorOfClass("Model") or instance)
+			groundParams.FilterDescendantsInstances = ignored
+		end
+
 		groundCache[key] = y
 		return y
 	end
@@ -646,6 +684,8 @@ local function decorateArea(area: Areas.AreaDefinition, parent: Folder)
 		end,
 		helpers = Areas.helpers,
 		UI = UI,
+		-- Called between props so a scatter of thousands never holds the frame.
+		step = step,
 		-- Handed in for the same reason isReserved is: AssetService is a server
 		-- service and Areas is shared, so this keeps the module graph a tree.
 		model = function(key: string): Model?
@@ -834,6 +874,43 @@ local function applyOptionalWorkspaceSettings()
 end
 
 --[[
+	Everything an area wears rather than stands on: the picket fence and the
+	scatter of several thousand scenery parts.
+
+	OFF THE BOOT PATH, and this is the whole reason a play session used to open
+	with a freeze. Terrain, plazas, walls, gates and pads are load-bearing and
+	are built before anybody can join; scenery is not, and building it in the
+	same breath meant the server spent seconds unable to answer anything —
+	which in Studio, where the client shares the process, is the hitch you see
+	the moment you press Play.
+
+	Waits on terrain because every prop is seated by a raycast against the
+	ground it stands on, then hands the frame back between props.
+]]
+local function dressWorld()
+	TerrainBuilder.awaitReady()
+
+	local start = os.clock()
+	local step = Budget.stepper()
+
+	for _, region in Areas.ALL do
+		local folder = WorldService.getRegionFolder(region.id)
+		if not folder then
+			continue
+		end
+
+		local fenced, fenceErr = pcall(buildFence, region, folder, step)
+		if not fenced then
+			warn(`[WorldService] area "{region.key}" fence failed: {fenceErr}`)
+		end
+
+		decorateArea(region, folder, step)
+	end
+
+	print(`[WorldService] scenery dressed in {string.format("%.2f", os.clock() - start)}s`)
+end
+
+--[[
 	Builds the world.
 
 	ORDER IS DEFENSIVE, not just dependent. Everything that touches an API which
@@ -852,7 +929,7 @@ function WorldService.init()
 	-- buildGate, which reads that flag.
 	configureCollisionGroups()
 
-	-- Fills Town synchronously and schedules the rest; see TerrainBuilder.
+	-- Lays the ground synchronously and schedules the relief; see TerrainBuilder.
 	TerrainBuilder.init()
 
 	worldFolder = Instance.new("Folder")
@@ -886,12 +963,10 @@ function WorldService.init()
 			that looked half-built rather than broken, which is a much harder
 			thing to diagnose than a warning.
 		]]
-		local fenced, fenceErr = pcall(buildBoundary, region, folder, hasWestBridge[region.id] == true)
-		if not fenced then
-			warn(`[WorldService] area "{region.key}" boundary failed: {fenceErr}`)
+		local walled, wallErr = pcall(buildWalls, region, folder, hasWestBridge[region.id] == true)
+		if not walled then
+			warn(`[WorldService] area "{region.key}" boundary failed: {wallErr}`)
 		end
-
-		decorateArea(region, folder)
 	end
 
 	local bridges = Instance.new("Folder")
@@ -904,8 +979,10 @@ function WorldService.init()
 	configureLighting()
 	startVoidCatch()
 
-	-- Last, and guarded: nothing above may depend on this succeeding.
+	-- Guarded: nothing above may depend on this succeeding.
 	applyOptionalWorkspaceSettings()
+
+	task.spawn(dressWorld)
 end
 
 return WorldService

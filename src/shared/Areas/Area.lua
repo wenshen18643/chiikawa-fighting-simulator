@@ -58,7 +58,19 @@ export type DecorateContext = {
 	packItem: ((key: string, match: string?) -> Model?)?,
 	-- Real surface height at (x, z), terrain rounding included. Server-only.
 	groundY: ((x: number, z: number) -> number)?,
+	--[[
+		Hands the frame back once the caller's slice is spent. Supplied when an
+		area is dressed on a background pass, nil when it is built inline, so
+		an area file never has to know which of the two it is in.
+	]]
+	step: (() -> ())?,
 }
+
+local function step(ctx: DecorateContext)
+	if ctx.step then
+		ctx.step()
+	end
+end
 
 --[[
 	Try for an uploaded model, standing on the terrain at (x, z).
@@ -83,6 +95,8 @@ local function placeAsset(ctx: DecorateContext, key: string, x: number, z: numbe
 	if not model then
 		return nil
 	end
+
+	step(ctx)
 
 	local options = config or {}
 
@@ -159,6 +173,8 @@ Area.helpers = {}
 local SHADOW_MIN_SIZE = 6
 
 function Area.helpers.block(ctx: DecorateContext, config: { [string]: any }): Part
+	step(ctx)
+
 	local part = Instance.new("Part")
 	part.Name = config.name or "Decor"
 	part.Anchored = true
@@ -394,6 +410,8 @@ function Area.helpers.natureProp(ctx: DecorateContext, x: number, z: number, mat
 	if not model then
 		return nil
 	end
+
+	step(ctx)
 
 	local size = model:GetExtentsSize()
 
@@ -819,6 +837,8 @@ function Area.helpers.path(ctx: DecorateContext, config: { [string]: any })
 	local steps = math.floor(length / spacing)
 
 	for index = 0, steps do
+		step(ctx)
+
 		local along = from + direction * (index * spacing)
 		-- Sideways wobble, so the line reads as walked rather than surveyed.
 		local drift = ctx.rng:NextNumber(-1.4, 1.4)

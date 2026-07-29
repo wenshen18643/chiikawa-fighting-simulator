@@ -285,32 +285,8 @@ Ingredients.ZONES = {
 			{ id = "purpleBerry", weight = 1 },
 		},
 	},
-	{
-		id = "sausage_forest",
-		name = "Sausage Forest",
-		angle = 350,
-		distance = 470,
-		radius = 92,
-		clumps = 6,
-		perClump = 3,
-		ingredients = {
-			{ id = "pinkSausage", weight = 4 },
-			{ id = "goldSausage", weight = 1 },
-		},
-	},
-	{
-		id = "old_sausage_wood",
-		name = "Old Sausage Wood",
-		angle = 260,
-		distance = 520,
-		radius = 86,
-		clumps = 5,
-		perClump = 3,
-		ingredients = {
-			{ id = "goldSausage", weight = 3 },
-			{ id = "pinkSausage", weight = 1 },
-		},
-	},
+	-- Sausages have no zone: they grow across whole board sections instead, laid
+	-- out by SausageForestService from Config/SausageForest.
 	{
 		id = "snow_thicket",
 		name = "Snow Berry Thicket",

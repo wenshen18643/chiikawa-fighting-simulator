@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Skeleton = require(Shared.Modules.Anim.Skeleton)
+local ModelUtil = require(Shared.Modules.ModelUtil)
 local Mobs = require(Shared.Modules.Config.Mobs)
 
 local MobRig = {}
@@ -65,15 +66,6 @@ local function flattenFrog(model: Model)
 		end
 		wrapper:Destroy()
 	end
-end
-
-local function scaleToHeight(model: Model, height: number): boolean
-	local extents = model:GetExtentsSize()
-	if extents.Y <= 0.01 then
-		return false
-	end
-	model:ScaleTo(model:GetScale() * (height / extents.Y))
-	return true
 end
 
 local function configureRoot(root: BasePart, centre: BasePart, groundY: number, width: number?, depth: number?)
@@ -254,6 +246,119 @@ local function rigWolf(model: Model): (BasePart?, BasePart?)
 	return root, head
 end
 
+--[[
+	The guardian is the plain sausage asset with a temper: three primitives, no
+	joints and no face. Everything that makes it a creature is added here, so
+	the same capsule serves as scenery, as a guardian and as the BIG tree.
+]]
+local function blackPart(model: Model, name: string, size: Vector3, cframe: CFrame): Part
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Size = size
+	part.CFrame = cframe
+	part.Color = Color3.fromRGB(28, 22, 24)
+	part.Material = Enum.Material.SmoothPlastic
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.Parent = model
+	return part
+end
+
+-- Features sit just proud of the skin so they read from any angle without the
+-- z-fighting of a decal on a curved surface.
+local function buildAngryFace(model: Model, at: CFrame, radius: number)
+	local skin = radius * 0.94
+	local eye = radius * 0.34
+	for _, side in { -1, 1 } do
+		local across = side * radius * 0.38
+		local sphere = blackPart(model, "Eye", Vector3.new(eye, eye, eye), at * CFrame.new(across, 0, -skin))
+		sphere.Shape = Enum.PartType.Ball
+		-- Brows tilted in towards the nose: the whole expression is these two.
+		blackPart(
+			model,
+			"Brow",
+			Vector3.new(radius * 0.5, radius * 0.13, radius * 0.13),
+			at * CFrame.new(across, radius * 0.36, -skin) * CFrame.Angles(0, 0, math.rad(-side * 24))
+		)
+	end
+	blackPart(
+		model,
+		"Mouth",
+		Vector3.new(radius * 0.55, radius * 0.13, radius * 0.13),
+		at * CFrame.new(0, -radius * 0.44, -skin)
+	)
+end
+
+--[[
+	One stubby arm, its inner cap buried in the body so the shoulder never shows
+	a gap. Returns the arm and the world point the shoulder pivots on.
+]]
+local function buildArm(model: Model, body: BasePart, at: CFrame, radius: number, side: number): (BasePart, Vector3)
+	local length = radius * 1.4
+	local arm = Instance.new("Part")
+	arm.Name = if side < 0 then "LeftArm" else "RightArm"
+	arm.Shape = Enum.PartType.Cylinder
+	arm.Size = Vector3.new(length, radius * 0.34, radius * 0.34)
+	arm.CFrame = at * CFrame.new(side * (radius * 0.6 + length / 2), 0, 0)
+	arm.Color = body.Color
+	arm.Material = body.Material
+	arm.Anchored = true
+	arm.CanCollide = false
+	arm.CanQuery = false
+	arm.CanTouch = false
+	arm.Parent = model
+	return arm, (at * CFrame.new(side * radius * 0.6, 0, 0)).Position
+end
+
+local function rigSausageGuardian(model: Model): (BasePart?, BasePart?)
+	local parts = {}
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			table.insert(parts, descendant)
+		end
+	end
+	if #parts == 0 then
+		return nil, nil
+	end
+	table.sort(parts, function(a, b)
+		return a.Size.X * a.Size.Y * a.Size.Z > b.Size.X * b.Size.Y * b.Size.Z
+	end)
+
+	local body = parts[1]
+	body.Name = "Torso"
+
+	local centre, size = ModelUtil.worldBox(model)
+	local radius = math.max(math.min(size.X, size.Z) / 2, 0.1)
+
+	-- Identity rotation, so the face is always on the root's LookVector side and
+	-- turning to face a player turns the face with it.
+	local root = Instance.new("Part")
+	root.Name = "HumanoidRootPart"
+	root.Size = Vector3.new(math.max(radius * 2, 2), 2, math.max(radius * 2, 2))
+	root.CFrame = CFrame.new(centre.X, centre.Y - size.Y / 2 + 1, centre.Z)
+	root.Transparency = 1
+	root.CanCollide = true
+	root.CanQuery = false
+	root.CanTouch = false
+	root.RootPriority = 127
+	root.Parent = model
+
+	buildAngryFace(model, CFrame.new(centre.X, centre.Y + size.Y * 0.28, centre.Z), radius)
+
+	local shoulders = CFrame.new(centre.X, centre.Y + size.Y * 0.06, centre.Z)
+	local armL, pivotL = buildArm(model, body, shoulders, radius, -1)
+	local armR, pivotR = buildArm(model, body, shoulders, radius, 1)
+
+	connectAt(root, body, "RootJoint", body.Position)
+	connectAt(body, armL, "Left Shoulder", pivotL)
+	connectAt(body, armR, "Right Shoulder", pivotR)
+
+	weldLoose(model, { [root] = true, [body] = true, [armL] = true, [armR] = true }, body)
+	return root, body
+end
+
 local function addHealthDisplay(model: Model, adornee: BasePart, definition: Mobs.MobDefinition): Frame
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "MobHealth"
@@ -325,8 +430,12 @@ function MobRig.rig(
 	clearInheritedBehavior(model)
 	if definition.rigProfile == "mushroomFrog" then
 		flattenFrog(model)
+	elseif definition.rigProfile == "sausageGuardian" then
+		-- Authored lying down, and height scaling measures Y: stand it first or
+		-- the guardian is scaled by its own girth.
+		ModelUtil.standUpright(model)
 	end
-	if not scaleToHeight(model, definition.height) then
+	if not ModelUtil.scaleToHeight(model, definition.height) then
 		return nil, nil, nil
 	end
 
@@ -338,6 +447,8 @@ function MobRig.rig(
 		root, displayPart = rigDuck(model)
 	elseif definition.rigProfile == "wolf" then
 		root, displayPart = rigWolf(model)
+	elseif definition.rigProfile == "sausageGuardian" then
+		root, displayPart = rigSausageGuardian(model)
 	end
 	if not root or not displayPart then
 		return nil, nil, nil

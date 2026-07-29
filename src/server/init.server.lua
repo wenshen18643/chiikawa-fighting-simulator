@@ -41,6 +41,9 @@ local BOOT_ORDER = {
 	-- After WorksiteService: the groves stand on the retired resilience pad
 	-- spots, and the kitchen needs Town's region folder and the pot asset.
 	"ForagingService",
+	-- After ForagingService (it plants through it) and MobService (it deploys
+	-- guardians into it).
+	"SausageForestService",
 	"CookingService",
 	"InventoryService",
 	"StaminaService",

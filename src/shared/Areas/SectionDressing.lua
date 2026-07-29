@@ -108,7 +108,7 @@ end
 
 local function dressCell(ctx, cell)
 	local theme = Sections.THEMES[cell.theme]
-	if not theme then
+	if not theme or theme.bare then
 		return
 	end
 	for _, entry in theme.recipe do
@@ -237,7 +237,8 @@ function SectionDressing.dress(ctx)
 
 	for _, target in Sections.PATH_TARGETS do
 		local cell = Sections.cell(target[1], target[2])
-		if cell then
+		local theme = cell and Sections.THEMES[cell.theme]
+		if cell and theme and not theme.bare then
 			dressPath(ctx, cell)
 		end
 	end

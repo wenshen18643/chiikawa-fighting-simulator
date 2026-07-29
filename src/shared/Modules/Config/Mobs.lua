@@ -19,6 +19,7 @@ export type BaseMobDefinition = {
 	maxHealth: number,
 	hitGainMultiplier: number,
 	damageStatScale: number,
+	respawn: boolean?, -- nil is yes; the forest respawns its own on its own clock
 }
 
 export type FightMobDefinition = BaseMobDefinition & {
@@ -37,7 +38,19 @@ export type FleeMobDefinition = BaseMobDefinition & {
 	fleeDuration: number,
 }
 
-export type MobDefinition = FightMobDefinition | FleeMobDefinition
+--[[
+	A mob that is planted. It never paths anywhere: it turns to face whoever
+	walked into reach and hits them. Its reach is longer than a player's so
+	standing at the edge of your own swing is not a free kill.
+]]
+export type RootMobDefinition = BaseMobDefinition & {
+	behavior: "root",
+	attackRange: number,
+	attackDamage: number,
+	attackCooldown: number,
+}
+
+export type MobDefinition = FightMobDefinition | FleeMobDefinition | RootMobDefinition
 
 local Mobs = {}
 
@@ -120,6 +133,82 @@ Mobs.DEFINITIONS = {
 		damageStatScale = 0.01,
 	},
 } :: { [string]: MobDefinition }
+
+--[[
+	The sausage forest, one entry per board section, shallowest first. The
+	guardians ring the BIG tree of their section and the BIG tree cannot be cut
+	until they are down, so a tier's real difficulty is its whole row.
+
+	Populations and spawn points come from SausageForestService, not from the
+	ring spawner, which is why these are absent from Mobs.ORDER.
+]]
+local FOREST_TIERS = {
+	{ guardians = 4, guardianHealth = 45, guardianDamage = 4, guardianHeight = 7, bossHealth = 320, bossDamage = 7, bossHeight = 24 },
+	{ guardians = 5, guardianHealth = 80, guardianDamage = 6, guardianHeight = 8, bossHealth = 620, bossDamage = 10, bossHeight = 27 },
+	{ guardians = 6, guardianHealth = 140, guardianDamage = 8, guardianHeight = 9, bossHealth = 1200, bossDamage = 14, bossHeight = 30 },
+	{ guardians = 7, guardianHealth = 240, guardianDamage = 11, guardianHeight = 10, bossHealth = 2400, bossDamage = 19, bossHeight = 34 },
+}
+
+local function forestMob(fields: { [string]: any }): MobDefinition
+	local definition = {
+		rigProfile = "sausageGuardian",
+		animProfile = "sausageGuardian",
+		regionId = 1,
+		spawnRadius = 0,
+		playerAttackRange = 14,
+		playerFacingMinimum = 0.35,
+		attackCooldown = 2,
+		hitGainMultiplier = 4,
+		damageStatScale = 0.01,
+		respawn = false,
+	}
+	for key, value in fields do
+		definition[key] = value
+	end
+	return definition :: any
+end
+
+for tier, spec in FOREST_TIERS do
+	--[[
+		Guardians walk, but their home is the BIG tree rather than their own
+		spawn point (SausageForestService passes it), so `leashRadius` is the
+		edge of the clearing: they patrol it and will not be baited out of it.
+	]]
+	Mobs.DEFINITIONS[`sausage_guardian_{tier}`] = forestMob({
+		id = `sausage_guardian_{tier}`,
+		name = "Sausage Guardian",
+		modelName = "SausageGuardian",
+		assetKey = "pinkSausageTree",
+		behavior = "fight",
+		population = spec.guardians,
+		height = spec.guardianHeight,
+		maxHealth = spec.guardianHealth,
+		attackDamage = spec.guardianDamage,
+		attackRange = 8,
+		roamSpeed = 5,
+		chaseSpeed = 13,
+		roamRadius = 20,
+		leashRadius = 55,
+	})
+	-- The BIG tree is a tree: it is rooted, and only its reach defends it.
+	Mobs.DEFINITIONS[`sausage_boss_{tier}`] = forestMob({
+		id = `sausage_boss_{tier}`,
+		name = "Great Sausage",
+		modelName = "GreatSausage",
+		assetKey = "yellowSausageTree",
+		behavior = "root",
+		population = 1,
+		height = spec.bossHeight,
+		maxHealth = spec.bossHealth,
+		attackDamage = spec.bossDamage,
+		attackRange = 22,
+		attackCooldown = 2.6,
+		hitGainMultiplier = 12,
+		roamSpeed = 0,
+		roamRadius = 0,
+		leashRadius = 60,
+	})
+end
 
 function Mobs.get(id: string): MobDefinition?
 	return Mobs.DEFINITIONS[id]

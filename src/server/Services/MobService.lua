@@ -29,7 +29,15 @@ type MobState = "roam" | "chase" | "flee" | "return"
 
 local folder: Folder
 local spawnCFrames: { [string]: { CFrame } } = {}
+-- Species whose roam and leash circles are centred somewhere other than their
+-- own spawn point: the guardians orbit their BIG tree, not the spot they stood.
+local spawnHomes: { [string]: Vector3? } = {}
 local collisionGroupReady = false
+
+-- A locked species is scenery: it cannot be attacked and does not fight back.
+-- The forest uses it to keep the BIG tree inert until its guardians are down.
+local lockedSpecies: { [string]: boolean } = {}
+local killedCallbacks: { (Mobs.MobDefinition, number, Player?) -> () } = {}
 
 local Mob = {}
 Mob.__index = Mob
@@ -66,7 +74,9 @@ type MobActor = {
 	_hasLineOfSight: (MobActor, Model, BasePart) -> boolean,
 	_validTarget: (MobActor) -> (Model?, BasePart?, Humanoid?),
 	_disengage: (MobActor) -> (),
+	_lastHitBy: Player?,
 	_thinkChase: (MobActor, number) -> (),
+	_thinkRoot: (MobActor, number) -> (),
 	_thinkFlee: (MobActor, number) -> (),
 	_thinkReturn: (MobActor, number) -> (),
 	_thinkRoam: (MobActor, number) -> (),
@@ -217,7 +227,7 @@ function Mob._validTarget(self: MobActor): (Model?, BasePart?, Humanoid?)
 	-- Home prevents hostile mobs from pursuing or damaging a player. A passive
 	-- Duck may still regard that player as a threat so a hit inside the garden
 	-- actually makes it flee instead of immediately cancelling the flee state.
-	if self._definition.behavior == "fight" and SafeZoneService.isProtected(player) then
+	if self._definition.behavior ~= "flee" and SafeZoneService.isProtected(player) then
 		return nil, nil, nil
 	end
 	local character, root, humanoid = characterParts(player)
@@ -274,6 +284,51 @@ function Mob._thinkChase(self: MobActor, now: number)
 	then
 		self._nextPathAt = now + REPATH_INTERVAL
 		self:_setDestination(targetRoot.Position)
+	end
+end
+
+--[[
+	Planted mobs. No path, no roam: whoever walks into reach becomes the target,
+	the trunk turns to face them and it swings on its cooldown.
+]]
+function Mob._thinkRoot(self: MobActor, now: number)
+	local definition = self._definition
+	if definition.behavior ~= "root" or lockedSpecies[definition.id] then
+		return
+	end
+
+	local _, targetRoot, targetHumanoid = self:_validTarget()
+	if not targetRoot or planarDistance(self._root.Position, targetRoot.Position) > definition.attackRange then
+		self._target = nil
+		for _, player in Players:GetPlayers() do
+			if SafeZoneService.isProtected(player) then
+				continue
+			end
+			local _, root, humanoid = characterParts(player)
+			if
+				root
+				and humanoid
+				and humanoid.Health > 0
+				and planarDistance(root.Position, self._root.Position) <= definition.attackRange
+			then
+				self._target = player
+				break
+			end
+		end
+		return
+	end
+
+	self._root.CFrame = CFrame.lookAt(
+		self._root.Position,
+		Vector3.new(targetRoot.Position.X, self._root.Position.Y, targetRoot.Position.Z)
+	)
+
+	if now - self._lastAttack >= definition.attackCooldown then
+		self._lastAttack = now
+		self:_playAction("attack")
+		if targetHumanoid then
+			targetHumanoid:TakeDamage(definition.attackDamage)
+		end
 	end
 end
 
@@ -349,7 +404,9 @@ end
 function Mob._run(self: MobActor)
 	while not self._destroyed do
 		local now = os.clock()
-		if self._state == "chase" then
+		if self._definition.behavior == "root" then
+			self:_thinkRoot(now)
+		elseif self._state == "chase" then
 			self:_thinkChase(now)
 		elseif self._state == "flee" then
 			self:_thinkFlee(now)
@@ -374,6 +431,7 @@ function Mob.TakeHit(self: MobActor, player: Player, damage: number): boolean
 	end
 
 	self:_playAction("hit")
+	self._lastHitBy = player
 	self._humanoid.Health = math.max(0, self._humanoid.Health - math.min(damage, self._humanoid.Health))
 	if self._humanoid.Health <= 0 then
 		return true
@@ -382,7 +440,9 @@ function Mob.TakeHit(self: MobActor, player: Player, damage: number): boolean
 	self._target = player
 	self._nextPathAt = 0
 	local definition = self._definition
-	if definition.behavior == "fight" then
+	if definition.behavior == "root" then
+		return true
+	elseif definition.behavior == "fight" then
 		self._state = "chase"
 		self._humanoid.WalkSpeed = definition.chaseSpeed
 	else
@@ -445,6 +505,7 @@ function Mob.new(
 		_pathDone = true,
 		_rng = Random.new(20260728 + seed),
 		_connections = {} :: { RBXScriptConnection },
+		_lastHitBy = nil :: Player?,
 	}, Mob) :: any
 
 	table.insert(
@@ -523,22 +584,37 @@ spawnSlot = function(definition: Mobs.MobDefinition, slot: number)
 	end
 	placeOnGround(model, spawnCFrame)
 	model.Parent = folder
-	local ok, err = pcall(function()
-		root:SetNetworkOwner(nil)
-	end)
-	if not ok then
-		warn(`[MobService] could not assign server network ownership for {model.Name}: {err}`)
+	if definition.behavior == "root" then
+		-- Planted: anchored so nothing can shove a tree out of its clearing.
+		root.Anchored = true
+	else
+		local ok, err = pcall(function()
+			root:SetNetworkOwner(nil)
+		end)
+		if not ok then
+			warn(`[MobService] could not assign server network ownership for {model.Name}: {err}`)
+		end
 	end
 
 	local actor: MobActor
+	local home = spawnHomes[definition.id]
 	actor = Mob.new(key, slot, definition, model, root, humanoid, healthFill, function(deadKey, deadActor)
 		if actors[deadKey] ~= deadActor then
 			return
 		end
 		actors[deadKey] = nil
+		local killer = deadActor._lastHitBy
 		deadActor:Destroy()
-		task.defer(spawnSlot, definition, slot)
+		for _, callback in killedCallbacks do
+			task.spawn(callback, definition, slot, killer)
+		end
+		if definition.respawn ~= false then
+			task.defer(spawnSlot, definition, slot)
+		end
 	end)
+	if home then
+		actor._home = Vector3.new(home.X, root.Position.Y, home.Z)
+	end
 	actors[key] = actor
 end
 
@@ -569,9 +645,12 @@ local function findAttackTarget(player: Player): MobActor?
 			continue
 		end
 		local definition = actor._definition
+		if lockedSpecies[definition.id] then
+			continue
+		end
 		-- Players may scare passive mobs from Home, but cannot safely farm hostile
 		-- mobs which would be forbidden from retaliating across the boundary.
-		if playerProtected and definition.behavior == "fight" then
+		if playerProtected and definition.behavior ~= "flee" then
 			continue
 		end
 		local offset = actor._root.Position - playerRoot.Position
@@ -589,6 +668,76 @@ local function findAttackTarget(player: Player): MobActor?
 		end
 	end
 	return best
+end
+
+--[[
+	Put a species on the map at exactly these points.
+
+	The ring spawner in init() only knows "N of them, R studs from the plaza",
+	which cannot express "one per board section, ringed by its guardians". A
+	caller that owns a layout owns its spawn points too.
+]]
+function MobService.deploy(mobId: string, cframes: { CFrame }, home: Vector3?)
+	local definition = Mobs.get(mobId)
+	if not definition then
+		warn(`[MobService] deploy asked for unknown mob "{mobId}"`)
+		return
+	end
+	spawnCFrames[mobId] = cframes
+	spawnHomes[mobId] = home
+
+	task.spawn(function()
+		if not AssetService.waitFor(definition.assetKey, 10) then
+			warn(`[MobService] asset "{definition.assetKey}" did not become ready`)
+			return
+		end
+		for slot = 1, #cframes do
+			spawnSlot(definition, slot)
+		end
+	end)
+end
+
+--[[
+	Wake a whole species onto one player at once.
+
+	Guardians are a ring, not four separate animals: walking up to the BIG tree
+	should turn every one of them, not just whichever noticed first.
+]]
+function MobService.alert(mobId: string, player: Player)
+	for _, actor in actors do
+		local definition = actor._definition
+		if
+			definition.id ~= mobId
+			or definition.behavior ~= "fight"
+			or actor._destroyed
+			or actor._humanoid.Health <= 0
+			or actor._target == player
+		then
+			continue
+		end
+		actor._target = player
+		actor._state = "chase"
+		actor._nextPathAt = 0
+		actor._humanoid.WalkSpeed = definition.chaseSpeed
+	end
+end
+
+function MobService.setLocked(mobId: string, locked: boolean)
+	lockedSpecies[mobId] = locked
+end
+
+function MobService.countAlive(mobId: string): number
+	local count = 0
+	for _, actor in actors do
+		if actor._definition.id == mobId and not actor._destroyed and actor._humanoid.Health > 0 then
+			count += 1
+		end
+	end
+	return count
+end
+
+function MobService.onKilled(callback: (Mobs.MobDefinition, number, Player?) -> ())
+	table.insert(killedCallbacks, callback)
 end
 
 function MobService.canAttack(player: Player): boolean

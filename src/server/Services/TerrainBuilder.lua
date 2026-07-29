@@ -25,11 +25,11 @@
 	area that choice is worth several million voxels.
 ]]
 
-local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Budget = require(Shared.Modules.Budget)
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
 local Layout = require(Shared.Modules.Config.Layout)
@@ -44,6 +44,7 @@ local WORLD = Constants.WORLD
 -- has something to wait on.
 TerrainBuilder.ready = false
 
+local readySignal = Instance.new("BindableEvent")
 local filled = 0
 
 --------------------------------------------------------------------------------
@@ -117,12 +118,15 @@ local function materialOf(name: string): Enum.Material
 end
 
 --[[
-	One tiled fill of an axis-aligned box. `yield` is false for Town, which must
-	be on the ground before the first player is, and true for everything after.
+	One tiled fill of an axis-aligned box. `step` is nil for the base island,
+	which must be on the ground before the first player is, and a frame-budget
+	stepper for everything after.
 
 	Tiles overlap by a stud so marching cubes does not leave a seam between them.
 ]]
-local function fillBox(centre: Vector3, size: Vector3, material: Enum.Material, yield: boolean)
+type Step = (() -> ())?
+
+local function fillBox(centre: Vector3, size: Vector3, material: Enum.Material, step: Step)
 	local terrain = Workspace.Terrain
 	local tile = WORLD.TERRAIN_TILE
 	local overlap = 1
@@ -144,8 +148,8 @@ local function fillBox(centre: Vector3, size: Vector3, material: Enum.Material, 
 			)
 
 			filled += 1
-			if yield and filled % WORLD.TERRAIN_YIELD_EVERY == 0 then
-				RunService.Heartbeat:Wait()
+			if step then
+				step()
 			end
 		end
 	end
@@ -160,7 +164,7 @@ end
 	The surface extends a skirt past the walkable area so the shoreline is
 	terrain rather than a cliff at the boundary.
 ]]
-function TerrainBuilder.buildArea(area: Areas.AreaDefinition, yield: boolean)
+function TerrainBuilder.buildGround(area: Areas.AreaDefinition, step: Step)
 	local size = area.terrain.islandSize
 	local skirt = WORLD.SHORE_FALLOFF
 	local top = WORLD.TERRAIN_TOP
@@ -171,30 +175,39 @@ function TerrainBuilder.buildArea(area: Areas.AreaDefinition, yield: boolean)
 		area.origin + Vector3.new(0, top - surfaceDepth - coreDepth / 2, 0),
 		Vector3.new(size + skirt * 2, coreDepth, size + skirt * 2),
 		Enum.Material.Rock,
-		yield
+		step
 	)
 
 	fillBox(
 		area.origin + Vector3.new(0, top - surfaceDepth / 2, 0),
 		Vector3.new(size + skirt, surfaceDepth, size + skirt),
 		materialOf(area.terrain.material),
-		yield
+		step
 	)
+end
 
+--[[
+	Section ground. Each themed square gets its own terrain material laid over
+	the base surface — farm is turned earth, the thicket is snow, the knoll is
+	rock — and then the relief pass raises hills and mountains on top of that.
+	The patchwork IS the section grid, readable from any hill.
+
+	Cosmetic on top of buildGround, so it runs on the background pass.
+]]
+function TerrainBuilder.paintSections(area: Areas.AreaDefinition, step: Step)
 	if not Sections.THEMES[area.key] and area.key ~= "town" then
 		return
 	end
 
-	--[[
-		Section ground. Each themed square gets its own terrain material laid
-		over the base surface — farm is turned earth, the thicket is snow, the
-		knoll is rock — and then the relief pass raises hills and mountains on
-		top of that. The patchwork IS the section grid, readable from any hill.
-	]]
 	local zones = Layout.reservedZones(area)
 	for _, cell in Sections.cells() do
-		TerrainBuilder.paintCell(area, cell, zones, yield)
+		TerrainBuilder.paintCell(area, cell, zones, step)
 	end
+end
+
+function TerrainBuilder.buildArea(area: Areas.AreaDefinition, step: Step)
+	TerrainBuilder.buildGround(area, step)
+	TerrainBuilder.paintSections(area, step)
 end
 
 --------------------------------------------------------------------------------
@@ -204,12 +217,7 @@ end
 local SUB = 4
 local CLEAR_HEIGHT = 200
 
-function TerrainBuilder.paintCell(
-	area: Areas.AreaDefinition,
-	cell: Sections.Cell,
-	zones: { Layout.Zone },
-	yield: boolean
-)
+function TerrainBuilder.paintCell(area: Areas.AreaDefinition, cell: Sections.Cell, zones: { Layout.Zone }, step: Step)
 	local top = WORLD.TERRAIN_TOP
 	local theme = Sections.THEMES[cell.theme]
 	local baseMaterial = materialOf(area.terrain.material)
@@ -234,8 +242,8 @@ function TerrainBuilder.paintCell(
 					if h > 16 then Enum.Material.Rock elseif theme then material else baseMaterial
 				)
 				filled += 1
-				if yield and filled % WORLD.TERRAIN_YIELD_EVERY == 0 then
-					RunService.Heartbeat:Wait()
+				if step then
+					step()
 				end
 			end
 		end
@@ -250,7 +258,7 @@ function TerrainBuilder.clearCell(area: Areas.AreaDefinition, cell: Sections.Cel
 	)
 end
 
-function TerrainBuilder.buildCell(area: Areas.AreaDefinition, cell: Sections.Cell, yield: boolean)
+function TerrainBuilder.buildCell(area: Areas.AreaDefinition, cell: Sections.Cell, step: Step)
 	local top = WORLD.TERRAIN_TOP
 	local surfaceDepth = WORLD.ISLAND_DEPTH / 2
 	local coreDepth = WORLD.ISLAND_DEPTH
@@ -260,16 +268,16 @@ function TerrainBuilder.buildCell(area: Areas.AreaDefinition, cell: Sections.Cel
 		area.origin + Vector3.new(cell.cx, top - surfaceDepth - coreDepth / 2, cell.cz),
 		Vector3.new(size, coreDepth, size),
 		Enum.Material.Rock,
-		yield
+		step
 	)
 	fillBox(
 		area.origin + Vector3.new(cell.cx, top - surfaceDepth / 2, cell.cz),
 		Vector3.new(size, surfaceDepth, size),
 		materialOf(area.terrain.material),
-		yield
+		step
 	)
 
-	TerrainBuilder.paintCell(area, cell, Layout.reservedZones(area), yield)
+	TerrainBuilder.paintCell(area, cell, Layout.reservedZones(area), step)
 end
 
 --[[
@@ -280,7 +288,7 @@ end
 	Surfaced in the material of the area to its west, so the ground changes
 	underfoot as you cross rather than at an invisible line.
 ]]
-function TerrainBuilder.buildBridge(bridge: Layout.Bridge, yield: boolean)
+function TerrainBuilder.buildBridge(bridge: Layout.Bridge, step: Step)
 	local from = Areas.get(bridge.fromId)
 	if not from then
 		return
@@ -294,14 +302,14 @@ function TerrainBuilder.buildBridge(bridge: Layout.Bridge, yield: boolean)
 		bridge.centre + Vector3.new(0, top - surfaceDepth - coreDepth / 2, 0),
 		Vector3.new(bridge.size.X, coreDepth, bridge.size.Z + 40),
 		Enum.Material.Rock,
-		yield
+		step
 	)
 
 	fillBox(
 		bridge.centre + Vector3.new(0, top - surfaceDepth / 2, 0),
 		Vector3.new(bridge.size.X, surfaceDepth, bridge.size.Z),
 		materialOf(from.terrain.material),
-		yield
+		step
 	)
 end
 
@@ -309,9 +317,19 @@ end
 -- Public
 --------------------------------------------------------------------------------
 
+-- Yields until the background pass has filled every area. WorldService's
+-- scenery pass waits on this: props are seated by raycast against the ground.
+function TerrainBuilder.awaitReady()
+	if TerrainBuilder.ready then
+		return
+	end
+	readySignal.Event:Wait()
+end
+
 --[[
-	Fills the starting area and returns. Everything else is scheduled on a
-	background task, so this is what the boot sequence actually waits for.
+	Lays the ground everyone stands on and returns. Section relief, the other
+	areas and the bridges are all cosmetic on top of that, so they run on a
+	background task that hands the frame back between fills.
 ]]
 function TerrainBuilder.init()
 	Workspace.Terrain:Clear()
@@ -320,21 +338,37 @@ function TerrainBuilder.init()
 
 	local start = os.clock()
 	local town = Areas.BY_ID[Areas.STARTING_AREA]
-	TerrainBuilder.buildArea(town, false)
-	print(`[TerrainBuilder] {town.name} ready in {string.format("%.2f", os.clock() - start)}s ({filled} tiles)`)
+	TerrainBuilder.buildGround(town, nil)
+	print(`[TerrainBuilder] {town.name} ground in {string.format("%.2f", os.clock() - start)}s ({filled} tiles)`)
 
 	task.spawn(function()
-		for _, area in Areas.ALL do
-			if area.id ~= Areas.STARTING_AREA then
-				TerrainBuilder.buildArea(area, true)
-			end
-		end
+		local step = Budget.stepper()
 
-		for _, bridge in Layout.bridges() do
-			TerrainBuilder.buildBridge(bridge, true)
+		--[[
+			Guarded so that `ready` is reached whatever happens in here. Anything
+			waiting on it is waiting to DRESS a world that already exists; losing
+			the relief to a bad fill must not also lose the scenery.
+		]]
+		local ok, err = pcall(function()
+			TerrainBuilder.paintSections(town, step)
+
+			for _, area in Areas.ALL do
+				if area.id ~= Areas.STARTING_AREA then
+					TerrainBuilder.buildArea(area, step)
+				end
+			end
+
+			for _, bridge in Layout.bridges() do
+				TerrainBuilder.buildBridge(bridge, step)
+			end
+		end)
+
+		if not ok then
+			warn(`[TerrainBuilder] relief pass failed: {err}`)
 		end
 
 		TerrainBuilder.ready = true
+		readySignal:Fire()
 		print(
 			`[TerrainBuilder] whole world ready in {string.format("%.2f", os.clock() - start)}s ({filled} tiles total)`
 		)
