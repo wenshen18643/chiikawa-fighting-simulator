@@ -37,6 +37,8 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
 local SafeZone = require(Shared.Modules.Config.SafeZone)
+local SausageForest = require(Shared.Modules.Config.SausageForest)
+local Sections = require(Shared.Modules.Config.Sections)
 local Skills = require(Shared.Modules.Config.Skills)
 local Worksites = require(Shared.Modules.Config.Worksites)
 
@@ -45,12 +47,16 @@ local Layout = {}
 local WORLD = Constants.WORLD
 
 export type Zone = {
-	kind: string, -- "circle" | "rect"
+	kind: string, -- "circle" | "rect" | "strip"
 	x: number,
 	z: number,
 	radius: number?,
 	halfX: number?,
 	halfZ: number?,
+	dirX: number?, -- strip: unit direction of its long axis
+	dirZ: number?,
+	halfLength: number?,
+	halfWidth: number?,
 }
 
 export type District = {
@@ -85,7 +91,13 @@ export type Bridge = {
 	a district sitting in it would put worksite pads across the only road out of
 	the area.
 ]]
-local ANGLES = { 50, 90, 130, 230, 270, 310 }
+--[[
+	District bearings, indexed by Skills.ORDER. 230 is retired for worksites:
+	it points into the sausage forest block, and the examprep district that
+	lived there wiped the forest floor with its reserved zone. 310 lands in
+	the snow/rocky corner instead - the least-built ground a district fits.
+]]
+local ANGLES = { 50, 90, 130, 310, 270, 230 }
 
 Layout.SKILL_ANGLE = {} :: { [string]: number }
 Layout.SKILL_INDEX = {} :: { [string]: number }
@@ -317,17 +329,43 @@ function Layout.reservedZones(area: Areas.AreaDefinition): { Zone }
 		halfZ = SafeZone.VOLUME.size.Z / 2 + 10,
 	})
 
+	--[[
+		A strip along the plate, not a circle around it. A district plate is a
+		124-stud-wide strip up to ~400 long; the circle that contained one wiped
+		out a 237-stud radius — most of the sausage forest sat inside the
+		examprep district's circle, which is why the forest floor came up bare.
+	]]
 	for _, district in Layout.districts(area) do
 		local offset = district.plateCFrame.Position - area.origin
 		table.insert(zones, {
-			kind = "circle",
+			kind = "strip",
 			x = offset.X,
 			z = offset.Z,
-			-- Circle over a rectangle: generous by design, since the cost of
-			-- over-reserving is a slightly barer district and the cost of
-			-- under-reserving is a tree growing through a worksite.
-			radius = district.plateSize.Z / 2 + 40,
+			dirX = district.direction.X,
+			dirZ = district.direction.Z,
+			halfLength = district.plateSize.Z / 2 + 40, -- room for the arch and the walk in
+			-- Tight on the sides: where a strip crosses the forest, the gap it
+			-- cuts should read as the path to the pads, not as a firebreak.
+			halfWidth = district.plateSize.X / 2 + 16,
 		})
+	end
+
+	--[[
+		The fighting clearing around each BIG sausage tree. Reserved for two
+		reasons at once: the dressing pass leaves the arena bare, and the relief
+		mask flattens it, so nobody fights a boss on a hillside behind a bush.
+	]]
+	for _, entry in SausageForest.CELLS do
+		local cell = Sections.byCoord(entry.coord)
+		if cell then
+			local arena = SausageForest.arena(cell)
+			table.insert(zones, {
+				kind = "circle",
+				x = arena.X,
+				z = arena.Y,
+				radius = SausageForest.CLEARING_RADIUS,
+			})
+		end
 	end
 
 	-- The east-west road. Kept clear the full width of the area so the walk
@@ -353,6 +391,13 @@ function Layout.isReserved(zones: { Zone }, x: number, z: number): boolean
 			end
 		elseif zone.kind == "rect" then
 			if math.abs(x - zone.x) <= (zone.halfX or 0) and math.abs(z - zone.z) <= (zone.halfZ or 0) then
+				return true
+			end
+		elseif zone.kind == "strip" then
+			local dx, dz = x - zone.x, z - zone.z
+			local along = dx * (zone.dirX or 0) + dz * (zone.dirZ or 0)
+			local across = dx * (zone.dirZ or 0) - dz * (zone.dirX or 0)
+			if math.abs(along) <= (zone.halfLength or 0) and math.abs(across) <= (zone.halfWidth or 0) then
 				return true
 			end
 		end

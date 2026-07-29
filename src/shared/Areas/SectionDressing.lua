@@ -29,25 +29,77 @@ local function range(ctx, bounds, fallback)
 	return ctx.rng:NextNumber(bounds[1], bounds[2])
 end
 
-local function dressRecipe(ctx, cell, entry)
+--[[
+	How much room a substantial thing keeps from the next substantial thing, in
+	a wild cell. Only wild cells: they are the only ones dense enough for two
+	boulders to land inside each other, and reshuffling every town to fix a
+	forest would move furniture nobody complained about. Grass, flowers and
+	grass patches stay off the list — ground cover growing against a stone is
+	texture, not overlap.
+]]
+local CLEARANCE = { bush = 7, stone = 6, log = 8, prop = 5, coded = 10, tree = 9, house = 14 }
+
+local function solidify(instance)
+	if not instance then
+		return
+	end
+	local parts = if instance:IsA("BasePart") then { instance } else instance:GetDescendants()
+	for _, part in parts do
+		if part:IsA("BasePart") then
+			part.CanCollide = true
+			-- CanQuery follows: the sausage trees' own overlap probe has to be
+			-- able to see everything it is not allowed to stand inside.
+			part.CanQuery = true
+		end
+	end
+end
+
+local function dressRecipe(ctx, cell, entry, placed)
 	local inset = if entry.kind == "tree" or entry.kind == "prop" then 16 else 10
+	local clearance = placed and CLEARANCE[entry.kind]
+	local function openSpot()
+		for _ = 1, 6 do
+			local x, z = samplePoint(ctx, cell, inset)
+			if not x then
+				return nil
+			end
+			if not clearance then
+				return x, z
+			end
+			local near = false
+			for _, at in placed do
+				if (at - Vector2.new(x, z)).Magnitude < clearance then
+					near = true
+					break
+				end
+			end
+			if not near then
+				return x, z
+			end
+		end
+		-- Six crowded draws: the cell is full for this kind. Losing the item
+		-- beats stacking it inside a neighbour.
+		return nil
+	end
+
 	for _ = 1, entry.count do
-		local x, z = samplePoint(ctx, cell, inset)
+		local x, z = openSpot()
 		if x then
+			local made
 			if entry.kind == "prop" then
-				ctx.helpers.prop(ctx, entry.key, x, z, {
+				made = ctx.helpers.prop(ctx, entry.key, x, z, {
 					height = range(ctx, entry.h, 4),
 					upright = entry.upright,
 					pitch = entry.pitch,
 				})
 			elseif entry.kind == "tree" then
-				ctx.helpers.tree(ctx, x, z, range(ctx, entry.h, 12), range(ctx, entry.canopy, 12))
+				made = ctx.helpers.tree(ctx, x, z, range(ctx, entry.h, 12), range(ctx, entry.canopy, 12))
 			elseif entry.kind == "bush" then
-				ctx.helpers.bush(ctx, x, z, range(ctx, entry.s, 4))
+				made = ctx.helpers.bush(ctx, x, z, range(ctx, entry.s, 4))
 			elseif entry.kind == "stone" then
-				ctx.helpers.stone(ctx, x, z, range(ctx, entry.s, 4))
+				made = ctx.helpers.stone(ctx, x, z, range(ctx, entry.s, 4))
 			elseif entry.kind == "log" then
-				ctx.helpers.log(ctx, x, z, range(ctx, entry.l, 8))
+				made = ctx.helpers.log(ctx, x, z, range(ctx, entry.l, 8))
 			elseif entry.kind == "grass" then
 				local match = if ctx.rng:NextNumber() > 0.45 then "grass" else "flower"
 				if not ctx.helpers.natureProp(ctx, x, z, match) then
@@ -62,12 +114,16 @@ local function dressRecipe(ctx, cell, entry)
 			elseif entry.kind == "desk" then
 				ctx.helpers.studyDesk(ctx, { x = x, z = z, y = 3.2 })
 			elseif entry.kind == "house" then
-				ctx.helpers.prop(ctx, `house{ctx.rng:NextInteger(1, 3)}`, x, z, { height = ctx.rng:NextNumber(13, 16) })
+				made = ctx.helpers.prop(ctx, `house{ctx.rng:NextInteger(1, 3)}`, x, z, { height = ctx.rng:NextNumber(13, 16) })
 			elseif entry.kind == "coded" then
 				local build = Props[entry.fn]
 				if build then
 					build(ctx, x, z)
 				end
+			end
+			if clearance then
+				table.insert(placed, Vector2.new(x, z))
+				solidify(made)
 			end
 		end
 	end
@@ -108,13 +164,19 @@ end
 
 local function dressCell(ctx, cell)
 	local theme = Sections.THEMES[cell.theme]
-	if not theme or theme.bare then
+	if not theme then
 		return
 	end
+	-- One shared list per wild cell, so a stone keeps clear of a bush, not
+	-- just of other stones.
+	local placed = if theme.wild then {} else nil
 	for _, entry in theme.recipe do
-		dressRecipe(ctx, cell, entry)
+		dressRecipe(ctx, cell, entry, placed)
 	end
-	dressSign(ctx, cell, theme)
+	-- A wild section has no signpost and no arch: nobody put them there.
+	if not theme.wild then
+		dressSign(ctx, cell, theme)
+	end
 end
 
 --[[
@@ -127,6 +189,12 @@ local function dressBorder(ctx, i, j, vertical)
 	local themeA = Sections.themeAt(i, j)
 	local themeB = if vertical then Sections.themeAt(i + 1, j) else Sections.themeAt(i, j + 1)
 	if not themeA or not themeB or themeA == themeB then
+		return
+	end
+	-- A road stops at the treeline. The forest edge is where the trees start.
+	local wildA = Sections.THEMES[themeA]
+	local wildB = Sections.THEMES[themeB]
+	if (wildA and wildA.wild) or (wildB and wildB.wild) then
 		return
 	end
 
@@ -238,7 +306,7 @@ function SectionDressing.dress(ctx)
 	for _, target in Sections.PATH_TARGETS do
 		local cell = Sections.cell(target[1], target[2])
 		local theme = cell and Sections.THEMES[cell.theme]
-		if cell and theme and not theme.bare then
+		if cell and theme and not theme.wild then
 			dressPath(ctx, cell)
 		end
 	end

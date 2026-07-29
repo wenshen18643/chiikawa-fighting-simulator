@@ -88,6 +88,13 @@ function Sections.byCoord(coord: string): Cell?
 	return Sections.cell(i, j)
 end
 
+-- True where nobody built: no paving, no signposts, no houses.
+function Sections.isWild(x: number, z: number): boolean
+	local cell = Sections.cellAt(x, z)
+	local theme = cell and Sections.THEMES[cell.theme]
+	return theme ~= nil and theme.wild == true
+end
+
 function Sections.cells(): { Cell }
 	local result = {}
 	for j = 1, Sections.GRID do
@@ -199,16 +206,31 @@ Sections.THEMES = {
 		},
 	},
 	--[[
-		`bare` skips the whole dressing pass, signpost and arch included. Nothing
-		stands in the sausage forest that is not a sausage, and the ground around
-		the BIG tree has to stay clear for the fight.
+		`wild` means nobody built here: no signpost, no arch, no paving, and no
+		road along its borders. What grows is forest floor -- ferns, flowers,
+		fallen wood, rock -- because a forest with nothing but its trees reads
+		as a lawn with poles on it.
+
+		`relief` breaks the flat ground up. The section pass is coarse by
+		default, so a wild cell subdivides further and adds its own low noise on
+		top of the island's rolling hills.
 	]]
 	sausage = {
 		name = "Sausage Forest",
 		sub = "they grow on trees",
 		material = "Grass",
-		bare = true,
-		recipe = {},
+		wild = true,
+		relief = { amp = 7, scale = 58, subdivide = 10 },
+		recipe = {
+			{ kind = "bush", count = 58, s = { 3, 9 } },
+			{ kind = "grass", count = 74 },
+			{ kind = "grassPatch", count = 28, h = { 1.6, 3 } },
+			{ kind = "flower", count = 20 },
+			{ kind = "stone", count = 20, s = { 2.5, 6.5 } },
+			{ kind = "log", count = 20, l = { 6, 13 } },
+			{ kind = "prop", key = "brownMushroom", count = 22, h = { 1.8, 3.2 }, upright = true },
+			{ kind = "coded", fn = "boulder", count = 3 },
+		},
 	},
 	mushroom = {
 		name = "Mushroom Hollow",

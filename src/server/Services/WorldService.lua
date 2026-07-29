@@ -50,6 +50,19 @@ local WORLD = Constants.WORLD
 local regionSpawns: { [number]: CFrame } = {}
 local worldFolder: Folder
 
+local dressedSignal = Instance.new("BindableEvent")
+
+WorldService.dressed = false
+
+-- Yields until every region's scenery stands. Anything that places its own
+-- models around that scenery waits on this instead of racing the dressing pass.
+function WorldService.awaitDressed()
+	if WorldService.dressed then
+		return
+	end
+	dressedSignal.Event:Wait()
+end
+
 --------------------------------------------------------------------------------
 -- Collision groups
 --------------------------------------------------------------------------------
@@ -904,10 +917,18 @@ local function dressWorld()
 			warn(`[WorldService] area "{region.key}" fence failed: {fenceErr}`)
 		end
 
-		decorateArea(region, folder, step)
+		-- Guarded so `dressed` fires whatever happens in here: the sausage
+		-- forest waits on it, and losing one area's scenery to an error must
+		-- not also lose the forest.
+		local ok, err = pcall(decorateArea, region, folder, step)
+		if not ok then
+			warn(`[WorldService] area "{region.key}" scenery failed: {err}`)
+		end
 	end
 
 	print(`[WorldService] scenery dressed in {string.format("%.2f", os.clock() - start)}s`)
+	WorldService.dressed = true
+	dressedSignal:Fire()
 end
 
 --[[

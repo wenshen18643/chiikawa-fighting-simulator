@@ -2,6 +2,10 @@
 	Area 1 — Town & Grass Field. The starting area.
 ]]
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Sections = require(ReplicatedStorage.Shared.Modules.Config.Sections)
+
 local Area = require(script.Parent.Area)
 local SectionDressing = require(script.Parent.SectionDressing)
 
@@ -212,6 +216,13 @@ return Area.define({
 			and that difference is the whole reason the town felt empty before.
 		]]
 		local function homestead(index: number, x: number, z: number, facing: number, joinZ: number?)
+			-- The lane predates the sausage forest and its western half now runs
+			-- straight through it. Nobody lives in the forest, so nobody builds
+			-- there and no path is laid to it.
+			if Sections.isWild(x, z) then
+				return
+			end
+
 			local placed = helpers.prop(ctx, houses[(index - 1) % #houses + 1], x, z, {
 				height = ctx.rng:NextNumber(13, 16),
 				rotation = facing + math.rad(ctx.rng:NextNumber(-7, 7)),
