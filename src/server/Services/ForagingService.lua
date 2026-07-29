@@ -34,8 +34,11 @@ local Areas = require(Shared.Areas)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
 local Layout = require(Shared.Modules.Config.Layout)
 
+local Budget = require(Shared.Modules.Budget)
+
 local AssetService = require(script.Parent.AssetService)
 local CurrencyService = require(script.Parent.CurrencyService)
+local TerrainBuilder = require(script.Parent.TerrainBuilder)
 local NotifyService = require(script.Parent.NotifyService)
 local SkillService = require(script.Parent.SkillService)
 local WorldService = require(script.Parent.WorldService)
@@ -52,6 +55,7 @@ export type Node = {
 	ingredient: Ingredients.IngredientDefinition,
 	center: Vector3,
 	transparency: { [BasePart]: number },
+	solid: { [BasePart]: boolean },
 	pulled: boolean,
 	progress: { [Player]: number },
 	clicks: number, -- base clicks for THIS node: a bigger tree costs more
@@ -60,17 +64,51 @@ export type Node = {
 
 export type PlantOptions = {
 	parent: Instance,
-	height: number?,
+	height: number?, -- longest dimension once placed: height standing, length lying
 	clicks: number?,
 	yield: number?,
 	yaw: number?,
 	dirt: boolean?,
+	upright: boolean?, -- false leaves it lying where the asset was authored
+	roll: number?,
+	sink: number?, -- fraction of its own height settled into the ground
+	collide: boolean?, -- true/false forces every part; nil keeps the asset's own
 }
 
 local nodes: { Node } = {}
+
+--[[
+	Nodes bucketed on a flat grid as well as listed.
+
+	Every Work click asks for the nearest node, and the forest alone is ~900 of
+	them, so a scan of the whole list runs on every click of every player. The
+	pull radius is smaller than one bucket, so the answer is always inside four
+	of them. Nodes are never removed -- a pulled one is flagged, not deleted --
+	so the buckets only ever grow and need no bookkeeping.
+]]
+local BUCKET = 32
+local BUCKET_STRIDE = 100000 -- > any grid index the island can reach
+local buckets: { [number]: { Node } } = {}
+
+local function bucketKey(gx: number, gz: number): number
+	return gx * BUCKET_STRIDE + gz
+end
+
 local forageEvent: RemoteEvent
 local groundParams: RaycastParams
 local groundTop = 0
+local readySignal = Instance.new("BindableEvent")
+
+ForagingService.ready = false
+
+-- Yields until the ground is measurable and the zones are planted. Anything
+-- that plants its own nodes waits on this rather than racing the terrain pass.
+function ForagingService.awaitReady()
+	if ForagingService.ready then
+		return
+	end
+	readySignal.Event:Wait()
+end
 
 --------------------------------------------------------------------------------
 -- Pulling
@@ -107,9 +145,12 @@ local function harvest(player: Player, profile: any, node: Node)
 		NotifyService.send(player, `Foraged {def.name}{suffix}!`, "reward")
 	end
 
+	-- Collision goes with the picture. A pulled tree that is still solid is an
+	-- invisible wall in the middle of a forest you are trying to walk through.
 	for part in node.transparency do
 		if part.Parent then
 			part.Transparency = 1
+			part.CanCollide = false
 		end
 	end
 
@@ -118,6 +159,7 @@ local function harvest(player: Player, profile: any, node: Node)
 		for part, original in node.transparency do
 			if part.Parent then
 				part.Transparency = original
+				part.CanCollide = node.solid[part] == true
 			end
 		end
 	end)
@@ -131,15 +173,28 @@ function ForagingService.nearestPullable(position: Vector3, maxDist: number): No
 	local best: Node? = nil
 	local bestDist = maxDist
 
-	for _, node in nodes do
-		if node.pulled then
-			continue
-		end
-		local delta = node.center - position
-		local dist = Vector3.new(delta.X, 0, delta.Z).Magnitude
-		if dist < bestDist then
-			bestDist = dist
-			best = node
+	local minX = math.floor((position.X - maxDist) / BUCKET)
+	local maxX = math.floor((position.X + maxDist) / BUCKET)
+	local minZ = math.floor((position.Z - maxDist) / BUCKET)
+	local maxZ = math.floor((position.Z + maxDist) / BUCKET)
+
+	for gx = minX, maxX do
+		for gz = minZ, maxZ do
+			local bucket = buckets[bucketKey(gx, gz)]
+			if not bucket then
+				continue
+			end
+			for _, node in bucket do
+				if node.pulled then
+					continue
+				end
+				local delta = node.center - position
+				local dist = Vector3.new(delta.X, 0, delta.Z).Magnitude
+				if dist < bestDist then
+					bestDist = dist
+					best = node
+				end
+			end
 		end
 	end
 
@@ -242,13 +297,15 @@ function ForagingService.plant(
 	model.Name = `Forage_{def.id}`
 	model:SetAttribute("IngredientId", def.id)
 
-	ModelUtil.standUpright(model)
+	if options.upright ~= false then
+		ModelUtil.standUpright(model)
+	end
 
 	-- Sized against the player rather than against whatever the author uploaded:
 	-- a two-storey carrot and a thumbnail sausage tree both break the scene.
 	local height = options.height or def.height
 	if height then
-		ModelUtil.scaleToHeight(model, height)
+		ModelUtil.scaleToLongest(model, height)
 	end
 
 	model.PrimaryPart = model.PrimaryPart or ModelUtil.firstPart(model)
@@ -262,7 +319,7 @@ function ForagingService.plant(
 		buildDirt(options.parent, position, Random.new(math.floor(position.X * 73 + position.Z)))
 	end
 
-	ModelUtil.placeStanding(model, position, options.yaw or 0)
+	ModelUtil.seat(model, position, options.yaw or 0, options.roll, options.sink)
 	model.Parent = options.parent
 
 	-- The client finds the nearest of these to start the right dig animation
@@ -270,9 +327,14 @@ function ForagingService.plant(
 	CollectionService:AddTag(model, ForagingService.TAG)
 
 	local transparency: { [BasePart]: number } = {}
+	local solid: { [BasePart]: boolean } = {}
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
+			if options.collide ~= nil then
+				descendant.CanCollide = options.collide
+			end
 			transparency[descendant] = descendant.Transparency
+			solid[descendant] = descendant.CanCollide
 		end
 	end
 
@@ -281,12 +343,22 @@ function ForagingService.plant(
 		ingredient = def,
 		center = model:GetPivot().Position,
 		transparency = transparency,
+		solid = solid,
 		pulled = false,
 		progress = {},
 		clicks = options.clicks or def.minClicks,
 		yield = options.yield or 1,
 	}
 	table.insert(nodes, node)
+
+	local key = bucketKey(math.floor(node.center.X / BUCKET), math.floor(node.center.Z / BUCKET))
+	local bucket = buckets[key]
+	if not bucket then
+		bucket = {}
+		buckets[key] = bucket
+	end
+	table.insert(bucket, node)
+
 	return node
 end
 
@@ -298,7 +370,13 @@ local function seedOf(id: string): number
 	return sum
 end
 
-local function buildZone(zone: Ingredients.ZoneDefinition, parent: Instance, params: RaycastParams, top: number)
+local function buildZone(
+	zone: Ingredients.ZoneDefinition,
+	parent: Instance,
+	params: RaycastParams,
+	top: number,
+	step: () -> ()
+)
 	local area = Areas.get(1)
 	if not area then
 		return
@@ -328,6 +406,7 @@ local function buildZone(zone: Ingredients.ZoneDefinition, parent: Instance, par
 		local clumpZ = centre.Z + math.sin(angle) * reach
 
 		for _ = 1, zone.perClump do
+			step()
 			local x = clumpX + rng:NextNumber(-FORAGE.CLUMP_SPREAD, FORAGE.CLUMP_SPREAD)
 			local z = clumpZ + rng:NextNumber(-FORAGE.CLUMP_SPREAD, FORAGE.CLUMP_SPREAD)
 			ForagingService.plant(def, Vector3.new(x, groundAt(x, z, top, params), z), {
@@ -361,9 +440,21 @@ function ForagingService.init()
 	groundParams = params
 	groundTop = Layout.plazaCFrame(area).Position.Y
 
-	for _, zone in Ingredients.ZONES do
-		buildZone(zone, groves, params, groundTop)
-	end
+	--[[
+		Off the boot path and behind the terrain pass. Section relief is built on
+		a background task, and a node seated before the hills arrive is a node
+		buried in one -- every plant here is placed by a raycast against ground
+		that has to exist first.
+	]]
+	task.spawn(function()
+		TerrainBuilder.awaitReady()
+		local step = Budget.stepper()
+		for _, zone in Ingredients.ZONES do
+			buildZone(zone, groves, params, groundTop, step)
+		end
+		ForagingService.ready = true
+		readySignal:Fire()
+	end)
 
 	Players.PlayerRemoving:Connect(function(player)
 		for _, node in nodes do

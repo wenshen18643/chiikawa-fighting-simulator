@@ -62,15 +62,39 @@ function ModelUtil.scaleToHeight(model: Model, height: number): boolean
 	return true
 end
 
--- Seats the model's world footprint on `position`, keeping whatever pitch
--- standUpright applied. AssetService.place builds a fresh CFrame and drops it.
-function ModelUtil.placeStanding(model: Model, position: Vector3, yaw: number)
+--[[
+	Scale by the longest world axis, which is the same measurement whichever way
+	the thing is lying: a standing sausage's is its height and a fallen one's is
+	its length, so one call sizes both.
+]]
+function ModelUtil.scaleToLongest(model: Model, longest: number): boolean
+	local _, size = ModelUtil.worldBox(model)
+	local axis = math.max(size.X, size.Y, size.Z)
+	if axis <= 0.01 then
+		return false
+	end
+	model:ScaleTo(model:GetScale() * (longest / axis))
+	return true
+end
+
+--[[
+	Turn it, then seat its world footprint on `position`. `sink` is the fraction
+	of its own height it settles into the ground.
+
+	AssetService.place cannot do this: it builds a fresh CFrame from a position
+	and a yaw, which throws away the pitch and lays a standing tree back down.
+]]
+function ModelUtil.seat(model: Model, position: Vector3, yaw: number, roll: number?, sink: number?)
 	local pivot = model:GetPivot()
-	model:PivotTo(CFrame.new(pivot.Position) * CFrame.Angles(0, yaw, 0) * pivot.Rotation)
+	model:PivotTo(CFrame.new(pivot.Position) * CFrame.Angles(0, yaw, roll or 0) * pivot.Rotation)
 
 	local centre, size = ModelUtil.worldBox(model)
-	local footing = Vector3.new(centre.X, centre.Y - size.Y / 2, centre.Z)
+	local footing = Vector3.new(centre.X, centre.Y - size.Y * (0.5 - (sink or 0)), centre.Z)
 	model:PivotTo(model:GetPivot() + (position - footing))
+end
+
+function ModelUtil.placeStanding(model: Model, position: Vector3, yaw: number)
+	ModelUtil.seat(model, position, yaw)
 end
 
 function ModelUtil.firstPart(model: Model): BasePart?

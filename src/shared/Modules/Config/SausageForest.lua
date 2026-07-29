@@ -6,6 +6,8 @@
 	corner. Everything that scales with depth reads its tier from here.
 ]]
 
+local Sections = require(script.Parent.Sections)
+
 local SausageForest = {}
 
 SausageForest.CELLS = {
@@ -30,22 +32,63 @@ SausageForest.SPECIES = {
 	should read as something you could step over.
 ]]
 SausageForest.SIZES = {
-	{ id = "small", height = 7, extraClicks = 0, yield = 1, weight = 6 },
-	{ id = "medium", height = 12, extraClicks = 4, yield = 3, weight = 3 },
-	{ id = "large", height = 18, extraClicks = 9, yield = 7, weight = 1 },
+	{ id = "small", height = 8, extraClicks = 0, yield = 2, weight = 5 },
+	{ id = "medium", height = 13, extraClicks = 4, yield = 5, weight = 4 },
+	{ id = "large", height = 20, extraClicks = 9, yield = 10, weight = 2 },
 }
 
 --[[
-	Fallen sausages. Not pullable and not scenery from another biome: the brief
-	is a forest with nothing in it but sausages, so the litter on the floor is
-	the same asset lying down at ankle height.
+	Fallen sausages: already on the floor, so cheap to pick up and barely worth
+	it. They are what makes the forest floor read as a forest, and the reason to
+	keep walking to a standing tree.
 ]]
-SausageForest.LITTER = { length = { 4, 9 }, sink = 0.35 }
+SausageForest.FALLEN = {
+	length = { 5, 10 },
+	sink = 0.32,
+	clicksOff = 3, -- taken off the ingredient's own minClicks
+	minClicks = 2,
+	yield = 1,
+}
 
-SausageForest.TREES_PER_CELL = 64
-SausageForest.LITTER_PER_CELL = 70
-SausageForest.TREE_INSET = 14 -- keep trunks off the section seam
-SausageForest.CLEARING_RADIUS = 40 -- the arena: nothing grows this close to the BIG one
+--[[
+	How the forest is laid out, which is the whole of how it feels to walk into.
+
+	Trees come in GROVES, not in an even sprinkle. An even sprinkle reads as an
+	orchard: every gap the same, nothing to walk towards. Clumps leave GLADES
+	between them, and a glade is the thing a player actually walks along, so the
+	forest steers without a path being drawn on the floor.
+
+	Three rules shape a walk from the treeline to the BIG tree:
+
+	  - EDGE_FADE thins the outermost band, so the forest starts rather than
+	    beginning at a wall.
+	  - CLEARING_FADE thickens it towards the arena, then stops dead at its rim,
+	    so the trees close in and then open out.
+	  - MIN_GAP is never violated, so there is always a way through. A forest
+	    you have to fight is a corridor, not a forest.
+]]
+SausageForest.TREES_PER_CELL = 120 -- cap; groves decide the real count
+SausageForest.FALLEN_PER_CELL = 110
+SausageForest.GROVES_PER_CELL = 16
+SausageForest.GROVE_GAP = 34 -- between grove centres: this is the glade width
+SausageForest.GROVE_SPREAD = { 10, 22 }
+SausageForest.GROVE_TREES = { 5, 11 }
+SausageForest.MIN_GAP = 9 -- between trunks: a player is ~4 studs across
+SausageForest.EDGE_FADE = 26 -- the thinning band at the treeline
+SausageForest.EDGE_DENSITY = 0.45
+SausageForest.CLEARING_FADE = 16 -- ramp from the arena rim into the trees
+SausageForest.FALLEN_DRIFT = { 3, 10 } -- how far litter lies from the tree it fell off
+
+SausageForest.TREE_INSET = 8 -- off the treeline only; inner seams stay planted
+SausageForest.CLEARING_RADIUS = 32 -- the arena: nothing grows this close to the BIG one
+--[[
+	The arena sits off-centre, pushed away from the middle of the four-cell
+	block. Four arenas each on their own cell centre punch four holes in a 2x2
+	square and leave the deep middle -- the one part of the map you have to walk
+	furthest for -- as the emptiest ground in the forest. Pushed outward, the
+	holes land in the outer quarters and the middle closes over.
+]]
+SausageForest.ARENA_OFFSET = 52
 SausageForest.GUARDIAN_RING = 24 -- how far the guardians stand from the BIG tree
 SausageForest.ALERT_RADIUS = 45 -- step inside this and the whole ring wakes up
 SausageForest.ALERT_INTERVAL = 0.5
@@ -65,6 +108,53 @@ function SausageForest.pick(entries: { any }, rng: Random): any
 		end
 	end
 	return entries[#entries]
+end
+
+local blockCentre: Vector2? = nil
+
+local function block(): Vector2
+	if not blockCentre then
+		local sum, count = Vector2.new(0, 0), 0
+		for _, entry in SausageForest.CELLS do
+			local cell = Sections.byCoord(entry.coord)
+			if cell then
+				sum += Vector2.new(cell.cx, cell.cz)
+				count += 1
+			end
+		end
+		blockCentre = if count > 0 then sum / count else Vector2.new(0, 0)
+	end
+	return blockCentre :: Vector2
+end
+
+function SausageForest.arena(cell: Sections.Cell): Vector2
+	local at = Vector2.new(cell.cx, cell.cz)
+	local out = at - block()
+	if out.Magnitude < 1 then
+		return at
+	end
+	return at + out.Unit * SausageForest.ARENA_OFFSET
+end
+
+--[[
+	Plantable bounds. TREE_INSET is a treeline rule, not a cell rule: held off
+	every side would leave a bald cross through the middle of the block, because
+	four sausage cells share three inner seams and nothing else stops there. A
+	seam between two forest cells only needs the trunks on either side to keep
+	MIN_GAP apart, so each cell gives up half of it.
+]]
+function SausageForest.bounds(cell: Sections.Cell): { minX: number, maxX: number, minZ: number, maxZ: number }
+	local seam = SausageForest.MIN_GAP / 2
+	local function pad(x: number, z: number): number
+		return if Sections.isWild(x, z) then seam else SausageForest.TREE_INSET
+	end
+	local probe = 4
+	return {
+		minX = cell.minX + pad(cell.minX - probe, cell.cz),
+		maxX = cell.maxX - pad(cell.maxX + probe, cell.cz),
+		minZ = cell.minZ + pad(cell.cx, cell.minZ - probe),
+		maxZ = cell.maxZ - pad(cell.cx, cell.maxZ + probe),
+	}
 end
 
 function SausageForest.guardianId(tier: number): string

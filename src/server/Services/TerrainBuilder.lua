@@ -83,6 +83,12 @@ local function edgeDistance(zones: { Layout.Zone }, x: number, z: number): numbe
 		if zone.kind == "circle" then
 			local dx, dz = x - zone.x, z - zone.z
 			distance = math.sqrt(dx * dx + dz * dz) - (zone.radius or 0)
+		elseif zone.kind == "strip" then
+			local dx, dz = x - zone.x, z - zone.z
+			distance = math.max(
+				math.abs(dx * (zone.dirX or 0) + dz * (zone.dirZ or 0)) - (zone.halfLength or 0),
+				math.abs(dx * (zone.dirZ or 0) - dz * (zone.dirX or 0)) - (zone.halfWidth or 0)
+			)
 		else
 			distance = math.max(math.abs(x - zone.x) - (zone.halfX or 0), math.abs(z - zone.z) - (zone.halfZ or 0))
 		end
@@ -206,6 +212,9 @@ function TerrainBuilder.paintSections(area: Areas.AreaDefinition, step: Step)
 end
 
 function TerrainBuilder.buildArea(area: Areas.AreaDefinition, step: Step)
+	-- Animated blades on Grass and LeafyGrass. Stated rather than inherited:
+	-- the forest floor depends on it.
+	Workspace.Terrain.Decoration = true
 	TerrainBuilder.buildGround(area, step)
 	TerrainBuilder.paintSections(area, step)
 end
@@ -229,12 +238,26 @@ function TerrainBuilder.paintCell(area: Areas.AreaDefinition, cell: Sections.Cel
 		material
 	)
 
-	local subSize = Sections.SIZE / SUB
-	for ti = 1, SUB do
-		for tj = 1, SUB do
+	--[[
+		A themed cell may subdivide further and add its own relief. The default
+		grid is 53 studs a step, which is fine under a farm and reads as a flat
+		table under a forest: the ground between trees is what sells the trees.
+	]]
+	local relief = theme and theme.relief
+	local divisions = if relief then relief.subdivide else SUB
+	local subSize = Sections.SIZE / divisions
+
+	for ti = 1, divisions do
+		for tj = 1, divisions do
 			local sx = cell.minX + (ti - 0.5) * subSize
 			local sz = cell.minZ + (tj - 0.5) * subSize
 			local h = heightAt(zones, sx, sz)
+			if relief then
+				local mask = math.clamp(edgeDistance(zones, sx, sz) / MASK_FADE, 0, 1)
+				h += math.max(0, math.noise(sx / relief.scale, sz / relief.scale, 31) + 0.28)
+					* relief.amp
+					* mask
+			end
 			if h > 0.5 then
 				Workspace.Terrain:FillBlock(
 					CFrame.new(area.origin + Vector3.new(sx, top + h / 2, sz)),

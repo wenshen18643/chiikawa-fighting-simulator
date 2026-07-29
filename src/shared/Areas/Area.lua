@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
+local ModelUtil = require(Shared.Modules.ModelUtil)
 -- selene: allow(unused_variable)
 local UI = require(Shared.UI)
 
@@ -146,6 +147,17 @@ local function placeAsset(ctx: DecorateContext, key: string, x: number, z: numbe
 	end
 
 	model:PivotTo(pivot)
+
+	--[[
+		Correct the seat by the MEASURED box. Everything above assumed the pivot
+		sits at the model's centre — Roblox's default, but an uploaded pack may
+		put it anywhere, and a low pivot floats the model by exactly the offset.
+		A no-op for well-authored assets; the fix for the rest.
+	]]
+	local centre, box = ModelUtil.worldBox(model)
+	local target = ctx.origin.Y + groundAt(ctx, x, z) + (options.y or 0)
+	model:PivotTo(model:GetPivot() + Vector3.new(0, target - (centre.Y - box.Y / 2), 0))
+
 	model.Parent = options.parent or ctx.parent
 	return model
 end
@@ -430,6 +442,13 @@ function Area.helpers.natureProp(ctx: DecorateContext, x: number, z: number, mat
 	model:PivotTo(
 		CFrame.new(ctx.origin + Vector3.new(x, groundAt(ctx, x, z) + size.Y / 2, z)) * CFrame.Angles(0, spin, 0)
 	)
+
+	-- Seat by the measured box, bedded in slightly so a pack rock sits IN a
+	-- slope rather than tangent to its high side. See placeAsset.
+	local centre, box = ModelUtil.worldBox(model)
+	local target = ctx.origin.Y + groundAt(ctx, x, z) - box.Y * 0.04
+	model:PivotTo(model:GetPivot() + Vector3.new(0, target - (centre.Y - box.Y / 2), 0))
+
 	model.Parent = ctx.parent
 	return model
 end
