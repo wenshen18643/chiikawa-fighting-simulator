@@ -4,6 +4,7 @@ local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
+local Farming = require(Shared.Modules.Config.Farming)
 local Areas = require(Shared.Areas)
 local Sections = require(Shared.Modules.Config.Sections)
 
@@ -105,6 +106,9 @@ function BoardService.build()
 	local parent = root()
 	parent:ClearAllChildren()
 	for _, cell in Sections.cells() do
+		if cell.coord == Farming.CELL_COORD then
+			continue
+		end
 		tile(cell, parent)
 	end
 	return parent

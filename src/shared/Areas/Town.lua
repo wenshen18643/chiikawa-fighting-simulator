@@ -85,7 +85,6 @@ return Area.define({
 
 		local districts = {
 			{ angle = 50, name = "Sasumata Yard" },
-			{ angle = 90, name = "Home Fields" },
 			{ angle = 130, name = "Roadside Weeds" },
 			{ angle = 230, name = "Study Desks" },
 		}
@@ -184,8 +183,8 @@ return Area.define({
 
 		-- Landmark Weeding Patch in Town Square
 		helpers.weedingPatch(ctx, {
-			x = 0,
-			z = half * 0.35,
+			x = 30,
+			z = 190,
 			y = 1.5,
 		})
 

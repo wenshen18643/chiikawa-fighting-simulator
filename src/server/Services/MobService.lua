@@ -167,6 +167,10 @@ function Mob._setDestination(self: MobActor, destination: Vector3): boolean
 	if self._destroyed or self._humanoid.Health <= 0 then
 		return false
 	end
+	local area = Areas.get(self._definition.regionId)
+	if area and Layout.isFarmPosition(area, destination, 8) then
+		return false
+	end
 
 	self:_disconnectPath()
 	self._pathDone = false
@@ -782,7 +786,12 @@ function MobService.init()
 			warn(`[MobService] mob "{definition.id}" references missing region {definition.regionId}`)
 			continue
 		end
-		spawnCFrames[definition.id] = Layout.mobSpawnCFrames(area, definition.population, definition.spawnRadius)
+		spawnCFrames[definition.id] = Layout.mobSpawnCFrames(
+			area,
+			definition.population,
+			definition.spawnRadius,
+			definition.spawnAngleOffset
+		)
 
 		task.spawn(function()
 			if not AssetService.waitFor(definition.assetKey, 10) then

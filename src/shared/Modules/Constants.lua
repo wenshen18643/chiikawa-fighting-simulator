@@ -216,12 +216,13 @@ Constants.HOME = {
 
 Constants.DATA = {
 	STORE_NAME = "PlayerProfiles_v1",
+	FARM_MAILBOX_STORE_NAME = "FarmCredits_v1",
 	KEY_PREFIX = "Player_",
 	AUTOSAVE_INTERVAL = 60,
 	LOAD_RETRIES = 4,
 	RETRY_BACKOFF = 2,
 	-- Bump when PlayerProfile changes shape; DataService.migrate handles the gap.
-	SCHEMA_VERSION = 2,
+	SCHEMA_VERSION = 3,
 }
 
 Constants.REPLICATION = {

@@ -66,6 +66,25 @@ export type Stamina = {
 	max: number,
 }
 
+export type FarmCropState = {
+	id: string,
+	plantedAt: number,
+	maturesAt: number,
+}
+
+export type FarmPlotSnapshot = {
+	plotId: number,
+	ownerUserId: number?,
+	ownerName: string?,
+	leaseEndsAt: number?,
+	crop: FarmCropState?,
+	highestBid: number?,
+	highestBidderUserId: number?,
+	highestBidderName: string?,
+	minimumBid: number,
+	serverNow: number,
+}
+
 export type PlayerProfile = {
 	skills: SkillMap,
 	certifications: { [string]: number }, -- skillId -> order, see Config/Certifications
@@ -85,6 +104,7 @@ export type PlayerProfile = {
 	boosts: { Boost },
 	stamina: Stamina,
 	settings: { autoWork: boolean, vfxQuality: string, musicVolume: number },
+	farm: { claimedCredits: { [string]: boolean }, claimedCreditOrder: { string } },
 	version: number,
 	meta: { createdAt: number, lastPlayed: number, playtime: number, introShown: boolean },
 }

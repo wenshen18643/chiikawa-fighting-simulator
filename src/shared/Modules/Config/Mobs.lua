@@ -11,6 +11,7 @@ export type BaseMobDefinition = {
 	population: number,
 	height: number,
 	spawnRadius: number,
+	spawnAngleOffset: number?,
 	roamRadius: number,
 	leashRadius: number,
 	roamSpeed: number,
@@ -119,6 +120,8 @@ Mobs.DEFINITIONS = {
 		population = 3,
 		height = 4.5,
 		spawnRadius = 320,
+		-- Keeps all three homes and their roam circles clear of the C5 farm.
+		spawnAngleOffset = 60,
 		roamRadius = 110,
 		leashRadius = 190,
 		roamSpeed = 9,

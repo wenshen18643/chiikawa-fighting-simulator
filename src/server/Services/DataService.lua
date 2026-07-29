@@ -98,6 +98,7 @@ local function buildTemplate(): any
 		boosts = {},
 		stamina = { current = Constants.STAMINA.BASE_MAX, max = Constants.STAMINA.BASE_MAX },
 		settings = { autoWork = false, vfxQuality = "high", musicVolume = 1 },
+		farm = { claimedCredits = {}, claimedCreditOrder = {} },
 		version = Constants.DATA.SCHEMA_VERSION,
 		meta = { createdAt = 0, lastPlayed = 0, playtime = 0, introShown = false },
 	}
@@ -142,6 +143,7 @@ local OPEN_MAPS = {
 	furniture = true,
 	active = true,
 	completed = true,
+	claimedCredits = true,
 }
 
 local function reconcile(profile: any): any

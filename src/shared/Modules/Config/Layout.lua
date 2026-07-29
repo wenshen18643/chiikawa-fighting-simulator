@@ -39,6 +39,7 @@ local Areas = require(Shared.Areas)
 local SafeZone = require(Shared.Modules.Config.SafeZone)
 local SausageForest = require(Shared.Modules.Config.SausageForest)
 local Sections = require(Shared.Modules.Config.Sections)
+local Farming = require(Shared.Modules.Config.Farming)
 local Skills = require(Shared.Modules.Config.Skills)
 local Worksites = require(Shared.Modules.Config.Worksites)
 
@@ -169,6 +170,51 @@ function Layout.kitchenCFrame(area: Areas.AreaDefinition): CFrame
 	return CFrame.lookAt(centre, plaza)
 end
 
+-- The farm is an axis-aligned 3 x 5 grid centred in C5. Plot ids run
+-- west-to-east inside each row, then south-to-north across rows.
+function Layout.farmFieldCFrame(area: Areas.AreaDefinition): CFrame
+	local cell = Sections.byCoord(Farming.CELL_COORD)
+	assert(cell, `Layout: farm cell "{Farming.CELL_COORD}" is invalid`)
+	return CFrame.new(area.origin + Vector3.new(cell.cx, surfaceCentreY(Farming.PLOT_THICKNESS), cell.cz))
+end
+
+function Layout.farmPlotCFrame(area: Areas.AreaDefinition, plotId: number): CFrame?
+	local grid = Farming.gridPosition(plotId)
+	if not grid then
+		return nil
+	end
+	local x = (grid.column - (Farming.COLUMNS + 1) / 2) * Farming.PLOT_STRIDE
+	local z = (grid.row - (Farming.ROWS + 1) / 2) * Farming.PLOT_STRIDE
+	return Layout.farmFieldCFrame(area) * CFrame.new(x, 0, z)
+end
+
+function Layout.farmEntranceCFrame(area: Areas.AreaDefinition): CFrame
+	local cell = Sections.byCoord(Farming.CELL_COORD)
+	assert(cell, `Layout: farm cell "{Farming.CELL_COORD}" is invalid`)
+	local position = area.origin + Vector3.new(cell.cx, WORLD.PLATFORM_TOP, cell.minZ + 8)
+	local plaza = Vector3.new(area.origin.X, position.Y, area.origin.Z)
+	return CFrame.lookAt(position, plaza)
+end
+
+export type FarmRouteSegment = {
+	id: string,
+	from: Vector3,
+	to: Vector3,
+}
+
+-- Both public farm routes start at the plaza-facing edge of Kusatori tier 1.
+-- The kitchen endpoint is its existing approach rather than the building
+-- centre, so the stones stop at the door instead of running through the room.
+function Layout.farmRouteSegments(area: Areas.AreaDefinition): { FarmRouteSegment }
+	local kusatori = Layout.padCFrame(area, "kusatori", 1)
+	local start = kusatori:PointToWorldSpace(Vector3.new(0, 0, WORLD.WORKSITE_SIZE.Z / 2 + 5))
+	local kitchenApproach = Layout.kitchenCFrame(area):PointToWorldSpace(Vector3.new(0, 0, -44.5))
+	return {
+		{ id = "KusatoriToFarm", from = start, to = Layout.farmEntranceCFrame(area).Position },
+		{ id = "KusatoriToKitchen", from = start, to = kitchenApproach },
+	}
+end
+
 --------------------------------------------------------------------------------
 -- Districts and pads
 --------------------------------------------------------------------------------
@@ -295,12 +341,18 @@ end
 
 -- Deterministic habitat slots around the area's configured centre. Mob
 -- placement stays in the same config-derived coordinate system as the world.
-function Layout.mobSpawnCFrames(area: Areas.AreaDefinition, population: number, radius: number): { CFrame }
+function Layout.mobSpawnCFrames(
+	area: Areas.AreaDefinition,
+	population: number,
+	radius: number,
+	angleOffsetDegrees: number?
+): { CFrame }
 	local centre = area.origin
 	local result = {}
+	local angleOffset = math.rad(angleOffsetDegrees or 0)
 
 	for index = 1, population do
-		local angle = (index - 1) / population * math.pi * 2
+		local angle = angleOffset + (index - 1) / population * math.pi * 2
 		local position = Vector3.new(
 			centre.X + math.cos(angle) * radius,
 			area.origin.Y + WORLD.PLATFORM_TOP,
@@ -310,6 +362,22 @@ function Layout.mobSpawnCFrames(area: Areas.AreaDefinition, population: number, 
 	end
 
 	return result
+end
+
+function Layout.isFarmPosition(area: Areas.AreaDefinition, position: Vector3, padding: number?): boolean
+	if area.id ~= Areas.STARTING_AREA then
+		return false
+	end
+	local farmCell = Sections.byCoord(Farming.CELL_COORD)
+	if not farmCell then
+		return false
+	end
+	local localPosition = position - area.origin
+	local margin = padding or 0
+	return localPosition.X >= farmCell.minX - margin
+		and localPosition.X <= farmCell.maxX + margin
+		and localPosition.Z >= farmCell.minZ - margin
+		and localPosition.Z <= farmCell.maxZ + margin
 end
 
 --------------------------------------------------------------------------------
@@ -333,6 +401,17 @@ function Layout.reservedZones(area: Areas.AreaDefinition): { Zone }
 		z = 0,
 		radius = Layout.plazaDiameter(area) / 2 + 60,
 	})
+
+	local farmCell = Sections.byCoord(Farming.CELL_COORD)
+	if area.id == Areas.STARTING_AREA and farmCell then
+		table.insert(zones, {
+			kind = "rect",
+			x = farmCell.cx,
+			z = farmCell.cz,
+			halfX = Sections.SIZE / 2,
+			halfZ = Sections.SIZE / 2,
+		})
+	end
 
 	--[[
 		The home plot. The plaza circle above does not reach its corners (the

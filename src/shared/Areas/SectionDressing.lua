@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
+local Farming = require(Shared.Modules.Config.Farming)
 local Sections = require(Shared.Modules.Config.Sections)
 local Props = require(Shared.Modules.Props)
 
@@ -163,6 +164,9 @@ local function dressSign(ctx, cell, theme)
 end
 
 local function dressCell(ctx, cell)
+	if cell.coord == Farming.CELL_COORD then
+		return
+	end
 	local theme = Sections.THEMES[cell.theme]
 	if not theme then
 		return
@@ -186,6 +190,11 @@ end
 	along them. Same-theme borders stay open field.
 ]]
 local function dressBorder(ctx, i, j, vertical)
+	local cellA = Sections.cell(i, j)
+	local cellB = if vertical then Sections.cell(i + 1, j) else Sections.cell(i, j + 1)
+	if (cellA and cellA.coord == Farming.CELL_COORD) or (cellB and cellB.coord == Farming.CELL_COORD) then
+		return
+	end
 	local themeA = Sections.themeAt(i, j)
 	local themeB = if vertical then Sections.themeAt(i + 1, j) else Sections.themeAt(i, j + 1)
 	if not themeA or not themeB or themeA == themeB then
@@ -272,15 +281,20 @@ local function dressPath(ctx, cell)
 		local x = at.X - dir.Y * drift
 		local z = at.Y + dir.X * drift
 		local size = 7 * ctx.rng:NextNumber(0.82, 1.1)
-		ctx.helpers.block(ctx, {
-			name = "PathStone",
-			shape = Enum.PartType.Cylinder,
-			size = Vector3.new(0.5, size, size),
-			color = if ctx.rng:NextNumber() > 0.82 then Color3.fromRGB(244, 206, 210) else Color3.fromRGB(246, 240, 228),
-			material = Enum.Material.SmoothPlastic,
-			cframe = CFrame.new(ctx.origin + Vector3.new(x, surfaceY(ctx, x, z) + 0.16, z)) * CFrame.Angles(0, 0, math.rad(90)),
-			collide = false,
-		})
+		if not ctx.isReserved(x, z) then
+			ctx.helpers.block(ctx, {
+				name = "PathStone",
+				shape = Enum.PartType.Cylinder,
+				size = Vector3.new(0.5, size, size),
+				color = if ctx.rng:NextNumber() > 0.82
+					then Color3.fromRGB(244, 206, 210)
+					else Color3.fromRGB(246, 240, 228),
+				material = Enum.Material.SmoothPlastic,
+				cframe = CFrame.new(ctx.origin + Vector3.new(x, surfaceY(ctx, x, z) + 0.16, z))
+					* CFrame.Angles(0, 0, math.rad(90)),
+				collide = false,
+			})
+		end
 	end
 end
 
@@ -305,6 +319,9 @@ function SectionDressing.dress(ctx)
 
 	for _, target in Sections.PATH_TARGETS do
 		local cell = Sections.cell(target[1], target[2])
+		if cell and cell.coord == Farming.CELL_COORD then
+			continue
+		end
 		local theme = cell and Sections.THEMES[cell.theme]
 		if cell and theme and not theme.wild then
 			dressPath(ctx, cell)

@@ -91,6 +91,14 @@ local REMOTE_TREE = {
 	},
 	-- client -> server: an item id to consume, validated
 	Inventory = { Eat = "RemoteEvent", UseSeasoning = "RemoteEvent" },
+	Farm = {
+		Rent = "RemoteEvent",
+		Bid = "RemoteEvent",
+		Plant = "RemoteEvent",
+		Harvest = "RemoteEvent",
+		Open = "RemoteEvent",
+		State = "RemoteEvent",
+	},
 	Guide = {
 		-- Client tells the server the player has read the intro, so it stops
 		-- being offered. One remote beats a client-side flag that forgets.

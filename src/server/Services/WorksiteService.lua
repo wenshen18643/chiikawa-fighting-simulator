@@ -120,7 +120,16 @@ local function buildWorksite(worksite: Worksites.WorksiteDefinition, cframe: CFr
 	post.Anchored = true
 	post.CanCollide = false
 	post.Size = Vector3.new(1.2, 10, 1.2)
-	post.CFrame = cframe * CFrame.new(0, 5, -size.Z / 2 + 2)
+	local postOffset = -size.Z / 2 + 2
+	if area then
+		local proposed = cframe:PointToWorldSpace(Vector3.new(0, 5, postOffset))
+		if Layout.isFarmPosition(area, proposed) then
+			-- Keep the progression pad where Layout put it, but move its sign to
+			-- the plaza-facing edge when the outward edge enters a reserved site.
+			postOffset = size.Z / 2 - 2
+		end
+	end
+	post.CFrame = cframe * CFrame.new(0, 5, postOffset)
 	post.Color = Color3.fromRGB(150, 118, 90)
 	post.Material = Enum.Material.Wood
 	post.Parent = folder

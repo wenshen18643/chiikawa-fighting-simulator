@@ -48,6 +48,10 @@ local BOOT_ORDER = {
 	"InventoryService",
 	"StaminaService",
 	"CurrencyService",
+	-- Farm mailbox receipts must be claimable before the lease service can
+	-- create refunds or deferred harvest rewards.
+	"FarmMailboxService",
+	"FarmingService",
 	"RegionService",
 	"WorkService",
 	-- Layers visual recall and the Kusatori Grade 5 exam over completed Exam
