@@ -170,7 +170,22 @@ local function settleCrop(plot: FarmPlot, crop: CropState, elapsed: number, forc
 	if not ownerUserId then
 		return
 	end
-	local itemCount = Farming.yieldForElapsed(math.max(0, elapsed))
+	local itemCount = Farming.yieldForElapsed(crop.id, math.max(0, elapsed))
+	local player = Players:GetPlayerByUserId(ownerUserId)
+	local definition = Ingredients.get(crop.id)
+	if itemCount <= 0 then
+		if player and not forceMailbox then
+			NotifyService.send(
+				player,
+				string.format(
+					"%s on Plot %02d did not mature before the lease ended.",
+					if definition then definition.name else crop.id,
+					plot:getId()
+				)
+			)
+		end
+		return
+	end
 	local credit: Credit = {
 		id = creditId("crop", plot:getId(), ownerUserId),
 		ingredientId = crop.id,
@@ -180,9 +195,7 @@ local function settleCrop(plot: FarmPlot, crop: CropState, elapsed: number, forc
 	}
 	deliverOrDefer(ownerUserId, credit, forceMailbox)
 
-	local player = Players:GetPlayerByUserId(ownerUserId)
 	if player and not forceMailbox then
-		local definition = Ingredients.get(crop.id)
 		NotifyService.send(
 			player,
 			string.format(
@@ -404,7 +417,7 @@ local function handlePlant(player: Player, rawPlotId: any, rawCropId: any)
 		local xpPerItem = BigNumber.mulNumber(Formulas.gainPerAction(profile, "kusatori", nil), definition.xpMultiplier)
 		lockedPlot:plant({ id = cropId, plantedAt = atTime, xpPerItem = xpPerItem })
 		local leaseEndsAt = lockedPlot:getLeaseEndsAt() or atTime
-		local guaranteed = Farming.yieldForElapsed(leaseEndsAt - atTime)
+		local guaranteed = Farming.yieldForElapsed(cropId, leaseEndsAt - atTime)
 		NotifyService.send(
 			player,
 			string.format("Planted %s. This lease guarantees %d at settlement.", definition.name, guaranteed),
@@ -440,8 +453,9 @@ local function handleHarvest(player: Player, rawPlotId: any)
 			reject(player, "There is no crop to harvest.")
 			return
 		end
-		if atTime - crop.plantedAt < Farming.MATURE_SECONDS then
-			reject(player, "This crop is not mature yet. It will settle automatically if the lease ends first.")
+		local growthSeconds = Farming.growthSeconds(crop.id)
+		if not growthSeconds or atTime - crop.plantedAt < growthSeconds then
+			reject(player, "This crop is not mature yet. Unfinished crops yield nothing when the lease ends.")
 			return
 		end
 
