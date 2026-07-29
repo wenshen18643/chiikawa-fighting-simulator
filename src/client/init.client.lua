@@ -29,6 +29,8 @@ local BOOT_ORDER = {
 	{ container = script.Controllers, name = "GestureController" },
 	{ container = script.Controllers, name = "CompanionAnimController" },
 	{ container = script.Controllers, name = "MobAnimController" },
+	-- Independent: it only listens for the Forage remote.
+	{ container = script.Controllers, name = "ForageProgressController" },
 	{ container = script.Controllers, name = "CompanionShelfController" },
 	-- Independent of the rest: it waits on Workspace.SafeZone and drives
 	-- whatever the server tagged as rigged.

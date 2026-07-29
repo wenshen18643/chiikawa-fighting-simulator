@@ -37,8 +37,6 @@ local EXPECTED = {
 	},
 }
 
-local TOTAL_POPULATION = 13
-
 local function populationById(mobs)
 	local counts = {}
 	for _, model in mobs:GetChildren() do
@@ -50,10 +48,9 @@ local function populationById(mobs)
 	return counts
 end
 
+-- Only the ring-spawned species are asserted; the sausage forest deploys its
+-- own guardians into the same folder and owns their count.
 local function populationReady(mobs)
-	if #mobs:GetChildren() ~= TOTAL_POPULATION then
-		return false
-	end
 	local counts = populationById(mobs)
 	for mobId, expected in EXPECTED do
 		if counts[mobId] ~= expected.population then

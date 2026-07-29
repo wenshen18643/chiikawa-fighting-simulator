@@ -40,10 +40,10 @@ end
 local MAP = {
 	{ "sakura", "sakura", "sakura", "sakura", "flower", "meadow" },
 	{ "flower", "ramen", "farm", "sakura", "study", "flower" },
-	{ "meadow", "berry", "farm", "farm", "tea", "sausage" },
-	{ "meadow", "bramble", "town", "town", "picnic", "sausage" },
-	{ "meadow", "grove", "grove", "mushroom", "snow", "meadow" },
-	{ "meadow", "grove", "oldsausage", "sausage", "rocky", "meadow" },
+	{ "meadow", "berry", "farm", "farm", "tea", "grove" },
+	{ "meadow", "bramble", "town", "town", "picnic", "grove" },
+	{ "meadow", "sausage", "sausage", "mushroom", "snow", "meadow" },
+	{ "meadow", "sausage", "sausage", "grove", "rocky", "meadow" },
 }
 
 function Sections.themeAt(i: number, j: number): string?
@@ -198,36 +198,17 @@ Sections.THEMES = {
 			{ kind = "coded", fn = "boulder", count = 1 },
 		},
 	},
+	--[[
+		`bare` skips the whole dressing pass, signpost and arch included. Nothing
+		stands in the sausage forest that is not a sausage, and the ground around
+		the BIG tree has to stay clear for the fight.
+	]]
 	sausage = {
 		name = "Sausage Forest",
 		sub = "they grow on trees",
 		material = "Grass",
-		arch = true,
-		recipe = {
-			{ kind = "prop", key = "pinkSausageTree", count = 7, h = { 12, 18 }, upright = true },
-			{ kind = "prop", key = "yellowSausageTree", count = 2, h = { 13, 15 }, upright = true },
-			{ kind = "prop", key = "brownMushroom", count = 5, h = { 2, 3 }, upright = true },
-			{ kind = "log", count = 5, l = { 6, 10 } },
-			{ kind = "stone", count = 5, s = { 3, 6 } },
-			{ kind = "grass", count = 16 },
-			{ kind = "bush", count = 6, s = { 3, 5 } },
-		},
-	},
-	oldsausage = {
-		name = "Old Sausage Wood",
-		sub = "golden and ancient",
-		material = "LeafyGrass",
-		arch = true,
-		recipe = {
-			{ kind = "prop", key = "yellowSausageTree", count = 6, h = { 13, 19 }, upright = true },
-			{ kind = "prop", key = "pinkSausageTree", count = 3, h = { 11, 15 }, upright = true },
-			{ kind = "prop", key = "whiteMushroom", count = 3, h = { 2.6, 3.2 }, upright = true },
-			{ kind = "coded", fn = "cairn", count = 3 },
-			{ kind = "coded", fn = "boulder", count = 1 },
-			{ kind = "log", count = 5, l = { 6, 10 } },
-			{ kind = "stone", count = 7, s = { 3, 6 } },
-			{ kind = "grass", count = 12 },
-		},
+		bare = true,
+		recipe = {},
 	},
 	mushroom = {
 		name = "Mushroom Hollow",

@@ -12,6 +12,12 @@
       "sourceType": "github",
       "skillPath": "roblox-animations/SKILL.md",
       "computedHash": "66b027e98b5f5c67aed452aea94e2a58967334b04b3476fc1cfc390ca251f982"
+    },
+    "roblox-gui": {
+      "source": "sentinelcore/roblox-skills",
+      "sourceType": "github",
+      "skillPath": "roblox-gui/SKILL.md",
+      "computedHash": "e50a649d3f6b1d60b393031118e2739ab697756e44d4a5442a26e53e996584c9"
     }
   }
 }

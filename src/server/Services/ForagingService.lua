@@ -28,6 +28,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Constants = require(Shared.Modules.Constants)
 local Formulas = require(Shared.Modules.Formulas)
+local ModelUtil = require(Shared.Modules.ModelUtil)
 local Remotes = require(Shared.Modules.Remotes)
 local Areas = require(Shared.Areas)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
@@ -53,30 +54,45 @@ export type Node = {
 	transparency: { [BasePart]: number },
 	pulled: boolean,
 	progress: { [Player]: number },
+	clicks: number, -- base clicks for THIS node: a bigger tree costs more
+	yield: number, -- how many ingredients one pull pays
+}
+
+export type PlantOptions = {
+	parent: Instance,
+	height: number?,
+	clicks: number?,
+	yield: number?,
+	yaw: number?,
+	dirt: boolean?,
 }
 
 local nodes: { Node } = {}
 local forageEvent: RemoteEvent
+local groundParams: RaycastParams
+local groundTop = 0
 
 --------------------------------------------------------------------------------
 -- Pulling
 --------------------------------------------------------------------------------
 
-local function clicksNeeded(profile: any, def: Ingredients.IngredientDefinition): number
+local function clicksNeeded(profile: any, node: Node): number
+	local def = node.ingredient
 	local exponent = math.floor(BigNumber.log10(profile.skills.kusatori))
-	return def.minClicks + FORAGE.CLICKS_PER_EXPONENT_BEHIND * math.max(0, def.gateExponent - exponent)
+	return node.clicks + FORAGE.CLICKS_PER_EXPONENT_BEHIND * math.max(0, def.gateExponent - exponent)
 end
 
 local function harvest(player: Player, profile: any, node: Node)
 	local def = node.ingredient
+	local yield = node.yield
 
 	-- A finished node resets for everyone, not just whoever landed the last click.
 	node.progress = {}
 	node.pulled = true
 
-	profile.currencies.ingredients[def.id] = (profile.currencies.ingredients[def.id] or 0) + 1
+	profile.currencies.ingredients[def.id] = (profile.currencies.ingredients[def.id] or 0) + yield
 
-	local gain = BigNumber.mulNumber(Formulas.gainPerAction(profile, "kusatori", nil), def.xpMultiplier)
+	local gain = BigNumber.mulNumber(Formulas.gainPerAction(profile, "kusatori", nil), def.xpMultiplier * yield)
 	SkillService.award(player, profile, "kusatori", gain)
 
 	local yen = Formulas.yenForGain("kusatori", gain)
@@ -87,7 +103,8 @@ local function harvest(player: Player, profile: any, node: Node)
 	forageEvent:FireClient(player, "success", def.id, gain, node.center)
 
 	if def.rarity == "super" or def.rarity == "legendary" then
-		NotifyService.send(player, `Foraged {def.name}!`, "reward")
+		local suffix = if yield > 1 then ` x{yield}` else ""
+		NotifyService.send(player, `Foraged {def.name}{suffix}!`, "reward")
 	end
 
 	for part in node.transparency do
@@ -155,11 +172,11 @@ function ForagingService.pull(player: Player, profile: any, node: Node): boolean
 	character:SetAttribute("ForageClip", def.clip)
 	character:SetAttribute("ForageClipAt", os.clock())
 
-	local needed = clicksNeeded(profile, def)
+	local needed = clicksNeeded(profile, node)
 	if current >= needed then
 		harvest(player, profile, node)
 	else
-		forageEvent:FireClient(player, "progress", def.id, current, needed)
+		forageEvent:FireClient(player, "progress", def.id, current, needed, node.center)
 	end
 
 	return true
@@ -172,6 +189,11 @@ end
 local function groundAt(x: number, z: number, top: number, params: RaycastParams): number
 	local hit = Workspace:Raycast(Vector3.new(x, top + 80, z), Vector3.new(0, -260, 0), params)
 	return if hit then hit.Position.Y else top
+end
+
+-- Terrain height, ignoring everything already placed in the region.
+function ForagingService.groundAt(x: number, z: number): number
+	return groundAt(x, z, groundTop, groundParams)
 end
 
 --[[
@@ -200,81 +222,48 @@ local function buildDirt(parent: Instance, position: Vector3, rng: Random)
 end
 
 --[[
-	Stand a model on its feet.
+	Grow one pullable node.
 
-	The sausage trees are authored lying along their X axis, which broke two
-	things at once: they grew out of the ground sideways, and `height` scaling
-	divides by the Y extent — so a tree whose Y extent is its TRUNK WIDTH was
-	scaled by trunk-width-to-seven rather than by height, and came out enormous.
-
-	Fixing the orientation first makes the height mean what it says. Judged from
-	the bounding box rather than from a per-asset flag: "the longest axis points
-	up" is true of every plant here, and it keeps working when an asset is
-	replaced by one the uploader happened to orient differently.
+	Public because the sausage forest lays its trees out by board section rather
+	than by zone: it picks size, clicks and yield per tree, and this stays the
+	one place that knows how a node is built and registered.
 ]]
-local function standUpright(model: Model)
-	local size = model:GetExtentsSize()
-	if size.Y >= size.X and size.Y >= size.Z then
-		return
-	end
-	local pitch = if size.X > size.Z then CFrame.Angles(0, 0, math.rad(90)) else CFrame.Angles(math.rad(90), 0, 0)
-	model:PivotTo(model:GetPivot() * pitch)
-end
-
---[[
-	Place it standing on `position`, keeping whatever pitch standUpright applied.
-
-	AssetService.place cannot be used for these: it builds a fresh CFrame from
-	the position and a yaw, which throws away the pitch and lays the tree back
-	down again.
-]]
-local function placeStanding(model: Model, position: Vector3, yaw: number)
-	local rotation = model:GetPivot().Rotation
-	local size = model:GetExtentsSize()
-	model:PivotTo(CFrame.new(position + Vector3.new(0, size.Y / 2, 0)) * CFrame.Angles(0, yaw, 0) * rotation)
-end
-
-local function buildNode(def: Ingredients.IngredientDefinition, position: Vector3, rng: Random, parent: Instance)
+function ForagingService.plant(
+	def: Ingredients.IngredientDefinition,
+	position: Vector3,
+	options: PlantOptions
+): Node?
 	local model = AssetService.clone(def.asset)
 	if not model then
 		warn(`[ForagingService] no model for "{def.asset}" ({def.id}) - skipping node`)
-		return
+		return nil
 	end
 
 	model.Name = `Forage_{def.id}`
 	model:SetAttribute("IngredientId", def.id)
 
-	standUpright(model)
+	ModelUtil.standUpright(model)
 
 	-- Sized against the player rather than against whatever the author uploaded:
 	-- a two-storey carrot and a thumbnail sausage tree both break the scene.
-	if def.height then
-		local extents = model:GetExtentsSize()
-		if extents.Y > 0.01 then
-			model:ScaleTo(model:GetScale() * (def.height / extents.Y))
-		end
+	local height = options.height or def.height
+	if height then
+		ModelUtil.scaleToHeight(model, height)
 	end
 
-	if not model.PrimaryPart then
-		for _, descendant in model:GetDescendants() do
-			if descendant:IsA("BasePart") then
-				model.PrimaryPart = descendant
-				break
-			end
-		end
-	end
+	model.PrimaryPart = model.PrimaryPart or ModelUtil.firstPart(model)
 	if not model.PrimaryPart then
 		warn(`[ForagingService] "{def.asset}" has no parts - skipping node`)
 		model:Destroy()
-		return
+		return nil
 	end
 
-	if def.ground then
-		buildDirt(parent, position, rng)
+	if options.dirt then
+		buildDirt(options.parent, position, Random.new(math.floor(position.X * 73 + position.Z)))
 	end
 
-	placeStanding(model, position, rng:NextNumber(0, math.pi * 2))
-	model.Parent = parent
+	ModelUtil.placeStanding(model, position, options.yaw or 0)
+	model.Parent = options.parent
 
 	-- The client finds the nearest of these to start the right dig animation
 	-- before the server has answered.
@@ -287,14 +276,18 @@ local function buildNode(def: Ingredients.IngredientDefinition, position: Vector
 		end
 	end
 
-	table.insert(nodes, {
+	local node: Node = {
 		model = model,
 		ingredient = def,
 		center = model:GetPivot().Position,
 		transparency = transparency,
 		pulled = false,
 		progress = {},
-	})
+		clicks = options.clicks or def.minClicks,
+		yield = options.yield or 1,
+	}
+	table.insert(nodes, node)
+	return node
 end
 
 local function seedOf(id: string): number
@@ -337,7 +330,11 @@ local function buildZone(zone: Ingredients.ZoneDefinition, parent: Instance, par
 		for _ = 1, zone.perClump do
 			local x = clumpX + rng:NextNumber(-FORAGE.CLUMP_SPREAD, FORAGE.CLUMP_SPREAD)
 			local z = clumpZ + rng:NextNumber(-FORAGE.CLUMP_SPREAD, FORAGE.CLUMP_SPREAD)
-			buildNode(def, Vector3.new(x, groundAt(x, z, top, params), z), rng, folder)
+			ForagingService.plant(def, Vector3.new(x, groundAt(x, z, top, params), z), {
+				parent = folder,
+				yaw = rng:NextNumber(0, math.pi * 2),
+				dirt = def.ground,
+			})
 		end
 	end
 end
@@ -361,10 +358,11 @@ function ForagingService.init()
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = { regionFolder }
+	groundParams = params
+	groundTop = Layout.plazaCFrame(area).Position.Y
 
-	local top = Layout.plazaCFrame(area).Position.Y
 	for _, zone in Ingredients.ZONES do
-		buildZone(zone, groves, params, top)
+		buildZone(zone, groves, params, groundTop)
 	end
 
 	Players.PlayerRemoving:Connect(function(player)

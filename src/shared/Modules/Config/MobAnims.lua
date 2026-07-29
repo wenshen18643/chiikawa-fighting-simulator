@@ -158,6 +158,79 @@ MobAnims.SETS = {
 			},
 		},
 	},
+	--[[
+		No legs, so travel is a hop: the whole body leaves the ground and leans
+		into the direction it lands. The BIG tree shares the set and never moves,
+		which is why idle has to read on its own.
+	]]
+	sausageGuardian = {
+		walkSpeed = 5,
+		runSpeed = 13,
+		clips = {
+			idle = {
+				length = 2.6,
+				looped = true,
+				tracks = {
+					root = { { t = 0.00, y = 0, roll = -2 }, { t = 0.50, y = 0.06, roll = 2 } },
+					armL = { { t = 0.00, roll = -6 }, { t = 0.50, roll = 6 } },
+					armR = { { t = 0.00, roll = 6 }, { t = 0.50, roll = -6 } },
+				},
+			},
+			walk = {
+				length = 0.78,
+				looped = true,
+				tracks = {
+					root = {
+						{ t = 0.00, y = 0, pitch = 0 },
+						{ t = 0.30, y = 0.42, pitch = -10 },
+						{ t = 0.62, y = 0, pitch = 8 },
+						{ t = 1.00, y = 0, pitch = 0 },
+					},
+					armL = { { t = 0.00, roll = -10 }, { t = 0.30, roll = -34 }, { t = 1.00, roll = -10 } },
+					armR = { { t = 0.00, roll = 10 }, { t = 0.30, roll = 34 }, { t = 1.00, roll = 10 } },
+				},
+			},
+			run = {
+				length = 0.5,
+				looped = true,
+				tracks = {
+					root = {
+						{ t = 0.00, y = 0, pitch = 6 },
+						{ t = 0.30, y = 0.7, pitch = -16 },
+						{ t = 0.62, y = 0, pitch = 14 },
+						{ t = 1.00, y = 0, pitch = 6 },
+					},
+					armL = { { t = 0.00, roll = -16 }, { t = 0.30, roll = -52 }, { t = 1.00, roll = -16 } },
+					armR = { { t = 0.00, roll = 16 }, { t = 0.30, roll = 52 }, { t = 1.00, roll = 16 } },
+				},
+			},
+			attack = {
+				length = 0.62,
+				tracks = {
+					root = {
+						{ t = 0.00, pitch = 0 },
+						{ t = 0.24, pitch = -14 },
+						{ t = 0.52, pitch = 26 },
+						{ t = 1.00, pitch = 0 },
+					},
+					armL = { { t = 0.00, pitch = 0 }, { t = 0.52, pitch = -70 }, { t = 1.00, pitch = 0 } },
+					armR = { { t = 0.00, pitch = 0 }, { t = 0.52, pitch = -70 }, { t = 1.00, pitch = 0 } },
+				},
+			},
+			hit = {
+				length = 0.36,
+				tracks = {
+					root = {
+						{ t = 0.00, pitch = 0, roll = 0 },
+						{ t = 0.28, pitch = 12, roll = -10 },
+						{ t = 1.00, pitch = 0, roll = 0 },
+					},
+					armL = { { t = 0.00, roll = 0 }, { t = 0.28, roll = -26 }, { t = 1.00, roll = 0 } },
+					armR = { { t = 0.00, roll = 0 }, { t = 0.28, roll = 26 }, { t = 1.00, roll = 0 } },
+				},
+			},
+		},
+	},
 	wolf = {
 		walkSpeed = 9,
 		runSpeed = 17,

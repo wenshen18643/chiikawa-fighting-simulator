@@ -108,6 +108,14 @@ Skeleton.PROFILES = {
 		},
 		fallback = "Torso",
 	},
+	sausageGuardian = {
+		joints = {
+			root = "RootJoint",
+			armL = "Left Shoulder",
+			armR = "Right Shoulder",
+		},
+		fallback = "Torso",
+	},
 	wolf = {
 		joints = {
 			root = "RootJoint",
