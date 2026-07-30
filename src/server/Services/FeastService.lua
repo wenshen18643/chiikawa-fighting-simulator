@@ -45,6 +45,10 @@ local reserved: { Layout.Zone } = {}
 local overlapParams = OverlapParams.new()
 local rng = Random.new()
 local feastEvent: RemoteEvent
+-- The same channel a work click reports through, so a bite's Resilience shows
+-- up the way a trained point does. Taken from the registry rather than from
+-- WorkService, which already requires this module.
+local workFeedback: RemoteEvent
 local folder: Folder
 
 --------------------------------------------------------------------------------
@@ -206,6 +210,9 @@ end
 local function awardResilience(player: Player, profile: any, clicks: number)
 	local gain = BigNumber.mulNumber(Formulas.gainPerAction(profile, "resilience", nil), clicks)
 	SkillService.award(player, profile, "resilience", gain)
+	if not BigNumber.isZero(gain) then
+		workFeedback:FireClient(player, "resilience", gain)
+	end
 	return gain
 end
 
@@ -306,6 +313,7 @@ end
 
 function FeastService.init()
 	feastEvent = Remotes.event("Feast", "Event")
+	workFeedback = Remotes.event("Work", "Feedback")
 
 	local area = Areas.get(1)
 	local regionFolder = area and WorldService.getRegionFolder(area.id)
