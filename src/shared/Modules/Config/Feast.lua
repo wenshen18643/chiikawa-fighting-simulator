@@ -23,6 +23,11 @@ Feast.PLACE_ATTEMPTS = 30
 Feast.CELL_MARGIN = 30
 Feast.ANNOUNCE_RADIUS = 140
 
+-- Food the dressing pass put in the map, rather than food a plane dropped. It
+-- has no lifetime: eaten, it grows back in its own spot after a wait.
+Feast.PROP_TAG = "FeastProp"
+Feast.PROP_RESPAWN = 600
+
 -- Chewing is endurance, so a bite trains resilience the way a stir does
 -- (Constants.COOKING). Paid per bite rather than in a lump at the end: a bowl
 -- somebody else finishes must still have been worth the clicks you put in.
