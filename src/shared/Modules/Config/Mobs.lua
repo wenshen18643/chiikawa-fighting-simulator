@@ -12,6 +12,8 @@ export type BaseMobDefinition = {
 	height: number,
 	spawnRadius: number,
 	spawnAngleOffset: number?,
+	-- Ring centre, relative to the area origin. Defaults to the origin itself.
+	spawnCentreOffset: Vector3?,
 	roamRadius: number,
 	leashRadius: number,
 	roamSpeed: number,
@@ -69,8 +71,13 @@ Mobs.DEFINITIONS = {
 		regionId = 1,
 		population = 6,
 		height = 5.5,
-		spawnRadius = 72,
-		roamRadius = 35,
+		-- South of the cottage, not around it: a ring on the plaza sits inside the
+		-- safe volume, where a protected player cannot attack it. Keeps all six
+		-- homes and their roam circles in the Z -212..-66 band between the safe
+		-- volume and the C2 sausage forest.
+		spawnCentreOffset = Vector3.new(0, 0, -139),
+		spawnRadius = 44,
+		roamRadius = 22,
 		leashRadius = 90,
 		roamSpeed = 6,
 		chaseSpeed = 12,

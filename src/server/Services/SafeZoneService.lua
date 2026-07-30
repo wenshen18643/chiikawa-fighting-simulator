@@ -1549,6 +1549,11 @@ end
 --------------------------------------------------------------------------------
 
 function SafeZoneService.containsPosition(position: Vector3): boolean
+	-- Asked before the volume is built, or after a failed build: there is no
+	-- ForceField either, so nothing is protected.
+	if not volumeCentre then
+		return false
+	end
 	local delta = position - volumeCentre
 	return math.abs(delta.X) <= volumeHalf.X and math.abs(delta.Y) <= volumeHalf.Y and math.abs(delta.Z) <= volumeHalf.Z
 end

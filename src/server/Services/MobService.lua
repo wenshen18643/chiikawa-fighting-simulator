@@ -112,6 +112,12 @@ local function placeOnGround(model: Model, groundCFrame: CFrame)
 	model:PivotTo(model:GetPivot() + Vector3.new(0, groundCFrame.Position.Y - bottom, 0))
 end
 
+-- The rig root is centred a stud above the mob's feet, so a ray aimed at it
+-- clips the ground on any slope. Sight lines use mid-body height instead.
+local function sightPosition(actor: MobActor): Vector3
+	return actor._root.Position + Vector3.new(0, actor._definition.height * 0.5, 0)
+end
+
 local function planarDistance(a: Vector3, b: Vector3): number
 	return Vector3.new(a.X - b.X, 0, a.Z - b.Z).Magnitude
 end
@@ -219,7 +225,8 @@ function Mob._hasLineOfSight(self: MobActor, character: Model, targetRoot: BaseP
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = { self._model }
-	local result = Workspace:Raycast(self._root.Position, targetRoot.Position - self._root.Position, params)
+	local from = sightPosition(self)
+	local result = Workspace:Raycast(from, targetRoot.Position - from, params)
 	return result == nil or result.Instance:IsDescendantOf(character)
 end
 
@@ -550,6 +557,40 @@ function Mob.new(
 	return self
 end
 
+--[[
+	A hostile mob inside the safe volume is scenery: findAttackTarget skips it
+	for a protected player, and _validTarget stops it hitting back. The whole
+	roam circle has to be clear, not just the spawn point, or the mob is only
+	fightable on the swings it happens to wander out on.
+
+	This once cost the mushroom frog: its ring sat at radius 72 around a plaza
+	whose safe box reaches 146 studs, so two of the six were permanently inert.
+	Cheaper to hear about it at boot than to notice it in playtest.
+]]
+local function warnIfUnreachable(definition: Mobs.MobDefinition, cframes: { CFrame }, home: Vector3?)
+	if definition.behavior == "flee" then
+		return
+	end
+	local reach = definition.roamRadius
+	for slot, cframe in cframes do
+		-- Roam is measured from the given home when there is one, and from where
+		-- the mob stood otherwise: the same centre _setDestination uses.
+		local centre = if home then Vector3.new(home.X, cframe.Position.Y, home.Z) else cframe.Position
+		if
+			SafeZoneService.containsPosition(centre)
+			or SafeZoneService.containsPosition(centre + Vector3.new(reach, 0, 0))
+			or SafeZoneService.containsPosition(centre - Vector3.new(reach, 0, 0))
+			or SafeZoneService.containsPosition(centre + Vector3.new(0, 0, reach))
+			or SafeZoneService.containsPosition(centre - Vector3.new(0, 0, reach))
+		then
+			warn(
+				`[MobService] {definition.id} slot {slot} roams inside the safe volume; `
+					.. `players cannot attack it from there. Move spawnCentreOffset or shrink roamRadius.`
+			)
+		end
+	end
+end
+
 local function actorKey(definition: Mobs.MobDefinition, slot: number): string
 	return `{definition.id}:{slot}`
 end
@@ -665,7 +706,7 @@ local function findAttackTarget(player: Player): MobActor?
 			and distance <= definition.playerAttackRange
 			and forward:Dot(planar.Unit) >= definition.playerFacingMinimum
 			and distance < bestDistance
-			and clearLineOfSight(character, actor._model, playerRoot.Position, actor._root.Position)
+			and clearLineOfSight(character, actor._model, playerRoot.Position, sightPosition(actor))
 		then
 			best = actor
 			bestDistance = distance
@@ -689,6 +730,7 @@ function MobService.deploy(mobId: string, cframes: { CFrame }, home: Vector3?)
 	end
 	spawnCFrames[mobId] = cframes
 	spawnHomes[mobId] = home
+	warnIfUnreachable(definition, cframes, home)
 
 	task.spawn(function()
 		if not AssetService.waitFor(definition.assetKey, 10) then
@@ -786,12 +828,15 @@ function MobService.init()
 			warn(`[MobService] mob "{definition.id}" references missing region {definition.regionId}`)
 			continue
 		end
-		spawnCFrames[definition.id] = Layout.mobSpawnCFrames(
+		local ring = Layout.mobSpawnCFrames(
 			area,
 			definition.population,
 			definition.spawnRadius,
-			definition.spawnAngleOffset
+			definition.spawnAngleOffset,
+			definition.spawnCentreOffset
 		)
+		spawnCFrames[definition.id] = ring
+		warnIfUnreachable(definition, ring)
 
 		task.spawn(function()
 			if not AssetService.waitFor(definition.assetKey, 10) then

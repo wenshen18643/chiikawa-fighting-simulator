@@ -107,7 +107,10 @@ local function getMobSkill(): string?
 		local params = RaycastParams.new()
 		params.FilterType = Enum.RaycastFilterType.Exclude
 		params.FilterDescendantsInstances = { Players.LocalPlayer.Character :: Model, child }
-		if Workspace:Raycast(root.Position, mobRoot.Position - root.Position, params) == nil then
+		-- Mid-body, matching the server: the rig root sits a stud off the floor,
+		-- and a ray aimed there clips the ground on any slope.
+		local sight = mobRoot.Position + Vector3.new(0, definition.height * 0.5, 0)
+		if Workspace:Raycast(root.Position, sight - root.Position, params) == nil then
 			return "tobatsu"
 		end
 	end
