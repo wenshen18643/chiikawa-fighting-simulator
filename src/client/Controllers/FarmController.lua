@@ -1,10 +1,13 @@
 --!strict
 
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 
 local FarmController = {}
 
 local TAG = "FarmPlot"
+local TIMER_NAME = "OwnerCropTimer"
+local localPlayer = Players.LocalPlayer
 local tracked: { [Model]: boolean } = {}
 
 local function clockText(seconds: number): string
@@ -17,11 +20,98 @@ local function labelIn(model: Model, name: string): TextLabel?
 	return if found and found:IsA("TextLabel") then found else nil
 end
 
+local function destroyCropTimer(model: Model)
+	local existing = model:FindFirstChild(TIMER_NAME)
+	if existing then
+		existing:Destroy()
+	end
+end
+
+local function makeCropTimer(model: Model): BillboardGui?
+	local adornee = model.PrimaryPart or model:FindFirstChild("Base")
+	if not adornee or not adornee:IsA("BasePart") then
+		return nil
+	end
+
+	local gui = Instance.new("BillboardGui")
+	gui.Name = TIMER_NAME
+	gui.Adornee = adornee
+	gui.Size = UDim2.fromOffset(190, 54)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, 6, 0)
+	gui.AlwaysOnTop = true
+	gui.MaxDistance = 110
+
+	local background = Instance.new("Frame")
+	background.Name = "Background"
+	background.Size = UDim2.fromScale(1, 1)
+	background.BackgroundColor3 = Color3.fromRGB(255, 248, 226)
+	background.BackgroundTransparency = 0.08
+	background.BorderSizePixel = 0
+	background.Parent = gui
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = background
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(94, 132, 76)
+	stroke.Thickness = 2
+	stroke.Transparency = 0.12
+	stroke.Parent = background
+
+	local label = Instance.new("TextLabel")
+	label.Name = "Timer"
+	label.BackgroundTransparency = 1
+	label.Position = UDim2.fromOffset(8, 5)
+	label.Size = UDim2.new(1, -16, 1, -10)
+	label.Font = Enum.Font.FredokaOne
+	label.Text = ""
+	label.TextColor3 = Color3.fromRGB(68, 95, 54)
+	label.TextScaled = true
+	label.Parent = background
+
+	gui.Parent = model
+	return gui
+end
+
+local function updateCropTimer(model: Model)
+	local ownerUserId = model:GetAttribute("OwnerUserId")
+	local cropId = model:GetAttribute("CropId")
+	local maturesAt = model:GetAttribute("MaturesAt")
+	if ownerUserId ~= localPlayer.UserId or type(cropId) ~= "string" or type(maturesAt) ~= "number" then
+		destroyCropTimer(model)
+		return
+	end
+
+	local found = model:FindFirstChild(TIMER_NAME)
+	local gui = if found and found:IsA("BillboardGui") then found else makeCropTimer(model)
+	if not gui then
+		return
+	end
+
+	local label = gui:FindFirstChild("Timer", true)
+	if not label or not label:IsA("TextLabel") then
+		gui:Destroy()
+		return
+	end
+
+	local remaining = maturesAt - os.time()
+	if remaining <= 0 then
+		label.Text = "READY TO HARVEST!"
+		label.TextColor3 = Color3.fromRGB(48, 132, 72)
+	else
+		label.Text = string.format("%s  %s", string.upper(cropId), clockText(remaining))
+		label.TextColor3 = Color3.fromRGB(68, 95, 54)
+	end
+end
+
 local function update(model: Model)
 	if not model.Parent then
+		destroyCropTimer(model)
 		tracked[model] = nil
 		return
 	end
+	updateCropTimer(model)
 
 	local status = labelIn(model, "Status")
 	local auction = labelIn(model, "Auction")
@@ -68,6 +158,7 @@ function FarmController.init()
 	CollectionService:GetInstanceAddedSignal(TAG):Connect(track)
 	CollectionService:GetInstanceRemovedSignal(TAG):Connect(function(instance)
 		if instance:IsA("Model") then
+			destroyCropTimer(instance)
 			tracked[instance] = nil
 		end
 	end)

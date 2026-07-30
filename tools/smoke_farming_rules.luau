@@ -20,10 +20,24 @@ assert(Farming.escrowCharge(80, 50, false) == 80, "a new leader must escrow thei
 assert(Farming.countPositions({ 1, 2, 3 }, { 3, 4, 5 }) == 5, "leases and bids must count as a union")
 assert(Farming.countPositions({ 1 }, { 1 }) == 1, "renewal bidding must not consume a second position")
 
-assert(Farming.yieldForElapsed(119) == 4, "119 seconds must settle four items")
-assert(Farming.yieldForElapsed(120) == 6, "120 seconds must settle six items")
-assert(Farming.yieldForElapsed(239) == 6, "239 seconds must settle six items")
-assert(Farming.yieldForElapsed(240) == 13, "240 seconds must settle thirteen items")
+assert(Farming.growthSeconds("carrot") == 120, "carrots must take two minutes")
+assert(Farming.yieldForElapsed("carrot", 119) == 0, "an early carrot must yield nothing")
+assert(Farming.yieldForElapsed("carrot", 120) == 8, "a mature carrot crop must yield eight items")
+assert(Farming.growthSeconds("potato") == 240, "potatoes must take four minutes")
+assert(Farming.yieldForElapsed("potato", 239) == 0, "an early potato must yield nothing")
+assert(Farming.yieldForElapsed("potato", 240) == 13, "a mature potato crop must yield thirteen items")
+assert(Farming.growthSeconds("rice") == 360, "rice must take six minutes")
+assert(Farming.yieldForElapsed("rice", 359) == 0, "early rice must yield nothing")
+assert(Farming.yieldForElapsed("rice", 360) == 18, "a mature rice crop must yield eighteen items")
+assert(Farming.yieldForElapsed("unknown", 10_000) == 0, "unknown crops must yield nothing")
+
+local carrot = assert(Farming.cropDefinition("carrot"), "carrot farming config is missing")
+local potato = assert(Farming.cropDefinition("potato"), "potato farming config is missing")
+local rice = assert(Farming.cropDefinition("rice"), "rice farming config is missing")
+assert(carrot.visualBrightness > 1 and potato.visualBrightness > 1, "root crops must receive a brightness boost")
+assert(rice.visualBrightness == 1, "rice must retain its authored brightness")
+assert(rice.plotSpacing < carrot.plotSpacing, "rice rows must be tighter than carrot rows")
+assert(rice.plotSpacing < potato.plotSpacing, "rice rows must be tighter than potato rows")
 
 local seen = {}
 for plotId = 1, Farming.PLOT_COUNT do

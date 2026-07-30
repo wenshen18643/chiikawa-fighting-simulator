@@ -28,13 +28,43 @@ Farming.ROUTE_STONE_SIZE = 6.5
 Farming.ROUTE_STONE_THICKNESS = 0.4
 
 Farming.SEED_COST = 3
-Farming.PARTIAL_GROWTH_SECONDS = 2 * 60
-Farming.MATURE_SECONDS = 4 * 60
-Farming.PARTIAL_YIELD = 4
-Farming.MID_YIELD = 6
-Farming.MATURE_YIELD = 13
+
+export type CropDefinition = {
+	id: string,
+	growthSeconds: number,
+	harvestYield: number,
+	plotSpacing: number,
+	visualBrightness: number,
+	visualSaturation: number,
+}
 
 Farming.CROP_IDS = { "carrot", "potato", "rice" }
+Farming.CROPS = {
+	carrot = {
+		id = "carrot",
+		growthSeconds = 2 * 60,
+		harvestYield = 8,
+		plotSpacing = 8,
+		visualBrightness = 1.35,
+		visualSaturation = 1.08,
+	},
+	potato = {
+		id = "potato",
+		growthSeconds = 4 * 60,
+		harvestYield = 13,
+		plotSpacing = 8,
+		visualBrightness = 1.35,
+		visualSaturation = 1.08,
+	},
+	rice = {
+		id = "rice",
+		growthSeconds = 6 * 60,
+		harvestYield = 18,
+		plotSpacing = 5,
+		visualBrightness = 1,
+		visualSaturation = 1,
+	},
+} :: { [string]: CropDefinition }
 Farming.CROP_SET = {
 	carrot = true,
 	potato = true,
@@ -57,14 +87,21 @@ function Farming.gridPosition(plotId: number): GridPosition?
 	}
 end
 
-function Farming.yieldForElapsed(elapsed: number): number
-	if elapsed >= Farming.MATURE_SECONDS then
-		return Farming.MATURE_YIELD
+function Farming.cropDefinition(cropId: string): CropDefinition?
+	return Farming.CROPS[cropId]
+end
+
+function Farming.growthSeconds(cropId: string): number?
+	local definition = Farming.cropDefinition(cropId)
+	return if definition then definition.growthSeconds else nil
+end
+
+function Farming.yieldForElapsed(cropId: string, elapsed: number): number
+	local definition = Farming.cropDefinition(cropId)
+	if not definition or elapsed < definition.growthSeconds then
+		return 0
 	end
-	if elapsed >= Farming.PARTIAL_GROWTH_SECONDS then
-		return Farming.MID_YIELD
-	end
-	return Farming.PARTIAL_YIELD
+	return definition.harvestYield
 end
 
 function Farming.minimumBid(currentBid: number?): number

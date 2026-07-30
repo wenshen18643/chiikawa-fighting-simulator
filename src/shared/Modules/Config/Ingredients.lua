@@ -4,8 +4,8 @@
 	Every ingredient is a clickable clump out in Town (Config/Assets holds the
 	models). Pulling one is click-gated: `gateExponent` is the kusatori log10 at
 	which it opens at `minClicks`, and every exponent you are short adds
-	Constants.FORAGE.CLICKS_PER_EXPONENT_BEHIND clicks. A pulled clump regrows
-	after `regrowSeconds`.
+	Constants.FORAGE.CLICKS_PER_EXPONENT_BEHIND clicks. Fixed nodes regrow after
+	`regrowSeconds`; dynamic clumps use that delay after the whole clump is clear.
 
 	Ingredients are cooked into dishes at the kitchen (Config/Recipes.lua).
 ]]
@@ -25,6 +25,8 @@ export type IngredientDefinition = {
 	height: number?, -- studs tall once placed; nil keeps the authored size
 }
 
+export type ZoneLifecycle = "node-regrow" | "clump-reroll"
+
 --[[
 	A patch of ground where one set of ingredients grows, as a bearing and a
 	distance from the plaza.
@@ -33,8 +35,8 @@ export type IngredientDefinition = {
 	find anywhere is an ingredient with no address, and "the sausage forest is
 	east past the weed field" is a thing one player can tell another.
 
-	`weight` decides how many of a zone's clumps go to each ingredient, so a
-	grove reads as mostly one thing with a few others mixed into it.
+	`weight` drives either the fixed clump plan or each independent dynamic roll,
+	so a grove reads as mostly one thing with a few others mixed into it.
 ]]
 export type ZoneDefinition = {
 	id: string,
@@ -44,6 +46,9 @@ export type ZoneDefinition = {
 	radius: number, -- how far the clumps spread from the zone centre
 	clumps: number,
 	perClump: number,
+	lifecycle: ZoneLifecycle,
+	minClumpSpacing: number?, -- only used by randomly positioned clumps
+	reserveDecor: boolean?, -- keeps world dressing out of the zone footprint
 	ingredients: { { id: string, weight: number } },
 }
 
@@ -106,7 +111,7 @@ Ingredients.DEFINITIONS = {
 	rice = {
 		id = "rice",
 		name = "Rice",
-		asset = "riceCookerSprout",
+		asset = "rice",
 		rarity = "common",
 		gateExponent = 0,
 		minClicks = 4,
@@ -237,8 +242,11 @@ Ingredients.ZONES = {
 		angle = 90,
 		distance = 150,
 		radius = 45,
-		clumps = 10,
+		clumps = 6,
 		perClump = 5,
+		lifecycle = "clump-reroll",
+		minClumpSpacing = 20,
+		reserveDecor = true,
 		ingredients = {
 			{ id = "carrot", weight = 3 },
 			{ id = "potato", weight = 3 },
@@ -253,6 +261,7 @@ Ingredients.ZONES = {
 		radius = 78,
 		clumps = 8,
 		perClump = 4,
+		lifecycle = "node-regrow",
 		ingredients = {
 			{ id = "blueBerry", weight = 3 },
 			{ id = "purpleBerry", weight = 3 },
@@ -267,6 +276,7 @@ Ingredients.ZONES = {
 		radius = 74,
 		clumps = 7,
 		perClump = 4,
+		lifecycle = "node-regrow",
 		ingredients = {
 			{ id = "brownMushroom", weight = 3 },
 			{ id = "whiteMushroom", weight = 2 },
@@ -280,6 +290,7 @@ Ingredients.ZONES = {
 		radius = 68,
 		clumps = 5,
 		perClump = 4,
+		lifecycle = "node-regrow",
 		ingredients = {
 			{ id = "blackBerry", weight = 3 },
 			{ id = "purpleBerry", weight = 1 },
@@ -295,6 +306,7 @@ Ingredients.ZONES = {
 		radius = 66,
 		clumps = 4,
 		perClump = 4,
+		lifecycle = "node-regrow",
 		ingredients = {
 			{ id = "whiteBerry", weight = 3 },
 			{ id = "whiteMushroom", weight = 1 },
@@ -304,6 +316,36 @@ Ingredients.ZONES = {
 
 function Ingredients.get(id: string): IngredientDefinition?
 	return Ingredients.DEFINITIONS[id]
+end
+
+-- One independent weighted roll. Dynamic clumps use this when they first
+-- appear and every time a cleared clump is replaced; fixed zones keep using
+-- clumpPlan so their authored mix stays deterministic.
+function Ingredients.rollIngredient(zone: ZoneDefinition, rng: Random): string?
+	local total = 0
+	for _, entry in zone.ingredients do
+		if entry.weight > 0 then
+			total += entry.weight
+		end
+	end
+	if total <= 0 then
+		return nil
+	end
+
+	local roll = rng:NextNumber(0, total)
+	local running = 0
+	local fallback: string? = nil
+	for _, entry in zone.ingredients do
+		if entry.weight > 0 then
+			running += entry.weight
+			fallback = entry.id
+			if roll < running then
+				return entry.id
+			end
+		end
+	end
+
+	return fallback
 end
 
 --[[

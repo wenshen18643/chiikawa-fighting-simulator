@@ -100,15 +100,21 @@ local function updateLiveLabels()
 
 	if snapshot.crop and cropClockLabel then
 		local elapsed = atTime - snapshot.crop.plantedAt
-		local currentYield = Farming.yieldForElapsed(elapsed)
+		local currentYield = Farming.yieldForElapsed(snapshot.crop.id, elapsed)
 		local finalElapsed = if snapshot.leaseEndsAt then snapshot.leaseEndsAt - snapshot.crop.plantedAt else elapsed
-		local finalYield = Farming.yieldForElapsed(finalElapsed)
-		if elapsed >= Farming.MATURE_SECONDS then
-			cropClockLabel.Text = string.format("Mature · harvest 13 now · lease settlement %d", finalYield)
+		local finalYield = Farming.yieldForElapsed(snapshot.crop.id, finalElapsed)
+		local definition = Farming.cropDefinition(snapshot.crop.id)
+		local harvestYield = if definition then definition.harvestYield else 0
+		if atTime >= snapshot.crop.maturesAt then
+			cropClockLabel.Text = string.format(
+				"Mature · harvest %d now · lease settlement %d",
+				harvestYield,
+				finalYield
+			)
 		else
 			cropClockLabel.Text = string.format(
 				"Growing %s · current settlement %d · lease settlement %d",
-				clockText(Farming.MATURE_SECONDS - elapsed),
+				clockText(snapshot.crop.maturesAt - atTime),
 				currentYield,
 				finalYield
 			)
@@ -256,7 +262,8 @@ end
 local function requestPlant(snapshot: PlotSnapshot, cropId: string)
 	local leaseEndsAt = snapshot.leaseEndsAt or os.time()
 	local remaining = leaseEndsAt - os.time()
-	if remaining < Farming.MATURE_SECONDS and pendingLateCrop ~= cropId then
+	local growthSeconds = Farming.growthSeconds(cropId) or 0
+	if remaining < growthSeconds and pendingLateCrop ~= cropId then
 		pendingLateCrop = cropId
 		render()
 		return
@@ -280,12 +287,15 @@ local function buildPlant(snapshot: PlotSnapshot)
 
 	for index, cropId in Farming.CROP_IDS do
 		local definition = Ingredients.get(cropId)
+		local farmDefinition = Farming.cropDefinition(cropId)
 		local owned = ingredientCount(cropId)
 		local y = 68 + (index - 1) * 48
 		UI.label(crops, cropId, {
 			text = string.format(
-				"%s  ·  use %d  ·  have %d",
+				"%s  ·  %dm -> %d  ·  use %d  ·  have %d",
 				if definition then definition.name else cropId,
+				if farmDefinition then farmDefinition.growthSeconds / 60 else 0,
+				if farmDefinition then farmDefinition.harvestYield else 0,
 				Farming.SEED_COST,
 				owned
 			),
@@ -296,7 +306,7 @@ local function buildPlant(snapshot: PlotSnapshot)
 			zIndex = 26,
 		})
 		local isConfirmation = pendingLateCrop == cropId
-		local guaranteed = Farming.yieldForElapsed((snapshot.leaseEndsAt or os.time()) - os.time())
+		local guaranteed = Farming.yieldForElapsed(cropId, (snapshot.leaseEndsAt or os.time()) - os.time())
 		UI.button(crops, `Plant{cropId}`, {
 			text = if isConfirmation then string.format("Confirm · get %d", guaranteed) else "Plant",
 			color = if owned >= Farming.SEED_COST then UI.color.leafDeep else UI.color.paperDeep,
@@ -326,8 +336,9 @@ local function buildCrop(snapshot: PlotSnapshot, crop: CropSnapshot)
 		zIndex = 26,
 	})
 	if os.time() >= crop.maturesAt then
+		local definition = Farming.cropDefinition(crop.id)
 		UI.button(section, "Harvest", {
-			text = "Harvest 13",
+			text = string.format("Harvest %d", if definition then definition.harvestYield else 0),
 			color = UI.color.leafDeep,
 			position = UDim2.fromOffset(14, 78),
 			extent = UDim2.new(1, -28, 0, 38),

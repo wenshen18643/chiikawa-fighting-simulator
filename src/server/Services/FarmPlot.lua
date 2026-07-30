@@ -251,6 +251,7 @@ end
 function FarmPlot.refreshAttributes(self: FarmPlot)
 	local bid = self._bid
 	local crop = self._crop
+	local growthSeconds = if crop then Farming.growthSeconds(crop.id) else nil
 	self._model:SetAttribute("OwnerUserId", self._ownerUserId)
 	self._model:SetAttribute("OwnerName", self._ownerName)
 	self._model:SetAttribute("LeaseEndsAt", self._leaseEndsAt)
@@ -259,7 +260,7 @@ function FarmPlot.refreshAttributes(self: FarmPlot)
 	self._model:SetAttribute("HighestBidderName", if bid then bid.name else nil)
 	self._model:SetAttribute("CropId", if crop then crop.id else nil)
 	self._model:SetAttribute("PlantedAt", if crop then crop.plantedAt else nil)
-	self._model:SetAttribute("MaturesAt", if crop then crop.plantedAt + Farming.MATURE_SECONDS else nil)
+	self._model:SetAttribute("MaturesAt", if crop and growthSeconds then crop.plantedAt + growthSeconds else nil)
 end
 
 function FarmPlot.beginLease(self: FarmPlot, userId: number, name: string, endsAt: number)
@@ -311,9 +312,11 @@ function FarmPlot.renderCrop(self: FarmPlot, now: number)
 	end
 
 	local elapsed = math.max(0, now - crop.plantedAt)
-	local stage = if elapsed >= Farming.MATURE_SECONDS
+	local growthSeconds = Farming.growthSeconds(crop.id)
+	assert(growthSeconds, `Missing farming definition for {crop.id}`)
+	local stage = if elapsed >= growthSeconds
 		then 3
-		elseif elapsed >= Farming.PARTIAL_GROWTH_SECONDS then 2
+		elseif elapsed >= growthSeconds / 2 then 2
 		else 1
 	self._model:SetAttribute("VisualStage", if stage == 3 then "ready" elseif stage == 2 then "growing" else "planted")
 	self._dependencies.renderCrop(self._cropFolder, crop.id, stage, self._cropCFrame)
@@ -331,7 +334,9 @@ function FarmPlot.plant(self: FarmPlot, crop: CropState)
 	self:renderCrop(self._dependencies.clock())
 	self:refreshAttributes()
 
-	for _, threshold in { Farming.PARTIAL_GROWTH_SECONDS, Farming.MATURE_SECONDS } do
+	local growthSeconds = Farming.growthSeconds(crop.id)
+	assert(growthSeconds, `Missing farming definition for {crop.id}`)
+	for _, threshold in { growthSeconds / 2, growthSeconds } do
 		local waitFor = crop.plantedAt + threshold - self._dependencies.clock()
 		if waitFor > 0 then
 			table.insert(self._cropTasks, task.delay(waitFor, function()
@@ -364,13 +369,18 @@ end
 function FarmPlot.snapshot(self: FarmPlot, now: number): Snapshot
 	local bid = self._bid
 	local crop = self._crop
+	local growthSeconds = if crop then Farming.growthSeconds(crop.id) else nil
 	return {
 		plotId = self._id,
 		ownerUserId = self._ownerUserId,
 		ownerName = self._ownerName,
 		leaseEndsAt = self._leaseEndsAt,
 		crop = if crop
-			then { id = crop.id, plantedAt = crop.plantedAt, maturesAt = crop.plantedAt + Farming.MATURE_SECONDS }
+			then {
+				id = crop.id,
+				plantedAt = crop.plantedAt,
+				maturesAt = crop.plantedAt + assert(growthSeconds, `Missing farming definition for {crop.id}`),
+			}
 			else nil,
 		highestBid = if bid then bid.amount else nil,
 		highestBidderUserId = if bid then bid.userId else nil,
