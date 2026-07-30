@@ -342,6 +342,7 @@ Assets.MODELS = {
 	pinkSausageTree = { id = 0, kind = "model", template = "PinkSausageTree", scale = 1, collide = true },
 	yellowSausageTree = { id = 0, kind = "model", template = "YellowSausageTree", scale = 1, collide = true },
 	riceCookerSprout = { id = 0, kind = "model", template = "RiceCookerSprout", scale = 1, collide = false },
+	rice = { id = 0, kind = "model", template = "Rice", scale = 1, collide = false },
 	carrot = { id = 0, kind = "model", template = "Carrot", scale = 1, collide = false },
 	potato = { id = 0, kind = "model", template = "Potato", scale = 1, collide = false },
 	cookingPot = { id = 0, kind = "model", template = "CookingPot", scale = 1, collide = true },

@@ -31,6 +31,14 @@ assert(Farming.yieldForElapsed("rice", 359) == 0, "early rice must yield nothing
 assert(Farming.yieldForElapsed("rice", 360) == 18, "a mature rice crop must yield eighteen items")
 assert(Farming.yieldForElapsed("unknown", 10_000) == 0, "unknown crops must yield nothing")
 
+local carrot = assert(Farming.cropDefinition("carrot"), "carrot farming config is missing")
+local potato = assert(Farming.cropDefinition("potato"), "potato farming config is missing")
+local rice = assert(Farming.cropDefinition("rice"), "rice farming config is missing")
+assert(carrot.visualBrightness > 1 and potato.visualBrightness > 1, "root crops must receive a brightness boost")
+assert(rice.visualBrightness == 1, "rice must retain its authored brightness")
+assert(rice.plotSpacing < carrot.plotSpacing, "rice rows must be tighter than carrot rows")
+assert(rice.plotSpacing < potato.plotSpacing, "rice rows must be tighter than potato rows")
+
 local seen = {}
 for plotId = 1, Farming.PLOT_COUNT do
 	local grid = Farming.gridPosition(plotId)

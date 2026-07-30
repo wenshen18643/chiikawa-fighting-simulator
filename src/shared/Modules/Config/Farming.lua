@@ -33,6 +33,9 @@ export type CropDefinition = {
 	id: string,
 	growthSeconds: number,
 	harvestYield: number,
+	plotSpacing: number,
+	visualBrightness: number,
+	visualSaturation: number,
 }
 
 Farming.CROP_IDS = { "carrot", "potato", "rice" }
@@ -41,16 +44,25 @@ Farming.CROPS = {
 		id = "carrot",
 		growthSeconds = 2 * 60,
 		harvestYield = 8,
+		plotSpacing = 8,
+		visualBrightness = 1.35,
+		visualSaturation = 1.08,
 	},
 	potato = {
 		id = "potato",
 		growthSeconds = 4 * 60,
 		harvestYield = 13,
+		plotSpacing = 8,
+		visualBrightness = 1.35,
+		visualSaturation = 1.08,
 	},
 	rice = {
 		id = "rice",
 		growthSeconds = 6 * 60,
 		harvestYield = 18,
+		plotSpacing = 5,
+		visualBrightness = 1,
+		visualSaturation = 1,
 	},
 } :: { [string]: CropDefinition }
 Farming.CROP_SET = {

@@ -17,6 +17,10 @@
 	Ground crops (carrot, potato) leave their dug soil behind when taken. The
 	dirt patch is the memory of the plant: it says something grew here and will
 	again, which an empty lawn does not.
+
+	Home Fields is the dynamic exception to ordinary node regrowth: its six
+	clumps stay depleted node by node, then the cleared clump moves and rerolls as
+	one crop after that crop's delay. The other forage zones still regrow in place.
 ]]
 
 local CollectionService = game:GetService("CollectionService")
@@ -75,7 +79,27 @@ export type PlantOptions = {
 	collide: boolean?, -- true/false forces every part; nil keeps the asset's own
 }
 
-local nodes: { Node } = {}
+type DynamicClump = {
+	slot: number,
+	folder: Folder?,
+	nodes: { [Node]: boolean },
+	remaining: number,
+	centre: Vector3?,
+	ingredient: Ingredients.IngredientDefinition?,
+	generation: number,
+}
+
+type DynamicZoneRuntime = {
+	definition: Ingredients.ZoneDefinition,
+	folder: Folder,
+	centre: Vector3,
+	params: RaycastParams,
+	top: number,
+	rng: Random,
+	clumps: { DynamicClump },
+}
+
+local nodes: { [Node]: boolean } = {}
 
 --[[
 	Nodes bucketed on a flat grid as well as listed.
@@ -83,21 +107,65 @@ local nodes: { Node } = {}
 	Every Work click asks for the nearest node, and the forest alone is ~900 of
 	them, so a scan of the whole list runs on every click of every player. The
 	pull radius is smaller than one bucket, so the answer is always inside four
-	of them. Nodes are never removed -- a pulled one is flagged, not deleted --
-	so the buckets only ever grow and need no bookkeeping.
+	of them. Fixed nodes stay in place, but dynamic Home Fields clumps are removed
+	and rebuilt. Set-shaped buckets prevent stale nodes after repeated rerolls.
 ]]
 local BUCKET = 32
 local BUCKET_STRIDE = 100000 -- > any grid index the island can reach
-local buckets: { [number]: { Node } } = {}
+local buckets: { [number]: { [Node]: boolean } } = {}
+local nodeBucketKeys: { [Node]: number } = {}
+local nodeClumps: { [Node]: DynamicClump } = {}
+local clumpRuntimes: { [DynamicClump]: DynamicZoneRuntime } = {}
+
+local CLUMP_PLACEMENT_ATTEMPTS = 32
+local NODE_PLACEMENT_ATTEMPTS = 24
+local NODE_MIN_SPACING = 3
+local CLUMP_RESPAWN_ATTEMPTS = 3
+local CLUMP_RESPAWN_RETRY_SECONDS = 5
 
 local function bucketKey(gx: number, gz: number): number
 	return gx * BUCKET_STRIDE + gz
+end
+
+local function registerNode(node: Node)
+	nodes[node] = true
+
+	local key = bucketKey(math.floor(node.center.X / BUCKET), math.floor(node.center.Z / BUCKET))
+	local bucket = buckets[key]
+	if not bucket then
+		bucket = {}
+		buckets[key] = bucket
+	end
+	bucket[node] = true
+	nodeBucketKeys[node] = key
+end
+
+local function unregisterNode(node: Node)
+	nodes[node] = nil
+	nodeClumps[node] = nil
+	node.progress = {}
+
+	local key = nodeBucketKeys[node]
+	if key then
+		local bucket = buckets[key]
+		if bucket then
+			bucket[node] = nil
+			if next(bucket) == nil then
+				buckets[key] = nil
+			end
+		end
+		nodeBucketKeys[node] = nil
+	end
+
+	CollectionService:RemoveTag(node.model, ForagingService.TAG)
+	node.model:Destroy()
 end
 
 local forageEvent: RemoteEvent
 local groundParams: RaycastParams
 local groundTop = 0
 local readySignal = Instance.new("BindableEvent")
+local onClumpNodeHarvested: ((Node) -> boolean)? = nil
 
 ForagingService.ready = false
 
@@ -153,6 +221,11 @@ local function harvest(player: Player, profile: any, node: Node)
 			part.CanCollide = false
 		end
 	end
+	CollectionService:RemoveTag(node.model, ForagingService.TAG)
+
+	if onClumpNodeHarvested and onClumpNodeHarvested(node) then
+		return
+	end
 
 	task.delay(def.regrowSeconds, function()
 		node.pulled = false
@@ -161,6 +234,9 @@ local function harvest(player: Player, profile: any, node: Node)
 				part.Transparency = original
 				part.CanCollide = node.solid[part] == true
 			end
+		end
+		if node.model.Parent then
+			CollectionService:AddTag(node.model, ForagingService.TAG)
 		end
 	end)
 end
@@ -184,7 +260,7 @@ function ForagingService.nearestPullable(position: Vector3, maxDist: number): No
 			if not bucket then
 				continue
 			end
-			for _, node in bucket do
+			for node in bucket do
 				if node.pulled then
 					continue
 				end
@@ -349,17 +425,249 @@ function ForagingService.plant(
 		clicks = options.clicks or def.minClicks,
 		yield = options.yield or 1,
 	}
-	table.insert(nodes, node)
-
-	local key = bucketKey(math.floor(node.center.X / BUCKET), math.floor(node.center.Z / BUCKET))
-	local bucket = buckets[key]
-	if not bucket then
-		bucket = {}
-		buckets[key] = bucket
-	end
-	table.insert(bucket, node)
+	registerNode(node)
 
 	return node
+end
+
+local function flatDistance(a: Vector3, b: Vector3): number
+	local delta = a - b
+	return Vector3.new(delta.X, 0, delta.Z).Magnitude
+end
+
+local function randomDiskOffset(rng: Random, radius: number): Vector3
+	local angle = rng:NextNumber(0, math.pi * 2)
+	local reach = math.sqrt(rng:NextNumber()) * radius
+	return Vector3.new(math.cos(angle) * reach, 0, math.sin(angle) * reach)
+end
+
+local function nearestClumpDistance(runtime: DynamicZoneRuntime, candidate: Vector3, ignore: DynamicClump): number
+	local nearest = math.huge
+	for _, other in runtime.clumps do
+		if other ~= ignore and other.centre then
+			nearest = math.min(nearest, flatDistance(candidate, other.centre))
+		end
+	end
+	return nearest
+end
+
+-- Pick inside the field after subtracting the node spread, so every crop in a
+-- clump stays inside the configured radius. If the requested spacing cannot be
+-- met in bounded attempts, the best-separated candidate still fills the slot.
+local function chooseClumpCentre(runtime: DynamicZoneRuntime, clump: DynamicClump): Vector3
+	local zone = runtime.definition
+	local radius = math.max(zone.radius - FORAGE.CLUMP_SPREAD, 0)
+	local spacing = zone.minClumpSpacing or 0
+	local best = runtime.centre
+	local bestDistance = -math.huge
+
+	for _ = 1, CLUMP_PLACEMENT_ATTEMPTS do
+		local candidate = runtime.centre + randomDiskOffset(runtime.rng, radius)
+		local distance = nearestClumpDistance(runtime, candidate, clump)
+		if distance > bestDistance then
+			best = candidate
+			bestDistance = distance
+		end
+		if distance >= spacing then
+			return candidate
+		end
+	end
+
+	return best
+end
+
+local function nearestOffsetDistance(candidate: Vector3, offsets: { Vector3 }): number
+	local nearest = math.huge
+	for _, offset in offsets do
+		nearest = math.min(nearest, flatDistance(candidate, offset))
+	end
+	return nearest
+end
+
+local function chooseNodeOffset(rng: Random, offsets: { Vector3 }): Vector3
+	local best = Vector3.zero
+	local bestDistance = -math.huge
+
+	for _ = 1, NODE_PLACEMENT_ATTEMPTS do
+		local candidate = randomDiskOffset(rng, FORAGE.CLUMP_SPREAD)
+		local distance = nearestOffsetDistance(candidate, offsets)
+		if distance > bestDistance then
+			best = candidate
+			bestDistance = distance
+		end
+		if distance >= NODE_MIN_SPACING then
+			return candidate
+		end
+	end
+
+	return best
+end
+
+local function clearDynamicClump(clump: DynamicClump)
+	local folder = clump.folder
+	for node in clump.nodes do
+		unregisterNode(node)
+	end
+
+	clump.folder = nil
+	clump.nodes = {}
+	clump.remaining = 0
+	clump.centre = nil
+	clump.ingredient = nil
+
+	if folder then
+		folder:Destroy()
+	end
+end
+
+local function populateDynamicClump(runtime: DynamicZoneRuntime, clump: DynamicClump): boolean
+	local ingredientId = Ingredients.rollIngredient(runtime.definition, runtime.rng)
+	local def = ingredientId and Ingredients.get(ingredientId)
+	if not def then
+		warn(`[ForagingService] zone "{runtime.definition.id}" rolled an unknown ingredient - clump omitted`)
+		return false
+	end
+
+	local centre = chooseClumpCentre(runtime, clump)
+	local folder = Instance.new("Folder")
+	folder.Name = string.format("Clump_%02d_%s", clump.slot, def.id)
+	folder:SetAttribute("ForageZoneId", runtime.definition.id)
+	folder:SetAttribute("ClumpSlot", clump.slot)
+	folder:SetAttribute("IngredientId", def.id)
+	folder:SetAttribute("NodeCount", runtime.definition.perClump)
+
+	local offsets: { Vector3 } = {}
+	local planted: { [Node]: boolean } = {}
+	for _ = 1, runtime.definition.perClump do
+		local offset = chooseNodeOffset(runtime.rng, offsets)
+		table.insert(offsets, offset)
+
+		local x, z = centre.X + offset.X, centre.Z + offset.Z
+		local node = ForagingService.plant(def, Vector3.new(x, groundAt(x, z, runtime.top, runtime.params), z), {
+			parent = folder,
+			yaw = runtime.rng:NextNumber(0, math.pi * 2),
+			dirt = def.ground,
+		})
+		if not node then
+			for previous in planted do
+				unregisterNode(previous)
+			end
+			folder:Destroy()
+			return false
+		end
+
+		planted[node] = true
+		nodeClumps[node] = clump
+	end
+
+	clump.folder = folder
+	clump.nodes = planted
+	clump.remaining = runtime.definition.perClump
+	clump.centre = centre
+	clump.ingredient = def
+	folder.Parent = runtime.folder
+	return true
+end
+
+local function attemptPopulateDynamicClump(
+	runtime: DynamicZoneRuntime,
+	clump: DynamicClump,
+	attempt: number,
+	generation: number
+)
+	if clump.generation ~= generation then
+		return
+	end
+	if populateDynamicClump(runtime, clump) then
+		return
+	end
+
+	if attempt >= CLUMP_RESPAWN_ATTEMPTS then
+		warn(
+			`[ForagingService] gave up filling {runtime.definition.id} clump {clump.slot} `
+				.. `after {CLUMP_RESPAWN_ATTEMPTS} attempts`
+		)
+		return
+	end
+
+	task.delay(CLUMP_RESPAWN_RETRY_SECONDS, function()
+		attemptPopulateDynamicClump(runtime, clump, attempt + 1, generation)
+	end)
+end
+
+onClumpNodeHarvested = function(node: Node): boolean
+	local clump = nodeClumps[node]
+	if not clump then
+		return false
+	end
+	if clump.remaining <= 0 then
+		return true
+	end
+
+	clump.remaining -= 1
+	if clump.remaining > 0 then
+		-- Deliberate scarcity: dynamic clumps do not refill individual nodes.
+		return true
+	end
+
+	local runtime = clumpRuntimes[clump]
+	local def = clump.ingredient or node.ingredient
+	clump.generation += 1
+	local generation = clump.generation
+	clearDynamicClump(clump)
+
+	if not runtime then
+		warn(`[ForagingService] dynamic clump {clump.slot} lost its zone runtime and cannot respawn`)
+		return true
+	end
+
+	task.delay(def.regrowSeconds, function()
+		attemptPopulateDynamicClump(runtime, clump, 1, generation)
+	end)
+	return true
+end
+
+local function buildDynamicZone(
+	zone: Ingredients.ZoneDefinition,
+	parent: Instance,
+	params: RaycastParams,
+	top: number,
+	step: () -> ()
+)
+	local area = Areas.get(1)
+	if not area then
+		return
+	end
+
+	local folder = Instance.new("Folder")
+	folder.Name = zone.id
+	folder.Parent = parent
+
+	local runtime: DynamicZoneRuntime = {
+		definition = zone,
+		folder = folder,
+		centre = Layout.forageZoneCentre(area, zone),
+		params = params,
+		top = top,
+		rng = Random.new(),
+		clumps = {},
+	}
+
+	for slot = 1, zone.clumps do
+		step()
+		local clump: DynamicClump = {
+			slot = slot,
+			folder = nil,
+			nodes = {},
+			remaining = 0,
+			centre = nil,
+			ingredient = nil,
+			generation = 1,
+		}
+		table.insert(runtime.clumps, clump)
+		clumpRuntimes[clump] = runtime
+		attemptPopulateDynamicClump(runtime, clump, 1, clump.generation)
+	end
 end
 
 local function seedOf(id: string): number
@@ -381,12 +689,15 @@ local function buildZone(
 	if not area then
 		return
 	end
+	if zone.lifecycle == "clump-reroll" then
+		buildDynamicZone(zone, parent, params, top, step)
+		return
+	end
 
 	-- Seeded per zone: the same grove on every server, and moving one zone in
 	-- config does not reshuffle the others.
 	local rng = Random.new(seedOf(zone.id))
-	local radians = math.rad(zone.angle)
-	local centre = area.origin + Vector3.new(math.cos(radians), 0, math.sin(radians)) * zone.distance
+	local centre = Layout.forageZoneCentre(area, zone)
 
 	local folder = Instance.new("Folder")
 	folder.Name = zone.id
@@ -457,7 +768,7 @@ function ForagingService.init()
 	end)
 
 	Players.PlayerRemoving:Connect(function(player)
-		for _, node in nodes do
+		for node in nodes do
 			node.progress[player] = nil
 		end
 	end)

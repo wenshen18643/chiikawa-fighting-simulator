@@ -634,6 +634,20 @@ local function addFieldDressing(parent: Instance, area: Areas.AreaDefinition)
 	addTitleSign(parent, entrance)
 end
 
+local function cropVisualColor(cropId: string, color: Color3): Color3
+	local definition = Farming.cropDefinition(cropId)
+	if not definition then
+		return color
+	end
+
+	local hue, saturation, value = color:ToHSV()
+	return Color3.fromHSV(
+		hue,
+		math.clamp(saturation * definition.visualSaturation, 0, 1),
+		math.clamp(value * definition.visualBrightness, 0, 1)
+	)
+end
+
 local function makeProceduralSprout(parent: Instance, position: Vector3, stage: number, cropId: string)
 	local model = Instance.new("Model")
 	model.Name = "ProceduralCrop"
@@ -643,7 +657,7 @@ local function makeProceduralSprout(parent: Instance, position: Vector3, stage: 
 		"Stem",
 		Vector3.new(0.22, stemHeight, 0.22),
 		CFrame.new(position + Vector3.new(0, stemHeight / 2, 0)),
-		Color3.fromRGB(83, 151, 68),
+		cropVisualColor(cropId, Color3.fromRGB(83, 151, 68)),
 		Enum.Material.SmoothPlastic
 	)
 	stem.CanCollide = false
@@ -656,7 +670,7 @@ local function makeProceduralSprout(parent: Instance, position: Vector3, stage: 
 		"Crop",
 		Vector3.new(0.55, 0.55, 0.55),
 		CFrame.new(position + Vector3.new(0, stemHeight, 0)),
-		cropColor,
+		cropVisualColor(cropId, cropColor),
 		Enum.Material.SmoothPlastic
 	)
 	bulb.Shape = Enum.PartType.Ball
@@ -666,8 +680,10 @@ end
 
 local function renderCrop(parent: Folder, cropId: string, stage: number, baseCFrame: CFrame)
 	local definition = Ingredients.get(cropId)
+	local farmDefinition = Farming.cropDefinition(cropId)
 	local targetHeight = (if definition and definition.height then definition.height else 2.2) * ({ 0.4, 0.7, 1 })[stage]
-	local offsets = { -8, 0, 8 }
+	local spacing = if farmDefinition then farmDefinition.plotSpacing else 8
+	local offsets = { -spacing, 0, spacing }
 	for row, z in offsets do
 		for column, x in offsets do
 			local position = baseCFrame:PointToWorldSpace(Vector3.new(x, 0, z))
@@ -677,6 +693,7 @@ local function renderCrop(parent: Folder, cropId: string, stage: number, baseCFr
 				if ModelUtil.scaleToLongest(model, targetHeight) then
 					for _, descendant in model:GetDescendants() do
 						if descendant:IsA("BasePart") then
+							descendant.Color = cropVisualColor(cropId, descendant.Color)
 							descendant.Anchored = true
 							descendant.CanCollide = false
 							descendant.CanQuery = false

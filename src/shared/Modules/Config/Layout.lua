@@ -36,6 +36,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
+local Ingredients = require(Shared.Modules.Config.Ingredients)
 local SafeZone = require(Shared.Modules.Config.SafeZone)
 local SausageForest = require(Shared.Modules.Config.SausageForest)
 local Sections = require(Shared.Modules.Config.Sections)
@@ -119,6 +120,13 @@ end
 local function directionOf(angleDegrees: number): Vector3
 	local radians = math.rad(angleDegrees)
 	return Vector3.new(math.cos(radians), 0, math.sin(radians))
+end
+
+-- World-space centre of a forage zone. Both the runtime spawner and the world
+-- dressing reservation use this, so moving a configured field cannot leave its
+-- collision-free footprint behind.
+function Layout.forageZoneCentre(area: Areas.AreaDefinition, zone: Ingredients.ZoneDefinition): Vector3
+	return area.origin + directionOf(zone.angle) * zone.distance
 end
 
 --------------------------------------------------------------------------------
@@ -411,6 +419,20 @@ function Layout.reservedZones(area: Areas.AreaDefinition): { Zone }
 			halfX = Sections.SIZE / 2,
 			halfZ = Sections.SIZE / 2,
 		})
+	end
+
+	if area.id == Areas.STARTING_AREA then
+		for _, forageZone in Ingredients.ZONES do
+			if forageZone.reserveDecor then
+				local centre = Layout.forageZoneCentre(area, forageZone) - area.origin
+				table.insert(zones, {
+					kind = "circle",
+					x = centre.X,
+					z = centre.Z,
+					radius = forageZone.radius + Constants.FORAGE.CLUMP_SPREAD,
+				})
+			end
+		end
 	end
 
 	--[[
