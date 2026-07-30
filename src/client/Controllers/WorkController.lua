@@ -51,8 +51,11 @@ local FORAGE_TAG = "Forage"
 local performRemote: RemoteEvent
 local selectRemote: RemoteEvent
 local lastSend = 0
-local isAnimating = false
 local inputLocks: { [string]: boolean } = {}
+
+-- Floor on a cadence-fitted clip. Below this a gesture is a twitch, and the
+-- blend envelope in GestureController is longer than the clip itself.
+local MIN_GESTURE = 0.12
 
 -- Fired locally when an action begins (gesture animation starts).
 local startListeners: { (skillId: string?, duration: number) -> () } = {}
@@ -181,14 +184,12 @@ local function tryPerform()
 	if next(inputLocks) ~= nil then
 		return
 	end
-	if isAnimating then
-		return
-	end
 
 	local now = os.clock()
 	if now - lastSend < Constants.WORK.CLICK_DEBOUNCE then
 		return
 	end
+	local interval = now - lastSend
 
 	local skillId = getMobSkill() or WorkController.getTrainingSkill() or "tobatsu"
 	if Skills.canonicalize(skillId) == "examprep" then
@@ -208,19 +209,29 @@ local function tryPerform()
 	end
 
 	local feedbackEntry = Feedback.get(clipId or skillId)
-	local duration = if feedbackEntry and feedbackEntry.gesture then feedbackEntry.gesture.duration else 0.38
+	local authored = if feedbackEntry and feedbackEntry.gesture then feedbackEntry.gesture.duration else 0.38
 
-	isAnimating = true
+	--[[
+		The gesture is fitted to how fast the player is ACTUALLY clicking, rather
+		than the click being held back until the gesture is done.
+
+		Locking input for the clip's length capped plucking at ~2 clicks/sec
+		against a server that allows 14, so most of a fast player's clicks hit
+		nothing at all. Now every click sends, and the clip is compressed to the
+		gap between the last two clicks so it still reaches its payoff frame
+		before the next one restarts it.
+	]]
+	local duration = math.min(authored, math.max(interval, MIN_GESTURE))
 	lastSend = now
 
-	-- 1. Fire animation start immediately so the character begins the pose
 	if clipId then
 		for _, listener in startListeners do
 			task.spawn(listener, skillId, duration, clipId)
 		end
 	end
 
-	-- 2. Wait for the animation duration, then send perform intent and award completion feedback
+	-- Sent on the impact frame, not on the press, so the "+12" lands with the
+	-- hand. Each click owns its own timer; they overlap rather than queue.
 	task.delay(duration, function()
 		performRemote:FireServer()
 		if clipId then
@@ -228,7 +239,6 @@ local function tryPerform()
 				task.spawn(listener, skillId)
 			end
 		end
-		isAnimating = false
 	end)
 end
 

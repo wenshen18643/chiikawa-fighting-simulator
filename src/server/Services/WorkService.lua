@@ -35,6 +35,7 @@ local Worksites = require(Shared.Modules.Config.Worksites)
 
 local CurrencyService = require(script.Parent.CurrencyService)
 local DataService = require(script.Parent.DataService)
+local FeastService = require(script.Parent.FeastService)
 local ForagingService = require(script.Parent.ForagingService)
 local MobService = require(script.Parent.MobService)
 local NotifyService = require(script.Parent.NotifyService)
@@ -372,8 +373,12 @@ local function onPerform(player: Player)
 		return
 	end
 
+	-- A bite is spent alongside the click, not instead of it: standing at a
+	-- giant food eats it AND trains whatever the click was going to train.
+	local bit = FeastService.bite(player, profile)
+
 	if Skills.canonicalize(skillId) == "kusatori" then
-		if not pullSomething(player, profile) then
+		if not pullSomething(player, profile) and not bit then
 			explain(player, "Nothing to pull here — find weeds or something growing.")
 			return
 		end

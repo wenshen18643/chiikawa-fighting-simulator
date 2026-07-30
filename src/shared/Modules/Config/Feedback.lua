@@ -33,8 +33,9 @@
 	near-duplicate keys (0.30/0.38 on tobatsu) — that pause at the top of the
 	windup is deliberate and is what sells the weight of the swing.
 
-	`duration` is also the click rate limiter — WorkController locks input until
-	the gesture finishes — so making one longer makes that skill slower to spam.
+	`duration` is the SLOWEST a gesture ever plays, not a rate limit — clicks are
+	never held back for it. WorkController compresses the clip toward the actual
+	click cadence, so this is what one click looks like when you are not spamming.
 	These are tuned as the slowest that reads well, not the slowest that looks
 	best in isolation.
 ]]

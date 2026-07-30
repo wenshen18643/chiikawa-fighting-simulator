@@ -19,6 +19,7 @@
 	  - Study.Close         client -> server, abandon the current book session.
 	  - Study.Event         server -> client, study/exam presentation payloads.
 	  - Forage.Event        server -> client, pluck progress/success for VFX.
+	  - Feast.Event         server -> client, shared bite progress on giant food.
 	  - Cook.Open           server -> client, open the kitchen UI.
 	  - Cook.Select         client -> server, chosen recipe id, validated server-side.
 	  - Cook.Click          client -> server, one stir click, intent only.
@@ -89,6 +90,9 @@ local REMOTE_TREE = {
 		Click = "RemoteEvent", -- client -> server: one stir click, arg-less intent
 		Event = "RemoteEvent", -- server -> client: cook session lifecycle (started/progress/done/cancelled)
 	},
+	-- server -> client: shared bite progress on a giant food. Eating is the Work
+	-- click, so there is deliberately no client -> server remote here.
+	Feast = { Event = "RemoteEvent" },
 	-- client -> server: an item id to consume, validated
 	Inventory = { Eat = "RemoteEvent", UseSeasoning = "RemoteEvent" },
 	Farm = {

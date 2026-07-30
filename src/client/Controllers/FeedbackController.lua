@@ -36,7 +36,14 @@ local activeSparks = 0
 local activeRipples = 0
 
 local punch = 0
+local punchTarget = 0
 local baseFieldOfView = 70
+
+local PUNCH_CAP = 0.45
+local PUNCH_FOV = 0.9
+local VIGNETTE_ALPHA = 0.94
+local VIGNETTE_GAP = 0.4
+local lastVignette = 0
 
 --------------------------------------------------------------------------------
 -- Screen effects
@@ -152,15 +159,28 @@ local function burst(skillId: string?)
 	end
 end
 
-local function pulseVignette(skillId: string?)
-	if not vignetteFrames then
+--[[
+	Rate-limited: clicking at speed re-tinted the edges every frame it landed,
+	which stops reading as a pulse and starts reading as a coloured screen.
+]]
+local function pulseVignette(skillId: string?, force: boolean?)
+	if not vignetteFrames or UI.motion.isReducedMotion() then
 		return
 	end
+
+	local now = os.clock()
+	if not force and now - lastVignette < VIGNETTE_GAP then
+		return
+	end
+	lastVignette = now
+
 	local color = skillColor(skillId)
 	for _, frame in vignetteFrames do
 		frame.BackgroundColor3 = color
-		frame.BackgroundTransparency = 0.80
-		UI.motion.to(frame, UI.motion.settle, { BackgroundTransparency = 1 })
+		UI.motion.to(frame, UI.motion.snap, { BackgroundTransparency = VIGNETTE_ALPHA })
+		task.delay(0.12, function()
+			UI.motion.to(frame, UI.motion.settle, { BackgroundTransparency = 1 })
+		end)
 	end
 end
 
@@ -339,26 +359,34 @@ local function kickCamera(strength: number)
 	if UI.motion.isReducedMotion() then
 		return
 	end
-	punch = math.min(punch + strength, 1)
+	punchTarget = math.min(punchTarget + strength, PUNCH_CAP)
 end
 
+--[[
+	The kick eases in instead of snapping to full depth on the frame the click
+	lands. Snapping is what made spamming read as a shake: every click was a
+	step discontinuity in the FOV, and steps at click cadence are a vibration.
+]]
 local function driveCamera(delta: number)
 	local camera = Workspace.CurrentCamera
 	if not camera then
 		return
 	end
 
-	if punch <= 0.001 then
+	if punch <= 0.001 and punchTarget <= 0.001 then
 		return
 	end
 
-	punch *= math.exp(-delta * 14)
-	if punch <= 0.001 then
+	punchTarget *= math.exp(-delta * 9)
+	punch += (punchTarget - punch) * math.min(delta * 16, 1)
+
+	if punch <= 0.001 and punchTarget <= 0.001 then
 		punch = 0
+		punchTarget = 0
 		camera.FieldOfView = baseFieldOfView
 		return
 	end
-	camera.FieldOfView = baseFieldOfView - punch * 1.6
+	camera.FieldOfView = baseFieldOfView - punch * PUNCH_FOV
 end
 
 local function rumble()
@@ -376,15 +404,15 @@ end
 
 function FeedbackController.celebrate(skillId: string?)
 	burst(skillId)
-	pulseVignette(skillId)
-	kickCamera(0.8)
+	pulseVignette(skillId, true)
+	kickCamera(0.45)
 	rumble()
 end
 
 local function onLocalClick(skillId: string?)
 	burst(skillId)
 	pulseVignette(skillId)
-	kickCamera(0.55)
+	kickCamera(0.28)
 	rumble()
 end
 

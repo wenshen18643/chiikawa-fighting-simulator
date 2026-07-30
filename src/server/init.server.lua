@@ -53,6 +53,9 @@ local BOOT_ORDER = {
 	"FarmMailboxService",
 	"FarmingService",
 	"RegionService",
+	-- Before WorkService, which spends each click on a bite as well: it needs
+	-- ForagingService's ground raycast and SafeZoneService's volume.
+	"FeastService",
 	"WorkService",
 	-- Layers visual recall and the Kusatori Grade 5 exam over completed Exam
 	-- Prep gestures; depends on WorksiteService and profile state.

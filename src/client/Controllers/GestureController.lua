@@ -767,13 +767,13 @@ end
 --------------------------------------------------------------------------------
 
 --[[
-	`duration` is the window WorkController locks input for, and the clip is
-	fitted to it rather than played at its authored length.
+	`duration` is the gap WorkController measured between the last two clicks,
+	and the clip is fitted to it rather than played at its authored length.
 
-	The two used to disagree, and the clip always lost: kusatori's authored rip
-	lands at 0.65s but input unlocks at 0.42s, so a player clicking at the rate
-	the game allows restarted the clip before its one distinctive frame and only
-	ever saw the crouch. Every gesture now reaches its payoff between two clicks.
+	A clip that outruns the click rate always loses: kusatori's authored rip
+	lands at 0.65s, so a player clicking twice a second restarted it before its
+	one distinctive frame and only ever saw the crouch. Compressing it to the
+	cadence is what makes every gesture reach its payoff between two clicks.
 ]]
 function GestureController.play(skillId: string?, duration: number?)
 	if not skillId then
