@@ -19,7 +19,8 @@ local CookingMenu = {}
 
 local COOKING = Constants.COOKING
 local ROW_HEIGHT = 112
-local STIR_DEBOUNCE = 1 / COOKING.MAX_CLICKS_PER_SECOND
+-- Margin over the server bucket so a legal stir is never lost to jitter.
+local STIR_DEBOUNCE = 1.05 / COOKING.MAX_CLICKS_PER_SECOND
 local STIR_DURATION = 1.2
 local COMPLETE_DURATION = 1.35
 

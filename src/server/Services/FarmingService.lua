@@ -66,7 +66,7 @@ end
 local function limiterFor(player: Player): RateLimiter.RateLimiter
 	local limiter = limiters[player]
 	if not limiter then
-		limiter = RateLimiter.new(Farming.ACTIONS_PER_SECOND, Farming.ACTIONS_PER_SECOND * 2)
+		limiter = RateLimiter.new(Farming.ACTIONS_PER_SECOND, 1)
 		limiters[player] = limiter
 	end
 	return limiter

@@ -186,7 +186,7 @@ local function onClick(player: Player)
 
 	local limiter = limiters[player]
 	if not limiter then
-		limiter = RateLimiter.new(COOKING.MAX_CLICKS_PER_SECOND, 4)
+		limiter = RateLimiter.new(COOKING.MAX_CLICKS_PER_SECOND, 1)
 		limiters[player] = limiter
 	end
 	-- Over the cap: dropped, never credited. §2 rule 3 — no punishment either.

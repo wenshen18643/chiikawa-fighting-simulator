@@ -21,17 +21,18 @@ Constants.WORK = {
 		credited. The "No Limit"-style gamepass RAISES this cap, it does not
 		remove it (§14 sells time, not an exploit surface).
 
-		Raised from 8 when work became click-per-action. A person clicking hard
-		peaks around 12-14/sec, and a cap below that silently eats real inputs —
-		which is exactly the "my click did nothing" feeling the change is meant
-		to remove. Autoclickers still hit the ceiling; that is its job.
+		ONE CLICK PER SECOND. Deliberate pacing call: spam is no longer the
+		lever, so a click is a decision rather than a wrist exercise. The cap
+		does eat inputs above 1/sec — that is now the intent, and the client
+		debounce below matches it so an over-rate click is never even sent.
 	]]
-	MAX_ACTIONS_PER_SECOND = 14,
+	MAX_ACTIONS_PER_SECOND = 1,
 	MAX_ACTIONS_PER_SECOND_GAMEPASS = 26,
 	-- 0 = not published yet. Fill in the real asset id when the pass exists.
 	NO_LIMIT_GAMEPASS_ID = 0,
-	-- Burst allowance so a laggy client is not punished for a bunched send.
-	ACTION_BURST = 8,
+	-- No burst: a bucket deeper than the rate would let a held-back client
+	-- dump several actions at once, which is the thing the cap exists to stop.
+	ACTION_BURST = 1,
 
 	--[[
 		§4: AFK ticks at this fraction of the active rate. Idling is endorsed,
@@ -49,9 +50,11 @@ Constants.WORK = {
 	-- credited, to absorb normal client-server position drift.
 	POSITION_TOLERANCE = 8,
 
-	-- Client-side guard against one physical click registering twice. Well
-	-- under the human ceiling, so it never eats a real input.
-	CLICK_DEBOUNCE = 0.05,
+	-- Client-side mirror of MAX_ACTIONS_PER_SECOND, with a small margin so a
+	-- click that is legal locally is never dropped by the server bucket over
+	-- network jitter. An over-rate click is refused here and never sent, so
+	-- the player sees no feedback for it rather than a burst that earns nothing.
+	CLICK_DEBOUNCE = 1.05,
 
 	--[[
 		§5 TRAINING OFF A PAD.
@@ -118,7 +121,7 @@ Constants.COOKING = {
 	STATION_RADIUS = 18, -- how close you must stand to cook
 	MIN_CLICKS_FRACTION = 0.25, -- resilience can cut clicks to this fraction of base
 	CLICKS_PER_RESILIENCE_EXPONENT = 1,
-	MAX_CLICKS_PER_SECOND = 8,
+	MAX_CLICKS_PER_SECOND = 1,
 	XP_PER_CLICK = 1, -- resilience gain per click invested, times gainPerAction
 }
 
@@ -174,10 +177,11 @@ Constants.STAMINA = {
 	-- drives a bounded, readable bar.
 	MAX_PER_GRIT_LOG = 25,
 
-	-- Sized against MAX_ACTIONS_PER_SECOND: at the 14/sec cap this drains 14/sec
-	-- against 6/sec regen, so a full bar buys ~12s of flat-out clicking before a
-	-- 5s sit-down. Sustained realistic clicking (~6/sec) never runs dry at all,
-	-- which is the intent: stamina catches autoclickers, not players.
+	-- INERT AT THE CURRENT CAP. This was sized against a 14/sec action rate,
+	-- where a full bar bought ~12s of flat-out clicking. At MAX_ACTIONS_PER_SECOND
+	-- = 1 the drain is 1/sec against 6/sec regen, so the bar never falls: stamina
+	-- no longer gates anything. Raise COST_PER_ACTION (or cut REGEN_PER_SECOND)
+	-- if stamina should still be a real cost at one click per second.
 	COST_PER_ACTION = 1.0,
 	REGEN_PER_SECOND = 6,
 	REGEN_PER_GRIT_LOG = 1.5,
