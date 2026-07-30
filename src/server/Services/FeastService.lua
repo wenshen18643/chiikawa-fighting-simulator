@@ -34,9 +34,13 @@ type Food = {
 	progress: number,
 	expiresAt: number,
 	landed: boolean,
+	-- Map props only: where to put it back, and when it is edible again.
+	home: Instance?,
+	readyAt: number?,
 }
 
 local alive: { Food } = {}
+local props: { Food } = {}
 local reserved: { Layout.Zone } = {}
 local overlapParams = OverlapParams.new()
 local rng = Random.new()
@@ -148,6 +152,44 @@ local function remove(food: Food)
 end
 
 --------------------------------------------------------------------------------
+-- Map props
+--------------------------------------------------------------------------------
+
+-- Dressing already placed and sized it, so all this takes is a Food around it.
+local function adopt(model: Model)
+	local def = Feast.get(model:GetAttribute("FeastId") :: string)
+	if not def or not model.Parent then
+		return
+	end
+
+	table.insert(props, {
+		def = def,
+		model = model,
+		center = model:GetBoundingBox().Position,
+		progress = 0,
+		expiresAt = math.huge,
+		landed = true,
+		home = model.Parent,
+	})
+end
+
+-- Parked, not destroyed: the model is the only record of where it stood.
+local function park(food: Food)
+	food.model.Parent = nil
+	food.progress = 0
+	food.readyAt = os.clock() + Feast.PROP_RESPAWN
+end
+
+local function regrow(now: number)
+	for _, food in props do
+		if food.readyAt and now >= food.readyAt then
+			food.model.Parent = food.home
+			food.readyAt = nil
+		end
+	end
+end
+
+--------------------------------------------------------------------------------
 -- Eating
 --------------------------------------------------------------------------------
 
@@ -186,19 +228,26 @@ local function finish(player: Player, profile: any, food: Food)
 	)
 
 	tell(food, "done")
-	remove(food)
+
+	if food.home then
+		park(food)
+	else
+		remove(food)
+	end
 end
 
 local function nearest(position: Vector3): Food?
 	local best: Food? = nil
 	local bestDist = Feast.BITE_RADIUS
 
-	for _, food in alive do
-		local delta = food.center - position
-		local dist = Vector2.new(delta.X, delta.Z).Magnitude
-		if food.landed and dist < bestDist then
-			bestDist = dist
-			best = food
+	for _, list in { alive, props } do
+		for _, food in list do
+			local delta = food.center - position
+			local dist = Vector2.new(delta.X, delta.Z).Magnitude
+			if food.landed and not food.readyAt and dist < bestDist then
+				bestDist = dist
+				best = food
+			end
 		end
 	end
 
@@ -241,6 +290,8 @@ local function sweep()
 		task.wait(Feast.TICK)
 
 		local now = os.clock()
+		regrow(now)
+
 		for index = #alive, 1, -1 do
 			if now >= alive[index].expiresAt then
 				remove(alive[index])
@@ -277,6 +328,12 @@ function FeastService.init()
 
 		overlapParams.FilterType = Enum.RaycastFilterType.Include
 		overlapParams.FilterDescendantsInstances = { regionFolder }
+
+		for _, model in CollectionService:GetTagged(Feast.PROP_TAG) do
+			if model:IsA("Model") then
+				adopt(model)
+			end
+		end
 
 		sweep()
 	end)

@@ -21,12 +21,11 @@ Constants.WORK = {
 		credited. The "No Limit"-style gamepass RAISES this cap, it does not
 		remove it (§14 sells time, not an exploit surface).
 
-		ONE CLICK PER SECOND. Deliberate pacing call: spam is no longer the
-		lever, so a click is a decision rather than a wrist exercise. The cap
-		does eat inputs above 1/sec — that is now the intent, and the client
+		FIVE CLICKS PER SECOND: fast enough to feel like clicking, still far
+		short of an autoclicker. Inputs above 5/sec are eaten, and the client
 		debounce below matches it so an over-rate click is never even sent.
 	]]
-	MAX_ACTIONS_PER_SECOND = 1,
+	MAX_ACTIONS_PER_SECOND = 5,
 	MAX_ACTIONS_PER_SECOND_GAMEPASS = 26,
 	-- 0 = not published yet. Fill in the real asset id when the pass exists.
 	NO_LIMIT_GAMEPASS_ID = 0,
@@ -54,7 +53,7 @@ Constants.WORK = {
 	-- click that is legal locally is never dropped by the server bucket over
 	-- network jitter. An over-rate click is refused here and never sent, so
 	-- the player sees no feedback for it rather than a burst that earns nothing.
-	CLICK_DEBOUNCE = 1.05,
+	CLICK_DEBOUNCE = 0.21,
 
 	--[[
 		§5 TRAINING OFF A PAD.

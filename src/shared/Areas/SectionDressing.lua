@@ -1,9 +1,11 @@
+local CollectionService = game:GetService("CollectionService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Farming = require(Shared.Modules.Config.Farming)
+local Feast = require(Shared.Modules.Config.Feast)
 local Sections = require(Shared.Modules.Config.Sections)
 local Props = require(Shared.Modules.Props)
 
@@ -93,6 +95,11 @@ local function dressRecipe(ctx, cell, entry, placed)
 					upright = entry.upright,
 					pitch = entry.pitch,
 				})
+				-- Only the tag and the id: FeastService owns what eating means.
+				if made and entry.edible and Feast.get(entry.key) then
+					made:SetAttribute("FeastId", entry.key)
+					CollectionService:AddTag(made, Feast.PROP_TAG)
+				end
 			elseif entry.kind == "tree" then
 				made = ctx.helpers.tree(ctx, x, z, range(ctx, entry.h, 12), range(ctx, entry.canopy, 12))
 			elseif entry.kind == "bush" then
