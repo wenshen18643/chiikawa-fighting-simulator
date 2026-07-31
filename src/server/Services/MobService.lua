@@ -601,9 +601,16 @@ spawnSlot = function(definition: Mobs.MobDefinition, slot: number)
 	if actors[key] or not folder.Parent then
 		return
 	end
-	local model = AssetService.clone(definition.assetKey)
+	--[[
+		Built mobs have no asset id to clone and no download to fail. The cave's
+		four are built rather than uploaded, so this is the only fork between a
+		creature that came from Studio and one that came from primitives.
+	]]
+	local model = if (definition :: any).build
+		then MobRig.build(definition)
+		else AssetService.clone(definition.assetKey)
 	if not model then
-		warn(`[MobService] could not clone asset "{definition.assetKey}" for {key}`)
+		warn(`[MobService] could not obtain a model for {key}`)
 		return
 	end
 
@@ -733,7 +740,7 @@ function MobService.deploy(mobId: string, cframes: { CFrame }, home: Vector3?)
 	warnIfUnreachable(definition, cframes, home)
 
 	task.spawn(function()
-		if not AssetService.waitFor(definition.assetKey, 10) then
+		if not (definition :: any).build and not AssetService.waitFor(definition.assetKey, 10) then
 			warn(`[MobService] asset "{definition.assetKey}" did not become ready`)
 			return
 		end

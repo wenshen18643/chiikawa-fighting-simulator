@@ -96,7 +96,11 @@ export type PlayerProfile = {
 	gear: Gear,
 	recipes: { string },
 	dishes: { [string]: number }, -- cooked dishes owned, recipeId -> count
-	workOrders: { completed: { string }, active: { [string]: number } },
+	workOrders: {
+		completed: { string },
+		active: { [string]: number },
+		rank: number,
+	},
 	unlockedWorksites: { [string]: boolean },
 	unlockedRegions: { [string]: boolean }, -- string keys: JSON has no integer keys
 	home: Home,

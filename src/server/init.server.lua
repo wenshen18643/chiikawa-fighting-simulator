@@ -44,6 +44,9 @@ local BOOT_ORDER = {
 	-- After ForagingService (it plants through it) and MobService (it deploys
 	-- guardians into it).
 	"SausageForestService",
+	-- Same two dependencies as the forest, plus TerrainBuilder for the plinth it
+	-- sinks under the board. Its own carve waits on WorldService.awaitDressed.
+	"CaveService",
 	"CookingService",
 	"InventoryService",
 	"StaminaService",
@@ -64,6 +67,9 @@ local BOOT_ORDER = {
 	-- Work.Feedback remote WorkService resolves.
 	"TrainingService",
 	"GuideService",
+	-- After ForagingService and MobService, whose pull and kill events it counts
+	-- progress from, and after SafeZoneService, which builds the booth prompt.
+	"WorkOrderService",
 	"ReplicationService",
 	-- Studio-only section grid overlay. Last: it reads the world, nothing reads it.
 	"BoardService",

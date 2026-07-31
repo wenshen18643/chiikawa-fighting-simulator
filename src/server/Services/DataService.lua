@@ -88,7 +88,13 @@ local function buildTemplate(): any
 		recipes = {},
 		-- Cooked dishes owned, {recipeId = count}.
 		dishes = {},
-		workOrders = { completed = {}, active = {} },
+		--[[
+			Yoroi-san's work orders. `active` is orderId -> progress and holds at
+			most one; `completed` is the chain you have finished for good; `done`
+			is which of `day`'s standing orders you have already claimed, and is
+			cleared the first time you take one on a new day.
+		]]
+		workOrders = { completed = {}, active = {}, rank = 0 },
 		unlockedWorksites = {},
 		-- String keys throughout: DataStore serialises through JSON, which has
 		-- no integer keys, so {[1] = true} would come back as {["1"] = true}.

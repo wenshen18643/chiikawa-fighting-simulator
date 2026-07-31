@@ -47,6 +47,22 @@ export type ZoneDefinition = {
 	ingredients: { { id: string, weight: number } },
 }
 
+--[[
+	A clump with no address.
+
+	Zones are a bearing and a distance from the plaza, which is the right shape
+	for open ground and the wrong one for a maze: underground, WHERE a clump
+	grows is a letter on a grid in Config/Cave, and all this has to say is what
+	grows there and how much of it. CaveService reads these; the zone pass in
+	ForagingService does not.
+]]
+export type ClumpDefinition = {
+	perClump: number,
+	yieldScale: number,
+	glow: boolean?,
+	ingredients: { { id: string, weight: number } },
+}
+
 local Ingredients = {}
 
 --[[
@@ -72,6 +88,7 @@ Ingredients.ORDER = {
 	"pinkSausage",
 	"whiteBerry",
 	"goldSausage",
+	"moonlightCap",
 }
 
 Ingredients.DEFINITIONS = {
@@ -220,6 +237,25 @@ Ingredients.DEFINITIONS = {
 		glyph = "sausage",
 		height = 8,
 	},
+	--[[
+		Grows on one floor of one cave, behind the Cap Mother's door. It is the
+		only ingredient in the game with a single address, which is the whole
+		point of it: the reason to go all the way down is a thing you cannot get
+		anywhere else.
+	]]
+	moonlightCap = {
+		id = "moonlightCap",
+		name = "Moonlight Cap",
+		asset = "whiteMushroom",
+		rarity = "legendary",
+		gateExponent = 8,
+		minClicks = 8,
+		xpMultiplier = 3200,
+		regrowSeconds = 260,
+		clip = "farm_mushroom_pull",
+		glyph = "mushroom",
+		height = 3.4,
+	},
 } :: { [string]: IngredientDefinition }
 
 --[[
@@ -301,6 +337,36 @@ Ingredients.ZONES = {
 		},
 	},
 } :: { ZoneDefinition }
+
+--[[
+	What grows underground, keyed by the clump ids in Config/Cave.
+
+	The two mushrooms are the SAME ingredients that grow on the surface, on
+	purpose: every recipe that already wants a brown mushroom is improved by
+	the cave existing, and a player who learns what a Brown Mushroom is above
+	ground does not have to learn a second one below it. What the cave changes
+	is the rate -- denser clumps paying double -- which is the reason to make
+	the walk rather than a new item to carry.
+]]
+Ingredients.CLUMPS = {
+	cave_glowcap = {
+		perClump = 5,
+		yieldScale = 2,
+		glow = true,
+		ingredients = {
+			{ id = "brownMushroom", weight = 3 },
+			{ id = "whiteMushroom", weight = 2 },
+		},
+	},
+	cave_mooncap = {
+		perClump = 4,
+		yieldScale = 2,
+		glow = true,
+		ingredients = {
+			{ id = "moonlightCap", weight = 1 },
+		},
+	},
+} :: { [string]: ClumpDefinition }
 
 function Ingredients.get(id: string): IngredientDefinition?
 	return Ingredients.DEFINITIONS[id]

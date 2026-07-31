@@ -27,6 +27,13 @@ export type RecipeDefinition = {
 	buff: RecipeBuff,
 	glyph: string,
 	description: string,
+	--[[
+		Not on the menu until it is earned. Every other recipe in this file is
+		available from the first minute; a locked one is a REWARD, and the
+		server writes profile.recipes[id] when it is granted. Absent means open,
+		so nothing that already existed changes.
+	]]
+	locked: boolean?,
 }
 
 local Ingredients = require(script.Parent.Ingredients)
@@ -42,6 +49,7 @@ Recipes.ORDER = {
 	"pancakes",
 	"yogurtVanilla",
 	"championPlatter",
+	"glowcapStew",
 }
 
 Recipes.DEFINITIONS = {
@@ -129,10 +137,35 @@ Recipes.DEFINITIONS = {
 		glyph = "platter",
 		description = "A legendary feast. Everything you do shines for a while.",
 	},
+	glowcapStew = {
+		id = "glowcapStew",
+		name = "Glowcap Stew",
+		model = "ramen",
+		ingredients = {
+			{ id = "whiteMushroom", count = 3 },
+			{ id = "brownMushroom", count = 2 },
+		},
+		baseClicks = 16,
+		buff = { id = "dish_glowcap", multiplier = 3, skill = "tobatsu", duration = 120 },
+		glyph = "mushroom",
+		description = "Faintly luminous. The cook swears that part is fine.",
+		locked = true,
+	},
 } :: { [string]: RecipeDefinition }
 
 function Recipes.get(id: string): RecipeDefinition?
 	return Recipes.DEFINITIONS[id]
+end
+
+--[[
+	Whether a profile may cook this. A recipe with no `locked` flag is open to
+	everybody, so the gate only exists for the things it was added for.
+]]
+function Recipes.isUnlocked(def: RecipeDefinition, profile: any): boolean
+	if not def.locked then
+		return true
+	end
+	return profile ~= nil and profile.recipes ~= nil and profile.recipes[def.id] == true
 end
 
 function Recipes.rarity(def: RecipeDefinition): string

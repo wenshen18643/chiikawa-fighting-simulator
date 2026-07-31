@@ -134,6 +134,12 @@ local function onSelect(player: Player, recipeId: any)
 	if not profile then
 		return
 	end
+	-- Checked here rather than trusted from the menu: the client decides what to
+	-- grey out, the server decides what may be cooked.
+	if not Recipes.isUnlocked(def, profile) then
+		NotifyService.send(player, "You have not been taught that one yet.", "locked")
+		return
+	end
 	if sessions[player] then
 		NotifyService.send(player, "Finish your current dish first!", "info")
 		return

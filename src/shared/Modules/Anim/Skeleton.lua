@@ -130,6 +130,53 @@ Skeleton.PROFILES = {
 		},
 		fallback = "Torso",
 	},
+	--[[
+		The cave's four. These come out of MobRig.build already jointed with
+		these exact names, so `build` stays false and there is nothing to infer:
+		a built rig is the one case where the skeleton is known before the model
+		exists.
+
+		The wisp has no limbs. Its three motes ride the limb joints instead, so
+		one shared clip can orbit them without a bespoke animator.
+	]]
+	caveSporeling = {
+		joints = {
+			root = "RootJoint",
+			head = "Neck",
+			legL = "LeftHip",
+			legR = "RightHip",
+		},
+		fallback = "Torso",
+	},
+	cavePebblejaw = {
+		joints = {
+			root = "RootJoint",
+			head = "Neck",
+			frontL = "FrontLeftJoint",
+			frontR = "FrontRightJoint",
+			backL = "BackLeftJoint",
+			backR = "BackRightJoint",
+		},
+		fallback = "Torso",
+	},
+	caveWisp = {
+		joints = {
+			root = "RootJoint",
+			head = "Neck",
+			armL = "LeftShoulder",
+			armR = "RightShoulder",
+		},
+		fallback = "Torso",
+	},
+	caveMycelia = {
+		joints = {
+			root = "RootJoint",
+			head = "Neck",
+			armL = "Left Shoulder",
+			armR = "Right Shoulder",
+		},
+		fallback = "Torso",
+	},
 } :: { [string]: Profile }
 
 Skeleton.PLAYER_PROFILES = {

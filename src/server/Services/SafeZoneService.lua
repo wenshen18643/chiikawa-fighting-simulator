@@ -1314,6 +1314,24 @@ local function buildYoroi(groundY: number)
 		extent = UDim2.fromScale(16, 4.5),
 		maxDistance = 140,
 	})
+
+	--[[
+		The counter Yoroi-san hands work over.
+
+		Built here because this is where the attendant is placed, but deliberately
+		NOT wired here: WorkOrderService finds this prompt and connects to it, so
+		the safe zone keeps knowing nothing about what the work is. Requiring the
+		order service from this file would also close a loop, since it reaches
+		MobService, which reaches back here for the safe volume.
+	]]
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "OrderBoardPrompt"
+	prompt.ObjectText = "Yoroi-san"
+	prompt.ActionText = "Work orders"
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 14
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = root
 end
 
 --------------------------------------------------------------------------------

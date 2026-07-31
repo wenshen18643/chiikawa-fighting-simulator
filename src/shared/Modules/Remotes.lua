@@ -108,6 +108,19 @@ local REMOTE_TREE = {
 		-- being offered. One remote beats a client-side flag that forgets.
 		Acknowledge = "RemoteEvent",
 	},
+	--[[
+		Yoroi-san's work orders.
+
+		Accept and TurnIn carry an ORDER ID and nothing else. Progress is never
+		sent up: the server counts kills, pulls and depth itself from the events
+		it already owns, so there is no number here for a client to inflate.
+	]]
+	Order = {
+		Open = "RemoteEvent", -- server -> client: the board, on walking up to the booth
+		Accept = "RemoteEvent", -- client -> server: an id from the board it was shown
+		TurnIn = "RemoteEvent", -- client -> server: claim a finished order
+		Event = "RemoteEvent", -- server -> client: progress, completion, board refresh
+	},
 }
 
 local Remotes = {}
