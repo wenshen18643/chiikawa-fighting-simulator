@@ -268,9 +268,12 @@ Assets.MODELS = {
 	shopStall = { id = 0, kind = "model", template = "ShopStall", scale = 1 },
 
 	--[[
-		The town proper: three houses, the plaza fountain, flower beds, a bench
-		and a bridge. Placed by height from the area file rather than by a scale
-		here, so "a house is 18 studs tall" is a decision about the scene.
+		The town proper: three houses, flower beds, a bench and a bridge. Placed
+		by height from the area file rather than by a scale here, so "a house is
+		18 studs tall" is a decision about the scene.
+
+		The fountain stays declared but is placed nowhere: it used to sit on the
+		plaza centre, which is the doorstep the player spawns on.
 
 		FlowerBed1 arrived from the toolbox carrying the same require-an-
 		attribute backdoor as the three character models (id 129781504223456,

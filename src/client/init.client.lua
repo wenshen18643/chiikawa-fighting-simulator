@@ -36,6 +36,8 @@ local BOOT_ORDER = {
 	-- Independent of the rest: it waits on Workspace.SafeZone and drives
 	-- whatever the server tagged as rigged.
 	{ container = script.Controllers, name = "SafeZoneAnimController" },
+	-- Independent: it reads one replicated character attribute and swaps Lighting.
+	{ container = script.Controllers, name = "CaveController" },
 	{ container = script.Controllers, name = "SoundController" },
 	{ container = script.Controllers, name = "WorldController" },
 	{ container = script.Controllers, name = "FarmController" },
@@ -54,6 +56,10 @@ local BOOT_ORDER = {
 	{ container = script.UI, name = "ControlTutorial" },
 	-- Independent of the rest: it only listens for the friend stand's remote.
 	{ container = script.UI, name = "CompanionMenu" },
+	-- The booth's own prompt opens the board; the tracker rides the same remote,
+	-- and after HUD so its strip draws over the rail rather than under it.
+	{ container = script.UI, name = "OrderBoard" },
+	{ container = script.UI, name = "OrderTracker" },
 }
 
 for _, entry in BOOT_ORDER do

@@ -32,7 +32,7 @@ export type CompanionSpec = {
 	id: string,
 	name: string,
 	blurb: string,
-	kind: "mascot" | "asset",
+	kind: "mascot" | "asset" | "built",
 	-- kind == "mascot": whose silhouette to build, by Config/Npcs id.
 	npcId: string?,
 	-- kind == "asset": which Config/Assets entry to clone.
@@ -57,6 +57,19 @@ export type CompanionSpec = {
 	]]
 	scale: number?,
 	skill: string?,
+	--[[
+		kind == "built": a creature assembled from primitives by MobRig, named
+		by its Config/Mobs id. The third source, and the only one that is
+		neither an upload nor a member of the cast -- a Sporeling is not a
+		mascot and never had a model to download.
+	]]
+	mobId: string?,
+	--[[
+		Earned rather than offered. A locked companion is filtered out of the
+		roster until profile.companions.owned holds its id, which is the only
+		thing in this file the server has to check twice.
+	]]
+	locked: boolean?,
 }
 
 -- The "walk alone" sentinel, offered as the last row of the menu.
@@ -104,6 +117,21 @@ Companions.LIST = {
 		blurb = "Says one thing, loudly, forever.",
 		kind = "asset",
 		assetKey = "usagi",
+		skill = "tobatsu",
+	},
+	--[[
+		The one you carry out of the cave. Built from the same MobRig recipe as
+		the ones that puffed spores at you on level one, at a size that reads as
+		"the little one", so the friend behind you is visibly the thing you were
+		fighting an hour ago.
+	]]
+	{
+		id = "sporeling",
+		name = "Sporeling",
+		blurb = "It followed you up. It has not explained why.",
+		kind = "built",
+		mobId = "cave_sporeling",
+		locked = true,
 		skill = "tobatsu",
 	},
 } :: { CompanionSpec }

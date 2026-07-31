@@ -162,6 +162,15 @@ local function fillBox(centre: Vector3, size: Vector3, material: Enum.Material, 
 end
 
 --[[
+	Any tiled fill, for a caller that owns its own volume.
+
+	Exported because the cave carves under the board and needs exactly this: a
+	FillBlock that respects the voxel-per-call bound and hands the frame back
+	between tiles. A second copy of that loop is a second place to get it wrong.
+]]
+TerrainBuilder.fill = fillBox
+
+--[[
 	An area's ground: a rock core with the area's own surface material laid on
 	top, both positioned from their TOP edge so the surface lands exactly on
 	TERRAIN_TOP. The rock is what makes a cut edge read as ground rather than as

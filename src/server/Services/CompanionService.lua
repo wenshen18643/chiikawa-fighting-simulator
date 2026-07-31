@@ -58,6 +58,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Assets = require(Shared.Modules.Config.Assets)
 local Companions = require(Shared.Modules.Config.Companions)
 local Mascot = require(Shared.Modules.Mascot)
+local Mobs = require(Shared.Modules.Config.Mobs)
 local Npcs = require(Shared.Modules.Config.Npcs)
 local Remotes = require(Shared.Modules.Remotes)
 local Skeleton = require(Shared.Modules.Anim.Skeleton)
@@ -66,6 +67,7 @@ local UI = require(Shared.UI)
 
 local AssetService = require(script.Parent.AssetService)
 local DataService = require(script.Parent.DataService)
+local MobRig = require(script.Parent.MobRig)
 local NotifyService = require(script.Parent.NotifyService)
 
 local CompanionService = {}
@@ -325,15 +327,29 @@ local function isAvailable(spec: Companions.CompanionSpec): boolean
 end
 
 --[[
+	Two different questions, deliberately kept apart: `isAvailable` asks whether
+	this SERVER can produce the model at all, and this asks whether this PLAYER
+	has earned it. An unearned companion is hidden; an unavailable one does not
+	exist today for anybody.
+]]
+local function isOwned(spec: Companions.CompanionSpec, profile: any): boolean
+	if not spec.locked then
+		return true
+	end
+	local owned = profile and profile.companions and profile.companions.owned
+	return type(owned) == "table" and owned[spec.id] == true
+end
+
+--[[
 	What this server can actually offer, as plain data for the client.
 
 	Sent over the wire rather than read from the shared config on the client,
 	because "did this free model load today" is not knowable from the config.
 ]]
-local function roster(): { { id: string, name: string, blurb: string } }
+local function roster(profile: any?): { { id: string, name: string, blurb: string } }
 	local out = {}
 	for _, spec in Companions.LIST do
-		if isAvailable(spec) then
+		if isAvailable(spec) and (profile == nil or isOwned(spec, profile)) then
 			table.insert(out, { id = spec.id, name = spec.name, blurb = spec.blurb })
 		end
 	end
@@ -392,6 +408,36 @@ local function buildCompanion(spec: Companions.CompanionSpec): Model?
 			return AssetService.clonePackItem(key, nil, spec.assetMatch)
 		end
 		return AssetService.clone(key)
+	end
+
+	--[[
+		A creature out of the cave, from the same recipe that spawns it down
+		there. MobRig builds it anchored, because a mob is placed and then let
+		go; a companion is CARRIED by its root, so everything below the root is
+		released and the Motor6D chain does the rest.
+	]]
+	if spec.kind == "built" then
+		local mobId = spec.mobId
+		local definition = mobId and Mobs.get(mobId)
+		if not definition then
+			warn(`[CompanionService] "{spec.id}" names mob "{mobId}", which is not in Config/Mobs`)
+			return nil
+		end
+
+		local model = MobRig.build(definition)
+		if not model then
+			return nil
+		end
+		model.Name = spec.name
+		for _, descendant in model:GetDescendants() do
+			if descendant:IsA("BasePart") and descendant ~= model.PrimaryPart then
+				descendant.Anchored = false
+				descendant.Massless = true
+				descendant.CanCollide = false
+				descendant.CanQuery = false
+			end
+		end
+		return model
 	end
 
 	local npcId = spec.npcId
@@ -708,7 +754,8 @@ local function buildStand(base: CFrame): Model?
 	prompt.Parent = primary
 
 	prompt.Triggered:Connect(function(player)
-		Remotes.event("Companion", "Open"):FireClient(player, roster(), selectionFor(player))
+		Remotes.event("Companion", "Open")
+			:FireClient(player, roster(DataService.get(player)), selectionFor(player))
 	end)
 
 	local across = { -2.2, 0, 2.2 }
@@ -970,6 +1017,10 @@ function CompanionService.select(player: Player, id: string): boolean
 	local spec = Companions.get(id)
 	if not spec or not isAvailable(spec) then
 		warn(`[CompanionService] {player.Name} asked for "{id}", which is not on this server's roster`)
+		return false
+	end
+	if not isOwned(spec, DataService.get(player)) then
+		NotifyService.send(player, "You have not met that one yet.", "locked")
 		return false
 	end
 

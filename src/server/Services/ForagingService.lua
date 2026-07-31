@@ -61,6 +61,14 @@ export type Node = {
 	transparency: { [BasePart]: number },
 	solid: { [BasePart]: boolean },
 	pulled: boolean,
+	--[[
+		Gone for good, as opposed to `pulled`, which grows back. Nodes are never
+		removed from the list or their bucket -- pulling flags them instead -- so
+		a node whose model has been destroyed needs its own flag, or the pending
+		regrow timer flips `pulled` back and hands out ingredients from a clump
+		that is not there any more.
+	]]
+	retired: boolean?,
 	progress: { [Player]: number },
 	clicks: number, -- base clicks for THIS node: a bigger tree costs more
 	yield: number, -- how many ingredients one pull pays
@@ -77,6 +85,7 @@ export type PlantOptions = {
 	roll: number?,
 	sink: number?, -- fraction of its own height settled into the ground
 	collide: boolean?, -- true/false forces every part; nil keeps the asset's own
+	glow: boolean?, -- caps go Neon and carry a light: the cave's only wayfinding
 }
 
 type DynamicClump = {
@@ -182,6 +191,26 @@ end
 -- Pulling
 --------------------------------------------------------------------------------
 
+--[[
+	Who wants telling that something was pulled.
+
+	A callback list rather than a require: work orders care about foraging, but
+	foraging must not care about work orders, or the two cannot be reasoned
+	about separately -- and MobService already publishes its kills this way.
+]]
+local pulledCallbacks: { (Player, Ingredients.IngredientDefinition, number) -> () } = {}
+
+function ForagingService.onPulled(callback: (Player, Ingredients.IngredientDefinition, number) -> ())
+	table.insert(pulledCallbacks, callback)
+end
+
+local function setGlow(model: Model, on: boolean)
+	local light = model:FindFirstChild("Glow", true)
+	if light and light:IsA("PointLight") then
+		light.Enabled = on
+	end
+end
+
 local function clicksNeeded(profile: any, node: Node): number
 	local def = node.ingredient
 	local exponent = math.floor(BigNumber.log10(profile.skills.kusatori))
@@ -208,6 +237,10 @@ local function harvest(player: Player, profile: any, node: Node)
 
 	forageEvent:FireClient(player, "success", def.id, gain, node.center)
 
+	for _, callback in pulledCallbacks do
+		task.spawn(callback, player, def, yield)
+	end
+
 	if def.rarity == "super" or def.rarity == "legendary" then
 		local suffix = if yield > 1 then ` x{yield}` else ""
 		NotifyService.send(player, `Foraged {def.name}{suffix}!`, "reward")
@@ -223,11 +256,19 @@ local function harvest(player: Player, profile: any, node: Node)
 	end
 	CollectionService:RemoveTag(node.model, ForagingService.TAG)
 
+	-- A glowcap that keeps shining after it is picked is a lamp floating in the
+	-- dark, and underground it is also a landmark that lies.
+	setGlow(node.model, false)
+
 	if onClumpNodeHarvested and onClumpNodeHarvested(node) then
 		return
 	end
 
 	task.delay(def.regrowSeconds, function()
+		-- Retired while it was regrowing: the ground it stood on is a shaft now.
+		if node.retired then
+			return
+		end
 		node.pulled = false
 		for part, original in node.transparency do
 			if part.Parent then
@@ -238,12 +279,43 @@ local function harvest(player: Player, profile: any, node: Node)
 		if node.model.Parent then
 			CollectionService:AddTag(node.model, ForagingService.TAG)
 		end
+		setGlow(node.model, true)
 	end)
 end
 
 --------------------------------------------------------------------------------
 -- Public
 --------------------------------------------------------------------------------
+
+--[[
+	Removes every node standing in a disc, permanently.
+
+	Lives here rather than in the caller because destroying the MODEL is only
+	half the job: a bucket entry whose model is gone is a clump a player can
+	still walk up to and pull ingredients out of thin air from. Unregistering it
+	drops it from the list and its bucket; the retired flag is what stops the
+	regrow timer already in flight from bringing it back.
+
+	The caller is CaveService, which carves the ground out from under scenery
+	that was seated before the cave existed.
+]]
+function ForagingService.clearArea(centre: Vector3, radius: number)
+	for node in nodes do
+		if node.retired then
+			continue
+		end
+		local planar = Vector3.new(node.center.X - centre.X, 0, node.center.Z - centre.Z).Magnitude
+		if planar > radius then
+			continue
+		end
+
+		node.retired = true
+		node.pulled = true
+		table.clear(node.transparency)
+		table.clear(node.solid)
+		unregisterNode(node)
+	end
+end
 
 function ForagingService.nearestPullable(position: Vector3, maxDist: number): Node?
 	local best: Node? = nil
@@ -261,7 +333,7 @@ function ForagingService.nearestPullable(position: Vector3, maxDist: number): No
 				continue
 			end
 			for node in bucket do
-				if node.pulled then
+				if node.pulled or node.retired then
 					continue
 				end
 				local delta = node.center - position
@@ -359,6 +431,44 @@ end
 	than by zone: it picks size, clicks and yield per tree, and this stays the
 	one place that knows how a node is built and registered.
 ]]
+--[[
+	Makes a node its own lamp.
+
+	The cave has no sky, and a maze lit only by the player's own light is a
+	maze nobody can read. Glowing clumps ARE the wayfinding: the thing worth
+	walking to is the thing you can see from the junction.
+
+	One light per clump, on the widest part only. A PointLight on every cap of
+	every mushroom is a lighting bill for a decoration nobody looks at twice.
+]]
+local GLOW_COLOR = Color3.fromRGB(178, 226, 208)
+
+local function lightUp(model: Model)
+	local widest: BasePart? = nil
+	local widestSize = 0
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.Material = Enum.Material.Neon
+			descendant.Color = descendant.Color:Lerp(GLOW_COLOR, 0.45)
+			local size = descendant.Size.X * descendant.Size.Z
+			if size > widestSize then
+				widest, widestSize = descendant, size
+			end
+		end
+	end
+	if not widest then
+		return
+	end
+
+	local light = Instance.new("PointLight")
+	light.Name = "Glow"
+	light.Brightness = 1.6
+	light.Range = 26
+	light.Color = GLOW_COLOR
+	light.Shadows = false
+	light.Parent = widest
+end
+
 function ForagingService.plant(
 	def: Ingredients.IngredientDefinition,
 	position: Vector3,
@@ -401,6 +511,10 @@ function ForagingService.plant(
 	-- The client finds the nearest of these to start the right dig animation
 	-- before the server has answered.
 	CollectionService:AddTag(model, ForagingService.TAG)
+
+	if options.glow then
+		lightUp(model)
+	end
 
 	local transparency: { [BasePart]: number } = {}
 	local solid: { [BasePart]: boolean } = {}

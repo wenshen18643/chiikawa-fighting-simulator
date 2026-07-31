@@ -27,7 +27,9 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Areas = require(Shared.Areas)
+local Cave = require(Shared.Modules.Config.Cave)
 local Layout = require(Shared.Modules.Config.Layout)
+local Sections = require(Shared.Modules.Config.Sections)
 local Skills = require(Shared.Modules.Config.Skills)
 local UI = require(Shared.UI)
 
@@ -172,6 +174,155 @@ local function buildLocalView(area: Areas.AreaDefinition)
 end
 
 --------------------------------------------------------------------------------
+-- Underground
+--------------------------------------------------------------------------------
+
+--[[
+	The cave map.
+
+	Drawn from the same Config/Cave grid the server carved from, which is the
+	only reason it can be drawn at all: underground is exactly where scanning
+	Workspace fails hardest, because a maze the player has not walked into has
+	not streamed in.
+
+	Corridors are REVEALED, not given. A labyrinth handed over complete on the
+	first step is a corridor with extra turns; one that fills in behind you is
+	a map you made. What is revealed is deliberately not saved -- a fresh visit
+	is a fresh cave, and the walk out is a different walk from the walk in.
+]]
+local REVEAL_RADIUS = 34
+
+local caveLayers: { [number]: Frame } = {}
+local caveCells: { [number]: { [number]: Frame } } = {}
+local revealed: { [number]: { [number]: boolean } } = {}
+
+local function cellKey(row: number, col: number): number
+	return row * 100 + col
+end
+
+local function buildCaveLayer(level: Cave.LevelDefinition): Frame
+	local existing = caveLayers[level.index]
+	if existing then
+		return existing
+	end
+
+	local layer = Instance.new("Frame")
+	layer.Name = `Cave_{level.index}`
+	layer.Size = UDim2.fromScale(1, 1)
+	layer.BackgroundColor3 = UI.color.glassDark
+	layer.BorderSizePixel = 0
+	layer.ClipsDescendants = true
+	layer.Visible = false
+	layer.ZIndex = 3
+	layer.Parent = localView
+	UI.corner(layer, UI.radius.chip)
+
+	local cells: { [number]: Frame } = {}
+	local size = math.floor(LOCAL_SIZE / Cave.GRID)
+
+	for row = 1, Cave.GRID do
+		for col = 1, Cave.GRID do
+			local char = Cave.charAt(level, row, col)
+			if not Cave.OPEN[char] then
+				continue
+			end
+
+			--[[
+				Row 1 is the highest Z, and on this map world +Z runs DOWN the
+				screen, so row 1 belongs at the bottom.
+			]]
+			local cell = Instance.new("Frame")
+			cell.Name = `{row}_{col}`
+			cell.AnchorPoint = Vector2.new(0.5, 0.5)
+			cell.Position = UDim2.fromScale((col - 0.5) / Cave.GRID, 1 - (row - 0.5) / Cave.GRID)
+			cell.Size = UDim2.fromOffset(size, size)
+			cell.BorderSizePixel = 0
+			cell.BackgroundTransparency = 1
+			cell.ZIndex = 4
+			cell.Parent = layer
+
+			-- Landmarks carry their own colour, so a revealed map answers "where
+			-- was that glowing bit" without a legend.
+			if char == Cave.BOSS then
+				cell.BackgroundColor3 = UI.color.tobatsu
+			elseif char == Cave.GLOWCAP or char == Cave.MOONCAP then
+				cell.BackgroundColor3 = UI.color.leaf
+			elseif char == Cave.DOWN or char == Cave.LANDING or char == Cave.SURFACE then
+				cell.BackgroundColor3 = UI.color.gold
+			elseif char == Cave.ENTRANCE then
+				cell.BackgroundColor3 = UI.color.sky
+			else
+				cell.BackgroundColor3 = UI.color.inkFaint
+			end
+
+			cells[cellKey(row, col)] = cell
+		end
+	end
+
+	caveLayers[level.index] = layer
+	caveCells[level.index] = cells
+	revealed[level.index] = revealed[level.index] or {}
+	return layer
+end
+
+--[[
+	Grid coordinates for a world position inside a level's own section. The
+	inverse of Cave.cellPosition, and it has to stay that way: the map and the
+	carve disagreeing by one cell is a map that points at a wall.
+]]
+local function caveCoords(level: Cave.LevelDefinition, position: Vector3): (number?, number?)
+	local cell = Sections.byCoord(level.coord)
+	if not cell then
+		return nil, nil
+	end
+	local col = (position.X - cell.minX - Cave.MARGIN) / Cave.CELL + 0.5
+	local row = (cell.maxZ - Cave.MARGIN - position.Z) / Cave.CELL + 0.5
+	return row, col
+end
+
+local function showCave(level: Cave.LevelDefinition, position: Vector3): boolean
+	local row, col = caveCoords(level, position)
+	if not row or not col then
+		return false
+	end
+
+	for _, layer in areaLayers do
+		layer.Visible = false
+	end
+	for index, layer in caveLayers do
+		layer.Visible = index == level.index
+	end
+	buildCaveLayer(level).Visible = true
+
+	local seen = revealed[level.index]
+	local reach = REVEAL_RADIUS / Cave.CELL
+	for key, cell in caveCells[level.index] do
+		if not seen[key] then
+			local cellRow = math.floor(key / 100)
+			local cellCol = key % 100
+			local distance = math.sqrt((cellRow - row) ^ 2 + (cellCol - col) ^ 2)
+			if distance <= reach then
+				seen[key] = true
+			end
+		end
+		cell.BackgroundTransparency = if seen[key] then 0.15 else 1
+	end
+
+	playerMarker.Position = UDim2.fromScale(
+		math.clamp((col - 0.5) / Cave.GRID, 0, 1),
+		math.clamp(1 - (row - 0.5) / Cave.GRID, 0, 1)
+	)
+	localTitle.Text = string.upper(level.name)
+	return true
+end
+
+local function hideCave()
+	for _, layer in caveLayers do
+		layer.Visible = false
+	end
+end
+
+--------------------------------------------------------------------------------
 -- World strip
 --------------------------------------------------------------------------------
 
@@ -233,6 +384,25 @@ local function refresh()
 	local position = rootPart.Position
 	local area = Layout.areaAt(position)
 	buildLocalView(area)
+
+	--[[
+		Underground the local view is a different map entirely, so it takes over
+		rather than being drawn on top: a cave laid over the district bars is
+		two maps of two places in one square.
+	]]
+	local caveLevel = Cave.levelAt(position)
+	if caveLevel and showCave(caveLevel, position) then
+		local worldFractionBelow = Layout.toMapFraction(position)
+		stripMarker.Position = UDim2.fromScale(worldFractionBelow.X, 0.5)
+		return
+	end
+
+	hideCave()
+	local surfaceLayer = areaLayers[area.id]
+	if surfaceLayer then
+		surfaceLayer.Visible = true
+	end
+	localTitle.Text = string.upper(area.name)
 
 	local offset = position - area.origin
 	local fraction = toLocalFraction(area, offset.X, offset.Z)

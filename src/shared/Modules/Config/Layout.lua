@@ -353,9 +353,10 @@ function Layout.mobSpawnCFrames(
 	area: Areas.AreaDefinition,
 	population: number,
 	radius: number,
-	angleOffsetDegrees: number?
+	angleOffsetDegrees: number?,
+	centreOffset: Vector3?
 ): { CFrame }
-	local centre = area.origin
+	local centre = area.origin + (centreOffset or Vector3.zero)
 	local result = {}
 	local angleOffset = math.rad(angleOffsetDegrees or 0)
 

@@ -47,8 +47,12 @@ return Area.define({
 		local plazaEdge = ctx.plazaRadius + 12
 		local padOne = ctx.districtRadius
 
-		-- The fountain is the middle of the town and the thing you orient by.
-		helpers.prop(ctx, "fountain", 0, ctx.plazaRadius * 0.42, { height = 9, rotation = 0 })
+		--[[
+			Nothing stands on the axis of the front door. The plaza centre is
+			also the doorstep the player is put down on, so a centrepiece there
+			is the first thing they walk into rather than the thing they walk
+			toward. The square is dressed from its edges instead.
+		]]
 		for _, side in { -1, 1 } do
 			helpers.prop(ctx, "pinkBench", side * ctx.plazaRadius * 0.4, ctx.plazaRadius * 0.42, {
 				height = 3.2,

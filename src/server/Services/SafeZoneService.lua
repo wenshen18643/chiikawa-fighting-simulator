@@ -1314,6 +1314,24 @@ local function buildYoroi(groundY: number)
 		extent = UDim2.fromScale(16, 4.5),
 		maxDistance = 140,
 	})
+
+	--[[
+		The counter Yoroi-san hands work over.
+
+		Built here because this is where the attendant is placed, but deliberately
+		NOT wired here: WorkOrderService finds this prompt and connects to it, so
+		the safe zone keeps knowing nothing about what the work is. Requiring the
+		order service from this file would also close a loop, since it reaches
+		MobService, which reaches back here for the safe volume.
+	]]
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "OrderBoardPrompt"
+	prompt.ObjectText = "Yoroi-san"
+	prompt.ActionText = "Work orders"
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 14
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = root
 end
 
 --------------------------------------------------------------------------------
@@ -1549,6 +1567,11 @@ end
 --------------------------------------------------------------------------------
 
 function SafeZoneService.containsPosition(position: Vector3): boolean
+	-- Asked before the volume is built, or after a failed build: there is no
+	-- ForceField either, so nothing is protected.
+	if not volumeCentre then
+		return false
+	end
 	local delta = position - volumeCentre
 	return math.abs(delta.X) <= volumeHalf.X and math.abs(delta.Y) <= volumeHalf.Y and math.abs(delta.Z) <= volumeHalf.Z
 end
