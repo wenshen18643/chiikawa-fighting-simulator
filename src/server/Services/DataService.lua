@@ -164,8 +164,6 @@ local function reconcile(profile: any): any
 
 	walk(profile, template)
 
-	-- Removed with the worksite pads. Reconcile only ever adds, so an old save
-	-- would otherwise carry this dead table for the life of the profile.
 	profile.unlockedWorksites = nil
 
 	if profile.selectedSkill then

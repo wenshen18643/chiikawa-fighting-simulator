@@ -693,15 +693,6 @@ local function attachSkillProp(character: Model, skillId: string)
 		end
 	end
 
-	--[[
-		Every tool is one size now.
-
-		It used to scale with the worksite tier being worked, so a tier-7 fork
-		was visibly bigger than a tier-1 one. The pads that carried the tier are
-		gone; the scale is kept as a value rather than inlined because the
-		builders below take it, and a future upgrade tier can put a real number
-		back here without touching them.
-	]]
 	local scale = 1
 	if character:FindFirstChild(targetName) then
 		return

@@ -13,17 +13,8 @@
 local Constants = {}
 
 Constants.WORK = {
-	--[[
-		§4: base gain before multipliers. All growth is multiplicative.
-
-		Doubled from 1 when the worksite pads were removed. Every area had a
-		free, requirement-free tier-1 pad paying x2, so in practice nobody who
-		was training a skill on purpose ever earned the old base — it was the
-		rate for standing in a field. Folding that x2 in here keeps the real
-		early-game rate where it was, and means the number now describes what a
-		player actually gets.
-	]]
-	BASE_GAIN = 2,
+	-- §4: base gain before multipliers. All growth is multiplicative.
+	BASE_GAIN = 1,
 
 	--[[
 		§13: server-side rate limit on work actions. Excess is dropped, never

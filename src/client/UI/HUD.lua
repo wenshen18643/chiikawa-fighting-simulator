@@ -458,11 +458,6 @@ end
 	over 1e2..1e4 would sit pinned at zero for most of the climb.
 
 	Also returns how many grades the value covers, which is what the pips show.
-
-	This used to read the worksite ladder. The certification ladder is the
-	progression axis that outlived the pads, and it is the better one to draw:
-	a pip here is a grade the player could sit the exam for, rather than a
-	place they could have stood.
 ]]
 local function gradeProgress(value: any): (number, number)
 	local current = math.max(BigNumber.log10(value), 0)
@@ -499,11 +494,6 @@ local function update(snapshot: any)
 		seasonText.Text = `SEASON {season}`
 	end
 
-	--[[
-		Active and selected are the same skill now that a click raises what the
-		bar says and nothing else. Both are still tracked because SkillBar draws
-		them differently and the pair is what `setState` takes.
-	]]
 	local nowActive = snapshot.selectedSkill
 	local activeChanged = nowActive ~= activeSkill or snapshot.selectedSkill ~= selectedSkill
 	activeSkill = nowActive

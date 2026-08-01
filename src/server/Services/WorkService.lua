@@ -83,14 +83,6 @@ local function credit(
 	return gain, bonus
 end
 
---[[
-	Which skill a click trains.
-
-	The player's own choice, always. This used to be overridden by whichever
-	pad they were stood on, which meant walking somewhere silently changed what
-	you were building — the pads are gone and the SkillBar is now the only
-	thing that decides.
-]]
 local function freeformSkill(_player: Player, profile: any): string
 	local selected = profile.selectedSkill
 	if type(selected) == "string" and Skills.exists(selected) then

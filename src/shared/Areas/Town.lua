@@ -46,13 +46,6 @@ return Area.define({
 		]]
 		local plazaEdge = ctx.plazaRadius + 12
 
-		--[[
-			The three props the town is organised around.
-
-			Their positions live here rather than at each helper call because
-			the paths out of the plaza aim at them, and a landmark that moved
-			without its path would leave a trail of stones pointing at nothing.
-		]]
 		local sasumataAt = { name = "Sasumata Yard", x = -half * 0.48 - 25, z = half * 0.35 }
 		local weedsAt = { name = "Roadside Weeds", x = 30, z = 190 }
 		local desksAt = { name = "Study Desks", x = half * 0.48 - 18, z = half * 0.52 - 36 }

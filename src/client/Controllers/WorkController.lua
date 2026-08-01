@@ -260,16 +260,8 @@ local function onAction(_actionName: string, inputState: Enum.UserInputState)
 	return Enum.ContextActionResult.Pass
 end
 
---[[
-	What a click right now would actually raise.
-
-	The selected skill, which the server applies the same way in
-	WorkService.freeformSkill — mirrored here so the gesture, sound and HUD
-	agree with what is about to be credited.
-
-	Read from the snapshot rather than tracked locally, so it cannot drift from
-	the server's idea of it.
-]]
+-- Mirrors WorkService.freeformSkill so the gesture, sound and HUD agree with
+-- what is about to be credited.
 function WorkController.getTrainingSkill(): string?
 	local snapshot = StateController.snapshot
 	return snapshot and snapshot.selectedSkill

@@ -7,11 +7,6 @@
 	          real landmass at real proportions, drawn from Config/Layout.
 	  GUIDE   controls, and what the game expects of you.
 
-	There was a third, LADDER, drawing the worksite ladder as a grid. The pads
-	it described are gone and the certification ladder that replaced them is
-	per-skill rather than per-place, so it belongs on the skill bar — where
-	HUD already draws it as pips — rather than in a grid of its own.
-
 	Nothing here is authoritative. Every value is read from the last snapshot or
 	from shared config; the panel cannot change anything except by asking the
 	server to move you (docs/GAME.md §13).

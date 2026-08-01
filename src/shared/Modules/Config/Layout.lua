@@ -104,14 +104,6 @@ export type FarmRouteSegment = {
 	to: Vector3,
 }
 
---[[
-	The stepping-stone routes out of the plaza.
-
-	Both used to start at the tier-1 kusatori pad, which is where a player was
-	assumed to be standing when they wanted either place. With the pads gone the
-	honest start is the plaza edge — the one spot everybody passes through — so
-	each route leaves the square pointing at where it actually goes.
-]]
 function Layout.farmRouteSegments(area: Areas.AreaDefinition): { FarmRouteSegment }
 	local radius = Layout.plazaDiameter(area) / 2
 

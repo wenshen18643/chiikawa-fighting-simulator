@@ -96,16 +96,6 @@ function WeedService.pull(section: Section)
 	end)
 end
 
---[[
-	Claims every weeding patch an area file dressed into the world.
-
-	The worksite pads used to register their own patches as they were built,
-	and were most of what a kusatori player pulled. With the pads gone the only
-	patches left are the ones the area files place as landmarks, and nothing
-	was registering those — so they looked pullable and were not. Sweeping once
-	after the dressing pass costs one traversal at boot and keeps the area
-	files free of any knowledge that this service exists.
-]]
 local PATCH_MODEL = "WeedingPatchProp"
 
 local function isSprout(child: Instance): boolean

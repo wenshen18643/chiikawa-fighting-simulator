@@ -34,14 +34,6 @@ local function buildSnapshot(player: Player, profile: any)
 		skills[skillId] = profile.skills[skillId] or BigNumber.zero()
 	end
 
-	--[[
-		What one click is worth right now.
-
-		Used to be sent only while stood on a pad, and nil everywhere else, so
-		the number the HUD could show was the one place a player was least
-		likely to be. It is the selected skill's rate now, which is true
-		wherever they happen to be standing.
-	]]
 	local selected = profile.selectedSkill
 	local gainPerAction = Formulas.gainPerAction(
 		profile,
@@ -61,8 +53,6 @@ local function buildSnapshot(player: Player, profile: any)
 		seasons = profile.seasons,
 		certifications = profile.certifications,
 		study = StudyService.snapshot(player, profile),
-		-- Which skill a click raises. Drives the HUD's selected-row highlight
-		-- and the work core's copy.
 		selectedSkill = profile.selectedSkill,
 		gainPerAction = gainPerAction,
 		yenPerMinute = Formulas.yenPerMinute(profile),

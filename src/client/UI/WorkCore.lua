@@ -10,11 +10,6 @@
 	One control, one state: the stamina ring wraps the skill you are training
 	and what one click is worth.
 
-	It used to have a second state for standing on a worksite pad, and a bearing
-	arrow pointing at the best pad to walk to. Training happens wherever the
-	player is now, so there is no elsewhere to point at and nothing for a second
-	state to say.
-
 	The ring is the stamina meter (Primitives.ring — a real dial, drawn from
 	frames, no image assets). Putting the rate limiter AROUND the thing it limits
 	is the whole design: you never have to look somewhere else to know why the
@@ -110,7 +105,7 @@ function WorkCore.build(parent: Instance): Frame
 		zIndex = 6,
 	})
 
-	-- Right-hand column: what you are doing, or where to go.
+	-- Right-hand column: what you are doing.
 	local column = Instance.new("Frame")
 	column.Name = "Detail"
 	column.Position = UDim2.fromOffset(RING_SIZE + 16, 4)
@@ -164,13 +159,6 @@ end
 -- State
 --------------------------------------------------------------------------------
 
---[[
-	What you are training, and what a click is worth.
-
-	Exam Prep is the one skill a click does not advance — its pages are turned
-	in the study book — so it gets told how to open that instead of a verb it
-	cannot perform.
-]]
 local function showTraining(snapshot: any)
 	local selected = snapshot.selectedSkill
 	local definition = selected and Skills.get(selected)

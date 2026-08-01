@@ -31,9 +31,7 @@
 	--------------------------------------------------------------------------
 
 	Two states the caller passes separately (see HUD.update). ACTIVE is what a
-	click raises right now; SELECTED is what the player picked. They agree
-	today — nothing overrides the player's choice any more — but the pair is
-	kept because the distinction is a display decision, not a gameplay one.
+	click raises right now; SELECTED is what the player picked.
 
 	This module owns how those look and exposes them as `setState(lit, picked)`
 	rather than handing its Instances out, so HUD never reaches in to tween a

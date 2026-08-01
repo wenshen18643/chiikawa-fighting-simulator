@@ -36,7 +36,6 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Constants = require(Shared.Modules.Constants)
 local Formulas = require(Shared.Modules.Formulas)
-local Remotes = require(Shared.Modules.Remotes)
 
 local CurrencyService = require(script.Parent.CurrencyService)
 local DataService = require(script.Parent.DataService)
@@ -53,8 +52,6 @@ local lastPosition: { [Player]: Vector3 } = {}
 local carry: { [Player]: number } = {}
 local lastJump: { [Player]: number } = {}
 
-local feedback: RemoteEvent?
-
 --------------------------------------------------------------------------------
 -- Awarding
 --------------------------------------------------------------------------------
@@ -69,8 +66,6 @@ local function award(player: Player, units: number)
 		return
 	end
 
-	-- The same rate free-form clicking gets, so travel scales with
-	-- certifications and season rather than becoming worthless later on.
 	local gain = BigNumber.mulNumber(Formulas.gainPerAction(profile, SKILL), units)
 
 	SkillService.award(player, profile, SKILL, gain)
@@ -78,11 +73,6 @@ local function award(player: Player, units: number)
 	local yen = Formulas.yenForGain(SKILL, gain)
 	if not BigNumber.isZero(yen) then
 		CurrencyService.award(profile, "yen", yen)
-	end
-
-	-- Reuses the click feedback path so a "+N" floats up while running.
-	if feedback then
-		feedback:FireClient(player, SKILL, gain)
 	end
 end
 
@@ -161,8 +151,6 @@ end
 --------------------------------------------------------------------------------
 
 function TrainingService.init()
-	feedback = Remotes.event("Work", "Feedback")
-
 	local function bind(player: Player)
 		player.CharacterAdded:Connect(function(character)
 			-- A fresh character is somewhere else entirely; carrying the old

@@ -21,7 +21,6 @@ local FeedbackController = {}
 
 local MAX_POPUPS = 16
 local MAX_SPARKS = 40
-local MAX_RIPPLES = 8
 
 local screen: ScreenGui
 local popupLayer: Frame
@@ -30,7 +29,6 @@ local vignetteFrames: { Frame }
 
 local activePopups = 0
 local activeSparks = 0
-local activeRipples = 0
 
 local punch = 0
 local punchTarget = 0
@@ -307,55 +305,6 @@ local function expireTrail()
 	end
 end
 
---[[
-	The ring that spreads out from a landed click.
-
-	It used to spread from the centre of the pad being worked, which was the
-	only place work could happen. Work happens wherever the player is standing
-	now, so the ring starts at their feet — which is also where they are
-	looking when they click.
-]]
-local function ripple(skillId: string)
-	if activeRipples >= MAX_RIPPLES then
-		return
-	end
-
-	local character = Players.LocalPlayer.Character
-	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-	local camera = Workspace.CurrentCamera
-	if not root or not camera then
-		return
-	end
-
-	local position = root.Position - Vector3.new(0, root.Size.Y / 2 + 1.4, 0)
-	local color = skillColor(skillId)
-
-	activeRipples += 1
-
-	local ring = Instance.new("Part")
-	ring.Name = "WorkRipple"
-	ring.Anchored = true
-	ring.CanCollide = false
-	ring.CanQuery = false
-	ring.CanTouch = false
-	ring.Shape = Enum.PartType.Cylinder
-	ring.Size = Vector3.new(0.4, 8, 8)
-	ring.CFrame = CFrame.new(position + Vector3.new(0, 2.6, 0)) * CFrame.Angles(0, 0, math.rad(90))
-	ring.Color = color
-	ring.Material = Enum.Material.Neon
-	ring.Transparency = 0.25
-	ring.Parent = camera
-
-	local grow = UI.motion.play(ring, UI.motion.riseOut, {
-		Size = Vector3.new(0.4, 74, 74),
-		Transparency = 1,
-	})
-	grow.Completed:Connect(function()
-		ring:Destroy()
-		activeRipples -= 1
-	end)
-end
-
 local function kickCamera(strength: number)
 	if UI.motion.isReducedMotion() then
 		return
@@ -488,8 +437,6 @@ function FeedbackController.init()
 		if companionGain and not BigNumber.isZero(companionGain) then
 			showGain(companionGain, skillId, jx + 110, jy + 14, 0.6)
 		end
-
-		ripple(skillId)
 	end)
 
 	Remotes.event("Forage", "Event").OnClientEvent:Connect(function(kind, _ingredientId, gain)
