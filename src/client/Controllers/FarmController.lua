@@ -1,13 +1,14 @@
 --!strict
 
 local CollectionService = game:GetService("CollectionService")
-local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Farming = require(ReplicatedStorage:WaitForChild("Shared").Modules.Config.Farming)
 
 local FarmController = {}
 
 local TAG = "FarmPlot"
 local TIMER_NAME = "OwnerCropTimer"
-local localPlayer = Players.LocalPlayer
 local tracked: { [Model]: boolean } = {}
 
 local function clockText(seconds: number): string
@@ -36,8 +37,8 @@ local function makeCropTimer(model: Model): BillboardGui?
 	local gui = Instance.new("BillboardGui")
 	gui.Name = TIMER_NAME
 	gui.Adornee = adornee
-	gui.Size = UDim2.fromOffset(190, 54)
-	gui.StudsOffsetWorldSpace = Vector3.new(0, 6, 0)
+	gui.Size = UDim2.fromOffset(230, 68)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, 6.5, 0)
 	gui.AlwaysOnTop = true
 	gui.MaxDistance = 110
 
@@ -68,6 +69,7 @@ local function makeCropTimer(model: Model): BillboardGui?
 	label.Text = ""
 	label.TextColor3 = Color3.fromRGB(68, 95, 54)
 	label.TextScaled = true
+	label.TextWrapped = true
 	label.Parent = background
 
 	gui.Parent = model
@@ -75,10 +77,14 @@ local function makeCropTimer(model: Model): BillboardGui?
 end
 
 local function updateCropTimer(model: Model)
-	local ownerUserId = model:GetAttribute("OwnerUserId")
 	local cropId = model:GetAttribute("CropId")
 	local maturesAt = model:GetAttribute("MaturesAt")
-	if ownerUserId ~= localPlayer.UserId or type(cropId) ~= "string" or type(maturesAt) ~= "number" then
+	if type(cropId) ~= "string" or type(maturesAt) ~= "number" then
+		destroyCropTimer(model)
+		return
+	end
+	local definition = Farming.cropDefinition(cropId)
+	if not definition then
 		destroyCropTimer(model)
 		return
 	end
@@ -96,11 +102,12 @@ local function updateCropTimer(model: Model)
 	end
 
 	local remaining = maturesAt - os.time()
+	local cropText = string.format("%s · YIELD %d", string.upper(cropId), definition.harvestYield)
 	if remaining <= 0 then
-		label.Text = "READY TO HARVEST!"
+		label.Text = string.format("%s\nREADY TO HARVEST!", cropText)
 		label.TextColor3 = Color3.fromRGB(48, 132, 72)
 	else
-		label.Text = string.format("%s  %s", string.upper(cropId), clockText(remaining))
+		label.Text = string.format("%s\nREADY IN %s", cropText, clockText(remaining))
 		label.TextColor3 = Color3.fromRGB(68, 95, 54)
 	end
 end
