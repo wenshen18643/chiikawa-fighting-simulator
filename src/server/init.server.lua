@@ -43,6 +43,7 @@ local BOOT_ORDER = {
 	"WorkService",
 
 	"StudyService",
+	"ExamService",
 
 	"TrainingService",
 	"GuideService",

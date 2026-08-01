@@ -1,9 +1,11 @@
 --[[
-	Server-authoritative Study -> Recall -> Exam loop.
+	Server-authoritative study loop: pages, quick recall, and the readiness bar.
 
-	The client only reports three intentions: a page was completed, an offered
-	plant was chosen, or the player wants to sit the exam. Question order,
-	readiness, retries and certification awards all live here.
+	The client only reports two intentions: a page was completed, or an offered
+	plant was chosen. Question order, progress and the focus buff live here.
+
+	Being certified is NOT here. Studying raises Exam Prep and fills its
+	readiness bar; ExamService decides what that bar is worth.
 ]]
 
 local Players = game:GetService("Players")
@@ -11,7 +13,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
-local Certifications = require(Shared.Modules.Config.Certifications)
 local ChiikawaFacts = require(Shared.Modules.Config.ChiikawaFacts)
 local Constants = require(Shared.Modules.Constants)
 local ExamQuestions = require(Shared.Modules.Config.ExamQuestions)
@@ -25,18 +26,13 @@ local SkillService = require(script.Parent.SkillService)
 
 local StudyService = {}
 
+local SUBJECT = "examprep"
+
 type Prompt = {
-	mode: "study" | "exam",
 	questionId: string,
 	factId: number?,
 	options: { string },
 	phase: "preview" | "answer" | "locked",
-}
-
-type ExamSession = {
-	deck: { string },
-	index: number,
-	correct: number,
 }
 
 local pageCounts: { [Player]: number } = {}
@@ -44,8 +40,6 @@ local lastPages: { [Player]: number } = {}
 local lastQuestions: { [Player]: string } = {}
 local lastFacts: { [Player]: number } = {}
 local prompts: { [Player]: Prompt } = {}
-local exams: { [Player]: ExamSession } = {}
-local reviewRemaining: { [Player]: number } = {}
 local randoms: { [Player]: Random } = {}
 
 local eventRemote: RemoteEvent
@@ -57,17 +51,6 @@ local function rngFor(player: Player): Random
 		randoms[player] = rng
 	end
 	return rng
-end
-
-local function readiness(profile: any): number
-	local value = profile.studyProgress[Constants.STUDY.SUBJECT]
-	return if type(value) == "number" then math.clamp(value, 0, 1) else 0
-end
-
-local function hasSkillRequirement(profile: any): boolean
-	local current = profile.skills[Constants.STUDY.SUBJECT]
-	return BigNumber.isValid(current)
-		and BigNumber.gte(current, BigNumber.coerce(Certifications.requirementForOrder(1)))
 end
 
 local function focusExpiresAt(profile: any): number
@@ -85,7 +68,7 @@ local function grantFocus(profile: any): number
 	for _, boost in profile.boosts do
 		if boost.id == "study_focus" then
 			boost.multiplier = Constants.STUDY.FOCUS_BUFF_MULTIPLIER
-			boost.skill = "examprep"
+			boost.skill = SUBJECT
 			boost.expiresAt = expiresAt
 			return expiresAt
 		end
@@ -93,15 +76,15 @@ local function grantFocus(profile: any): number
 	table.insert(profile.boosts, {
 		id = "study_focus",
 		multiplier = Constants.STUDY.FOCUS_BUFF_MULTIPLIER,
-		skill = "examprep",
+		skill = SUBJECT,
 		expiresAt = expiresAt,
 	})
 	return expiresAt
 end
 
 local function awardPage(player: Player, profile: any): BigNumber.BigNum
-	local gain = BigNumber.mulNumber(Formulas.gainMultiplier(profile, "examprep"), Constants.STUDY.PAGE_BASE_GAIN)
-	SkillService.award(player, profile, "examprep", gain)
+	local gain = BigNumber.mulNumber(Formulas.gainMultiplier(profile, SUBJECT), Constants.STUDY.PAGE_BASE_GAIN)
+	SkillService.award(player, profile, SUBJECT, gain)
 	return gain
 end
 
@@ -153,15 +136,23 @@ local function helperFor(player: Player, profile: any, prompt: Prompt): any?
 	return nil
 end
 
+function StudyService.readiness(profile: any): number
+	local value = profile.studyProgress[SUBJECT]
+	return if type(value) == "number" then math.clamp(value, 0, 1) else 0
+end
+
+function StudyService.spendReadiness(profile: any)
+	profile.studyProgress[SUBJECT] = 0
+end
+
 local function sendStudyQuestion(player: Player, profile: any, pageFactId: number?)
-	if prompts[player] or exams[player] then
+	if prompts[player] then
 		return
 	end
 
 	local questionId = pickQuestion(player)
 	local factId = pageFactId or pickFact(player)
 	local prompt: Prompt = {
-		mode = "study",
 		questionId = questionId,
 		factId = factId,
 		options = ExamQuestions.optionsFor(questionId, rngFor(player)),
@@ -172,7 +163,7 @@ local function sendStudyQuestion(player: Player, profile: any, pageFactId: numbe
 		kind = "preview",
 		questionId = questionId,
 		factId = factId,
-		readiness = readiness(profile),
+		readiness = StudyService.readiness(profile),
 	})
 
 	task.delay(Constants.STUDY.PREVIEW_DURATION, function()
@@ -182,21 +173,20 @@ local function sendStudyQuestion(player: Player, profile: any, pageFactId: numbe
 		prompt.phase = "answer"
 		eventRemote:FireClient(player, {
 			kind = "question",
-			mode = "study",
 			questionId = prompt.questionId,
 			options = prompt.options,
 			helper = helperFor(player, profile, prompt),
-			readiness = readiness(profile),
+			readiness = StudyService.readiness(profile),
 		})
 	end)
 end
 
 local function onPage(player: Player)
 	local profile = DataService.get(player)
-	if not profile or prompts[player] or exams[player] then
+	if not profile or prompts[player] then
 		return
 	end
-	if Skills.canonicalize(profile.selectedSkill or "") ~= "examprep" then
+	if Skills.canonicalize(profile.selectedSkill or "") ~= SUBJECT then
 		return
 	end
 
@@ -222,72 +212,6 @@ local function onPage(player: Player)
 	end
 end
 
-local function examReady(player: Player, profile: any): boolean
-	return (profile.certifications[Constants.STUDY.SUBJECT] or 0) < 1
-		and readiness(profile) >= 1
-		and hasSkillRequirement(profile)
-		and (reviewRemaining[player] or 0) <= 0
-end
-
-local function sendExamQuestion(player: Player)
-	local session = exams[player]
-	if not session then
-		return
-	end
-
-	local questionId = session.deck[session.index]
-	if not questionId then
-		return
-	end
-	local prompt: Prompt = {
-		mode = "exam",
-		questionId = questionId,
-		options = ExamQuestions.optionsFor(questionId, rngFor(player)),
-		phase = "answer",
-	}
-	prompts[player] = prompt
-	eventRemote:FireClient(player, {
-		kind = "question",
-		mode = "exam",
-		questionId = questionId,
-		options = prompt.options,
-		index = session.index,
-		total = #session.deck,
-	})
-end
-
-local function finishExam(player: Player, profile: any)
-	local session = exams[player]
-	if not session then
-		return
-	end
-
-	profile.examAttempts[Constants.STUDY.SUBJECT] = (profile.examAttempts[Constants.STUDY.SUBJECT] or 0) + 1
-	local attempts = profile.examAttempts[Constants.STUDY.SUBJECT]
-	local passed = session.correct >= Constants.STUDY.EXAM_PASSING_ANSWERS
-	exams[player] = nil
-	prompts[player] = nil
-
-	if passed then
-		profile.certifications[Constants.STUDY.SUBJECT] = 1
-		profile.studyProgress[Constants.STUDY.SUBJECT] = 0
-		reviewRemaining[player] = 0
-		NotifyService.send(player, "Kusatori Grade 5! Your careful studying paid off.", "unlock")
-	else
-		reviewRemaining[player] = Constants.STUDY.REVIEW_AFTER_FAILURE
-		NotifyService.send(player, "Almost there. Review two cards with a friend, then try again.", "info")
-	end
-
-	eventRemote:FireClient(player, {
-		kind = "result",
-		passed = passed,
-		correct = session.correct,
-		total = #session.deck,
-		attempts = attempts,
-		reviewRemaining = reviewRemaining[player],
-	})
-end
-
 local function onAnswer(player: Player, optionId: any)
 	if type(optionId) ~= "string" or not ExamQuestions.get(optionId) then
 		return
@@ -301,117 +225,40 @@ local function onAnswer(player: Player, optionId: any)
 	prompt.phase = "locked"
 
 	local correct = optionId == prompt.questionId
-	if prompt.mode == "study" then
-		local before = readiness(profile)
-		local gain = if correct then Constants.STUDY.CORRECT_PROGRESS else Constants.STUDY.LEARNING_PROGRESS
-		profile.studyProgress[Constants.STUDY.SUBJECT] = math.clamp(before + gain, 0, 1)
-		local buffAwarded = correct and rngFor(player):NextNumber() <= Constants.STUDY.FOCUS_BUFF_CHANCE
-		local buffExpiresAt = if buffAwarded then grantFocus(profile) else focusExpiresAt(profile)
-		if correct and (reviewRemaining[player] or 0) > 0 then
-			reviewRemaining[player] -= 1
-		end
-		prompts[player] = nil
+	local before = StudyService.readiness(profile)
+	local gain = if correct then Constants.STUDY.CORRECT_PROGRESS else Constants.STUDY.LEARNING_PROGRESS
+	profile.studyProgress[SUBJECT] = math.clamp(before + gain, 0, 1)
+	local buffAwarded = correct and rngFor(player):NextNumber() <= Constants.STUDY.FOCUS_BUFF_CHANCE
+	local buffExpiresAt = if buffAwarded then grantFocus(profile) else focusExpiresAt(profile)
+	prompts[player] = nil
 
-		local isReady = examReady(player, profile)
-		eventRemote:FireClient(player, {
-			kind = "feedback",
-			mode = "study",
-			correct = correct,
-			selectedId = optionId,
-			correctId = prompt.questionId,
-			readiness = readiness(profile),
-			examReady = isReady,
-			reviewRemaining = reviewRemaining[player] or 0,
-			buffAwarded = buffAwarded,
-			focusExpiresAt = buffExpiresAt,
-		})
-		if before < 1 and readiness(profile) >= 1 then
-			NotifyService.send(player, "Your Grade 5 exam booklet is ready.", "unlock")
-		elseif (reviewRemaining[player] or 0) == 0 and isReady then
-			NotifyService.send(player, "Review complete. You can sit the exam again.", "unlock")
-		end
-		return
-	end
-
-	local session = exams[player]
-	if not session then
-		prompts[player] = nil
-		return
-	end
-	if correct then
-		session.correct += 1
-	end
 	eventRemote:FireClient(player, {
 		kind = "feedback",
-		mode = "exam",
 		correct = correct,
 		selectedId = optionId,
 		correctId = prompt.questionId,
-		index = session.index,
-		total = #session.deck,
+		readiness = StudyService.readiness(profile),
+		buffAwarded = buffAwarded,
+		focusExpiresAt = buffExpiresAt,
 	})
 
-	task.delay(1.1, function()
-		if exams[player] ~= session or not player:IsDescendantOf(Players) then
-			return
-		end
-		prompts[player] = nil
-		session.index += 1
-		if session.index > #session.deck then
-			finishExam(player, profile)
-		else
-			sendExamQuestion(player)
-		end
-	end)
-end
-
-local function onSitExam(player: Player)
-	local profile = DataService.get(player)
-	if not profile or prompts[player] or exams[player] then
-		return
+	if before < 1 and StudyService.readiness(profile) >= 1 then
+		NotifyService.send(player, "Your notes are ready. The Exam Hall desk is in Town.", "unlock")
 	end
-	if (profile.certifications[Constants.STUDY.SUBJECT] or 0) >= 1 then
-		NotifyService.send(player, "You already hold Kusatori Grade 5.", "info")
-		return
-	end
-	if readiness(profile) < 1 then
-		NotifyService.send(player, "Fill your Readiness bookmark before sitting the exam.", "locked")
-		return
-	end
-	if not hasSkillRequirement(profile) then
-		NotifyService.send(player, "Practise Kusatori to 100 before sitting Grade 5.", "locked")
-		return
-	end
-	if (reviewRemaining[player] or 0) > 0 then
-		NotifyService.send(player, `Review {reviewRemaining[player]} more card(s), then try again.`, "info")
-		return
-	end
-
-	local deck = ExamQuestions.shuffle(ExamQuestions.ORDER, rngFor(player))
-	while #deck > Constants.STUDY.EXAM_QUESTIONS do
-		table.remove(deck)
-	end
-	exams[player] = { deck = deck, index = 1, correct = 0 }
-	sendExamQuestion(player)
 end
 
 local function onClose(player: Player)
-	-- A closed book cannot retain an invisible prompt. Clearing both sessions
-	-- also invalidates delayed preview callbacks through their identity check.
+	-- A closed book cannot retain an invisible prompt. Clearing the session also
+	-- invalidates delayed preview callbacks through their identity check.
 	prompts[player] = nil
-	exams[player] = nil
 end
 
 function StudyService.snapshot(player: Player, profile: any): any
-	local subject = Constants.STUDY.SUBJECT
 	return {
-		subject = subject,
-		readiness = readiness(profile),
-		skillReady = hasSkillRequirement(profile),
-		examReady = examReady(player, profile),
-		attempts = profile.examAttempts[subject] or 0,
-		certificationOrder = profile.certifications[subject] or 0,
-		reviewRemaining = reviewRemaining[player] or 0,
+		subject = SUBJECT,
+		readiness = StudyService.readiness(profile),
+		attempts = profile.examAttempts[SUBJECT] or 0,
+		certificationOrder = profile.certifications[SUBJECT] or 0,
 		focusExpiresAt = focusExpiresAt(profile),
 		factId = currentFact(player),
 	}
@@ -421,7 +268,6 @@ function StudyService.init()
 	eventRemote = Remotes.event("Study", "Event")
 	Remotes.event("Study", "Page").OnServerEvent:Connect(onPage)
 	Remotes.event("Study", "Answer").OnServerEvent:Connect(onAnswer)
-	Remotes.event("Study", "SitExam").OnServerEvent:Connect(onSitExam)
 	Remotes.event("Study", "Close").OnServerEvent:Connect(onClose)
 
 	Players.PlayerRemoving:Connect(function(player)
@@ -430,8 +276,6 @@ function StudyService.init()
 		lastQuestions[player] = nil
 		lastFacts[player] = nil
 		prompts[player] = nil
-		exams[player] = nil
-		reviewRemaining[player] = nil
 		randoms[player] = nil
 	end)
 end

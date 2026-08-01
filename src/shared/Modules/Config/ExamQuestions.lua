@@ -1,5 +1,5 @@
 --[[
-	Visual field-guide cards for the Kusatori Grade 5 study loop.
+	Visual field-guide cards. Studied in the book, tested by the Kusatori exam.
 
 	The names are original to this game rather than copied exam questions. Each
 	plant has a silhouette, colour and marking that the UI can draw from Frames,

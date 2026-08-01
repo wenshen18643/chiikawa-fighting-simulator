@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
+local Certifications = require(Shared.Modules.Config.Certifications)
 local Constants = require(Shared.Modules.Constants)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
@@ -52,6 +53,7 @@ local function buildSnapshot(player: Player, profile: any)
 		resting = StaminaService.isResting(player),
 		seasons = profile.seasons,
 		certifications = profile.certifications,
+		certificationCap = Certifications.capFor(profile),
 		study = StudyService.snapshot(player, profile),
 		selectedSkill = profile.selectedSkill,
 		gainPerAction = gainPerAction,

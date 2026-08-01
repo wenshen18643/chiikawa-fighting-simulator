@@ -36,7 +36,6 @@ local bookmark: Frame
 local bookmarkFill: Frame
 local bookmarkTitle: TextLabel
 local bookmarkDetail: TextLabel
-local examButton: TextButton
 local scrim: TextButton
 local book: Frame
 local leftPage: Frame
@@ -46,7 +45,6 @@ local closeButton: TextButton
 
 local pageRemote: RemoteEvent
 local answerRemote: RemoteEvent
-local sitExamRemote: RemoteEvent
 local closeRemote: RemoteEvent
 
 local modalOpen = false
@@ -98,92 +96,7 @@ local function setModalOpen(open: boolean)
 	end
 end
 
-local LEAF_ANGLES = {
-	[1] = { 0 },
-	[2] = { -48, 48 },
-	[3] = { -62, 0, 62 },
-	[4] = { -72, -24, 24, 72 },
-}
-
-local function drawPlant(parent: Instance, definition: any, zIndex: number): Frame
-	local holder = Instance.new("Frame")
-	holder.Name = `Plant_{definition.id}`
-	holder.BackgroundTransparency = 1
-	holder.Size = UDim2.fromScale(1, 1)
-	holder.ZIndex = zIndex
-	holder.Parent = parent
-
-	local ground = Instance.new("Frame")
-	ground.Name = "Ground"
-	ground.AnchorPoint = Vector2.new(0.5, 0.5)
-	ground.Position = UDim2.fromScale(0.5, 0.83)
-	ground.Size = UDim2.fromScale(0.55, 0.08)
-	ground.BackgroundColor3 = BOOK_PAPER_DEEP
-	ground.BorderSizePixel = 0
-	ground.ZIndex = zIndex
-	ground.Parent = holder
-	UI.corner(ground, 999)
-
-	local stem = Instance.new("Frame")
-	stem.Name = "Stem"
-	stem.AnchorPoint = Vector2.new(0.5, 1)
-	stem.Position = UDim2.fromScale(0.5, 0.82)
-	stem.Size = UDim2.fromScale(0.045, 0.42)
-	stem.BackgroundColor3 = Color3.fromRGB(74, 144, 72)
-	stem.BorderSizePixel = 0
-	stem.ZIndex = zIndex + 1
-	stem.Parent = holder
-	UI.corner(stem, 999)
-
-	local angles = LEAF_ANGLES[definition.leafCount] or LEAF_ANGLES[2]
-	for index, angle in angles do
-		local leaf = Instance.new("Frame")
-		leaf.Name = `Leaf_{index}`
-		leaf.AnchorPoint = Vector2.new(0.5, 0.5)
-		local radians = math.rad(angle)
-		leaf.Position = UDim2.fromScale(0.5 + math.sin(radians) * 0.21, 0.57 - math.cos(radians) * 0.08)
-		leaf.Size = if definition.leafShape == "narrow" then UDim2.fromScale(0.13, 0.34) else UDim2.fromScale(0.3, 0.18)
-		leaf.Rotation = angle
-		leaf.BackgroundColor3 = definition.leafColor
-		leaf.BorderSizePixel = 0
-		leaf.ZIndex = zIndex + 2
-		leaf.Parent = holder
-		UI.corner(leaf, 999)
-		UI.stroke(leaf, BOOK_INK, 1.5)
-
-		if definition.marking ~= "plain" and definition.marking ~= "bud" then
-			local mark = Instance.new("Frame")
-			mark.Name = "Mark"
-			mark.AnchorPoint = Vector2.new(0.5, 0.5)
-			mark.Position = UDim2.fromScale(0.5, 0.5)
-			mark.Size = if definition.marking == "spots"
-				then UDim2.fromScale(0.22, 0.34)
-				else UDim2.fromScale(0.16, 0.75)
-			mark.Rotation = if definition.marking == "thorns" then 45 else 0
-			mark.BackgroundColor3 = definition.accentColor
-			mark.BorderSizePixel = 0
-			mark.ZIndex = zIndex + 3
-			mark.Parent = leaf
-			UI.corner(mark, 999)
-		end
-	end
-
-	if definition.marking == "bud" then
-		local bud = Instance.new("Frame")
-		bud.Name = "Bud"
-		bud.AnchorPoint = Vector2.new(0.5, 0.5)
-		bud.Position = UDim2.fromScale(0.5, 0.32)
-		bud.Size = UDim2.fromScale(0.22, 0.22)
-		bud.BackgroundColor3 = definition.accentColor
-		bud.BorderSizePixel = 0
-		bud.ZIndex = zIndex + 3
-		bud.Parent = holder
-		UI.corner(bud, 999)
-		UI.stroke(bud, BOOK_INK, 1.5)
-	end
-
-	return holder
-end
+local drawPlant = UI.plant
 
 local function addPageNumber(parent: Frame, text: string)
 	textLabel(parent, "PageNumber", {
@@ -205,7 +118,7 @@ local function addPlantStudyCard(questionId: string)
 	end
 
 	textLabel(leftPage, "Eyebrow", {
-		text = "KUSATORI FIELD NOTE",
+		text = "FIELD NOTE",
 		font = UI.font.bold,
 		size = UI.text.caption,
 		color = BOOK_GREEN,
@@ -279,7 +192,7 @@ local function updateReadingStats()
 		readingReadinessFill.Size = UDim2.fromScale(readiness, 1)
 	end
 	if readingReadinessLabel and readingReadinessLabel.Parent then
-		readingReadinessLabel.Text = `GRADE 5 READINESS  {math.floor(readiness * 100 + 0.5)}%`
+		readingReadinessLabel.Text = `EXAM READINESS  {math.floor(readiness * 100 + 0.5)}%`
 	end
 	if readingFocusLabel and readingFocusLabel.Parent then
 		local remaining = math.max(0, (study.focusExpiresAt or 0) - os.time())
@@ -405,7 +318,7 @@ local function renderReading()
 	headlineSizeConstraint.MaxTextSize = UI.text.display
 	headlineSizeConstraint.Parent = readingFactLabel
 	readingReadinessLabel = textLabel(leftPage, "Readiness", {
-		text = "GRADE 5 READINESS  0%",
+		text = "EXAM READINESS  0%",
 		font = UI.font.bold,
 		size = UI.text.caption,
 		color = BOOK_GREEN,
@@ -440,20 +353,15 @@ local function renderReading()
 		extent = UDim2.fromScale(0.84, 0.1),
 	})
 
-	if latestStudy and latestStudy.examReady then
-		UI.button(leftPage, "SitExam", {
-			text = "Sit Grade 5 exam",
+	if (latestStudy and latestStudy.readiness or 0) >= 1 then
+		textLabel(leftPage, "DeskHint", {
+			text = "Your notes are ready. The Exam Hall desk is in Town.",
 			font = UI.font.bold,
-			textSize = UI.text.small,
-			textColor = BOOK_INK,
-			color = Color3.fromRGB(204, 240, 178),
-			extent = UDim2.fromScale(0.7, 0.11),
-			position = UDim2.fromScale(0.15, 0.76),
-			zIndex = 45,
-			stroke = true,
-			onActivated = function()
-				sitExamRemote:FireServer()
-			end,
+			size = UI.text.small,
+			color = BOOK_GREEN,
+			wrapped = true,
+			position = UDim2.fromScale(0.08, 0.76),
+			extent = UDim2.fromScale(0.84, 0.12),
 		})
 	end
 	addPageNumber(leftPage, "FIELD NOTES")
@@ -618,7 +526,7 @@ local function addOption(
 end
 
 local function renderQuestion(payload: any, selectedId: string?, correctId: string?, locked: boolean)
-	viewMode = if payload.mode == "exam" then "exam" else "recall"
+	viewMode = "recall"
 	closeButton.Visible = true
 	clearPage(leftPage)
 	clearPage(rightPage)
@@ -629,12 +537,11 @@ local function renderQuestion(payload: any, selectedId: string?, correctId: stri
 		return
 	end
 
-	local exam = payload.mode == "exam"
 	textLabel(leftPage, "Eyebrow", {
-		text = if exam then `GRADE 5 EXAM  •  {payload.index}/{payload.total}` else "QUICK RECALL",
+		text = "QUICK RECALL",
 		font = UI.font.bold,
 		size = UI.text.caption,
-		color = if exam then BOOK_RED else BOOK_GREEN,
+		color = BOOK_GREEN,
 		position = UDim2.fromScale(0.08, 0.07),
 		extent = UDim2.fromScale(0.84, 0.08),
 	})
@@ -680,7 +587,7 @@ local function renderQuestion(payload: any, selectedId: string?, correctId: stri
 	for index, optionId in payload.options do
 		addOption(optionId, index, crossedOut, revealed, selectedId, correctId, locked)
 	end
-	addPageNumber(leftPage, if exam then "ANSWER CAREFULLY" else "TAKE YOUR TIME")
+	addPageNumber(leftPage, "TAKE YOUR TIME")
 end
 
 local function renderPreview(payload: any)
@@ -690,78 +597,6 @@ local function renderPreview(payload: any)
 	clearPage(rightPage)
 	addPlantStudyCard(payload.questionId)
 	addLesson(payload.factId)
-end
-
-local function renderResult(payload: any)
-	viewMode = "result"
-	closeButton.Visible = true
-	clearPage(leftPage)
-	clearPage(rightPage)
-	optionButtons = {}
-
-	textLabel(leftPage, "Eyebrow", {
-		text = "KUSATORI GRADE 5",
-		font = UI.font.bold,
-		size = UI.text.caption,
-		color = if payload.passed then BOOK_GREEN else BOOK_PENCIL,
-		position = UDim2.fromScale(0.08, 0.12),
-		extent = UDim2.fromScale(0.84, 0.08),
-	})
-	textLabel(leftPage, "Score", {
-		text = `{payload.correct} / {payload.total}`,
-		font = UI.font.display,
-		size = 54,
-		color = if payload.passed then BOOK_GREEN else BOOK_INK,
-		align = Enum.TextXAlignment.Center,
-		position = UDim2.fromScale(0.08, 0.27),
-		extent = UDim2.fromScale(0.84, 0.22),
-	})
-	textLabel(leftPage, "Attempt", {
-		text = `Attempt {payload.attempts}`,
-		font = UI.font.bold,
-		size = UI.text.small,
-		color = Color3.fromRGB(128, 105, 102),
-		align = Enum.TextXAlignment.Center,
-		position = UDim2.fromScale(0.08, 0.51),
-		extent = UDim2.fromScale(0.84, 0.08),
-	})
-
-	textLabel(rightPage, "Result", {
-		text = if payload.passed then "You passed!" else "Almost there",
-		font = UI.font.display,
-		size = UI.text.display,
-		color = if payload.passed then BOOK_GREEN else BOOK_PENCIL,
-		position = UDim2.fromScale(0.1, 0.14),
-		extent = UDim2.fromScale(0.8, 0.12),
-	})
-	textLabel(rightPage, "Message", {
-		text = if payload.passed
-			then "Grade 5 doubles your Kusatori gains and raises your wage. Your friends are cheering."
-			else `Your readiness is safe. Review {payload.reviewRemaining} cards, then sit the exam again.`,
-		font = UI.font.body,
-		size = UI.text.body,
-		wrapped = true,
-		verticalAlign = Enum.TextYAlignment.Top,
-		position = UDim2.fromScale(0.1, 0.31),
-		extent = UDim2.fromScale(0.8, 0.28),
-	})
-
-	UI.button(rightPage, "Continue", {
-		text = if payload.passed then "Celebrate" else "Review together",
-		font = UI.font.bold,
-		textSize = UI.text.body,
-		textColor = BOOK_INK,
-		color = if payload.passed then Color3.fromRGB(204, 240, 178) else Color3.fromRGB(255, 213, 239),
-		extent = UDim2.fromScale(0.72, 0.14),
-		position = UDim2.fromScale(0.14, 0.67),
-		zIndex = 45,
-		stroke = true,
-		onActivated = function()
-			setModalOpen(false)
-		end,
-	})
-	addPageNumber(leftPage, "RESULT")
-	addPageNumber(rightPage, if payload.passed then "GRADE 5" else "TRY AGAIN")
 end
 
 local function activeSkill(snapshot: any): string?
@@ -783,29 +618,17 @@ local function updateBookmark(snapshot: any)
 	bookmark.Visible = studying and not modalOpen
 	bookmarkFill.Size = UDim2.fromScale(math.clamp(study.readiness or 0, 0, 1), 1)
 
-	if (study.certificationOrder or 0) >= 1 then
-		bookmarkTitle.Text = "Kusatori Grade 5 earned"
-		bookmarkDetail.Text = "Your field notes paid off."
-		examButton.Visible = false
-	elseif (study.reviewRemaining or 0) > 0 then
-		bookmarkTitle.Text = `Review {study.reviewRemaining} more card(s)`
-		bookmarkDetail.Text = "Your readiness is safe. Keep studying."
-		examButton.Visible = false
-	elseif study.examReady then
-		bookmarkTitle.Text = "Grade 5 exam ready"
-		bookmarkDetail.Text = "Five questions • four to pass"
-		examButton.Visible = true
-	elseif (study.readiness or 0) >= 1 and not study.skillReady then
-		bookmarkTitle.Text = "Readiness 100%"
-		bookmarkDetail.Text = "Practise Kusatori to 100 next."
-		examButton.Visible = false
+	local readiness = math.clamp(study.readiness or 0, 0, 1)
+	if readiness >= 1 then
+		bookmarkTitle.Text = "Notes ready"
+		bookmarkDetail.Text = "Sit the exam at the Exam Hall desk."
 	else
-		bookmarkTitle.Text = `Readiness {math.floor((study.readiness or 0) * 100 + 0.5)}%`
+		bookmarkTitle.Text = `Readiness {math.floor(readiness * 100 + 0.5)}%`
 		bookmarkDetail.Text = "Turn pages to find the next field note."
-		examButton.Visible = false
 	end
+
 	local focusRemaining = math.max(0, (study.focusExpiresAt or 0) - os.time())
-	if focusRemaining > 0 and not examButton.Visible then
+	if focusRemaining > 0 then
 		bookmarkDetail.Text = `Focus x2 active • {focusRemaining}s`
 	end
 end
@@ -890,29 +713,6 @@ local function buildBookmark(parent: ScreenGui)
 	bookmarkFill.Parent = track
 	UI.corner(bookmarkFill, 999)
 
-	examButton = UI.button(bookmark, "SitExam", {
-		text = "Sit exam",
-		textSize = UI.text.small,
-		color = BOOK_PENCIL,
-		textColor = UI.color.paperDeep,
-		extent = UDim2.fromOffset(92, 27),
-		position = UDim2.new(1, -92, 1, -27),
-		zIndex = 24,
-		stroke = true,
-		onActivated = function()
-			dismissed = false
-			examButton.Text = "Opening..."
-			examButton.Active = false
-			sitExamRemote:FireServer()
-			task.delay(1.5, function()
-				if examButton then
-					examButton.Text = "Sit exam"
-					examButton.Active = true
-				end
-			end)
-		end,
-	})
-	examButton.Visible = false
 	bookmark.Visible = false
 end
 
@@ -1024,8 +824,6 @@ local function onStudyEvent(payload: any)
 		if latestStudy and type(payload.focusExpiresAt) == "number" then
 			latestStudy.focusExpiresAt = payload.focusExpiresAt
 			latestStudy.readiness = payload.readiness or latestStudy.readiness
-			latestStudy.reviewRemaining = payload.reviewRemaining or latestStudy.reviewRemaining
-			latestStudy.examReady = payload.examReady == true
 		end
 		if readingPageLabel and readingPageLabel.Parent then
 			readingPageLabel.Text = `PAGE {pageNumber + 1}`
@@ -1067,17 +865,11 @@ local function onStudyEvent(payload: any)
 				feedback.TextColor3 = BOOK_GOLD
 			end
 		end
-		if payload.mode == "study" then
-			task.delay(1.25, function()
-				if renderSerial == serial then
-					renderReading()
-				end
-			end)
-		end
-	elseif payload.kind == "result" then
-		currentQuestionPayload = nil
-		setModalOpen(true)
-		renderResult(payload)
+		task.delay(1.25, function()
+			if renderSerial == serial then
+				renderReading()
+			end
+		end)
 	end
 end
 
@@ -1094,7 +886,6 @@ function StudySession.init()
 
 	pageRemote = Remotes.event("Study", "Page")
 	answerRemote = Remotes.event("Study", "Answer")
-	sitExamRemote = Remotes.event("Study", "SitExam")
 	closeRemote = Remotes.event("Study", "Close")
 
 	buildBookmark(screen)
