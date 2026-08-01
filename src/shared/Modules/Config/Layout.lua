@@ -118,28 +118,6 @@ function Layout.farmEntranceCFrame(area: Areas.AreaDefinition): CFrame
 	return CFrame.lookAt(position, plaza)
 end
 
-export type FarmRouteSegment = {
-	id: string,
-	from: Vector3,
-	to: Vector3,
-}
-
-function Layout.farmRouteSegments(area: Areas.AreaDefinition): { FarmRouteSegment }
-	local radius = Layout.plazaDiameter(area) / 2
-
-	local function plazaEdgeToward(target: Vector3): Vector3
-		local flat = Vector3.new(target.X - area.origin.X, 0, target.Z - area.origin.Z)
-		local direction = if flat.Magnitude > 0 then flat.Unit else Vector3.new(0, 0, 1)
-		return area.origin + direction * radius + Vector3.new(0, WORLD.PLATFORM_TOP, 0)
-	end
-
-	local farm = Layout.farmEntranceCFrame(area).Position
-
-	return {
-		{ id = "PlazaToFarm", from = plazaEdgeToward(farm), to = farm },
-	}
-end
-
 function Layout.mobSpawnCFrames(
 	area: Areas.AreaDefinition,
 	population: number,

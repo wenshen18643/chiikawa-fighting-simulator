@@ -525,44 +525,11 @@ local function addTitleSign(parent: Instance, entrance: CFrame)
 	label.Parent = gui
 end
 
-local function addKusatoriRoutes(parent: Instance, area: Areas.AreaDefinition, topY: number)
-	local routes = Instance.new("Folder")
-	routes.Name = "KusatoriRoutes"
-	routes.Parent = parent
-
-	for _, route in Layout.farmRouteSegments(area) do
-		local segment = Instance.new("Folder")
-		segment.Name = route.id
-		segment:SetAttribute("From", route.from)
-		segment:SetAttribute("To", route.to)
-		segment.Parent = routes
-
-		local span = Vector3.new(route.to.X - route.from.X, 0, route.to.Z - route.from.Z)
-		local steps = math.max(1, math.ceil(span.Magnitude / Farming.ROUTE_STONE_SPACING))
-		for index = 0, steps do
-			local alpha = index / steps
-			local position = route.from:Lerp(route.to, alpha)
-			local size = Farming.ROUTE_STONE_SIZE * (if index % 3 == 1 then 0.9 else 1)
-			local stone = makePart(
-				segment,
-				`RouteStone_{string.format("%03d", index)}`,
-				Vector3.new(Farming.ROUTE_STONE_THICKNESS, size, size),
-				CFrame.new(position.X, topY, position.Z) * CFrame.Angles(0, 0, math.rad(90)),
-				if index % 5 == 2 then Color3.fromRGB(244, 206, 210) else Color3.fromRGB(239, 230, 204),
-				Enum.Material.SmoothPlastic
-			)
-			stone.Shape = Enum.PartType.Cylinder
-			stone.CanCollide = false
-			stone.CastShadow = false
-		end
-	end
-end
-
 local function addFieldDressing(parent: Instance, area: Areas.AreaDefinition)
 	local field = Layout.farmFieldCFrame(area)
+	local entrance = Layout.farmEntranceCFrame(area)
 	local topY = Constants.WORLD.PLATFORM_TOP + 0.16
 	local pathColor = Color3.fromRGB(224, 205, 165)
-	addKusatoriRoutes(parent, area, topY)
 
 	for column = 1, Farming.COLUMNS - 1 do
 		local x = (column - Farming.COLUMNS / 2) * Farming.PLOT_STRIDE
@@ -586,18 +553,6 @@ local function addFieldDressing(parent: Instance, area: Areas.AreaDefinition)
 			Enum.Material.Ground
 		).CanCollide = false
 	end
-
-	local entrance = Layout.farmEntranceCFrame(area)
-	local fieldSouth = field.Position.Z - Farming.FIELD_LENGTH / 2
-	local pathCentreZ = (entrance.Position.Z + fieldSouth) / 2
-	makePart(
-		parent,
-		"EntranceWalk",
-		Vector3.new(12, 0.36, math.max(2, fieldSouth - entrance.Position.Z)),
-		CFrame.new(entrance.Position.X, topY, pathCentreZ),
-		pathColor,
-		Enum.Material.Cobblestone
-	).CanCollide = false
 
 	local borderColor = Color3.fromRGB(150, 111, 73)
 	local halfWidth = Farming.FIELD_WIDTH / 2 + 2

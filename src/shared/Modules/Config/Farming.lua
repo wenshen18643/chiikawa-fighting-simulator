@@ -23,10 +23,6 @@ Farming.MAX_POSITIONS_PER_USER = 5
 Farming.INTERACTION_DISTANCE = 18
 Farming.ACTIONS_PER_SECOND = 1
 
-Farming.ROUTE_STONE_SPACING = 8
-Farming.ROUTE_STONE_SIZE = 6.5
-Farming.ROUTE_STONE_THICKNESS = 0.4
-
 Farming.SEED_COST = 3
 
 export type CropDefinition = {
