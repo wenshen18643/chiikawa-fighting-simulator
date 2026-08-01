@@ -11,11 +11,8 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
-local Areas = require(Shared.Areas)
-local Layout = require(Shared.Modules.Config.Layout)
 local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
-local Worksites = require(Shared.Modules.Config.Worksites)
 local UI = require(Shared.UI)
 
 local WorkController = require(script.Parent.WorkController)
@@ -310,24 +307,28 @@ local function expireTrail()
 	end
 end
 
-local function ripple(worksiteId: string, regionId: number?)
+--[[
+	The ring that spreads out from a landed click.
+
+	It used to spread from the centre of the pad being worked, which was the
+	only place work could happen. Work happens wherever the player is standing
+	now, so the ring starts at their feet — which is also where they are
+	looking when they click.
+]]
+local function ripple(skillId: string)
 	if activeRipples >= MAX_RIPPLES then
 		return
 	end
 
-	local area = regionId and Areas.get(regionId)
-	if not area then
-		return
-	end
-
-	local position = Layout.padPosition(area, worksiteId)
+	local character = Players.LocalPlayer.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	local camera = Workspace.CurrentCamera
-	if not position or not camera then
+	if not root or not camera then
 		return
 	end
 
-	local worksite = Worksites.get(worksiteId)
-	local color = skillColor(worksite and worksite.skill)
+	local position = root.Position - Vector3.new(0, root.Size.Y / 2 + 1.4, 0)
+	local color = skillColor(skillId)
 
 	activeRipples += 1
 
@@ -478,7 +479,7 @@ function FeedbackController.init()
 
 	WorkController.onComplete(onLocalClick)
 
-	Remotes.event("Work", "Feedback").OnClientEvent:Connect(function(skillId, gain, worksiteId, regionId, companionGain)
+	Remotes.event("Work", "Feedback").OnClientEvent:Connect(function(skillId, gain, companionGain)
 		local jx = math.random(-48, 48)
 		local jy = math.random(-14, 14)
 
@@ -488,9 +489,7 @@ function FeedbackController.init()
 			showGain(companionGain, skillId, jx + 110, jy + 14, 0.6)
 		end
 
-		if worksiteId and regionId then
-			ripple(worksiteId, regionId)
-		end
+		ripple(skillId)
 	end)
 
 	Remotes.event("Forage", "Event").OnClientEvent:Connect(function(kind, _ingredientId, gain)

@@ -6,9 +6,9 @@
 	running across it IS enduring a long shift, and it should pay something.
 
 	Before this, travel was the only activity in the game that produced nothing.
-	A player crossing four areas to reach a district spent minutes going
-	backwards relative to someone stood still on a pad, which is a strange thing
-	for a game about doing an honest day's work to say.
+	A player crossing the map spent minutes going backwards relative to someone
+	stood still clicking, which is a strange thing for a game about doing an
+	honest day's work to say.
 
 	--------------------------------------------------------------------------
 	THE EXPLOIT, AND WHY THIS IS MEASURED RATHER THAN REPORTED
@@ -69,10 +69,9 @@ local function award(player: Player, units: number)
 		return
 	end
 
-	-- No worksite: the same base rate free-form clicking gets, so travel scales
-	-- with certifications and season rather than becoming worthless by tier 3.
-	local perUnit = Formulas.gainPerAction(profile, SKILL, nil)
-	local gain = BigNumber.mulNumber(perUnit, units * Constants.WORK.OFF_PAD_MULTIPLIER)
+	-- The same rate free-form clicking gets, so travel scales with
+	-- certifications and season rather than becoming worthless later on.
+	local gain = BigNumber.mulNumber(Formulas.gainPerAction(profile, SKILL), units)
 
 	SkillService.award(player, profile, SKILL, gain)
 
@@ -81,10 +80,9 @@ local function award(player: Player, units: number)
 		CurrencyService.award(profile, "yen", yen)
 	end
 
-	-- Reuses the click feedback path so a "+N" floats up while running. Nil
-	-- worksite and region, so the client draws no pad ripple.
+	-- Reuses the click feedback path so a "+N" floats up while running.
 	if feedback then
-		feedback:FireClient(player, SKILL, gain, nil, nil)
+		feedback:FireClient(player, SKILL, gain)
 	end
 end
 

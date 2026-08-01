@@ -26,7 +26,7 @@ function GuideService.init()
 			return
 		end
 		profile.meta.introShown = true
-		NotifyService.send(player, "Field Guide saved. Choose a skill and follow the arrow to a pad.", "info")
+		NotifyService.send(player, "Field Guide saved. Choose a skill on the bar and get to work.", "info")
 	end)
 
 	DataService.onLoaded(function(player, profile)

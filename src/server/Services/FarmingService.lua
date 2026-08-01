@@ -414,7 +414,7 @@ local function handlePlant(player: Player, rawPlotId: any, rawCropId: any)
 		end
 
 		ingredients[cropId] = owned - Farming.SEED_COST
-		local xpPerItem = BigNumber.mulNumber(Formulas.gainPerAction(profile, "kusatori", nil), definition.xpMultiplier)
+		local xpPerItem = BigNumber.mulNumber(Formulas.gainPerAction(profile, "kusatori"), definition.xpMultiplier)
 		lockedPlot:plant({ id = cropId, plantedAt = atTime, xpPerItem = xpPerItem })
 		local leaseEndsAt = lockedPlot:getLeaseEndsAt() or atTime
 		local guaranteed = Farming.yieldForElapsed(cropId, leaseEndsAt - atTime)

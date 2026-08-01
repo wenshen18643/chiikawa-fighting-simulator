@@ -85,16 +85,16 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 			blocks = {
 				{
 					title = "The whole loop",
-					body = "Choose one of four skills, work to raise it, and move to stronger coloured pads as their requirements open. Your four skills combine to unlock six connected regions.",
+					body = "Choose one of four skills and work to raise it. Certification grades multiply what each skill earns, and your four skills together decide how far the world opens up.",
 					bullets = {
 						"One press is one action. Holding Work does not repeat it.",
-						"You can train anywhere at base rate; usable pads multiply the gain.",
+						"You can train anywhere. There is nowhere you have to stand.",
 						"Running and jumping add small Resilience gains, so travel is productive.",
 					},
 				},
 				{
 					title = "Your first good decision",
-					body = "Select Kusatori, follow the arrow to the Roadside Weed Patch, and work toward 10,000. Its Tier 2 pad pays ×6, while Kusatori also raises your wage and pays Yen directly.",
+					body = "Select Kusatori and pull weeds — it pays Yen directly and raises your passive wage on top of the skill itself. The Roadside Weed Patch north of the plaza is the easiest place to start.",
 				},
 				{
 					title = "Nothing is lost",
@@ -120,11 +120,11 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 					style = "table",
 				},
 				{
-					title = "How Work reads your position",
+					title = "What Work trains",
 					bullets = {
-						"On open ground, Work trains the skill you selected on the bottom bar.",
-						"On a usable pad, that pad chooses the skill and adds its multiplier.",
-						"On a locked pad, clicks practise its skill at base rate, but standing still earns nothing there.",
+						"Work always trains the skill you selected on the bottom bar.",
+						"Kusatori needs something to pull: weeds, or a plant worth foraging.",
+						"Facing a mob turns Work into an attack, which pays Tobatsu instead.",
 					},
 				},
 			},
@@ -167,13 +167,12 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 					style = "skills",
 				},
 				{
-					title = "Stamina and passive work",
+					title = "Stamina",
 					bullets = {
 						"You start with 100 stamina. An accepted active action costs 1.",
 						"Stamina begins at 6 regeneration per second; Resilience improves the maximum and regeneration.",
 						"At zero, you rest for about 5 seconds and then continue.",
-						"Standing on a usable pad trains automatically at half rate, except Exam Prep: every point needs a page flip.",
-						"Passive pad work only runs while you remain in the server; there is no offline progress.",
+						"Every skill is earned by doing something. Standing still earns nothing, and there is no offline progress.",
 					},
 				},
 			},
@@ -182,22 +181,22 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 			key = "progress",
 			label = "Progress",
 			title = "The skill ladder",
-			kicker = "EACH SKILL UNLOCKS ITS OWN PADS",
+			kicker = "EACH SKILL EARNS ITS OWN GRADES",
 			accent = "examprep",
 			blocks = {
 				{
-					title = "Pad tiers",
-					body = "Each district runs outward from the plaza in tier order. Requirements are separate per skill: 10,000 Kusatori does not unlock Tier 2 Tobatsu.",
+					title = "Certification grades",
+					body = "Each grade doubles what that skill earns. Grades are separate per skill: 10,000 Kusatori does nothing for Tobatsu. The pips under each button show how far your stat already reaches.",
 					rows = {
-						{ label = "Tier 1", value = "Free", note = "×2" },
-						{ label = "Tier 2", value = "10,000", note = "×6" },
-						{ label = "Tier 3", value = "100,000", note = "×25" },
+						{ label = "Grade 5", value = "100", note = "×2" },
+						{ label = "Grade 4", value = "10,000", note = "×4" },
+						{ label = "Grade 3", value = "1,000,000", note = "×8" },
 					},
 					style = "table",
 				},
 				{
 					title = "Veteran shortcut",
-					body = "Push one useful skill to its next pad before spreading gains evenly. A new multiplier is an engine: once it opens, every future press and passive tick in that skill becomes stronger.",
+					body = "Push one useful skill to its next grade before spreading gains evenly. A new multiplier is an engine: once it opens, every future press in that skill becomes stronger.",
 				},
 				{
 					title = "Kusatori Grade 5",
@@ -287,19 +286,19 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 						{
 							label = "7–10 min",
 							value = "Select Kusatori",
-							note = "Choose skill 3 and follow the Work Core arrow to the Tier 1 Roadside Weed Patch.",
+							note = "Choose skill 3 and follow the lantern path north to the Roadside Weed Patch.",
 							accent = "kusatori",
 						},
 						{
 							label = "10–20 min",
-							value = "Work the ×2 pad",
-							note = "Press once per action, watch Yen rise, and confirm that standing still also trains on a usable pad.",
+							value = "Pull weeds",
+							note = "Press once per weed, watch Yen rise, and confirm the stat climbs on the bottom bar.",
 							accent = "kusatori",
 						},
 						{
 							label = "20–23 min",
-							value = "Move up when ready",
-							note = "At 10,000 Kusatori, step off and follow the arrow to the Tier 2 ×6 pad. Otherwise keep the ×2 pad.",
+							value = "Sit Grade 5 when ready",
+							note = "At 100 Kusatori the pink bookmark opens the exam. Passing doubles every Kusatori gain after it.",
 							accent = "gold",
 						},
 						{
@@ -311,7 +310,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 						{
 							label = "27–30 min",
 							value = "Plan for the Woods",
-							note = "Open the map and Atlas, inspect the Ladder, then aim for 50,000 combined skill.",
+							note = "Open the map and Atlas, check what is still closed, then aim for 50,000 combined skill.",
 							accent = "gold",
 						},
 					},

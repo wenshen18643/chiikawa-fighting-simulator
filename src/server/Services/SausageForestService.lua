@@ -44,8 +44,8 @@ type Plan = {
 local plans: { [number]: Plan } = {}
 local tierOfMob: { [string]: number } = {}
 
--- The same zone list the dressing pass respects: a sausage tree through a
--- worksite pad is as broken as a bush on one.
+-- The same zone list the dressing pass respects: a sausage tree through the
+-- kitchen is as broken as a bush through it.
 local reserved: { Layout.Zone } = {}
 
 --[[

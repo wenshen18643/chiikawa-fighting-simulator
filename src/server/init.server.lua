@@ -12,6 +12,7 @@ local BOOT_ORDER = {
 	"AssetService",
 
 	"WorldService",
+	"WeedService",
 	"SafeZoneService",
 	"NpcService",
 
@@ -20,7 +21,6 @@ local BOOT_ORDER = {
 	"AssetProbeService",
 
 	"CompanionService",
-	"WorksiteService",
 
 	"ForagingService",
 

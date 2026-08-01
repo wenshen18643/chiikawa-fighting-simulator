@@ -13,8 +13,17 @@
 local Constants = {}
 
 Constants.WORK = {
-	-- §4: base gain before multipliers. All growth is multiplicative.
-	BASE_GAIN = 1,
+	--[[
+		§4: base gain before multipliers. All growth is multiplicative.
+
+		Doubled from 1 when the worksite pads were removed. Every area had a
+		free, requirement-free tier-1 pad paying x2, so in practice nobody who
+		was training a skill on purpose ever earned the old base — it was the
+		rate for standing in a field. Folding that x2 in here keeps the real
+		early-game rate where it was, and means the number now describes what a
+		player actually gets.
+	]]
+	BASE_GAIN = 2,
 
 	--[[
 		§13: server-side rate limit on work actions. Excess is dropped, never
@@ -33,56 +42,21 @@ Constants.WORK = {
 	-- dump several actions at once, which is the thing the cap exists to stop.
 	ACTION_BURST = 1,
 
-	--[[
-		§4: AFK ticks at this fraction of the active rate. Idling is endorsed,
-		not punished.
-
-		THE knob for how much clicking is worth. At 0.5 a clicking player earns
-		roughly 2x a player standing still, which is a deliberate call: the
-		click earns its keep through feedback (FeedbackController) rather than
-		through rate. Lower this if clicking should feel more decisive.
-	]]
-	AFK_RATE_FRACTION = 0.5,
-	AFK_TICK_INTERVAL = 1,
-
-	-- §13: how far outside a worksite part a player may be and still be
-	-- credited, to absorb normal client-server position drift.
-	POSITION_TOLERANCE = 8,
-
 	-- Client-side mirror of MAX_ACTIONS_PER_SECOND, with a small margin so a
 	-- click that is legal locally is never dropped by the server bucket over
 	-- network jitter. An over-rate click is refused here and never sent, so
 	-- the player sees no feedback for it rather than a burst that earns nothing.
 	CLICK_DEBOUNCE = 0.21,
-
-	--[[
-		§5 TRAINING OFF A PAD.
-
-		A worksite pad used to be a GATE: clicking anywhere else was refused
-		outright, so a player who wanted to top up a neglected skill had to walk
-		to the right district first and could not build a character freely.
-
-		A pad is now a MULTIPLIER instead. Off a pad you still train — at this
-		multiplier, with certifications, season, comfort and boosts all still
-		applied — and a pad is worth x2 at tier 1 rising to x5000 at tier 7. The
-		incentive to stand in a district is between two and five thousand times
-		your open-ground rate, which never needed a wall to enforce.
-
-		Raise this if open ground should stay competitive later in a run; the
-		whole of that decision is this one number.
-	]]
-	OFF_PAD_MULTIPLIER = 1,
 }
 
 --[[
 	The first certification slice: studying prepares the player for the canon
 	Kusatori Grade 5 exam. Page flips are their own server-validated action;
-	ordinary Work clicks and passive pad ticks never grant Exam Prep.
+	ordinary Work clicks never grant Exam Prep.
 ]]
 Constants.STUDY = {
 	SUBJECT = "kusatori",
 	PAGE_BASE_GAIN = 2,
-	DECK_MULTIPLIER = 2,
 	FACT_CHANCE = 0.1,
 	PREVIEW_DURATION = 1.5,
 	CORRECT_PROGRESS = 0.2,
@@ -248,31 +222,8 @@ Constants.REPLICATION = {
 ]]
 Constants.WORLD = {
 	TERRAIN_TOP = -2, -- terrain is filled up to here
-	PLATFORM_TOP = 1, -- plazas and worksite pads all present this surface
+	PLATFORM_TOP = 1, -- plazas all present this surface
 	PLATFORM_THICKNESS = 4, -- deep enough to bury the bottom edge in terrain
-
-	WORKSITE_SIZE = Vector3.new(56, 4, 56),
-	WORKSITE_BORDER = 6, -- darker frame around each pad, for legibility
-
-	--[[
-		District ring. Each area fans its six skill districts around a central
-		plaza; within a district the pads run OUTWARD in tier order, so walking
-		deeper into a district is literally progressing up the ladder.
-
-		Turned into positions by Config/Layout.lua.
-
-		Both distances are BASE + a fraction of the area's size, not a pure
-		fraction. A pure fraction put the Ruins' tier-1 pad 1,800 studs from the
-		plaza — a two-minute walk to do the easiest thing in the game. Base
-		keeps tier 1 just outside your front door in every area; the fraction
-		makes the climb to tier 7 a real journey in the big ones.
-	]]
-	DISTRICT_INNER_RADIUS = 200, -- plaza centre to the tier-1 pad
-	DISTRICT_RADIUS_FRACTION = 0.04, -- of islandSize, added to the above
-	DISTRICT_PAD_SPACING = 96, -- between consecutive tiers
-	DISTRICT_SPACING_FRACTION = 0.03, -- of islandSize, added to the above
-	DISTRICT_PLATE_MARGIN = 34,
-	DISTRICT_ARCH_SETBACK = 92, -- how far in front of the tier-1 pad the arch sits
 
 	PLAZA_DIAMETER_FRACTION = 0.10, -- of islandSize
 	PLAZA_MIN_DIAMETER = 170,

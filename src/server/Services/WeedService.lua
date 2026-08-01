@@ -1,5 +1,7 @@
 local CollectionService = game:GetService("CollectionService")
 
+local WorldService = require(script.Parent.WorldService)
+
 local WeedService = {}
 
 WeedService.PULL_RADIUS = 10
@@ -89,6 +91,34 @@ function WeedService.pull(section: Section)
 		for part, transparency in section.transparency do
 			if part.Parent then
 				part.Transparency = transparency
+			end
+		end
+	end)
+end
+
+--[[
+	Claims every weeding patch an area file dressed into the world.
+
+	The worksite pads used to register their own patches as they were built,
+	and were most of what a kusatori player pulled. With the pads gone the only
+	patches left are the ones the area files place as landmarks, and nothing
+	was registering those — so they looked pullable and were not. Sweeping once
+	after the dressing pass costs one traversal at boot and keeps the area
+	files free of any knowledge that this service exists.
+]]
+local PATCH_MODEL = "WeedingPatchProp"
+
+local function isSprout(child: Instance): boolean
+	return child.Name:match("^WeedSprout_") ~= nil
+end
+
+function WeedService.init()
+	task.spawn(function()
+		WorldService.awaitDressed()
+
+		for _, descendant in workspace:GetDescendants() do
+			if descendant:IsA("Model") and descendant.Name == PATCH_MODEL then
+				WeedService.registerPatch(descendant, isSprout)
 			end
 		end
 	end)

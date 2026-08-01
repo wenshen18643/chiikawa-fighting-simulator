@@ -24,7 +24,6 @@ local ContextActionService = game:GetService("ContextActionService")
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -33,7 +32,6 @@ local Remotes = require(Shared.Modules.Remotes)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
 local Mobs = require(Shared.Modules.Config.Mobs)
 local Skills = require(Shared.Modules.Config.Skills)
-local Worksites = require(Shared.Modules.Config.Worksites)
 
 local Feedback = require(Shared.Modules.Config.Feedback)
 
@@ -262,46 +260,19 @@ local function onAction(_actionName: string, inputState: Enum.UserInputState)
 	return Enum.ContextActionResult.Pass
 end
 
--- The skill the pad under your feet trains, or nil if you are not on one.
-function WorkController.getCurrentSkill(): string?
-	local snapshot = StateController.snapshot
-	if not snapshot or not snapshot.currentWorksite then
-		return nil
-	end
-	local worksite = Worksites.get(snapshot.currentWorksite)
-	return worksite and worksite.skill
-end
-
 --[[
 	What a click right now would actually raise.
 
-	The pad you are stood on wins; otherwise it is your selected skill, or the
-	skill of a pad you are stood on but have not unlocked (the server applies the
-	same rule in WorkService.freeformSkill — this mirrors it so the gesture,
-	sound and HUD agree with what is about to be credited).
+	The selected skill, which the server applies the same way in
+	WorkService.freeformSkill — mirrored here so the gesture, sound and HUD
+	agree with what is about to be credited.
 
 	Read from the snapshot rather than tracked locally, so it cannot drift from
 	the server's idea of it.
 ]]
 function WorkController.getTrainingSkill(): string?
 	local snapshot = StateController.snapshot
-	if not snapshot then
-		return nil
-	end
-
-	local onPad = WorkController.getCurrentSkill()
-	if onPad then
-		return onPad
-	end
-
-	if snapshot.blockedWorksite then
-		local blocked = Worksites.get(snapshot.blockedWorksite)
-		if blocked then
-			return blocked.skill
-		end
-	end
-
-	return snapshot.selectedSkill
+	return snapshot and snapshot.selectedSkill
 end
 
 function WorkController.getSelectedSkill(): string?
@@ -332,23 +303,6 @@ function WorkController.selectSkill(skillId: string)
 	for _, listener in selectionListeners do
 		task.spawn(listener, canonical)
 	end
-end
-
-function WorkController.getPromptText(): string?
-	local skillId = WorkController.getCurrentSkill()
-	if not skillId then
-		return nil
-	end
-	local skill = Skills.get(skillId)
-	if not skill then
-		return nil
-	end
-	if Skills.canonicalize(skillId) == "examprep" then
-		return if UserInputService.TouchEnabled then "Tap skill 4 to open book" else "Press 4 to open book"
-	end
-
-	local verb = if UserInputService.TouchEnabled then "Tap" else "Click"
-	return `{verb} to {string.lower(skill.verb)}`
 end
 
 --[[

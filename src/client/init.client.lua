@@ -15,14 +15,12 @@ Remotes.get()
 
 	StateController first: everything else reads its snapshot. WorkController
 	before FeedbackController, which subscribes to its local click signal. HUD
-	after both, because it builds WorkCore, Minimap and Atlas, and those query
-	GuideController.
+	after both, because it builds WorkCore, Minimap and Atlas.
 ]]
 local BOOT_ORDER = {
 	{ container = script.Controllers, name = "StateController" },
 	{ container = script.Controllers, name = "MovementController" },
 	{ container = script.Controllers, name = "WorkController" },
-	{ container = script.Controllers, name = "GuideController" },
 	-- All three subscribe to WorkController's local click signal, so they boot
 	-- after it. Order among themselves does not matter.
 	{ container = script.Controllers, name = "FeedbackController" },

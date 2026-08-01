@@ -7,12 +7,13 @@
 	simultaneously, giving the most important corner of the screen three voices
 	and no hierarchy.
 
-	One control, two states:
+	One control, one state: the stamina ring wraps the skill you are training
+	and what one click is worth.
 
-	  ON A PAD      the stamina ring wraps the worksite you are working, its
-	                multiplier, and what one click is worth.
-	  OFF A PAD     the same ring wraps the pad you should walk to, with a live
-	                bearing arrow and a distance.
+	It used to have a second state for standing on a worksite pad, and a bearing
+	arrow pointing at the best pad to walk to. Training happens wherever the
+	player is now, so there is no elsewhere to point at and nothing for a second
+	state to say.
 
 	The ring is the stamina meter (Primitives.ring — a real dial, drawn from
 	frames, no image assets). Putting the rate limiter AROUND the thing it limits
@@ -21,17 +22,12 @@
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Skills = require(Shared.Modules.Config.Skills)
-local Worksites = require(Shared.Modules.Config.Worksites)
 local UI = require(Shared.UI)
-
-local GuideController = require(script.Parent.Parent.Controllers.GuideController)
-local WorkController = require(script.Parent.Parent.Controllers.WorkController)
 
 local WorkCore = {}
 
@@ -48,9 +44,7 @@ local titleLabel: TextLabel
 local detailLabel: TextLabel
 local actionPill: Frame
 local actionLabel: TextLabel
-local arrowGlyph: Frame
 
-local currentTarget: GuideController.Target? = nil
 local currentSkill: string? = nil
 local ringGlyphSkill: string? = nil
 local lastRatio = 0
@@ -125,20 +119,12 @@ function WorkCore.build(parent: Instance): Frame
 	column.ZIndex = 3
 	column.Parent = root
 
-	arrowGlyph = UI.glyph(column, "arrow", {
-		color = UI.color.leafDeep,
-		extent = UDim2.fromOffset(22, 22),
-		anchor = Vector2.new(0, 0.5),
-		position = UDim2.new(0, 0, 0, 15),
-		zIndex = 5,
-	})
-
 	titleLabel = UI.label(column, "Title", {
 		text = "",
 		font = UI.font.display,
 		size = 20,
-		extent = UDim2.new(1, -30, 0, 26),
-		position = UDim2.fromOffset(30, 2),
+		extent = UDim2.new(1, 0, 0, 26),
+		position = UDim2.fromOffset(0, 2),
 	})
 
 	detailLabel = UI.label(column, "Detail", {
@@ -171,17 +157,6 @@ function WorkCore.build(parent: Instance): Frame
 		zIndex = 5,
 	})
 
-	-- The arrow tracks the camera, which moves every frame even when nothing
-	-- else does. Refreshing the whole panel that often would be waste; this is
-	-- one property write.
-	RunService.RenderStepped:Connect(function()
-		if currentTarget and arrowGlyph.Visible then
-			-- Negated so a target to the player's right swings the arrow
-			-- clockwise, which is the direction they will turn.
-			arrowGlyph.Rotation = -GuideController.bearingToTarget(currentTarget)
-		end
-	end)
-
 	return root
 end
 
@@ -189,115 +164,35 @@ end
 -- State
 --------------------------------------------------------------------------------
 
-local function showWorking(snapshot: any)
-	local worksite = Worksites.get(snapshot.currentWorksite)
-	if not worksite then
-		return
-	end
-
-	local skill = Skills.get(worksite.skill)
-	currentTarget = nil
-	currentSkill = worksite.skill
-
-	arrowGlyph.Visible = false
-	titleLabel.Position = UDim2.fromOffset(0, 2)
-	titleLabel.Size = UDim2.new(1, 0, 0, 26)
-	titleLabel.Text = worksite.name
-
-	local gain = snapshot.gainPerAction
-	detailLabel.Text = if Skills.canonicalize(worksite.skill) == "examprep"
-		then `TIER {worksite.tier}  ·  x{worksite.multiplier}  ·  +{gain and BigNumber.toString(gain) or "0"} a page`
-		else `TIER {worksite.tier}  ·  x{worksite.multiplier}  ·  +{gain and BigNumber.toString(gain) or "0"} a click`
-	detailLabel.TextColor3 = UI.color.inkSoft
-
-	actionPill.BackgroundColor3 = if skill and skill.color
-		then skill.color
-		else (UI.color.leaf or Color3.fromRGB(126, 190, 104))
-	actionLabel.Text = string.upper(WorkController.getPromptText() or "Click to work")
-end
-
 --[[
-	Not on a pad. Two different situations that need different words:
+	What you are training, and what a click is worth.
 
-	  - standing on a pad you have not earned. The server told us which one, so
-	    say what it needs rather than pretending there is nothing there.
-	  - standing on grass. Point at the nearest thing worth walking to.
+	Exam Prep is the one skill a click does not advance — its pages are turned
+	in the study book — so it gets told how to open that instead of a verb it
+	cannot perform.
 ]]
-local function showIdle(snapshot: any)
-	currentSkill = nil
-
-	--[[
-		Standing on a pad you have not earned. It still trains — at base rate,
-		into that pad's own skill — so this says what the pad WANTS rather than
-		refusing outright, which is what it used to do.
-	]]
-	local blockedId = snapshot.blockedWorksite
-	if blockedId then
-		local worksite = Worksites.get(blockedId)
-		if worksite then
-			local skill = Skills.get(worksite.skill)
-			currentSkill = worksite.skill
-			currentTarget = nil
-			arrowGlyph.Visible = false
-			titleLabel.Position = UDim2.fromOffset(0, 2)
-			titleLabel.Size = UDim2.new(1, 0, 0, 26)
-			titleLabel.Text = worksite.name
-			detailLabel.Text =
-				`practising at base rate · pad needs {BigNumber.toString(BigNumber.coerce(worksite.requirement))}`
-			detailLabel.TextColor3 = UI.color.inkFaint
-			actionPill.BackgroundColor3 = if skill and skill.color
-				then skill.color:Lerp(UI.color.paper or Color3.fromRGB(253, 251, 246), 0.35)
-				else (UI.color.inkFaint or Color3.fromRGB(190, 182, 170))
-			actionLabel.Text = if Skills.canonicalize(worksite.skill) == "examprep"
-				then string.upper(
-					if UserInputService.TouchEnabled then "tap skill 4 to open book" else "press 4 to open book"
-				)
-				else string.upper(`click to {skill and skill.verb or "work"}`)
-			return
-		end
-	end
-
-	--[[
-		Open ground. You can still train here — a pad is a multiplier, not a
-		gate — so this leads with what you ARE training, and treats the nearest
-		pad as an upgrade to walk to rather than as a prerequisite.
-
-		The old copy said "NOTHING NEARBY", which was discouraging and is now
-		simply untrue.
-	]]
+local function showTraining(snapshot: any)
 	local selected = snapshot.selectedSkill
-	local selectedDefinition = selected and Skills.get(selected)
+	local definition = selected and Skills.get(selected)
 	currentSkill = selected
 
-	local target = GuideController.getTarget()
-	currentTarget = target
+	local studying = selected ~= nil and Skills.canonicalize(selected) == "examprep"
+	local gain = snapshot.gainPerAction
+	local rate = if gain then BigNumber.toString(gain) else "0"
 
-	titleLabel.Position = UDim2.fromOffset(0, 2)
-	titleLabel.Size = UDim2.new(1, 0, 0, 26)
-	titleLabel.Text = if selectedDefinition then `Training {selectedDefinition.name}` else "Training"
-	actionPill.BackgroundColor3 = if selectedDefinition and selectedDefinition.color
-		then selectedDefinition.color:Lerp(UI.color.paper or Color3.fromRGB(253, 251, 246), 0.3)
-		else (UI.color.paperDeep or Color3.fromRGB(244, 239, 230))
-	actionLabel.Text = if selected and Skills.canonicalize(selected) == "examprep"
+	titleLabel.Text = if definition then `Training {definition.name}` else "Training"
+
+	detailLabel.Text = if studying then `+{rate} a page` else `+{rate} a click  ·  press 1-4 to switch skill`
+	detailLabel.TextColor3 = UI.color.inkSoft
+
+	actionPill.BackgroundColor3 = if definition and definition.color
+		then definition.color
+		else (UI.color.leaf or Color3.fromRGB(126, 190, 104))
+	actionLabel.Text = if studying
 		then string.upper(if UserInputService.TouchEnabled then "tap skill 4 to open book" else "press 4 to open book")
 		else string.upper(
-			`{if UserInputService.TouchEnabled then "tap" else "click"} to {selectedDefinition and selectedDefinition.verb or "work"}`
+			`{if UserInputService.TouchEnabled then "tap" else "click"} to {definition and definition.verb or "work"}`
 		)
-
-	if not target then
-		arrowGlyph.Visible = false
-		detailLabel.Text = "base rate · press 1-4 to switch skill"
-		detailLabel.TextColor3 = UI.color.inkSoft
-		return
-	end
-
-	-- There is a better place to do this. Say where, and by how much.
-	arrowGlyph.Visible = true
-	titleLabel.Position = UDim2.fromOffset(30, 2)
-	titleLabel.Size = UDim2.new(1, -30, 0, 26)
-	detailLabel.Text =
-		`base rate · {target.worksite.name} is x{target.worksite.multiplier}, {math.floor(target.distance)}m away`
-	detailLabel.TextColor3 = UI.color.inkSoft
 end
 
 function WorkCore.update(snapshot: any)
@@ -324,13 +219,9 @@ function WorkCore.update(snapshot: any)
 	--------------------------------------------------------------------------
 	-- The panel body.
 	--------------------------------------------------------------------------
-	if snapshot.currentWorksite then
-		showWorking(snapshot)
-	else
-		showIdle(snapshot)
-	end
+	showTraining(snapshot)
 
-	actionLabel.TextColor3 = if snapshot.currentWorksite then UI.color.white else UI.color.inkSoft
+	actionLabel.TextColor3 = UI.color.white
 
 	-- The glyph inside the ring follows whatever the panel is about, so the
 	-- ring is never a generic meter floating next to unrelated text.
@@ -338,7 +229,7 @@ function WorkCore.update(snapshot: any)
 	-- Rebuilt only when the skill CHANGES. Snapshots arrive 2.5 times a second
 	-- and a glyph is five instances; tearing it down and rebuilding it on every
 	-- one would churn a few hundred instances a minute to draw the same picture.
-	local glyphSkill = currentSkill or (currentTarget and currentTarget.worksite.skill)
+	local glyphSkill = currentSkill
 	if glyphSkill and glyphSkill ~= ringGlyphSkill then
 		ringGlyphSkill = glyphSkill
 		local skill = Skills.get(glyphSkill)

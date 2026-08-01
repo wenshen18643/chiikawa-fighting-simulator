@@ -90,8 +90,6 @@ local GestureController = {}
 
 -- Set by the server on a working character; drives the looping remote version.
 local WORKING_ATTRIBUTE = "WorkingSkill"
--- Set alongside it; scales the held prop so higher tiers swing bigger tools.
-local TIER_ATTRIBUTE = "WorkTier"
 -- Set by the server per forage pluck: ForageClipAt (an os.clock stamp) changing
 -- fires the clip named in ForageClip once, rather than looping it.
 local FORAGE_CLIP_ATTRIBUTE = "ForageClip"
@@ -645,19 +643,6 @@ local function stepBook(character: Model, dt: number, wanted: boolean)
 	animateBook(character, state.open, flip)
 end
 
---[[
-	Tier scales the tool. §17's ladder runs seven tiers, and a tier-7 fork being
-	visibly bigger than a tier-1 one is the cheapest possible read on progress.
-	Kept sublinear so the top of the ladder is impressive rather than absurd.
-]]
-local function tierScale(tier: number): number
-	return 1 + math.clamp(tier - 1, 0, 6) * 0.14
-end
-
-local function propScaleFor(character: Model): number
-	local tier = character:GetAttribute(TIER_ATTRIBUTE)
-	return tierScale(if type(tier) == "number" then tier else 1)
-end
 
 local function removeProps(character: Model)
 	for _, name in PROP_NAMES do
@@ -708,14 +693,18 @@ local function attachSkillProp(character: Model, skillId: string)
 		end
 	end
 
-	local scale = propScaleFor(character)
-	local existing = character:FindFirstChild(targetName)
-	if existing then
-		-- Rebuild only when the tier actually moved.
-		if math.abs((existing:GetAttribute("Scale") or 1) - scale) < 0.001 then
-			return
-		end
-		existing:Destroy()
+	--[[
+		Every tool is one size now.
+
+		It used to scale with the worksite tier being worked, so a tier-7 fork
+		was visibly bigger than a tier-1 one. The pads that carried the tier are
+		gone; the scale is kept as a value rather than inlined because the
+		builders below take it, and a future upgrade tier can put a real number
+		back here without touching them.
+	]]
+	local scale = 1
+	if character:FindFirstChild(targetName) then
+		return
 	end
 
 	local hand = findHand(character, "Right")

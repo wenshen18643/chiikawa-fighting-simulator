@@ -17,8 +17,8 @@ local Area = require(script.Area)
 export type AreaDefinition = Area.AreaDefinition
 export type DecorateContext = Area.DecorateContext
 
--- Town is the whole world. The five eastern areas were removed; the ladder now
--- runs three tiers deep inside this one island (Config/Worksites).
+-- Town is the whole world. The five eastern areas were removed; everything a
+-- player can do fits inside this one island.
 local ORDER = { "Town" }
 
 Areas.ALL = {} :: { AreaDefinition }

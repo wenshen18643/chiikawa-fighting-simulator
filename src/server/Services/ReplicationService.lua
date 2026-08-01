@@ -18,13 +18,11 @@ local Constants = require(Shared.Modules.Constants)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
-local Worksites = require(Shared.Modules.Config.Worksites)
 
 local DataService = require(script.Parent.DataService)
 local RegionService = require(script.Parent.RegionService)
 local StaminaService = require(script.Parent.StaminaService)
 local StudyService = require(script.Parent.StudyService)
-local WorksiteService = require(script.Parent.WorksiteService)
 
 local ReplicationService = {
 	remote = nil :: RemoteEvent?, -- resolved in init()
@@ -36,15 +34,19 @@ local function buildSnapshot(player: Player, profile: any)
 		skills[skillId] = profile.skills[skillId] or BigNumber.zero()
 	end
 
-	local spot = WorksiteService.getOccupied(player)
-	local blockedSpot = WorksiteService.getBlocked(player)
-	local gainPerAction = nil
-	if spot then
-		local worksite = Worksites.get(spot.worksiteId)
-		if worksite then
-			gainPerAction = Formulas.gainPerAction(profile, worksite.skill, spot.worksiteId)
-		end
-	end
+	--[[
+		What one click is worth right now.
+
+		Used to be sent only while stood on a pad, and nil everywhere else, so
+		the number the HUD could show was the one place a player was least
+		likely to be. It is the selected skill's rate now, which is true
+		wherever they happen to be standing.
+	]]
+	local selected = profile.selectedSkill
+	local gainPerAction = Formulas.gainPerAction(
+		profile,
+		if type(selected) == "string" and Skills.exists(selected) then selected else Skills.ORDER[1]
+	)
 
 	return {
 		skills = skills,
@@ -59,17 +61,9 @@ local function buildSnapshot(player: Player, profile: any)
 		seasons = profile.seasons,
 		certifications = profile.certifications,
 		study = StudyService.snapshot(player, profile),
-		-- Which skill a click off a pad raises. Drives the HUD's selected-row
-		-- highlight and the work core's off-pad copy.
+		-- Which skill a click raises. Drives the HUD's selected-row highlight
+		-- and the work core's copy.
 		selectedSkill = profile.selectedSkill,
-		currentWorksite = if spot then spot.worksiteId else nil,
-		-- The AREA the occupied pad is in. Under the cumulative ladder the same
-		-- worksite id exists in up to six of them, so the id alone no longer
-		-- tells the client where the player is standing.
-		currentWorksiteRegion = if spot then spot.regionId else nil,
-		-- The pad the player is standing on but has not earned. The HUD uses it
-		-- to show what is missing rather than showing nothing at all.
-		blockedWorksite = if blockedSpot then blockedSpot.worksiteId else nil,
 		gainPerAction = gainPerAction,
 		yenPerMinute = Formulas.yenPerMinute(profile),
 		regionId = RegionService.getCurrentRegion(player),

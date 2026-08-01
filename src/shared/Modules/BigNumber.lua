@@ -2,7 +2,7 @@
 	BigNumber — mantissa/exponent numbers for values that outgrow doubles.
 
 	See docs/GAME.md §12. Skill values, Yen and Stamps blow past 2^53 once
-	tier-6 worksite multipliers stack with season multipliers, so every one of
+	certification multipliers stack with season multipliers, so every one of
 	those quantities uses this module instead of a raw number.
 
 	Representation is a PLAIN TABLE with no metatable: { m = mantissa, e = exponent }

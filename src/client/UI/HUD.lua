@@ -33,7 +33,6 @@ local BigNumber = require(Shared.Modules.BigNumber)
 local Certifications = require(Shared.Modules.Config.Certifications)
 local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
-local Worksites = require(Shared.Modules.Config.Worksites)
 local UI = require(Shared.UI)
 
 -- Skill selection moved to UI/SkillBar, which talks to WorkController itself.
@@ -454,28 +453,25 @@ end
 --------------------------------------------------------------------------------
 
 --[[
-	Fraction of the way from the current worksite tier's requirement to the next
+	Fraction of the way from the grade this value already reaches to the next
 	one. Computed in log space because the ladder is geometric — a linear bar
-	over 1e5..1e6 would sit pinned at zero for most of the climb.
+	over 1e2..1e4 would sit pinned at zero for most of the climb.
 
-	Also returns how many tiers are already met, which is what the pips show.
+	Also returns how many grades the value covers, which is what the pips show.
+
+	This used to read the worksite ladder. The certification ladder is the
+	progression axis that outlived the pads, and it is the better one to draw:
+	a pip here is a grade the player could sit the exam for, rather than a
+	place they could have stood.
 ]]
-local function tierProgress(skillId: string, value: any): (number, number)
-	local ladder = Worksites.getLadder(skillId)
-	if #ladder == 0 then
-		return 0, 0
-	end
-
-	local current = BigNumber.log10(value)
-	if current < 0 then
-		current = 0
-	end
+local function gradeProgress(value: any): (number, number)
+	local current = math.max(BigNumber.log10(value), 0)
 
 	local lower = 0
 	local met = 0
 
-	for _, worksite in ladder do
-		local requirement = BigNumber.log10(BigNumber.coerce(worksite.requirement))
+	for order = 1, Certifications.MAX_CANON_ORDER do
+		local requirement = BigNumber.log10(BigNumber.coerce(Certifications.requirementForOrder(order)))
 		if current < requirement then
 			local span = requirement - lower
 			if span <= 0 then
@@ -487,7 +483,7 @@ local function tierProgress(skillId: string, value: any): (number, number)
 		lower = requirement
 	end
 
-	return 1, met -- past the top of the ladder
+	return 1, met -- past the top canon grade
 end
 
 local function update(snapshot: any)
@@ -504,18 +500,11 @@ local function update(snapshot: any)
 	end
 
 	--[[
-		Two different states share this stack, and they are not the same thing:
-
-		  ACTIVE   the skill a click would raise right now — the pad under your
-		           feet if there is one, otherwise your selection.
-		  SELECTED what free-form clicking raises when you are not on a pad.
-
-		Standing on a Cooking pad with Weeding selected, Cooking is active and
-		Weeding is still selected; step off and Weeding takes over. Showing only
-		one of the two would make the other one's behaviour look like a bug.
+		Active and selected are the same skill now that a click raises what the
+		bar says and nothing else. Both are still tracked because SkillBar draws
+		them differently and the pair is what `setState` takes.
 	]]
-	local working = snapshot.currentWorksite and Worksites.get(snapshot.currentWorksite)
-	local nowActive = working and working.skill or snapshot.selectedSkill
+	local nowActive = snapshot.selectedSkill
 	local activeChanged = nowActive ~= activeSkill or snapshot.selectedSkill ~= selectedSkill
 	activeSkill = nowActive
 	selectedSkill = snapshot.selectedSkill
@@ -530,7 +519,7 @@ local function update(snapshot: any)
 		-- and every pip strip would read empty.
 		local progress, met = 0, 0
 		if value then
-			progress, met = tierProgress(skillId, value)
+			progress, met = gradeProgress(value)
 		end
 		entry.setProgress(progress)
 		entry.setPips(met)

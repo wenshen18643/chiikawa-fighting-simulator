@@ -18,8 +18,8 @@ return Area.define({
 	gate = { skillTotal = 0, certificationTotal = 0 },
 	origin = Vector3.new(0, 0, 0),
 	-- Halved from 2600. Town is the whole game, so it wants to be walkable
-	-- rather than large: at 1300 the tier-3 pad still lands 522 studs out of a
-	-- 650-stud half-width, and everything in it got denser for free.
+	-- rather than large: at 1300 the far fence is a 650-stud walk from the plaza
+	-- and everything in it got denser for free.
 	terrain = { material = "LeafyGrass", islandSize = 1300 },
 	palette = {
 		ground = Color3.fromRGB(150, 200, 130),
@@ -37,7 +37,7 @@ return Area.define({
 			Town is the whole game now, so the plaza has to be somewhere you
 			come back to rather than the empty middle of a lawn. Three shop
 			fronts face the square, lanterns walk you out of it, and stepping
-			stones run to each district so "where do I go" has an answer you
+			stones run to each landmark so "where do I go" has an answer you
 			can see from the doorstep.
 
 			Every prop is placed by HEIGHT rather than by a scale multiplier —
@@ -45,7 +45,17 @@ return Area.define({
 			what a shop is, whatever the uploader worked in.
 		]]
 		local plazaEdge = ctx.plazaRadius + 12
-		local padOne = ctx.districtRadius
+
+		--[[
+			The three props the town is organised around.
+
+			Their positions live here rather than at each helper call because
+			the paths out of the plaza aim at them, and a landmark that moved
+			without its path would leave a trail of stones pointing at nothing.
+		]]
+		local sasumataAt = { name = "Sasumata Yard", x = -half * 0.48 - 25, z = half * 0.35 }
+		local weedsAt = { name = "Roadside Weeds", x = 30, z = 190 }
+		local desksAt = { name = "Study Desks", x = half * 0.48 - 18, z = half * 0.52 - 36 }
 
 		--[[
 			Nothing stands on the axis of the front door. The plaza centre is
@@ -87,26 +97,24 @@ return Area.define({
 			end
 		end
 
-		local districts = {
-			{ angle = 50, name = "Sasumata Yard" },
-			{ angle = 130, name = "Roadside Weeds" },
-			{ angle = 230, name = "Study Desks" },
-		}
-		for index, district in districts do
-			local radians = math.rad(district.angle)
-			local dirX, dirZ = math.cos(radians), math.sin(radians)
-			-- Out to the tier-1 pad, wherever that has ended up.
+		for index, landmark in { sasumataAt, weedsAt, desksAt } do
+			local reach = math.sqrt(landmark.x * landmark.x + landmark.z * landmark.z)
+			local dirX, dirZ = landmark.x / reach, landmark.z / reach
+			local radians = math.atan2(dirZ, dirX)
+			-- Stopping short keeps the stones from running under the prop.
+			local stopAt = reach - 26
+
 			helpers.path(ctx, {
 				fromX = dirX * plazaEdge,
 				fromZ = dirZ * plazaEdge,
-				toX = dirX * padOne,
-				toZ = dirZ * padOne,
+				toX = dirX * stopAt,
+				toZ = dirZ * stopAt,
 				spacing = 8,
 			})
 
 			-- Lanterns the length of the path, not just at its mouth.
 			for step = 1, 3 do
-				local along = plazaEdge + (padOne - plazaEdge) * (step / 4)
+				local along = plazaEdge + (stopAt - plazaEdge) * (step / 4)
 				for _, side in { -1, 1 } do
 					helpers.prop(ctx, "lantern", dirX * along - dirZ * side * 11, dirZ * along + dirX * side * 11, {
 						height = 4.4,
@@ -129,7 +137,7 @@ return Area.define({
 			end
 
 			helpers.signpost(ctx, {
-				title = district.name,
+				title = landmark.name,
 				x = dirX * (plazaEdge + 34),
 				z = dirZ * (plazaEdge + 34),
 			})
@@ -172,25 +180,13 @@ return Area.define({
 		})
 
 		-- Landmark Study Desk outside Exam Hall
-		helpers.studyDesk(ctx, {
-			x = half * 0.48 - 18,
-			z = half * 0.52 - 36,
-			y = 2.4,
-		})
+		helpers.studyDesk(ctx, { x = desksAt.x, z = desksAt.z, y = 2.4 })
 
 		-- Landmark Sasumata Training Dummy outside Subjugation grounds
-		helpers.sasumataDummy(ctx, {
-			x = -half * 0.48 - 25,
-			z = half * 0.35,
-			y = 4.5,
-		})
+		helpers.sasumataDummy(ctx, { x = sasumataAt.x, z = sasumataAt.z, y = 4.5 })
 
 		-- Landmark Weeding Patch in Town Square
-		helpers.weedingPatch(ctx, {
-			x = 30,
-			z = 190,
-			y = 1.5,
-		})
+		helpers.weedingPatch(ctx, { x = weedsAt.x, z = weedsAt.z, y = 1.5 })
 
 		-- Landmark Waterfall Zone on the eastern cliff edge
 		helpers.waterfallZone(ctx, {
