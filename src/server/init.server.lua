@@ -1,11 +1,3 @@
---[[
-	Server entry point.
-
-	Boot order matters: the remote tree must exist before any service tries to
-	resolve a remote from it, and DataService must be listening for PlayerAdded
-	before anything that reads a profile on join.
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Remotes = require(ReplicatedStorage.Shared.Modules.Remotes)
@@ -13,65 +5,51 @@ Remotes.init()
 
 local Services = script.Services
 
--- Ordered, not alphabetical. Each entry may depend on the ones above it.
 local BOOT_ORDER = {
 	"NotifyService",
 	"DataService",
-	-- Before WorldService: it starts the decor model downloads, which the world
-	-- then uses as they arrive. It does not block on them, so booting it early
-	-- costs nothing and booting it late would mean Town builds before any of
-	-- them exist.
+
 	"AssetService",
-	-- WorldService owns terrain, fences, gates and region folders;
-	-- SafeZoneService puts the cottage on Town's plaza and overrides its spawn;
-	-- WorksiteService lays pads into the region folders. The order here is
-	-- load-bearing in all three directions.
+
 	"WorldService",
 	"SafeZoneService",
 	"NpcService",
-	-- Owns the first hostile-capable actors before WorkService resolves attacks.
+
 	"MobService",
-	-- After SafeZoneService, which is what moves Town's spawn onto the cottage
-	-- doorstep: the probes are placed relative to the FINAL spawn.
+
 	"AssetProbeService",
-	-- Binds PlayerAdded, so it wants to be up before anybody can join. Its own
-	-- spawning waits on the AssetService download.
+
 	"CompanionService",
 	"WorksiteService",
-	-- After WorksiteService: the groves stand on the retired resilience pad
-	-- spots, and the kitchen needs Town's region folder and the pot asset.
+
 	"ForagingService",
-	-- After ForagingService (it plants through it) and MobService (it deploys
-	-- guardians into it).
+
 	"SausageForestService",
-	-- Same two dependencies as the forest, plus TerrainBuilder for the plinth it
-	-- sinks under the board. Its own carve waits on WorldService.awaitDressed.
+
 	"CaveService",
+
+	"FishingService",
+	"QuarryService",
 	"CookingService",
 	"InventoryService",
 	"StaminaService",
 	"CurrencyService",
-	-- Farm mailbox receipts must be claimable before the lease service can
-	-- create refunds or deferred harvest rewards.
+
 	"FarmMailboxService",
 	"FarmingService",
 	"RegionService",
-	-- Before WorkService, which spends each click on a bite as well: it needs
-	-- ForagingService's ground raycast and SafeZoneService's volume.
+
 	"FeastService",
 	"WorkService",
-	-- Layers visual recall and the Kusatori Grade 5 exam over completed Exam
-	-- Prep gestures; depends on WorksiteService and profile state.
+
 	"StudyService",
-	-- After WorkService: both credit skills, and TrainingService reuses the
-	-- Work.Feedback remote WorkService resolves.
+
 	"TrainingService",
 	"GuideService",
-	-- After ForagingService and MobService, whose pull and kill events it counts
-	-- progress from, and after SafeZoneService, which builds the booth prompt.
+
 	"WorkOrderService",
 	"ReplicationService",
-	-- Studio-only section grid overlay. Last: it reads the world, nothing reads it.
+
 	"BoardService",
 }
 

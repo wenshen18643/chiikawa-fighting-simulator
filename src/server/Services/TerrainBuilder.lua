@@ -1,30 +1,3 @@
---[[
-	Fills the ground. See docs/GAME.md §7.
-
-	The world is one continuous landmass roughly 27,000 studs long and 114
-	million square studs in area. That breaks the naive approach in two separate
-	ways, and this module exists for both:
-
-	  1. Terrain:FillBlock is bounded by how many voxels a single call may touch.
-	     The Ruins alone is 6,000 studs square; at the old fill depth that is
-	     around nine million voxels in one call. So every fill is TILED at
-	     TERRAIN_TILE studs a side.
-
-	  2. Even tiled, filling the whole world takes long enough to matter. Doing
-	     it synchronously in WorldService.init would hold the server — and every
-	     joining player — for the duration.
-
-	So: Town is filled SYNCHRONOUSLY and everything else runs on a background
-	task that yields every few tiles. A player can spawn in their cottage and
-	start working while the far end of the world is still arriving. Nothing east
-	of Town is reachable in the seconds that takes; it is gated behind a skill
-	total nobody has on their first frame.
-
-	The ground is a SHELL, not a solid: ISLAND_DEPTH is the thickness of the
-	crust, and no part of the game ever sees the inside of it. At this surface
-	area that choice is worth several million voxels.
-]]
-
 local Workspace = game:GetService("Workspace")
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -39,31 +12,11 @@ local TerrainBuilder = {}
 
 local WORLD = Constants.WORLD
 
--- Set once the background pass has filled every area. Nothing gates on it
--- today; it exists so a future service that must not run against half a world
--- has something to wait on.
 TerrainBuilder.ready = false
 
 local readySignal = Instance.new("BindableEvent")
 local filled = 0
 
---------------------------------------------------------------------------------
--- Relief
---------------------------------------------------------------------------------
-
---[[
-	The island used to be a flat slab and read like one. Now it has a height
-	field: gentle rolling noise everywhere, and a rim of mountains around the
-	shore that frames the world and gives the eye somewhere to go.
-
-	Everything that must stay flat — plaza, districts, the east-west road, the
-	safe-zone plot — is protected by a mask built from Layout.reservedZones:
-	inside a zone the height is 0, and it ramps up over MASK_FADE studs so pads
-	get a sloped approach rather than a cliff through their middle.
-
-	Props do not care: WorldService seats them by raycast, so decoration
-	follows whatever ground this builds.
-]]
 local MASK_FADE = 70
 
 local MOUNTAINS = {
@@ -110,7 +63,6 @@ local function heightAt(zones: { Layout.Zone }, x: number, z: number): number
 		hills += mountain.h * math.exp(-(dx * dx + dz * dz) / (2 * mountain.r * mountain.r))
 	end
 
-	-- Only ever RAISE. Digging would undermine the plaza, the pads and the shore.
 	return math.max(0, rolling + hills) * mask
 end
 
@@ -123,13 +75,6 @@ local function materialOf(name: string): Enum.Material
 	return material
 end
 
---[[
-	One tiled fill of an axis-aligned box. `step` is nil for the base island,
-	which must be on the ground before the first player is, and a frame-budget
-	stepper for everything after.
-
-	Tiles overlap by a stud so marching cubes does not leave a seam between them.
-]]
 type Step = (() -> ())?
 
 local function fillBox(centre: Vector3, size: Vector3, material: Enum.Material, step: Step)
@@ -161,24 +106,37 @@ local function fillBox(centre: Vector3, size: Vector3, material: Enum.Material, 
 	end
 end
 
---[[
-	Any tiled fill, for a caller that owns its own volume.
-
-	Exported because the cave carves under the board and needs exactly this: a
-	FillBlock that respects the voxel-per-call bound and hands the frame back
-	between tiles. A second copy of that loop is a second place to get it wrong.
-]]
 TerrainBuilder.fill = fillBox
 
---[[
-	An area's ground: a rock core with the area's own surface material laid on
-	top, both positioned from their TOP edge so the surface lands exactly on
-	TERRAIN_TOP. The rock is what makes a cut edge read as ground rather than as
-	a floating slab of grass.
+function TerrainBuilder.fillCylinder(
+	centre: Vector3,
+	height: number,
+	radius: number,
+	material: Enum.Material,
+	step: Step
+)
+	if radius <= 0 or height <= 0 then
+		return
+	end
 
-	The surface extends a skirt past the walkable area so the shoreline is
-	terrain rather than a cliff at the boundary.
-]]
+	local slabs = math.max(1, math.ceil(height / WORLD.TERRAIN_TILE))
+	local slabHeight = height / slabs
+
+	for index = 1, slabs do
+		local offsetY = -height / 2 + (index - 0.5) * slabHeight
+		Workspace.Terrain:FillCylinder(
+			CFrame.new(centre + Vector3.new(0, offsetY, 0)),
+			slabHeight + 1,
+			radius,
+			material
+		)
+		filled += 1
+		if step then
+			step()
+		end
+	end
+end
+
 function TerrainBuilder.buildGround(area: Areas.AreaDefinition, step: Step)
 	local size = area.terrain.islandSize
 	local skirt = WORLD.SHORE_FALLOFF
@@ -201,14 +159,6 @@ function TerrainBuilder.buildGround(area: Areas.AreaDefinition, step: Step)
 	)
 end
 
---[[
-	Section ground. Each themed square gets its own terrain material laid over
-	the base surface — farm is turned earth, the thicket is snow, the knoll is
-	rock — and then the relief pass raises hills and mountains on top of that.
-	The patchwork IS the section grid, readable from any hill.
-
-	Cosmetic on top of buildGround, so it runs on the background pass.
-]]
 function TerrainBuilder.paintSections(area: Areas.AreaDefinition, step: Step)
 	if not Sections.THEMES[area.key] and area.key ~= "town" then
 		return
@@ -221,16 +171,10 @@ function TerrainBuilder.paintSections(area: Areas.AreaDefinition, step: Step)
 end
 
 function TerrainBuilder.buildArea(area: Areas.AreaDefinition, step: Step)
-	-- Animated blades on Grass and LeafyGrass. Stated rather than inherited:
-	-- the forest floor depends on it.
 	Workspace.Terrain.Decoration = true
 	TerrainBuilder.buildGround(area, step)
 	TerrainBuilder.paintSections(area, step)
 end
-
---------------------------------------------------------------------------------
--- Per cell
---------------------------------------------------------------------------------
 
 local SUB = 4
 local CLEAR_HEIGHT = 200
@@ -247,11 +191,6 @@ function TerrainBuilder.paintCell(area: Areas.AreaDefinition, cell: Sections.Cel
 		material
 	)
 
-	--[[
-		A themed cell may subdivide further and add its own relief. The default
-		grid is 53 studs a step, which is fine under a farm and reads as a flat
-		table under a forest: the ground between trees is what sells the trees.
-	]]
 	local relief = theme and theme.relief
 	local divisions = if relief then relief.subdivide else SUB
 	local subSize = Sections.SIZE / divisions
@@ -263,9 +202,7 @@ function TerrainBuilder.paintCell(area: Areas.AreaDefinition, cell: Sections.Cel
 			local h = heightAt(zones, sx, sz)
 			if relief then
 				local mask = math.clamp(edgeDistance(zones, sx, sz) / MASK_FADE, 0, 1)
-				h += math.max(0, math.noise(sx / relief.scale, sz / relief.scale, 31) + 0.28)
-					* relief.amp
-					* mask
+				h += math.max(0, math.noise(sx / relief.scale, sz / relief.scale, 31) + 0.28) * relief.amp * mask
 			end
 			if h > 0.5 then
 				Workspace.Terrain:FillBlock(
@@ -312,14 +249,6 @@ function TerrainBuilder.buildCell(area: Areas.AreaDefinition, cell: Sections.Cel
 	TerrainBuilder.paintCell(area, cell, Layout.reservedZones(area), step)
 end
 
---[[
-	The isthmus between two areas — the road you physically walk to get from one
-	to the next, and the thing that makes this a world rather than six teleport
-	destinations.
-
-	Surfaced in the material of the area to its west, so the ground changes
-	underfoot as you cross rather than at an invisible line.
-]]
 function TerrainBuilder.buildBridge(bridge: Layout.Bridge, step: Step)
 	local from = Areas.get(bridge.fromId)
 	if not from then
@@ -345,12 +274,6 @@ function TerrainBuilder.buildBridge(bridge: Layout.Bridge, step: Step)
 	)
 end
 
---------------------------------------------------------------------------------
--- Public
---------------------------------------------------------------------------------
-
--- Yields until the background pass has filled every area. WorldService's
--- scenery pass waits on this: props are seated by raycast against the ground.
 function TerrainBuilder.awaitReady()
 	if TerrainBuilder.ready then
 		return
@@ -358,11 +281,6 @@ function TerrainBuilder.awaitReady()
 	readySignal.Event:Wait()
 end
 
---[[
-	Lays the ground everyone stands on and returns. Section relief, the other
-	areas and the bridges are all cosmetic on top of that, so they run on a
-	background task that hands the frame back between fills.
-]]
 function TerrainBuilder.init()
 	Workspace.Terrain:Clear()
 	filled = 0
@@ -376,11 +294,6 @@ function TerrainBuilder.init()
 	task.spawn(function()
 		local step = Budget.stepper()
 
-		--[[
-			Guarded so that `ready` is reached whatever happens in here. Anything
-			waiting on it is waiting to DRESS a world that already exists; losing
-			the relief to a bad fill must not also lose the scenery.
-		]]
 		local ok, err = pcall(function()
 			TerrainBuilder.paintSections(town, step)
 

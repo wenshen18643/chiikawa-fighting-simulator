@@ -1,23 +1,5 @@
 --!strict
 
---[[
-	The mushroom cave: carves it, fills it, and answers "which level is this
-	player standing on".
-
-	The world's ground is a SHELL eight studs thick, so there is nothing under
-	the board to hollow out. The cave therefore arrives in two passes: a solid
-	rock PLINTH sunk beneath its three sections, and then air carved back out of
-	it. Carving before filling would carve open sky.
-
-	Everything about the shape comes out of Config/Cave. This file knows how to
-	turn a character into a hole and nothing else about what the maze looks
-	like, which is what lets the client draw the same maze from the same grid.
-
-	It rides the background pass for the same reason TerrainBuilder does: a
-	hundred thousand voxels is several frames, and nothing down here is
-	reachable in the seconds that takes.
-]]
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -29,6 +11,7 @@ local Areas = require(Shared.Areas)
 local Cave = require(Shared.Modules.Config.Cave)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
 local Layout = require(Shared.Modules.Config.Layout)
+local Quarry = require(Shared.Modules.Config.Quarry)
 local Sections = require(Shared.Modules.Config.Sections)
 local UI = require(Shared.UI)
 
@@ -59,24 +42,9 @@ function CaveService.awaitReady()
 	readySignal.Event:Wait()
 end
 
---------------------------------------------------------------------------------
--- Validation
---------------------------------------------------------------------------------
-
---[[
-	A grid typo that seals the boss behind rock is a bug worth finding at
-	startup rather than forty minutes into somebody's expedition, so every
-	carved cell must be walkable from the level's own way in before a single
-	voxel is touched.
-]]
 local function validate(): boolean
 	local ok = true
 
-	--[[
-		Everything that breaks when the cave is MOVED, said by name. Changing a
-		level's `coord` is a one-word edit with three quiet ways to be wrong, and
-		none of them is visible from the config -- see Cave.check.
-	]]
 	for _, problem in Cave.check() do
 		warn(`[CaveService] {problem}`)
 		ok = false
@@ -115,22 +83,12 @@ local function validate(): boolean
 	return ok
 end
 
---------------------------------------------------------------------------------
--- Carving
---------------------------------------------------------------------------------
-
 type Step = () -> ()
 
 local function carveBox(centre: Vector3, size: Vector3)
 	Workspace.Terrain:FillBlock(CFrame.new(centre), size, Enum.Material.Air)
 end
 
---[[
-	A straight tunnel between two points at the same depth, laid as overlapping
-	boxes rather than one long one: a single FillBlock cannot be rotated onto an
-	arbitrary bearing without also rotating its voxel grid, which leaves stepped
-	walls a player snags on.
-]]
 local function carveTunnel(from: Vector3, to: Vector3, width: number, headroom: number, step: Step)
 	local delta = to - from
 	local length = delta.Magnitude
@@ -162,13 +120,6 @@ local function rock(parent: Instance, name: string, size: Vector3, cframe: CFram
 	return part
 end
 
---[[
-	A lamp on the ramp.
-
-	Built rather than cloned: the way out of the cave must not depend on an
-	upload being available today. It is also the only light in the shaft, so it
-	carries an actual PointLight rather than just glowing.
-]]
 local function sconce(parent: Instance, at: CFrame)
 	local post = rock(parent, "Sconce", Vector3.new(0.8, 5, 0.8), at * CFrame.new(0, 2.5, 0), STONE_DARK)
 
@@ -193,22 +144,6 @@ local function sconce(parent: Instance, at: CFrame)
 	return post
 end
 
---[[
-	The shaft: a wide carved void with a spiral ramp STANDING in it.
-
-	The ramp is anchored parts, not rock left between carves. Two players were
-	trapped by the carved version, both times because something else carved in
-	the same footprint deleted the walkable surface -- a ball at the top, then a
-	landing box at the bottom. A part cannot be deleted by a fill, so that whole
-	class of bug is gone rather than fixed.
-
-	The void is bored `bore` studs wide against a ramp that reaches 29, which
-	leaves seven studs of slack: room for a later carve to be sloppy without
-	touching anything anybody stands on.
-
-	Returns the world position and bearing of the TOP of the ramp, which is what
-	the surface dressing points its gateway at.
-]]
 local function buildShaft(
 	parent: Instance,
 	x: number,
@@ -220,17 +155,6 @@ local function buildShaft(
 	local shaft = Cave.SHAFT
 	local drop = math.max(topY - bottomY, 1)
 
-	--[[
-		Bored as an OCTAGON: one prism, plus the same prism turned forty-five
-		degrees.
-
-		A single square prism has corners 41% further out than its faces, and
-		the ring of standing stones at the surface would then be sitting over
-		four empty corners with nothing under them -- the floating-scenery bug
-		again, self-inflicted. Two fills bring the worst case down to 8% and read
-		as a round shaft besides. A stack of discs would be rounder still and is
-		forty overlapping fills at voxel scale, which is a lottery.
-	]]
 	local bore = Vector3.new(shaft.bore * 2, (topY + shaft.headroom) - bottomY, shaft.bore * 2)
 	local boreAt = CFrame.new(x, (topY + shaft.headroom + bottomY) / 2, z)
 	Workspace.Terrain:FillBlock(boreAt, bore, Enum.Material.Air)
@@ -241,16 +165,6 @@ local function buildShaft(
 	shaftFolder.Name = `Shaft_{math.floor(x)}_{math.floor(z)}`
 	shaftFolder.Parent = parent
 
-	--[[
-		The core the ramp winds around.
-
-		ROUND, and sized to meet the ramp's inner edge. A square pillar of the
-		same half-width has corners a further 41% out, which would stand in the
-		walkway at four points on every turn; and a core narrower than the ramp's
-		inner edge leaves an open slot down the middle of the shaft for a player
-		to walk off. Shape.Cylinder runs along the part's X, so it is turned
-		upright and its length is the first component of Size.
-	]]
 	local core = rock(
 		shaftFolder,
 		"Core",
@@ -260,11 +174,6 @@ local function buildShaft(
 	)
 	core.Shape = Enum.PartType.Cylinder
 
-	--[[
-		Segment count comes from the SLOPE, not the other way round: pick how
-		steep it is allowed to be, then take as many turns as that needs. A ramp
-		sized by turns instead would get steeper every time a level moved deeper.
-	]]
 	local arc = math.rad(shaft.stepAngle) * shaft.radius
 	local rise = arc * math.tan(math.rad(shaft.slopeDegrees))
 	local segments = math.max(1, math.ceil(drop / rise))
@@ -288,12 +197,6 @@ local function buildShaft(
 			topAngle = a0
 		end
 
-		--[[
-			lookAt puts the part's -Z along the run, so the slab's LENGTH is its
-			Z and the pitch of the slope comes free from the direction vector.
-			Segments overlap by a stud so a seam can never become a lip a player
-			catches their feet on.
-		]]
 		local slab = rock(
 			shaftFolder,
 			"Ramp",
@@ -322,8 +225,6 @@ local function buildShaft(
 		step()
 	end
 
-	-- A flat pad where the ramp meets the floor, so the last segment lands on
-	-- something level instead of ending in mid air over the corridor mouth.
 	rock(
 		shaftFolder,
 		"Landing",
@@ -356,18 +257,6 @@ local function carveLevel(level: Cave.LevelDefinition, step: Step)
 	end
 end
 
---[[
-	Takes the surface away from over a hole.
-
-	The scenery pass seats every prop by raycast, and it runs long before this
-	carves the ground out from under them -- so a mushroom that was standing on
-	D2 an hour of server time ago is now hanging in the air over a shaft. The
-	dressing has no idea the cave exists and should not have to.
-
-	Only what is ABOVE the hole and near it goes. The radius is generous on
-	purpose: a stone half over the rim reads worse than no stone at all, because
-	it is the one the player walks into on their way in.
-]]
 local function clearSurface(centre: Vector3, radius: number)
 	ForagingService.clearArea(centre, radius)
 
@@ -381,8 +270,7 @@ local function clearSurface(centre: Vector3, radius: number)
 		if not descendant:IsA("Model") and not descendant:IsA("BasePart") then
 			continue
 		end
-		-- Models are judged whole, so a prop is never half-deleted; skipping
-		-- parts that have a Model ancestor is what keeps the two from fighting.
+
 		if descendant:IsA("BasePart") and descendant:FindFirstAncestorOfClass("Model") then
 			continue
 		end
@@ -405,19 +293,6 @@ local function clearSurface(centre: Vector3, radius: number)
 	end
 end
 
---[[
-	Makes the mouth findable.
-
-	A hole in a field has no silhouette. From any distance at all it is just
-	grass, so a player crosses the whole section without ever learning the cave
-	is there -- which was the report, and it is a level-design bug rather than a
-	rendering one.
-
-	So the entrance is given a landmark: a broken ring of standing stone, two
-	tall gate stones flanking the top of the ramp, lanterns, and glowing caps
-	spilling out of the hole. The ring is BROKEN ON PURPOSE -- a closed one
-	reads as a wall, a gap reads as a door, and the gap is aimed down the ramp.
-]]
 local function decorateMouth(parent: Instance, centre: Vector3, entryAngle: number)
 	local dressing = Cave.MOUTH_DRESSING
 	local rng = Random.new(4211)
@@ -429,8 +304,6 @@ local function decorateMouth(parent: Instance, centre: Vector3, entryAngle: numb
 	for index = 0, dressing.stones - 1 do
 		local angle = (index / dressing.stones) * math.pi * 2
 
-		-- Nothing stands in the doorway. Compared on the shorter way round the
-		-- circle, so the gap does not break when the entry bearing is near zero.
 		local delta = math.abs((angle - entryAngle + math.pi) % (math.pi * 2) - math.pi)
 		if math.deg(delta) < dressing.gapDegrees then
 			continue
@@ -455,8 +328,6 @@ local function decorateMouth(parent: Instance, centre: Vector3, entryAngle: numb
 		)
 	end
 
-	-- The gateway. Two stones taller than everything around them, either side of
-	-- the ramp head: the thing you actually see from across the section.
 	for _, side in { -1, 1 } do
 		local angle = entryAngle + side * math.rad(dressing.gapDegrees * 0.8)
 		local at = centre + Vector3.new(math.cos(angle) * dressing.ringRadius, 0, math.sin(angle) * dressing.ringRadius)
@@ -470,11 +341,6 @@ local function decorateMouth(parent: Instance, centre: Vector3, entryAngle: numb
 		)
 	end
 
-	--[[
-		The lintel, across the top of the two gate stones. It is what turns two
-		rocks into a doorway, and it is readable as a doorway from much further
-		away than either stone is on its own.
-	]]
 	local lintelAt = centre
 		+ Vector3.new(math.cos(entryAngle), 0, math.sin(entryAngle)) * dressing.ringRadius
 		+ Vector3.new(0, dressing.gateHeight - 4, 0)
@@ -489,17 +355,9 @@ local function decorateMouth(parent: Instance, centre: Vector3, entryAngle: numb
 	for index = 0, dressing.lanterns - 1 do
 		local angle = entryAngle + (index - (dressing.lanterns - 1) / 2) * math.rad(26)
 		local reach = dressing.ringRadius * 1.16
-		sconce(
-			mouthFolder,
-			CFrame.new(centre + Vector3.new(math.cos(angle) * reach, -1, math.sin(angle) * reach))
-		)
+		sconce(mouthFolder, CFrame.new(centre + Vector3.new(math.cos(angle) * reach, -1, math.sin(angle) * reach)))
 	end
 
-	--[[
-		Caps spilling out of the hole, thinning with distance. They are the clue
-		that reads at ground level once the stones have got the player's
-		attention: whatever grows down there is growing up here too.
-	]]
 	for _ = 1, dressing.caps do
 		local angle = rng:NextNumber(0, math.pi * 2)
 		local reach = rng:NextNumber(dressing.capRadius[1], dressing.capRadius[2])
@@ -540,25 +398,12 @@ local function decorateMouth(parent: Instance, centre: Vector3, entryAngle: numb
 	})
 end
 
---[[
-	Where the sinkhole opens.
-
-	The skill districts radiate from the plaza and cross the section grid, so
-	the spot written in config is a PREFERENCE: a mouth inside a reserved zone
-	would sit in a worksite pad or on the road. Walk outward until it clears
-	one, and say so if it never does.
-]]
 local function findMouth(area: Areas.AreaDefinition, level: Cave.LevelDefinition): Vector3
 	local entrance = Cave.first(level, Cave.ENTRANCE)
 	local landing = if entrance then Cave.cellPosition(level, entrance.row, entrance.col) else nil
-	-- The mouth belongs to whichever section the first level is in, so moving
-	-- the cave moves its entrance and the two cannot drift apart.
+
 	local cell = Cave.mouthCell()
-	local fallback = Vector3.new(
-		if cell then cell.cx else 0,
-		WORLD.TERRAIN_TOP,
-		if cell then cell.cz else 0
-	)
+	local fallback = Vector3.new(if cell then cell.cx else 0, WORLD.TERRAIN_TOP, if cell then cell.cz else 0)
 	if not cell then
 		return fallback
 	end
@@ -613,24 +458,10 @@ local function carve(area: Areas.AreaDefinition, step: Step)
 	local first = Cave.LEVELS[1]
 	local mouth = findMouth(area, first)
 
-	--[[
-		Started from the MEASURED ground, not from TERRAIN_TOP.
-
-		TERRAIN_TOP is where the flat crust is filled to; the relief pass then
-		raises hills on top of it, so a shaft begun at TERRAIN_TOP starts life
-		buried under however much hill happens to be standing there. The ramp's
-		top step is then carved a `lip` above the real surface, which leaves an
-		open notch in the ground rather than a seam flush with it: that notch is
-		the way in, and it is the only way in, so it has to be visible.
-	]]
 	local groundY = ForagingService.groundAt(mouth.X, mouth.Z)
 	mouth = Vector3.new(mouth.X, groundY, mouth.Z)
 	mouthPosition = mouth
 
-	--[[
-		Cleared BEFORE the stones go up, not after: the sweep deletes anything
-		standing in the disc, and the gateway is the first thing standing in it.
-	]]
 	clearSurface(mouth, Cave.MOUTH.clearRadius)
 
 	local rampTop, entryAngle = buildShaft(folder, mouth.X, mouth.Z, groundY, first.floorY, step)
@@ -639,13 +470,7 @@ local function carve(area: Areas.AreaDefinition, step: Step)
 	local entrance = Cave.first(first, Cave.ENTRANCE)
 	local entranceAt = if entrance then Cave.cellPosition(first, entrance.row, entrance.col) else nil
 	if entranceAt then
-		carveTunnel(
-			Vector3.new(mouth.X, first.floorY, mouth.Z),
-			entranceAt,
-			Cave.CELL,
-			Cave.CEILING,
-			step
-		)
+		carveTunnel(Vector3.new(mouth.X, first.floorY, mouth.Z), entranceAt, Cave.CELL, Cave.CEILING, step)
 	end
 
 	for index = 1, #Cave.LEVELS - 1 do
@@ -662,19 +487,7 @@ local function carve(area: Areas.AreaDefinition, step: Step)
 			continue
 		end
 
-		--[[
-			The descent is a tunnel at the UPPER level's depth running to a shaft
-			sunk over the LOWER level's landing. Levels never share XZ, so a ramp
-			between them cannot be a hole in a floor -- and running the tunnel
-			high keeps it clear of the lower level's ceiling by twenty-odd studs.
-		]]
-		carveTunnel(
-			head,
-			Vector3.new(foot.X, upper.floorY, foot.Z),
-			Cave.CELL,
-			Cave.CEILING,
-			step
-		)
+		carveTunnel(head, Vector3.new(foot.X, upper.floorY, foot.Z), Cave.CELL, Cave.CEILING, step)
 		buildShaft(folder, foot.X, foot.Z, upper.floorY, lower.floorY, step)
 	end
 
@@ -682,18 +495,19 @@ local function carve(area: Areas.AreaDefinition, step: Step)
 	local surface = Cave.first(deepest, Cave.SURFACE)
 	local surfaceAt = if surface then Cave.cellPosition(deepest, surface.row, surface.col) else nil
 	if surfaceAt then
-		-- The way out of the knoll. Found, not given: nothing signposts it. Same
-		-- rules as the mouth -- measured ground, open notch, no ball.
-		local exitGround = ForagingService.groundAt(surfaceAt.X, surfaceAt.Z)
-		clearSurface(Vector3.new(surfaceAt.X, exitGround, surfaceAt.Z), Cave.MOUTH.clearRadius)
+		local inPit = Quarry.contains(surfaceAt.X - area.origin.X, surfaceAt.Z - area.origin.Z)
+		local exitGround = if inPit
+			then area.origin.Y + WORLD.TERRAIN_TOP + Quarry.floorDepth()
+			else ForagingService.groundAt(surfaceAt.X, surfaceAt.Z)
+		local sweep = if inPit then Quarry.PIT.clearRadius else Cave.MOUTH.clearRadius
+
+		clearSurface(Vector3.new(surfaceAt.X, exitGround, surfaceAt.Z), sweep)
 		local exitTop, exitAngle = buildShaft(folder, surfaceAt.X, surfaceAt.Z, exitGround, deepest.floorY, step)
-		decorateMouth(folder, Vector3.new(surfaceAt.X, exitTop.Y, surfaceAt.Z), exitAngle)
+		if not inPit then
+			decorateMouth(folder, Vector3.new(surfaceAt.X, exitTop.Y, surfaceAt.Z), exitAngle)
+		end
 	end
 end
-
---------------------------------------------------------------------------------
--- Contents
---------------------------------------------------------------------------------
 
 local function plantClumps(level: Cave.LevelDefinition, step: Step)
 	local rng = Random.new(level.index * 7717)
@@ -721,18 +535,18 @@ local function plantClumps(level: Cave.LevelDefinition, step: Step)
 				end
 				local angle = (index / #plan) * math.pi * 2 + rng:NextNumber(0, 0.6)
 				local radius = rng:NextNumber(1.5, Cave.CELL * 0.36)
-				ForagingService.plant(def, Vector3.new(
-					centre.X + math.cos(angle) * radius,
-					level.floorY,
-					centre.Z + math.sin(angle) * radius
-				), {
-					parent = folder,
-					yaw = rng:NextNumber(0, 360),
-					yield = clump.yieldScale,
-					glow = clump.glow,
-					upright = true,
-					sink = 0.08,
-				} :: any)
+				ForagingService.plant(
+					def,
+					Vector3.new(centre.X + math.cos(angle) * radius, level.floorY, centre.Z + math.sin(angle) * radius),
+					{
+						parent = folder,
+						yaw = rng:NextNumber(0, 360),
+						yield = clump.yieldScale,
+						glow = clump.glow,
+						upright = true,
+						sink = 0.08,
+					} :: any
+				)
 				step()
 			end
 		end
@@ -778,10 +592,6 @@ local function deployMobs()
 	end
 end
 
---------------------------------------------------------------------------------
--- Where a player is
---------------------------------------------------------------------------------
-
 function CaveService.levelAt(position: Vector3): Cave.LevelDefinition?
 	return Cave.levelAt(position)
 end
@@ -799,23 +609,6 @@ function CaveService.mouth(): Vector3?
 	return mouthPosition
 end
 
---[[
-	Published as a character attribute rather than a remote.
-
-	Attributes replicate on change, and this one changes when somebody crosses
-	a floor -- perhaps twice a minute. A remote per check would be a broadcast
-	every two seconds per player to say nothing has happened. The client's
-	lighting swap and the work-order tracker both read it.
-]]
---[[
-	The lantern is a real light on a real part, not a client-side glow.
-
-	A light only its owner can see would make a party of four walk in four
-	separate darknesses, and the first thing anybody does with a lantern is
-	hold it up for somebody else. It is lit only underground: carried through
-	town in daylight it is a hotspot on the grass and a lighting cost for
-	nothing.
-]]
 local function setLantern(character: Model, on: boolean)
 	local existing = character:FindFirstChild("Lantern")
 	if not on then
@@ -876,8 +669,6 @@ local function watchPlayers()
 		end
 	end
 end
-
---------------------------------------------------------------------------------
 
 function CaveService.init()
 	local existing = Workspace:FindFirstChild("Cave")

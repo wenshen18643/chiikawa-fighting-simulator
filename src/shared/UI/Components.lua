@@ -1,17 +1,3 @@
---[[
-	Reusable UI components. Import via the UI barrel:
-
-		local UI = require(ReplicatedStorage.Shared.UI)
-		local card = UI.card(parent, "Purse")
-		UI.label(card, "Title", { text = "¥ 120", font = UI.font.display })
-
-	Every component takes (parent, name, config) and returns the Instance, so
-	they compose without a framework and without any build step.
-
-	Usable from BOTH realms: the client builds ScreenGui panels out of these and
-	the server builds world-space signs out of the same pieces.
-]]
-
 local Motion = require(script.Parent.Motion)
 local Primitives = require(script.Parent.Primitives)
 local Theme = require(script.Parent.Theme)
@@ -33,23 +19,52 @@ export type LabelConfig = {
 	scaled: boolean?,
 }
 
---[[
-	A panel. The base surface for everything in the HUD.
-]]
+local function surfaceOf(key: string?): { fill: Color3, top: Color3, bottom: Color3 }
+	return (Theme.surface :: any)[key or "canvas"] or Theme.surface.canvas
+end
+
 function Components.card(parent: Instance, name: string, config: { [string]: any }?): Frame
 	local options = config or {}
+	local surface = surfaceOf(options.surface)
 
 	local frame = Instance.new("Frame")
 	frame.Name = name
-	frame.BackgroundColor3 = options.color or Theme.color.paper
-	frame.BackgroundTransparency = options.transparency or 0.02
+	frame.BackgroundColor3 = options.color or surface.fill
+	frame.BackgroundTransparency = options.transparency or 0
 	frame.BorderSizePixel = 0
 	frame.ZIndex = options.zIndex or 2
+	if options.extent then
+		frame.Size = options.extent
+	end
+	if options.position then
+		frame.Position = options.position
+	end
+	if options.anchor then
+		frame.AnchorPoint = options.anchor
+	end
 	frame.Parent = parent
 
-	Primitives.corner(frame, options.radius or Theme.radius.card)
+	local radius = options.radius or Theme.radius.card
+	Primitives.corner(frame, radius)
+
+	if options.gradient ~= false and not options.color then
+		Primitives.gradient(frame, surface.top, surface.bottom, 90)
+	end
+
 	if options.stroke ~= false then
-		Primitives.stroke(frame, options.strokeColor)
+		Primitives.stroke(frame, options.strokeColor, options.strokeWidth)
+	end
+
+	if options.sheen ~= false then
+		Primitives.sheen(frame, options.sheenStrength or 0.3)
+	end
+
+	if options.innerLine ~= false then
+		Primitives.innerLine(frame)
+	end
+
+	if options.elevation then
+		Primitives.shadow(frame, options.elevation)
 	end
 
 	return frame
@@ -84,18 +99,17 @@ function Components.label(parent: Instance, name: string, config: LabelConfig): 
 	return text
 end
 
---[[
-	A rounded progress bar. Returns both track and fill: callers resize and
-	recolour the fill, the track is inert once built.
-]]
 function Components.bar(parent: Instance, name: string, fillColor: Color3): (Frame, Frame)
 	local track = Instance.new("Frame")
 	track.Name = name
-	track.BackgroundColor3 = Theme.color.paperDeep
+	track.BackgroundColor3 = Theme.color.paperSunken
 	track.BorderSizePixel = 0
 	track.ZIndex = 3
 	track.Parent = parent
 	Primitives.corner(track, Theme.radius.bar)
+
+	local trackEdge = Primitives.stroke(track, Theme.color.lineSoft, Theme.stroke.hair)
+	trackEdge.Transparency = 0.25
 
 	local fill = Instance.new("Frame")
 	fill.Name = "Fill"
@@ -105,15 +119,42 @@ function Components.bar(parent: Instance, name: string, fillColor: Color3): (Fra
 	fill.ZIndex = 4
 	fill.Parent = track
 	Primitives.corner(fill, Theme.radius.bar)
-	Primitives.gradient(fill, fillColor, fillColor:Lerp(Theme.color.white, 0.35))
+	Primitives.gradient(fill, Theme.lighten(fillColor, 0.3), fillColor, 90)
+
+	local gloss = Instance.new("Frame")
+	gloss.Name = "Gloss"
+	gloss.Size = UDim2.new(1, 0, 0.46, 0)
+	gloss.BackgroundColor3 = Theme.color.white
+	gloss.BackgroundTransparency = 0.66
+	gloss.BorderSizePixel = 0
+	gloss.ZIndex = 5
+	gloss.Parent = fill
+	Primitives.corner(gloss, Theme.radius.bar)
+
+	local shine = Instance.new("Frame")
+	shine.Name = "Shine"
+	shine.Size = UDim2.fromScale(1, 1)
+	shine.BackgroundColor3 = Theme.color.white
+	shine.BackgroundTransparency = 0.78
+	shine.BorderSizePixel = 0
+	shine.ZIndex = 6
+	shine.Parent = fill
+	Primitives.corner(shine, Theme.radius.bar)
+
+	local sweep = Instance.new("UIGradient")
+	sweep.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.46, 1),
+		NumberSequenceKeypoint.new(0.5, 0.25),
+		NumberSequenceKeypoint.new(0.54, 1),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	sweep.Parent = shine
+	Motion.shimmer(sweep, 2.6)
 
 	return track, fill
 end
 
---[[
-	A small rounded key/value pill — used for keycaps in the controls panel and
-	for status tags elsewhere.
-]]
 function Components.chip(parent: Instance, name: string, config: { [string]: any }): Frame
 	local chip = Instance.new("Frame")
 	chip.Name = name
@@ -126,36 +167,107 @@ function Components.chip(parent: Instance, name: string, config: { [string]: any
 	if config.extent then
 		chip.Size = config.extent
 	end
+	if config.anchor then
+		chip.AnchorPoint = config.anchor
+	end
 	chip.Parent = parent
 
-	Primitives.corner(chip, Theme.radius.chip)
+	Primitives.corner(chip, config.radius or Theme.radius.chip)
 	if config.stroke ~= false then
-		Primitives.stroke(chip)
+		Primitives.stroke(chip, config.strokeColor, Theme.stroke.base)
 	end
+	Primitives.sheen(chip, 0.24)
 
 	Components.label(chip, "Text", {
 		text = config.text,
 		font = config.font or Theme.font.bold,
 		size = config.textSize or Theme.text.small,
-		color = config.textColor or Theme.color.ink,
+		color = config.textColor or Theme.readable(config.color or Theme.color.paperDeep),
 		align = Enum.TextXAlignment.Center,
 		extent = UDim2.fromScale(1, 1),
-		zIndex = (config.zIndex or 3) + 1,
+		zIndex = (config.zIndex or 3) + 2,
 	})
 
 	return chip
 end
 
+local function laidOut(button: TextButton): boolean
+	local parent = button.Parent
+	if not parent then
+		return false
+	end
+	return parent:FindFirstChildOfClass("UIListLayout") ~= nil or parent:FindFirstChildOfClass("UIGridLayout") ~= nil
+end
+
+local function attachButtonStates(button: TextButton, base: Color3, config: { [string]: any })
+	local hovered = false
+	local held = false
+	local home = button.Position
+	local canLift = not laidOut(button)
+
+	local function paint()
+		local color = base
+		if held then
+			color = Theme.darken(base, Theme.state.press.darken)
+		elseif hovered then
+			color = Theme.lighten(base, Theme.state.hover.lighten)
+		end
+
+		local goal: { [string]: any } = { BackgroundColor3 = color }
+
+		if canLift then
+			local lift = 0
+			if held then
+				lift = Theme.state.press.lift
+			elseif hovered then
+				lift = -Theme.state.hover.lift
+			end
+			goal.Position = home + UDim2.fromOffset(0, lift)
+		end
+
+		Motion.to(button, if held then Motion.press else Motion.hover, goal)
+	end
+
+	button.MouseEnter:Connect(function()
+		hovered = true
+		paint()
+	end)
+	button.MouseLeave:Connect(function()
+		hovered = false
+		held = false
+		paint()
+	end)
+	button.MouseButton1Down:Connect(function()
+		held = true
+		paint()
+	end)
+	button.MouseButton1Up:Connect(function()
+		held = false
+		paint()
+	end)
+
+	if config.onActivated then
+		button.Activated:Connect(function()
+			if canLift then
+				Motion.to(button, Motion.release, { Position = home })
+			end
+			config.onActivated()
+		end)
+	end
+end
+
 function Components.button(parent: Instance, name: string, config: { [string]: any }): TextButton
+	local base = config.color or Theme.color.paperRaised
+
 	local button = Instance.new("TextButton")
 	button.Name = name
-	button.BackgroundColor3 = config.color or Theme.color.paperDeep
+	button.BackgroundColor3 = base
 	button.BorderSizePixel = 0
-	button.AutoButtonColor = config.autoColor ~= false
+	button.AutoButtonColor = config.autoColor == true
 	button.Font = config.font or Theme.font.bold
 	button.Text = config.text or ""
 	button.TextSize = config.textSize or Theme.text.small
-	button.TextColor3 = config.textColor or Theme.color.ink
+	button.TextColor3 = config.textColor or Theme.readable(base)
 	button.ZIndex = config.zIndex or 3
 	if config.position then
 		button.Position = config.position
@@ -169,21 +281,233 @@ function Components.button(parent: Instance, name: string, config: { [string]: a
 	button.Parent = parent
 
 	Primitives.corner(button, config.radius or Theme.radius.chip)
-	if config.stroke then
-		Primitives.stroke(button)
+	if config.stroke ~= false then
+		Primitives.stroke(button, config.strokeColor, Theme.stroke.base)
 	end
-	if config.onActivated then
-		button.Activated:Connect(config.onActivated)
+	if config.sheen ~= false then
+		Primitives.sheen(button, 0.3)
+	end
+	if config.elevation then
+		Primitives.shadow(button, config.elevation)
+	end
+
+	if button.AutoButtonColor or config.states == false then
+		if config.onActivated then
+			button.Activated:Connect(config.onActivated)
+		end
+	else
+		attachButtonStates(button, base, config)
 	end
 
 	return button
 end
 
---[[
-	A world-space sign: a BillboardGui with a title and optional subtitle,
-	styled the same as the HUD. This is what area files use to label places
-	without each one hand-rolling a BillboardGui.
-]]
+function Components.iconButton(parent: Instance, name: string, config: { [string]: any }): (TextButton, Frame)
+	local button = Components.button(parent, name, {
+		text = "",
+		color = config.color or Theme.color.paperRaised,
+		radius = config.radius or Theme.radius.pill,
+		extent = config.extent or UDim2.fromOffset(52, 52),
+		position = config.position,
+		anchor = config.anchor,
+		zIndex = config.zIndex,
+		elevation = config.elevation or "low",
+		onActivated = config.onActivated,
+	})
+
+	local slot = Instance.new("Frame")
+	slot.Name = "Icon"
+	slot.AnchorPoint = Vector2.new(0.5, 0.5)
+	slot.Position = UDim2.fromScale(0.5, 0.5)
+	slot.Size = config.iconExtent or UDim2.fromScale(0.56, 0.56)
+	slot.BackgroundTransparency = 1
+	slot.ZIndex = button.ZIndex + 3
+	slot.Parent = button
+
+	return button, slot
+end
+
+function Components.header(parent: Instance, name: string, config: { [string]: any }): Frame
+	local row = Instance.new("Frame")
+	row.Name = name
+	row.BackgroundTransparency = 1
+	row.Size = config.extent or UDim2.new(1, 0, 0, 44)
+	row.ZIndex = config.zIndex or 4
+	if config.position then
+		row.Position = config.position
+	end
+	row.Parent = parent
+
+	local accent = Instance.new("Frame")
+	accent.Name = "Accent"
+	accent.AnchorPoint = Vector2.new(0, 0.5)
+	accent.Position = UDim2.new(0, 0, 0.5, 0)
+	accent.Size = UDim2.fromOffset(6, 26)
+	accent.BackgroundColor3 = config.accent or Theme.color.blush
+	accent.BorderSizePixel = 0
+	accent.ZIndex = row.ZIndex + 1
+	accent.Parent = row
+	Primitives.corner(accent, 3)
+
+	Components.label(row, "Title", {
+		text = config.title,
+		font = Theme.font.display,
+		size = config.titleSize or Theme.text.title,
+		color = Theme.color.ink,
+		position = UDim2.fromOffset(16, 0),
+		extent = UDim2.new(1, -16, if config.subtitle then 0.6 else 1, 0),
+		zIndex = row.ZIndex + 1,
+	})
+
+	if config.subtitle then
+		Components.label(row, "Subtitle", {
+			text = config.subtitle,
+			font = Theme.font.light,
+			size = Theme.text.caption,
+			color = Theme.color.inkSoft,
+			position = UDim2.new(0, 16, 0.6, 0),
+			extent = UDim2.new(1, -16, 0.4, 0),
+			zIndex = row.ZIndex + 1,
+		})
+	end
+
+	return row
+end
+
+function Components.badge(parent: Instance, name: string, config: { [string]: any }): Frame
+	local badge = Components.chip(parent, name, {
+		text = config.text,
+		color = config.color or Theme.color.danger,
+		textColor = Theme.color.inkInverse,
+		textSize = config.textSize or Theme.text.caption,
+		radius = Theme.radius.pill,
+		extent = config.extent or UDim2.fromOffset(24, 24),
+		position = config.position,
+		anchor = config.anchor,
+		zIndex = config.zIndex or 8,
+	})
+	Primitives.shadow(badge, "low")
+	return badge
+end
+
+function Components.statTile(parent: Instance, name: string, config: { [string]: any }): (Frame, (string) -> ())
+	local accent = config.accent or Theme.color.leaf
+
+	local tile = Components.card(parent, name, {
+		surface = "raised",
+		radius = Theme.radius.tile,
+		extent = config.extent,
+		position = config.position,
+		anchor = config.anchor,
+		zIndex = config.zIndex or 3,
+		elevation = config.elevation or "low",
+	})
+
+	local stripe = Instance.new("Frame")
+	stripe.Name = "Stripe"
+	stripe.Size = UDim2.new(1, 0, 0, 5)
+	stripe.BackgroundColor3 = accent
+	stripe.BorderSizePixel = 0
+	stripe.ZIndex = tile.ZIndex + 2
+	stripe.Parent = tile
+	Primitives.corner(stripe, 3)
+
+	Components.label(tile, "Caption", {
+		text = config.caption,
+		font = Theme.font.bold,
+		size = Theme.text.caption,
+		color = Theme.color.inkSoft,
+		position = UDim2.fromOffset(12, 10),
+		extent = UDim2.new(1, -24, 0, 14),
+		zIndex = tile.ZIndex + 3,
+	})
+
+	local value = Components.label(tile, "Value", {
+		text = config.value or "0",
+		font = Theme.font.display,
+		size = config.valueSize or Theme.text.display,
+		color = Theme.color.ink,
+		position = UDim2.fromOffset(12, 24),
+		extent = UDim2.new(1, -24, 1, -34),
+		zIndex = tile.ZIndex + 3,
+	})
+
+	return tile, function(text: string)
+		value.Text = text
+	end
+end
+
+function Components.meter(parent: Instance, name: string, config: { [string]: any }): (Frame, (number) -> ())
+	local color = config.color or Theme.color.leaf
+
+	local holder = Instance.new("Frame")
+	holder.Name = name
+	holder.BackgroundTransparency = 1
+	holder.Size = config.extent or UDim2.new(1, 0, 0, 30)
+	holder.ZIndex = config.zIndex or 3
+	if config.position then
+		holder.Position = config.position
+	end
+	holder.Parent = parent
+
+	if config.caption then
+		Components.label(holder, "Caption", {
+			text = config.caption,
+			font = Theme.font.bold,
+			size = Theme.text.caption,
+			color = Theme.color.inkSoft,
+			extent = UDim2.new(1, 0, 0, 12),
+			zIndex = holder.ZIndex + 1,
+		})
+	end
+
+	local track, fill = Components.bar(holder, "Track", color)
+	track.AnchorPoint = Vector2.new(0, 1)
+	track.Position = UDim2.fromScale(0, 1)
+	track.Size = UDim2.new(1, 0, 0, config.thickness or 14)
+	track.ZIndex = holder.ZIndex + 1
+
+	return holder,
+		function(fraction: number)
+			Motion.to(fill, Motion.settle, { Size = UDim2.fromScale(math.clamp(fraction, 0, 1), 1) })
+		end
+end
+
+function Components.toast(parent: Instance, name: string, config: { [string]: any }): Frame
+	local accent = config.accent or Theme.color.leaf
+
+	local card = Components.card(parent, name, {
+		surface = "raised",
+		radius = Theme.radius.tile,
+		extent = config.extent or UDim2.new(1, 0, 0, 52),
+		zIndex = config.zIndex or 12,
+		elevation = "base",
+	})
+
+	local stripe = Instance.new("Frame")
+	stripe.Name = "Stripe"
+	stripe.Size = UDim2.new(0, 6, 1, -12)
+	stripe.Position = UDim2.fromOffset(6, 6)
+	stripe.BackgroundColor3 = accent
+	stripe.BorderSizePixel = 0
+	stripe.ZIndex = card.ZIndex + 2
+	stripe.Parent = card
+	Primitives.corner(stripe, 3)
+
+	Components.label(card, "Message", {
+		text = config.text,
+		font = Theme.font.body,
+		size = Theme.text.small,
+		color = Theme.color.ink,
+		position = UDim2.fromOffset(20, 0),
+		extent = UDim2.new(1, -30, 1, 0),
+		wrapped = true,
+		zIndex = card.ZIndex + 3,
+	})
+
+	return card
+end
+
 function Components.sign(adornee: BasePart, config: { [string]: any }): BillboardGui
 	local gui = Instance.new("BillboardGui")
 	gui.Name = config.name or "Sign"
@@ -195,15 +519,16 @@ function Components.sign(adornee: BasePart, config: { [string]: any }): Billboar
 
 	local hasSubtitle = config.subtitle ~= nil
 
-	Components.label(gui, "Title", {
+	local title = Components.label(gui, "Title", {
 		text = config.title,
 		font = Theme.font.display,
 		color = config.titleColor or Theme.color.white,
 		align = Enum.TextXAlignment.Center,
 		extent = UDim2.fromScale(1, if hasSubtitle then 0.55 else 1),
 		scaled = true,
-	}).TextStrokeTransparency =
-		0.4
+	})
+	title.TextStrokeColor3 = Theme.color.glassDark
+	title.TextStrokeTransparency = 0.25
 
 	if hasSubtitle then
 		local subtitle = Components.label(gui, "Subtitle", {
@@ -215,28 +540,13 @@ function Components.sign(adornee: BasePart, config: { [string]: any }): Billboar
 			extent = UDim2.fromScale(1, 0.45),
 			scaled = true,
 		})
-		subtitle.TextStrokeTransparency = 0.6
+		subtitle.TextStrokeColor3 = Theme.color.glassDark
+		subtitle.TextStrokeTransparency = 0.45
 	end
 
 	return gui
 end
 
---------------------------------------------------------------------------------
--- Composite components
---------------------------------------------------------------------------------
-
---[[
-	A number that counts to its new value instead of snapping to it.
-
-	Worth the machinery on exactly the values the player is trying to make go up.
-	A purse that jumps from 1,200 to 1,340 reports a fact; one that runs up to it
-	shows income arriving, and that is the entire feedback loop of an incremental
-	game rendered in one control.
-
-	Returns `set(text, numeric)`. `numeric` is optional: BigNumbers past the
-	double range cannot be interpolated meaningfully, so the caller passes a
-	number when it has one and the ticker falls back to a flash when it does not.
-]]
 function Components.ticker(parent: Instance, name: string, config: LabelConfig): (TextLabel, (string, number?) -> ())
 	local label = Components.label(parent, name, config)
 
@@ -271,8 +581,6 @@ function Components.ticker(parent: Instance, name: string, config: LabelConfig):
 		running = true
 
 		task.spawn(function()
-			-- Eased toward the target rather than stepped: an income that
-			-- arrives in bursts still reads as a smooth climb.
 			while running do
 				local goal = target
 				local current = displayed
@@ -297,14 +605,6 @@ function Components.ticker(parent: Instance, name: string, config: LabelConfig):
 	return label, set
 end
 
---[[
-	A row of small segments, filled up to `count`. The tier strip beside each
-	skill: seven pips, one per worksite tier, lit for the ones you have unlocked.
-
-	A bar tells you how far along you are; pips tell you how many discrete things
-	there are and exactly which one you are on. For a ladder with named rungs,
-	that is the more useful shape.
-]]
 function Components.pips(parent: Instance, name: string, config: { [string]: any }): (Frame, (number) -> ())
 	local total = config.total or 7
 	local color = config.color or Theme.color.leaf
@@ -316,7 +616,7 @@ function Components.pips(parent: Instance, name: string, config: { [string]: any
 	if config.position then
 		row.Position = config.position
 	end
-	row.Size = config.extent or UDim2.new(1, 0, 0, 4)
+	row.Size = config.extent or UDim2.new(1, 0, 0, 5)
 	row.Parent = parent
 
 	local layout = Instance.new("UIListLayout")
@@ -330,21 +630,20 @@ function Components.pips(parent: Instance, name: string, config: { [string]: any
 		local pip = Instance.new("Frame")
 		pip.Name = `Pip_{index}`
 		pip.LayoutOrder = index
-		-- Scale width so the strip fits whatever it is given, minus the gaps.
 		pip.Size = UDim2.new(1 / total, -2, 1, 0)
-		pip.BackgroundColor3 = Theme.color.line
+		pip.BackgroundColor3 = Theme.color.lineSoft
 		pip.BorderSizePixel = 0
 		pip.ZIndex = row.ZIndex
 		pip.Parent = row
-		Primitives.corner(pip, 2)
+		Primitives.corner(pip, 3)
 		pips[index] = pip
 	end
 
 	local function setFilled(filled: number)
 		for index, pip in pips do
 			local lit = index <= filled
-			pip.BackgroundColor3 = if lit then color else Theme.color.line
-			pip.BackgroundTransparency = if lit then 0 else 0.35
+			pip.BackgroundColor3 = if lit then color else Theme.color.lineSoft
+			pip.BackgroundTransparency = if lit then 0 else 0.3
 		end
 	end
 
@@ -352,10 +651,6 @@ function Components.pips(parent: Instance, name: string, config: { [string]: any
 	return row, setFilled
 end
 
---[[
-	A tab bar. Returns the bar and `select(key)`; the caller supplies an
-	`onChanged` and owns the panels.
-]]
 function Components.tabs(
 	parent: Instance,
 	name: string,
@@ -363,41 +658,42 @@ function Components.tabs(
 ): (Frame, (string) -> (), () -> string)
 	local entries = config.entries :: { { key: string, label: string } }
 	local current = config.initial or entries[1].key
+	local accent = config.accent or Theme.color.blush
 
-	local bar = Instance.new("Frame")
-	bar.Name = name
-	bar.BackgroundTransparency = 1
-	bar.ZIndex = config.zIndex or 4
-	bar.Size = config.extent or UDim2.new(1, 0, 0, 36)
-	if config.position then
-		bar.Position = config.position
-	end
-	bar.Parent = parent
+	local bar = Primitives.well(parent, name, {
+		extent = config.extent or UDim2.new(1, 0, 0, 40),
+		position = config.position,
+		zIndex = config.zIndex or 4,
+		radius = Theme.radius.pill,
+	})
+
+	Primitives.padding(bar, 4)
 
 	local layout = Instance.new("UIListLayout")
 	layout.FillDirection = Enum.FillDirection.Horizontal
-	layout.Padding = UDim.new(0, Theme.space.tight)
+	layout.Padding = UDim.new(0, 4)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = bar
 
 	local buttons: { [string]: TextButton } = {}
-	-- Named `activate` rather than `select`: that is a Lua builtin, and shadowing
-	-- it makes every call site look like a varargs bug.
 	local activate
 
 	for index, entry in entries do
 		local button = Components.button(bar, entry.key, {
 			text = entry.label,
-			textSize = Theme.text.body,
-			extent = UDim2.new(1 / #entries, -Theme.space.tight, 1, 0),
-			radius = Theme.radius.chip,
-			zIndex = bar.ZIndex,
+			textSize = Theme.text.small,
+			extent = UDim2.new(1 / #entries, -4, 1, 0),
+			radius = Theme.radius.pill,
+			zIndex = bar.ZIndex + 2,
+			color = Theme.color.paperSunken,
+			stroke = false,
+			sheen = false,
+			states = false,
 			onActivated = function()
 				activate(entry.key)
 			end,
 		})
 		button.LayoutOrder = index
-		button.AutoButtonColor = false
 		buttons[entry.key] = button
 	end
 
@@ -405,9 +701,9 @@ function Components.tabs(
 		current = key
 		for entryKey, button in buttons do
 			local active = entryKey == key
-			Motion.to(button, Motion.snap, {
-				BackgroundColor3 = if active then Theme.color.leaf else Theme.color.paperDeep,
-				TextColor3 = if active then Theme.color.white else Theme.color.inkSoft,
+			Motion.to(button, Motion.settle, {
+				BackgroundColor3 = if active then accent else Theme.color.paperSunken,
+				TextColor3 = if active then Theme.color.ink else Theme.color.inkSoft,
 			})
 		end
 		if config.onChanged then
@@ -421,18 +717,13 @@ function Components.tabs(
 	end
 end
 
---[[
-	A full-screen panel with a scrim behind it.
-
-	Returns the content frame and `setOpen(boolean)`. The scrim absorbs clicks so
-	the world underneath cannot be interacted with while the panel is up, and it
-	closes on click, which is what everybody tries first.
-]]
 function Components.modal(parent: Instance, name: string, config: { [string]: any }): (Frame, Frame, (boolean) -> ())
+	local extent = config.extent or UDim2.fromScale(0.72, 0.76)
+
 	local scrim = Instance.new("TextButton")
 	scrim.Name = `{name}_Scrim`
 	scrim.Size = UDim2.fromScale(1, 1)
-	scrim.BackgroundColor3 = Color3.fromRGB(40, 34, 30)
+	scrim.BackgroundColor3 = Theme.color.scrim
 	scrim.BackgroundTransparency = 1
 	scrim.BorderSizePixel = 0
 	scrim.AutoButtonColor = false
@@ -444,10 +735,12 @@ function Components.modal(parent: Instance, name: string, config: { [string]: an
 	local panel = Components.card(scrim, "Panel", {
 		zIndex = scrim.ZIndex + 1,
 		radius = Theme.radius.card,
+		surface = "overlay",
+		strokeWidth = Theme.stroke.heavy,
 	})
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
-	panel.Size = config.extent or UDim2.fromScale(0.72, 0.76)
+	panel.Size = extent
 
 	local setOpen
 	local function close()
@@ -458,16 +751,13 @@ function Components.modal(parent: Instance, name: string, config: { [string]: an
 	function setOpen(open: boolean)
 		if open then
 			scrim.Visible = true
-			panel.Size = UDim2.new(
-				panel.Size.X.Scale * 0.96,
-				panel.Size.X.Offset,
-				panel.Size.Y.Scale * 0.96,
-				panel.Size.Y.Offset
-			)
-			Motion.to(scrim, Motion.settle, { BackgroundTransparency = 0.45 })
-			Motion.to(panel, Motion.pop, { Size = config.extent or UDim2.fromScale(0.72, 0.76) })
+			panel.Size = UDim2.new(extent.X.Scale * 0.92, extent.X.Offset, extent.Y.Scale * 0.92, extent.Y.Offset)
+			panel.Rotation = -1.5
+			Motion.to(scrim, Motion.settle, { BackgroundTransparency = Theme.opacity.veil })
+			Motion.to(panel, Motion.pop, { Size = extent, Rotation = 0 })
 		else
 			local fade = Motion.play(scrim, Motion.snap, { BackgroundTransparency = 1 })
+			Motion.to(panel, Motion.snap, { Rotation = 1 })
 			fade.Completed:Connect(function()
 				scrim.Visible = false
 			end)

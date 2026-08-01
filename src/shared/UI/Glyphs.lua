@@ -1,7 +1,3 @@
---[[
-	Icons, drawn as geometry.
-]]
-
 local Theme = require(script.Parent.Theme)
 
 local Glyphs = {}
@@ -52,13 +48,35 @@ end
 
 local shapes: { [string]: (Ctx) -> () } = {}
 
--- Kusatori: leaf
+function shapes.fish(ctx)
+	dot(ctx, 0.46, 0.5, 0.62, { h = 0.44 })
+	shape(ctx, { name = "Tail", x = 0.86, y = 0.5, w = 0.26, h = 0.34, rot = 45, round = 0.1 })
+	dot(ctx, 0.3, 0.44, 0.11, { color = Theme.color.paper, layer = 2 })
+end
+
+function shapes.ore(ctx)
+	shape(ctx, { name = "Rock", x = 0.5, y = 0.6, w = 0.72, h = 0.5, round = 0.28 })
+	shape(ctx, { name = "Facet", x = 0.4, y = 0.4, w = 0.4, h = 0.36, rot = 32, round = 0.14 })
+	dot(ctx, 0.62, 0.58, 0.14, { color = Theme.color.paper, layer = 2 })
+	dot(ctx, 0.4, 0.68, 0.1, { color = Theme.color.paper, layer = 2 })
+end
+
+function shapes.pickaxe(ctx)
+	bar(ctx, { x = 0.5, y = 0.62, w = 0.1, h = 0.62, rot = 12 })
+	shape(ctx, { name = "Head", x = 0.5, y = 0.26, w = 0.74, h = 0.16, rot = -16, round = 0.4 })
+end
+
+function shapes.rod(ctx)
+	bar(ctx, { x = 0.44, y = 0.54, w = 0.09, h = 0.78, rot = 24 })
+	bar(ctx, { x = 0.72, y = 0.62, w = 0.05, h = 0.44 })
+	dot(ctx, 0.72, 0.86, 0.2)
+end
+
 function shapes.leaf(ctx)
 	bar(ctx, { x = 0.42, y = 0.72, w = 0.09, h = 0.44, rot = -20 })
 	dot(ctx, 0.56, 0.38, 0.62, { h = 0.42, rot = -38 })
 end
 
--- Tobatsu: Sasumata (two-pronged fork weapon)
 function shapes.sasumata(ctx)
 	bar(ctx, { x = 0.5, y = 0.65, w = 0.1, h = 0.55 })
 	bar(ctx, { x = 0.5, y = 0.36, w = 0.52, h = 0.12 })
@@ -66,21 +84,17 @@ function shapes.sasumata(ctx)
 	bar(ctx, { x = 0.72, y = 0.22, w = 0.1, h = 0.36, rot = 12 })
 end
 
--- Resilience: Tears / Water drop
 function shapes.tears(ctx)
 	dot(ctx, 0.5, 0.58, 0.54)
 	shape(ctx, { name = "Tip", x = 0.5, y = 0.34, w = 0.36, h = 0.36, rot = 45, round = 0.1 })
 end
 
--- Exam Prep: Open Booklet / Book
 function shapes.book(ctx)
 	shape(ctx, { name = "LeftPage", x = 0.3, y = 0.5, w = 0.36, h = 0.54, round = 0.15 })
 	shape(ctx, { name = "RightPage", x = 0.7, y = 0.5, w = 0.36, h = 0.54, round = 0.15 })
 	bar(ctx, { x = 0.5, y = 0.5, w = 0.08, h = 0.58, color = Theme.color.paper })
 end
 
--- Tobatsu: sweat. Two droplets flung off at different sizes, so it reads as
--- effort rather than as the single tidy teardrop `tears` already owns.
 function shapes.sweat(ctx)
 	dot(ctx, 0.36, 0.44, 0.34)
 	shape(ctx, { name = "Tip", x = 0.36, y = 0.26, w = 0.22, h = 0.22, rot = 45, round = 0.1 })
@@ -88,7 +102,6 @@ function shapes.sweat(ctx)
 	shape(ctx, { name = "TipSmall", x = 0.7, y = 0.54, w = 0.17, h = 0.17, rot = 45, round = 0.1 })
 end
 
--- Ramen Bowl
 function shapes.ramen(ctx)
 	shape(ctx, { name = "Bowl", x = 0.5, y = 0.62, w = 0.7, h = 0.38, round = 0.4 })
 	bar(ctx, { x = 0.5, y = 0.42, w = 0.76, h = 0.1 })
@@ -96,7 +109,6 @@ function shapes.ramen(ctx)
 	bar(ctx, { x = 0.55, y = 0.24, w = 0.06, h = 0.4, rot = -45 })
 end
 
--- Lightbulb
 function shapes.lightbulb(ctx)
 	dot(ctx, 0.5, 0.4, 0.56)
 	shape(ctx, { name = "Base", x = 0.5, y = 0.72, w = 0.28, h = 0.24, round = 0.15 })
@@ -161,13 +173,6 @@ function shapes.map(ctx)
 	bar(ctx, { x = 0.66, y = 0.5, w = 0.06, h = 0.62, color = Theme.color.paper, layer = 1, round = 0 })
 end
 
---[[
-	A question mark, for the controls button.
-
-	Built as a ring with its lower half masked off, rather than as an arc: there
-	is no arc primitive here, and a rounded square with a hole punched in it and
-	its bottom covered reads as the hook of a "?" at 22px.
-]]
 function shapes.help(ctx)
 	shape(ctx, { name = "Hook", x = 0.5, y = 0.34, w = 0.52, h = 0.52, round = 0.5 })
 	shape(ctx, {
@@ -189,10 +194,6 @@ function shapes.spark(ctx)
 	bar(ctx, { x = 0.5, y = 0.5, w = 0.18, h = 0.8 })
 	bar(ctx, { x = 0.5, y = 0.5, w = 0.8, h = 0.18 })
 end
-
---------------------------------------------------------------------------------
--- Food
---------------------------------------------------------------------------------
 
 function shapes.carrot(ctx)
 	bar(ctx, { x = 0.5, y = 0.6, w = 0.34, h = 0.48, round = 0.5 })

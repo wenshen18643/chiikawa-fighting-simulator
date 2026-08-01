@@ -1,22 +1,5 @@
 --!strict
 
---[[
-	Yoroi-san's work orders.
-
-	The profile has carried a `workOrders` slot since the schema was written and
-	nothing has ever filled it, which is exactly the right shape for this: a
-	list of what you have done and one thing you are doing.
-
-	Two kinds live here. The CHAIN is a fixed sequence that teaches the cave --
-	it hands out the lantern before the floor that needs one, and points at the
-	boss only once you have met everything that guards her. Everything after it
-	is GENERATED, so the booth never runs out and never repeats a rank.
-
-	An order asks for one thing. Three verbs cover the whole game: bring me
-	some, kill some, get somewhere. Anything a player cannot state in one line
-	is a quest log, and a quest log is a different game.
-]]
-
 local Cave = require(script.Parent.Cave)
 local Ingredients = require(script.Parent.Ingredients)
 local Mobs = require(script.Parent.Mobs)
@@ -46,11 +29,6 @@ export type OrderDefinition = {
 
 local WorkOrders = {}
 
---[[
-	One at a time, in this order. The player never chooses from the chain: the
-	board offers the next rung and nothing else, so "what now" is never a
-	question the cave asks.
-]]
 WorkOrders.CHAIN = {
 	{
 		id = "mushroom_run",
@@ -66,11 +44,7 @@ WorkOrders.CHAIN = {
 		objective = { kind = "defeat", target = "cave_sporeling", count = 8 },
 		reward = { yen = 2400, skill = "tobatsu", skillAmount = 520 },
 	},
-	--[[
-		The lantern arrives one rung BEFORE the floor that needs it. A key
-		handed out at the door it opens is a formality; handed out early it is
-		a reason to go and find the door.
-	]]
+
 	{
 		id = "deeper",
 		name = "Deeper",
@@ -116,6 +90,71 @@ WorkOrders.CHAIN = {
 			unlock = { kind = "companion", id = "sporeling", label = "Sporeling" },
 		},
 	},
+	{
+		id = "first_seam",
+		name = "First Seam",
+		blurb = "You came up in my quarry, so you can work it. Chalk. Twenty lumps. Start at the top step.",
+		objective = { kind = "collect", target = "chalkStone", count = 20 },
+		reward = { yen = 6500, skill = "tobatsu", skillAmount = 1200 },
+	},
+	{
+		id = "shore_up",
+		name = "Shore It Up",
+		blurb = "The east face is soft. I need iron for the braces before it comes down on somebody.",
+		objective = { kind = "collect", target = "ironOre", count = 15 },
+		reward = {
+			yen = 9000,
+			unlock = { kind = "tool", id = "pickaxe2", label = "Steel Pick" },
+		},
+	},
+	{
+		id = "still_water",
+		name = "Still Water",
+		blurb = "Nobody eats rock. There is a lake east of here. Bring the cook something out of it.",
+		objective = { kind = "collect", target = "crucian", count = 12 },
+		reward = {
+			yen = 11000,
+			skill = "resilience",
+			skillAmount = 2600,
+			unlock = { kind = "tool", id = "rod2", label = "Braided Rod" },
+		},
+	},
+	{
+		id = "second_step",
+		name = "The Second Step",
+		blurb = "Copper sits under the chalk, one terrace down. Mind the drop on your way back up.",
+		objective = { kind = "collect", target = "copperOre", count = 12 },
+		reward = {
+			yen = 16000,
+			skill = "tobatsu",
+			skillAmount = 5200,
+			unlock = { kind = "tool", id = "pickaxe3", label = "Quarryman's Pick" },
+		},
+	},
+	{
+		id = "lakekeeper",
+		name = "Lakekeeper",
+		blurb = "The big orange ones only rise at the end of the pier, and only for somebody patient.",
+		objective = { kind = "collect", target = "koi", count = 3 },
+		reward = {
+			yen = 24000,
+			skill = "resilience",
+			skillAmount = 9000,
+			unlock = { kind = "tool", id = "rod3", label = "Lakekeeper's Rod" },
+		},
+	},
+	{
+		id = "moonstone",
+		name = "Moonstone",
+		blurb = "Bottom step, where the pit meets her old floor. It only shines down there. Four will do.",
+		objective = { kind = "collect", target = "moonOre", count = 4 },
+		reward = {
+			yen = 60000,
+			skill = "tobatsu",
+			skillAmount = 26000,
+			unlock = { kind = "tool", id = "pickaxe4", label = "Moonstone Pick" },
+		},
+	},
 } :: { OrderDefinition }
 
 WorkOrders.BY_ID = {} :: { [string]: OrderDefinition }
@@ -126,27 +165,6 @@ for index, order in WorkOrders.CHAIN do
 	WorkOrders.CHAIN_INDEX[order.id] = index
 end
 
---------------------------------------------------------------------------------
--- The grades
---------------------------------------------------------------------------------
-
---[[
-	Everything after the chain, forever.
-
-	Yoroi-san grades work the way the exam hall grades people: you start on 5級
-	pulling carrots out of the roadside and you end on 特級 in the dark under
-	the town. A grade is a POOL of targets and a BAND of counts -- nothing else
-	-- so making the ladder longer is adding a row here, not writing orders.
-
-	Two rules keep the pools honest, and both are facts about other files:
-
-	  * only things that come BACK are targets. Mycelia, the sausage guardians
-	    and the BIG trees all carry `respawn = false` (Config/Mobs), so an
-	    endless order aimed at one is an order that can be handed out twice and
-	    completed once.
-	  * a target is only in a grade the player can already stand in. The cave
-	    floors arrive one grade at a time, in the order the chain opened them.
-]]
 export type Grade = {
 	label: string,
 	span: number,
@@ -203,12 +221,7 @@ WorkOrders.GRADES = {
 		collectCount = { 20, 46 },
 		defeatCount = { 10, 22 },
 	},
-	--[[
-		The last grade never ends. Its counts saturate at the top of the band
-		one span past its start, so the grind stops growing while the pay does
-		not -- an order that wants four hundred mushrooms is not harder, it is
-		just longer, and nobody has ever enjoyed one.
-	]]
+
 	{
 		label = "特級",
 		span = 20,
@@ -222,16 +235,10 @@ WorkOrders.GRADES = {
 
 WorkOrders.BOARD_SIZE = 3
 
---[[
-	The pay curve runs on the ABSOLUTE rank rather than on the position inside a
-	grade, so promotion is a raise instead of a pay cut: the first 3級 order is
-	worth more than the last 4級 one.
-]]
 local YEN_BASE = 1800
 local SKILL_BASE = 420
 local GROWTH = 1.11
 
--- What each verb is worth against the others, and which skill it trains.
 local VERBS = {
 	collect = { weight = 1, skill = "kusatori" },
 	defeat = { weight = 1.2, skill = "tobatsu" },
@@ -258,18 +265,6 @@ local BLURBS = {
 	},
 }
 
---------------------------------------------------------------------------------
--- Generation
---------------------------------------------------------------------------------
-
---[[
-	A generated order is stored NOWHERE.
-
-	Its id spells out where it came from -- "wo:12:2" is slot 2 of rank 12 --
-	and the same seed rebuilds it identically on any server at any time, so the
-	profile carries one number (how many have been handed in) instead of a list
-	of ids that grows for as long as the player keeps playing.
-]]
 local ID_PREFIX = "wo"
 
 local candidateCache: { [number]: { Objective } } = {}
@@ -295,8 +290,6 @@ local function candidatesFor(index: number, grade: Grade): { Objective }
 	return list
 end
 
--- Which grade a rank sits in, and how far through it (0 at the bottom rung, 1
--- at the top). The last grade absorbs everything past the ladder.
 local function gradeFor(rank: number): (number, Grade, number)
 	local remaining = rank
 	for index, grade in WorkOrders.GRADES do
@@ -313,11 +306,6 @@ local function band(range: { number }, t: number): number
 	return math.floor(range[1] + (range[2] - range[1]) * t + 0.5)
 end
 
---[[
-	The board's three slots are a seeded shuffle of the grade's whole pool
-	rather than three independent picks, which is what stops a board reading
-	"20 carrots / 24 carrots / 18 carrots".
-]]
 local function shuffled(rank: number, pool: { Objective }): { Objective }
 	local rng = Random.new(rank * 7919 + 104729)
 	local order = table.clone(pool)
@@ -369,8 +357,6 @@ function WorkOrders.generate(rank: number, slot: number): OrderDefinition?
 		skillAmount = math.max(10, math.floor(SKILL_BASE * scale / 10) * 10),
 	}
 
-	-- A sack of something on top, now and then. A reward that always looks the
-	-- same is a reward the player stops reading.
 	if rng:NextNumber() < 0.3 then
 		local bonus = grade.collect[rng:NextInteger(1, #grade.collect)]
 		reward.ingredients = { { id = bonus, count = rng:NextInteger(2, 5) } }
@@ -393,8 +379,6 @@ function WorkOrders.generate(rank: number, slot: number): OrderDefinition?
 	}
 end
 
--- What the booth offers at a given rank. Fewer than BOARD_SIZE only if a grade
--- is authored with a pool smaller than the board.
 function WorkOrders.board(rank: number): { OrderDefinition }
 	local orders = {}
 	for slot = 1, WorkOrders.BOARD_SIZE do
@@ -406,8 +390,6 @@ function WorkOrders.board(rank: number): { OrderDefinition }
 	return orders
 end
 
--- The rank an id was generated at, or nil if it names a chain order. The id
--- format lives in this file only: everything else asks.
 function WorkOrders.rankOf(id: string): number?
 	local rank = string.match(id, `^{ID_PREFIX}:(%d+):%d+$`)
 	return if rank then tonumber(rank) else nil
@@ -425,10 +407,6 @@ function WorkOrders.get(id: string): OrderDefinition?
 	return WorkOrders.generate(tonumber(rank) :: number, tonumber(slot) :: number)
 end
 
---[[
-	Human-readable "what does this want", built here rather than on the client
-	so the board, the HUD tracker and any toast all say the same words.
-]]
 function WorkOrders.describe(order: OrderDefinition): string
 	local objective = order.objective
 	local name = WorkOrders.targetName(objective)

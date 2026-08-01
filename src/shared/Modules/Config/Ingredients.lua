@@ -1,66 +1,37 @@
---[[
-	Forage ingredients and the zones they grow in.
-
-	Every ingredient is a clickable clump out in Town (Config/Assets holds the
-	models). Pulling one is click-gated: `gateExponent` is the kusatori log10 at
-	which it opens at `minClicks`, and every exponent you are short adds
-	Constants.FORAGE.CLICKS_PER_EXPONENT_BEHIND clicks. Fixed nodes regrow after
-	`regrowSeconds`; dynamic clumps use that delay after the whole clump is clear.
-
-	Ingredients are cooked into dishes at the kitchen (Config/Recipes.lua).
-]]
-
 export type IngredientDefinition = {
 	id: string,
 	name: string,
-	asset: string, -- Assets.lua key for the node model
-	rarity: string, -- key into Ingredients.RARITY
-	gateExponent: number, -- kusatori log10 needed to pluck at minClicks
+	asset: string,
+	rarity: string,
+	gateExponent: number,
 	minClicks: number,
-	xpMultiplier: number, -- kusatori gain per pluck
+	xpMultiplier: number,
 	regrowSeconds: number,
-	clip: string, -- PlayerAnims clip played while plucking
+	clip: string,
 	glyph: string,
-	ground: boolean?, -- grows under the soil: dug out of a dirt patch
-	height: number?, -- studs tall once placed; nil keeps the authored size
+	ground: boolean?,
+	height: number?,
+	skill: string?,
+	material: boolean?,
+	yen: number?,
 }
 
 export type ZoneLifecycle = "node-regrow" | "clump-reroll"
 
---[[
-	A patch of ground where one set of ingredients grows, as a bearing and a
-	distance from the plaza.
-
-	Zones rather than a scatter over the whole island: an ingredient you can
-	find anywhere is an ingredient with no address, and "the sausage forest is
-	east past the weed field" is a thing one player can tell another.
-
-	`weight` drives either the fixed clump plan or each independent dynamic roll,
-	so a grove reads as mostly one thing with a few others mixed into it.
-]]
 export type ZoneDefinition = {
 	id: string,
 	name: string,
-	angle: number, -- degrees from +X, same convention as Layout.SKILL_ANGLE
-	distance: number, -- studs from the plaza centre
-	radius: number, -- how far the clumps spread from the zone centre
+	angle: number,
+	distance: number,
+	radius: number,
 	clumps: number,
 	perClump: number,
 	lifecycle: ZoneLifecycle,
-	minClumpSpacing: number?, -- only used by randomly positioned clumps
-	reserveDecor: boolean?, -- keeps world dressing out of the zone footprint
+	minClumpSpacing: number?,
+	reserveDecor: boolean?,
 	ingredients: { { id: string, weight: number } },
 }
 
---[[
-	A clump with no address.
-
-	Zones are a bearing and a distance from the plaza, which is the right shape
-	for open ground and the wrong one for a maze: underground, WHERE a clump
-	grows is a letter on a grid in Config/Cave, and all this has to say is what
-	grows there and how much of it. CaveService reads these; the zone pass in
-	ForagingService does not.
-]]
 export type ClumpDefinition = {
 	perClump: number,
 	yieldScale: number,
@@ -70,10 +41,6 @@ export type ClumpDefinition = {
 
 local Ingredients = {}
 
---[[
-	Rarity tiers, cheapest to rarest. Colors come from the same saturated
-	arcade family as UI/Theme.lua so the chips read as lit on the dark panels.
-]]
 Ingredients.RARITY = {
 	common = { order = 1, color = Color3.fromRGB(126, 226, 96), label = "Common" },
 	rare = { order = 2, color = Color3.fromRGB(96, 186, 255), label = "Rare" },
@@ -94,6 +61,17 @@ Ingredients.ORDER = {
 	"whiteBerry",
 	"goldSausage",
 	"moonlightCap",
+	"bitterling",
+	"crucian",
+	"pondSnail",
+	"sweetfish",
+	"koi",
+	"moonScale",
+	"chalkStone",
+	"ironOre",
+	"copperOre",
+	"quartzOre",
+	"moonOre",
 }
 
 Ingredients.DEFINITIONS = {
@@ -242,12 +220,7 @@ Ingredients.DEFINITIONS = {
 		glyph = "sausage",
 		height = 8,
 	},
-	--[[
-		Grows on one floor of one cave, behind the Cap Mother's door. It is the
-		only ingredient in the game with a single address, which is the whole
-		point of it: the reason to go all the way down is a thing you cannot get
-		anywhere else.
-	]]
+
 	moonlightCap = {
 		id = "moonlightCap",
 		name = "Moonlight Cap",
@@ -261,16 +234,178 @@ Ingredients.DEFINITIONS = {
 		glyph = "mushroom",
 		height = 3.4,
 	},
+	bitterling = {
+		id = "bitterling",
+		name = "Bitterling",
+		asset = "fish",
+		rarity = "common",
+		gateExponent = 0,
+		minClicks = 6,
+		xpMultiplier = 8,
+		regrowSeconds = 20,
+		clip = "farm_carrot",
+		glyph = "fish",
+		skill = "resilience",
+		height = 1.6,
+		yen = 34,
+	},
+	crucian = {
+		id = "crucian",
+		name = "Crucian Carp",
+		asset = "fish",
+		rarity = "common",
+		gateExponent = 0,
+		minClicks = 7,
+		xpMultiplier = 14,
+		regrowSeconds = 24,
+		clip = "farm_carrot",
+		glyph = "fish",
+		skill = "resilience",
+		height = 2.1,
+		yen = 62,
+	},
+	pondSnail = {
+		id = "pondSnail",
+		name = "Pond Snail",
+		asset = "fish",
+		rarity = "common",
+		gateExponent = 0,
+		minClicks = 5,
+		xpMultiplier = 10,
+		regrowSeconds = 18,
+		clip = "farm_carrot",
+		glyph = "fish",
+		skill = "resilience",
+		height = 1.2,
+		yen = 45,
+	},
+	sweetfish = {
+		id = "sweetfish",
+		name = "Sweetfish",
+		asset = "fish",
+		rarity = "rare",
+		gateExponent = 2,
+		minClicks = 9,
+		xpMultiplier = 90,
+		regrowSeconds = 40,
+		clip = "farm_carrot",
+		glyph = "fish",
+		skill = "resilience",
+		height = 2.4,
+		yen = 260,
+	},
+	koi = {
+		id = "koi",
+		name = "Koi",
+		asset = "fish",
+		rarity = "super",
+		gateExponent = 4,
+		minClicks = 12,
+		xpMultiplier = 620,
+		regrowSeconds = 70,
+		clip = "farm_carrot",
+		glyph = "fish",
+		skill = "resilience",
+		height = 3.2,
+		yen = 1400,
+	},
+	moonScale = {
+		id = "moonScale",
+		name = "Moonscale",
+		asset = "fish",
+		rarity = "legendary",
+		gateExponent = 7,
+		minClicks = 16,
+		xpMultiplier = 4200,
+		regrowSeconds = 150,
+		clip = "farm_carrot",
+		glyph = "fish",
+		skill = "resilience",
+		height = 3.6,
+		yen = 9000,
+	},
+	chalkStone = {
+		id = "chalkStone",
+		name = "Chalk Stone",
+		asset = "oreChunk",
+		rarity = "common",
+		gateExponent = 0,
+		minClicks = 6,
+		xpMultiplier = 9,
+		regrowSeconds = 60,
+		clip = "farm_potato",
+		glyph = "ore",
+		skill = "tobatsu",
+		material = true,
+		height = 2,
+		yen = 40,
+	},
+	ironOre = {
+		id = "ironOre",
+		name = "Iron Ore",
+		asset = "oreChunk",
+		rarity = "common",
+		gateExponent = 0,
+		minClicks = 7,
+		xpMultiplier = 18,
+		regrowSeconds = 75,
+		clip = "farm_potato",
+		glyph = "ore",
+		skill = "tobatsu",
+		material = true,
+		height = 2.2,
+		yen = 85,
+	},
+	copperOre = {
+		id = "copperOre",
+		name = "Copper Ore",
+		asset = "oreChunk",
+		rarity = "rare",
+		gateExponent = 2,
+		minClicks = 9,
+		xpMultiplier = 110,
+		regrowSeconds = 95,
+		clip = "farm_potato",
+		glyph = "ore",
+		skill = "tobatsu",
+		material = true,
+		height = 2.4,
+		yen = 340,
+	},
+	quartzOre = {
+		id = "quartzOre",
+		name = "Quartz",
+		asset = "oreChunk",
+		rarity = "super",
+		gateExponent = 4,
+		minClicks = 11,
+		xpMultiplier = 700,
+		regrowSeconds = 120,
+		clip = "farm_potato",
+		glyph = "ore",
+		skill = "tobatsu",
+		material = true,
+		height = 2.6,
+		yen = 1650,
+	},
+	moonOre = {
+		id = "moonOre",
+		name = "Moonstone Ore",
+		asset = "oreChunk",
+		rarity = "legendary",
+		gateExponent = 7,
+		minClicks = 15,
+		xpMultiplier = 4800,
+		regrowSeconds = 210,
+		clip = "farm_potato",
+		glyph = "ore",
+		skill = "tobatsu",
+		material = true,
+		height = 3,
+		yen = 11000,
+	},
 } :: { [string]: IngredientDefinition }
 
---[[
-	Where each thing grows, in walking order out from the plaza.
-
-	The Home Fields sit on the old resilience district, which has had no pads
-	since cooking took the skill over: the nearest empty ground to spawn is
-	exactly where a beginner's crops should be. Everything rarer is further out,
-	so the map itself tells you the order to learn it in.
-]]
 Ingredients.ZONES = {
 	{
 		id = "home_fields",
@@ -332,8 +467,7 @@ Ingredients.ZONES = {
 			{ id = "purpleBerry", weight = 1 },
 		},
 	},
-	-- Sausages have no zone: they grow across whole board sections instead, laid
-	-- out by SausageForestService from Config/SausageForest.
+
 	{
 		id = "snow_thicket",
 		name = "Snow Berry Thicket",
@@ -350,16 +484,6 @@ Ingredients.ZONES = {
 	},
 } :: { ZoneDefinition }
 
---[[
-	What grows underground, keyed by the clump ids in Config/Cave.
-
-	The two mushrooms are the SAME ingredients that grow on the surface, on
-	purpose: every recipe that already wants a brown mushroom is improved by
-	the cave existing, and a player who learns what a Brown Mushroom is above
-	ground does not have to learn a second one below it. What the cave changes
-	is the rate -- denser clumps paying double -- which is the reason to make
-	the walk rather than a new item to carry.
-]]
 Ingredients.CLUMPS = {
 	cave_glowcap = {
 		perClump = 5,
@@ -384,9 +508,6 @@ function Ingredients.get(id: string): IngredientDefinition?
 	return Ingredients.DEFINITIONS[id]
 end
 
--- One independent weighted roll. Dynamic clumps use this when they first
--- appear and every time a cleared clump is replaced; fixed zones keep using
--- clumpPlan so their authored mix stays deterministic.
 function Ingredients.rollIngredient(zone: ZoneDefinition, rng: Random): string?
 	local total = 0
 	for _, entry in zone.ingredients do
@@ -414,14 +535,6 @@ function Ingredients.rollIngredient(zone: ZoneDefinition, rng: Random): string?
 	return fallback
 end
 
---[[
-	One ingredient id per clump, weighted.
-
-	Built as a flat list and then walked in order rather than rolled per clump:
-	a roll can hand a six-clump grove six of the same bush, and "mostly pink
-	sausage with a gold one in it" has to be true on every server, not on
-	average across them.
-]]
 function Ingredients.clumpPlan(zone: ZoneDefinition): { string }
 	local plan = {}
 	local total = 0
@@ -433,8 +546,6 @@ function Ingredients.clumpPlan(zone: ZoneDefinition): { string }
 	end
 
 	for index = 1, zone.clumps do
-		-- Position in the weighted cycle, so entries interleave instead of
-		-- arriving in one block per ingredient.
 		local step = ((index - 1) % total) + 1
 		local running = 0
 		for _, entry in zone.ingredients do

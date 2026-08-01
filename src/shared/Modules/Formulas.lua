@@ -1,13 +1,10 @@
---[[
-	Every derived number in the game. See docs/GAME.md §4.
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Constants = require(Shared.Modules.Constants)
 local Certifications = require(Shared.Modules.Config.Certifications)
+local Gear = require(Shared.Modules.Config.Gear)
 local Skills = require(Shared.Modules.Config.Skills)
 local Worksites = require(Shared.Modules.Config.Worksites)
 
@@ -60,10 +57,6 @@ function Formulas.boostMultiplier(profile: any, skillId: string): number
 	return multiplier
 end
 
---[[
-	Same product as boostMultiplier, but over boosts aimed at a non-skill
-	number ("yen", "staminaRegen") rather than at a skill.
-]]
 function Formulas.boostStatMultiplier(profile: any, stat: string): number
 	local now = os.time()
 	local multiplier = 1
@@ -143,6 +136,34 @@ function Formulas.totalCertificationOrders(profile: any): number
 		total += order
 	end
 	return total
+end
+
+function Formulas.gearTier(profile: any, slot: string): number
+	return Gear.tier(profile, slot)
+end
+
+function Formulas.harvestYield(profile: any, slot: string): number
+	return math.max(1, math.floor(Gear.yieldMultiplier(profile, slot)))
+end
+
+function Formulas.harvestClicks(profile: any, slot: string, baseClicks: number): number
+	return math.max(2, math.ceil(baseClicks * Gear.effortScale(profile, slot)))
+end
+
+function Formulas.oreYield(profile: any): number
+	return Formulas.harvestYield(profile, "pickaxe")
+end
+
+function Formulas.oreSwings(profile: any, baseSwings: number): number
+	return Formulas.harvestClicks(profile, "pickaxe", baseSwings)
+end
+
+function Formulas.fishYield(profile: any): number
+	return Formulas.harvestYield(profile, "rod")
+end
+
+function Formulas.fishClicks(profile: any, baseClicks: number): number
+	return Formulas.harvestClicks(profile, "rod", baseClicks)
 end
 
 function Formulas.meetsWorksiteRequirement(profile: any, worksiteId: string): boolean
