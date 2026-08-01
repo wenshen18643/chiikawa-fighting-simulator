@@ -1338,35 +1338,6 @@ end
 -- Garden
 --------------------------------------------------------------------------------
 
-local function buildPath()
-	local garden = SafeZone.garden
-	local length = garden.pathTo - garden.pathFrom
-	local centre = (garden.pathFrom + garden.pathTo) / 2
-
-	piece({
-		name = "Path",
-		size = Vector3.new(garden.pathWidth, 0.4, length),
-		color = palette.stone,
-		material = Enum.Material.Cobblestone,
-		collide = false,
-		castShadow = false,
-		cframe = toWorld(0, SafeZone.FLOOR_Y - 0.4, centre),
-	})
-
-	-- Edging. The strip alone reads as a texture change in the ground; two
-	-- lines of trim either side is what makes it read as a made path.
-	for _, side in { -1, 1 } do
-		piece({
-			name = "PathEdge",
-			size = Vector3.new(1.2, 0.6, length),
-			color = palette.trim,
-			collide = false,
-			castShadow = false,
-			cframe = toWorld(side * (garden.pathWidth / 2 + 0.6), SafeZone.FLOOR_Y - 0.35, centre),
-		})
-	end
-end
-
 --[[
 	A picket fence marking the safe volume.
 
@@ -1456,54 +1427,10 @@ local function buildFence()
 	end
 end
 
-local function buildPathLanterns()
-	local garden = SafeZone.garden
-	local count = math.floor((garden.pathTo - garden.pathFrom) / garden.lanternSpacing)
-
-	for index = 1, count do
-		local z = garden.pathFrom + garden.lanternSpacing * index
-		for _, side in { -1, 1 } do
-			local x = side * (garden.pathWidth / 2 + 4.5)
-
-			piece({
-				name = "LanternPost",
-				size = Vector3.new(0.7, 9, 0.7),
-				color = palette.timberDark,
-				material = Enum.Material.Wood,
-				collide = false,
-				cframe = toWorld(x, 4.5, z),
-			})
-
-			local head = place({ asset = "lantern", x = x, z = z, fit = 6, y = 8.4 }, 0)
-			local anchor = head and head.PrimaryPart or (head and head:FindFirstChildWhichIsA("BasePart", true))
-			if anchor then
-				local glow = Instance.new("PointLight")
-				glow.Brightness = 1.6
-				glow.Range = 26
-				glow.Color = Color3.fromRGB(255, 214, 158)
-				glow.Shadows = false
-				glow.Parent = anchor
-			end
-		end
-	end
-end
-
 --[[
-	Ground that is clear to plant on: not on the paving, and not inside the house.
-
-	The paving is the path strip plus its 1.2-stud edging either side, so it ends
-	at 8.2 from the centre line and grass may start just past that. This used to
-	keep back pathWidth/2 + 6 -- a 26-stud-wide bald strip down the middle of the
-	garden for a 14-stud path -- and to leave a 20-stud square of bare ground on
-	the doorstep, which is paving too and does not need a lawn exclusion of its
-	own.
+	Ground that is clear to plant on: not inside the house.
 ]]
 local function isClear(x: number, z: number): boolean
-	local garden = SafeZone.garden
-	local paved = garden.pathWidth / 2 + 1.2 + garden.grassPathMargin
-	if math.abs(x) < paved and z > garden.pathFrom - garden.grassPathMargin and z < garden.pathTo then
-		return false
-	end
 	return Vector2.new(x, z).Magnitude >= dome.radius + 2
 end
 
@@ -1688,9 +1615,7 @@ local function build(rng: Random)
 	buildFuton(deckY)
 	buildLamps(deckY)
 
-	buildPath()
 	buildFence()
-	buildPathLanterns()
 
 	placeAll(SafeZone.interior, SafeZone.FLOOR_Y, deckY)
 	local outdoors = placeAll(SafeZone.exterior, SafeZone.FLOOR_Y, deckY)

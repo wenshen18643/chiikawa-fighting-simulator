@@ -134,11 +134,9 @@ function Layout.farmRouteSegments(area: Areas.AreaDefinition): { FarmRouteSegmen
 	end
 
 	local farm = Layout.farmEntranceCFrame(area).Position
-	local kitchen = Layout.kitchenCFrame(area):PointToWorldSpace(Vector3.new(0, 0, -44.5))
 
 	return {
 		{ id = "PlazaToFarm", from = plazaEdgeToward(farm), to = farm },
-		{ id = "PlazaToKitchen", from = plazaEdgeToward(kitchen), to = kitchen },
 	}
 end
 

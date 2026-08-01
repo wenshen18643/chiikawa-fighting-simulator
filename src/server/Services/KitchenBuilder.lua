@@ -423,30 +423,7 @@ local function buildShell(parent: Instance, frame: CFrame)
 	})
 end
 
-local function buildApproach(parent: Instance, frame: CFrame)
-	localPart(parent, frame, {
-		name = "Porch",
-		size = Vector3.new(18, 0.9, 8),
-		cframe = CFrame.new(0, 0.45, -(SIZE.Z / 2 + 3.5)),
-		color = CREAM,
-		material = Enum.Material.Cobblestone,
-	})
-
-	local drift = { 0, -0.7, 0.5, -0.35, 0.8, 0 }
-	for index, x in drift do
-		localPart(parent, frame, {
-			name = `KitchenPathStone{index}`,
-			size = Vector3.new(0.45, 6.4, 6.4),
-			cframe = CFrame.new(x, 0.25, -(SIZE.Z / 2 + 9 + (index - 1) * 5.8))
-				* CFrame.Angles(0, 0, math.rad(90)),
-			color = if index % 3 == 0 then PEACH_LIGHT else CREAM,
-			material = Enum.Material.SmoothPlastic,
-			shape = Enum.PartType.Cylinder,
-			canCollide = false,
-			canQuery = false,
-		})
-	end
-
+local function buildSign(parent: Instance, frame: CFrame)
 	local sign = localPart(parent, frame, {
 		name = "KitchenSign",
 		size = Vector3.new(10, 4.5, 0.8),
@@ -845,7 +822,7 @@ function KitchenBuilder.build(parent: Instance, configuredFrame: CFrame): BuildR
 	kitchen.Name = "Kitchen"
 
 	buildShell(kitchen, frame)
-	buildApproach(kitchen, frame)
+	buildSign(kitchen, frame)
 	if not buildImportedFurniture(kitchen, frame) then
 		buildNativeFurniture(kitchen, frame)
 	end

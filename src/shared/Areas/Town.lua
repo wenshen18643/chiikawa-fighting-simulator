@@ -93,42 +93,6 @@ return Area.define({
 		for index, landmark in { sasumataAt, weedsAt, desksAt } do
 			local reach = math.sqrt(landmark.x * landmark.x + landmark.z * landmark.z)
 			local dirX, dirZ = landmark.x / reach, landmark.z / reach
-			local radians = math.atan2(dirZ, dirX)
-			-- Stopping short keeps the stones from running under the prop.
-			local stopAt = reach - 26
-
-			helpers.path(ctx, {
-				fromX = dirX * plazaEdge,
-				fromZ = dirZ * plazaEdge,
-				toX = dirX * stopAt,
-				toZ = dirZ * stopAt,
-				spacing = 8,
-			})
-
-			-- Lanterns the length of the path, not just at its mouth.
-			for step = 1, 3 do
-				local along = plazaEdge + (stopAt - plazaEdge) * (step / 4)
-				for _, side in { -1, 1 } do
-					helpers.prop(ctx, "lantern", dirX * along - dirZ * side * 11, dirZ * along + dirX * side * 11, {
-						height = 4.4,
-					})
-				end
-			end
-
-			-- A lantern pair where the path leaves the square.
-			for _, side in { -1, 1 } do
-				helpers.prop(
-					ctx,
-					"lanternTall",
-					dirX * (plazaEdge + 10) - dirZ * side * 9,
-					dirZ * (plazaEdge + 10) + dirX * side * 9,
-					{
-						height = 6.5,
-						rotation = radians,
-					}
-				)
-			end
-
 			helpers.signpost(ctx, {
 				title = landmark.name,
 				x = dirX * (plazaEdge + 34),
@@ -145,11 +109,8 @@ return Area.define({
 
 		-- The road south, out to the gate in the fence.
 		local gateZ = -(half - 20)
-		helpers.path(ctx, { fromX = 0, fromZ = -plazaEdge, toX = 0, toZ = gateZ, spacing = 10, width = 9 })
 		for step = 1, 9 do
 			local z = -plazaEdge + (gateZ + plazaEdge) * (step / 10)
-			helpers.prop(ctx, "lantern", -11, z, { height = 4.6 })
-			helpers.prop(ctx, "lantern", 11, z, { height = 4.6 })
 			if step % 3 == 0 then
 				helpers.prop(ctx, "pinkBench", -19, z, { height = 3.2, rotation = math.rad(90) })
 				helpers.prop(ctx, `flowerBed{(step % 3) + 1}`, 20, z + 6, { height = 2.2 })
@@ -240,7 +201,9 @@ return Area.define({
 				helpers.prop(ctx, "wateringCan", x + 9, z + 14, { height = 1.6 })
 			end
 
-			if joinZ then
+			-- Keep the three approved southern-lane branches west of the two
+			-- eastern branches whose paths were removed.
+			if joinZ and index <= 7 then
 				helpers.path(ctx, { fromX = x, fromZ = z + 12, toX = 0, toZ = joinZ, spacing = 10, width = 4.5 })
 			end
 		end
@@ -257,14 +220,6 @@ return Area.define({
 		for index = 1, 5 do
 			homestead(index + 1, -half * 0.62, -half * 0.16 + (index - 1) * (half * 0.13), math.rad(90))
 		end
-		helpers.path(ctx, {
-			fromX = -half * 0.54,
-			fromZ = -half * 0.1,
-			toX = -plazaEdge,
-			toZ = 0,
-			spacing = 10,
-			width = 6,
-		})
 		helpers.signpost(ctx, { title = "West Row", x = -half * 0.5, z = half * 0.2 })
 
 		-- The sakura orchard is its own section now (Sakura Heights, north row).

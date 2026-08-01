@@ -414,13 +414,10 @@ SafeZone.YOROI = {
 --------------------------------------------------------------------------------
 
 SafeZone.garden = {
-	pathWidth = 14,
-	pathFrom = 33,
-	pathTo = 100,
 	fenceInset = 8,
 	fenceHeight = 5.5,
 	postSpacing = 7.5,
-	gateGap = 11, -- half-width of the opening the path passes through
+	gateGap = 11, -- half-width of the front opening
 
 	--[[
 		Scatter. `grassPatch` is a 10-stud clump of blades.
@@ -438,10 +435,6 @@ SafeZone.garden = {
 	grassSpacing = 16,
 	grassJitter = 5,
 	grassFit = { 14, 20 },
-	-- Clearance from the paving's outer edge. The path is 14 wide with a 1.2
-	-- edging either side, so the pavement ends at 8.2 and grass starts just past.
-	grassPathMargin = 1.5,
-	lanternSpacing = 22, -- down both sides of the path
 }
 
 function SafeZone.profile(t: number): (number, number)
