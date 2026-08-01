@@ -47,6 +47,7 @@ local BOOT_ORDER = {
 	{ container = script.UI, name = "InventoryMenu" },
 	{ container = script.UI, name = "CookingMenu" },
 	{ container = script.UI, name = "FarmMenu" },
+	{ container = script.UI, name = "LibraryMenu" },
 	-- The open-book recall layer subscribes to completed Exam Prep gestures and
 	-- draws above the HUD when a study card or exam question arrives.
 	{ container = script.UI, name = "StudySession" },

@@ -12,6 +12,7 @@ local BOOT_ORDER = {
 	"AssetService",
 
 	"WorldService",
+	"LibraryService",
 	"SafeZoneService",
 	"NpcService",
 

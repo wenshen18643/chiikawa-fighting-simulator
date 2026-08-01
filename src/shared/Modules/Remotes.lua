@@ -90,6 +90,11 @@ local REMOTE_TREE = {
 		Click = "RemoteEvent", -- client -> server: one stir click, arg-less intent
 		Event = "RemoteEvent", -- server -> client: cook session lifecycle (started/progress/done/cancelled)
 	},
+	Library = {
+		-- Server -> client only. The proximity prompt is the trusted interaction;
+		-- this payload gives presentation the anchor used for local auto-close.
+		Open = "RemoteEvent",
+	},
 	-- server -> client: shared bite progress on a giant food. Eating is the Work
 	-- click, so there is deliberately no client -> server remote here.
 	Feast = { Event = "RemoteEvent" },

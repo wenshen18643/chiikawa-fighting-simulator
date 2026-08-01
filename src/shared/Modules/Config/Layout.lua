@@ -21,6 +21,13 @@ Layout.KITCHEN_CELL = "B5"
 Layout.KITCHEN_FOOTPRINT = Vector2.new(52, 42)
 Layout.KITCHEN_SIZE = Vector3.new(Layout.KITCHEN_FOOTPRINT.X, 30, Layout.KITCHEN_FOOTPRINT.Y)
 
+Layout.LIBRARY_CELL = "F6"
+Layout.LIBRARY_FOOTPRINT = Vector2.new(84, 62)
+Layout.LIBRARY_SIZE = Vector3.new(Layout.LIBRARY_FOOTPRINT.X, 27, Layout.LIBRARY_FOOTPRINT.Y)
+Layout.LIBRARY_RESERVED_RADIUS = 66
+Layout.LIBRARY_APPROACH_LENGTH = 38
+Layout.LIBRARY_APPROACH_WIDTH = 20
+
 export type Zone = {
 	kind: string,
 	x: number,
@@ -107,6 +114,15 @@ function Layout.kitchenCFrame(area: Areas.AreaDefinition): CFrame
 	assert(cell, `Layout: kitchen cell "{Layout.KITCHEN_CELL}" is invalid`)
 
 	local centre = area.origin + Vector3.new(cell.cx, 0, cell.cz)
+	local plaza = Vector3.new(area.origin.X, centre.Y, area.origin.Z)
+	return CFrame.lookAt(centre, plaza)
+end
+
+function Layout.libraryCFrame(area: Areas.AreaDefinition): CFrame
+	local cell = Sections.byCoord(Layout.LIBRARY_CELL)
+	assert(cell, `Layout: library cell "{Layout.LIBRARY_CELL}" is invalid`)
+
+	local centre = area.origin + Vector3.new(cell.cx, WORLD.TERRAIN_TOP, cell.cz)
 	local plaza = Vector3.new(area.origin.X, centre.Y, area.origin.Z)
 	return CFrame.lookAt(centre, plaza)
 end
@@ -345,6 +361,33 @@ function Layout.reservedZones(area: Areas.AreaDefinition): { Zone }
 			x = approach.X,
 			z = approach.Z,
 			radius = 20,
+		})
+	end
+
+	if area.id == Areas.STARTING_AREA then
+		local libraryFrame = Layout.libraryCFrame(area)
+		local libraryOffset = libraryFrame.Position - area.origin
+		table.insert(zones, {
+			kind = "circle",
+			x = libraryOffset.X,
+			z = libraryOffset.Z,
+			radius = Layout.LIBRARY_RESERVED_RADIUS,
+		})
+
+		local direction = libraryFrame.LookVector
+		local approachCentre = libraryFrame:PointToWorldSpace(Vector3.new(
+			0,
+			0,
+			-(Layout.LIBRARY_FOOTPRINT.Y / 2 + Layout.LIBRARY_APPROACH_LENGTH / 2)
+		)) - area.origin
+		table.insert(zones, {
+			kind = "strip",
+			x = approachCentre.X,
+			z = approachCentre.Z,
+			dirX = direction.X,
+			dirZ = direction.Z,
+			halfLength = Layout.LIBRARY_APPROACH_LENGTH / 2,
+			halfWidth = Layout.LIBRARY_APPROACH_WIDTH / 2,
 		})
 	end
 
