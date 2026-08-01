@@ -1,9 +1,7 @@
 local CollectionService = game:GetService("CollectionService")
-local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Constants = require(Shared.Modules.Constants)
 local Farming = require(Shared.Modules.Config.Farming)
 local Feast = require(Shared.Modules.Config.Feast)
 local Sections = require(Shared.Modules.Config.Sections)
@@ -32,14 +30,6 @@ local function range(ctx, bounds, fallback)
 	return ctx.rng:NextNumber(bounds[1], bounds[2])
 end
 
---[[
-	How much room a substantial thing keeps from the next substantial thing, in
-	a wild cell. Only wild cells: they are the only ones dense enough for two
-	boulders to land inside each other, and reshuffling every town to fix a
-	forest would move furniture nobody complained about. Grass, flowers and
-	grass patches stay off the list — ground cover growing against a stone is
-	texture, not overlap.
-]]
 local CLEARANCE = { bush = 7, stone = 6, log = 8, prop = 5, coded = 10, tree = 9, house = 14 }
 
 local function solidify(instance)
@@ -50,8 +40,7 @@ local function solidify(instance)
 	for _, part in parts do
 		if part:IsA("BasePart") then
 			part.CanCollide = true
-			-- CanQuery follows: the sausage trees' own overlap probe has to be
-			-- able to see everything it is not allowed to stand inside.
+
 			part.CanQuery = true
 		end
 	end
@@ -80,8 +69,7 @@ local function dressRecipe(ctx, cell, entry, placed)
 				return x, z
 			end
 		end
-		-- Six crowded draws: the cell is full for this kind. Losing the item
-		-- beats stacking it inside a neighbour.
+
 		return nil
 	end
 
@@ -95,7 +83,7 @@ local function dressRecipe(ctx, cell, entry, placed)
 					upright = entry.upright,
 					pitch = entry.pitch,
 				})
-				-- Only the tag and the id: FeastService owns what eating means.
+
 				if made and entry.edible and Feast.get(entry.key) then
 					made:SetAttribute("FeastId", entry.key)
 					CollectionService:AddTag(made, Feast.PROP_TAG)
@@ -122,7 +110,13 @@ local function dressRecipe(ctx, cell, entry, placed)
 			elseif entry.kind == "desk" then
 				ctx.helpers.studyDesk(ctx, { x = x, z = z, y = 3.2 })
 			elseif entry.kind == "house" then
-				made = ctx.helpers.prop(ctx, `house{ctx.rng:NextInteger(1, 3)}`, x, z, { height = ctx.rng:NextNumber(13, 16) })
+				made = ctx.helpers.prop(
+					ctx,
+					`house{ctx.rng:NextInteger(1, 3)}`,
+					x,
+					z,
+					{ height = ctx.rng:NextNumber(13, 16) }
+				)
 			elseif entry.kind == "coded" then
 				local build = Props[entry.fn]
 				if build then
@@ -178,24 +172,17 @@ local function dressCell(ctx, cell)
 	if not theme then
 		return
 	end
-	-- One shared list per wild cell, so a stone keeps clear of a bush, not
-	-- just of other stones.
+
 	local placed = if theme.wild then {} else nil
 	for _, entry in theme.recipe do
 		dressRecipe(ctx, cell, entry, placed)
 	end
-	-- A wild section has no signpost and no arch: nobody put them there.
+
 	if not theme.wild then
 		dressSign(ctx, cell, theme)
 	end
 end
 
---[[
-	The roads. Every border between two different themes is a road, so the
-	section grid is something you can literally walk: farm borders get a picket
-	fence instead, everything else gets stone slabs with lanterns scattered
-	along them. Same-theme borders stay open field.
-]]
 local function dressBorder(ctx, i, j, vertical)
 	local cellA = Sections.cell(i, j)
 	local cellB = if vertical then Sections.cell(i + 1, j) else Sections.cell(i, j + 1)
@@ -207,7 +194,9 @@ local function dressBorder(ctx, i, j, vertical)
 	if not themeA or not themeB or themeA == themeB then
 		return
 	end
-	-- A road stops at the treeline. The forest edge is where the trees start.
+	if themeA ~= "farm" and themeB ~= "farm" then
+		return
+	end
 	local wildA = Sections.THEMES[themeA]
 	local wildB = Sections.THEMES[themeB]
 	if (wildA and wildA.wild) or (wildB and wildB.wild) then
@@ -228,80 +217,14 @@ local function dressBorder(ctx, i, j, vertical)
 		end
 	end
 
-	if clear and (themeA == "farm" or themeB == "farm") then
-		if vertical then
-			Props.miniFence(ctx, minX, minZ + 6, minX, minZ + SIZE - 6)
-		else
-			Props.miniFence(ctx, minX + 6, minZ, minX + SIZE - 6, minZ)
-		end
+	if not clear then
 		return
 	end
 
-	for step = 0, math.floor(SIZE / 6.5) do
-		local along = step * 6.5 + ctx.rng:NextNumber(-1.5, 1.5)
-		local drift = ctx.rng:NextNumber(-1.2, 1.2)
-		local x = if vertical then minX + drift else minX + along
-		local z = if vertical then minZ + along else minZ + drift
-		if math.abs(x) <= LIMIT and math.abs(z) <= LIMIT and not ctx.isReserved(x, z) then
-			local size = ctx.rng:NextNumber(5.5, 6.5)
-			ctx.helpers.block(ctx, {
-				name = "RoadSlab",
-				size = Vector3.new(size, 0.5, size),
-				color = if ctx.rng:NextNumber() > 0.86 then Color3.fromRGB(244, 206, 210) else Color3.fromRGB(236, 228, 214),
-				material = Enum.Material.Cobblestone,
-				x = x,
-				z = z,
-				y = 0.2,
-				collide = false,
-			})
-			if step % 5 == 2 and ctx.rng:NextNumber() > 0.5 then
-				local lx = if vertical then x + 5.5 else x
-				local lz = if vertical then z else z + 5.5
-				if math.abs(lx) <= LIMIT and math.abs(lz) <= LIMIT and not ctx.isReserved(lx, lz) then
-					ctx.helpers.prop(ctx, "lantern", lx, lz, { height = 4.4 })
-				end
-			end
-		end
-	end
-end
-
-local function surfaceY(ctx, x, z)
-	local hit = Workspace:Raycast(ctx.origin + Vector3.new(x, 160, z), Vector3.new(0, -320, 0))
-	local top = if hit then hit.Position.Y else Constants.WORLD.TERRAIN_TOP + 1.5
-	return math.min(top, ctx.groundY(x, z) + 1.6)
-end
-
-local function dressPath(ctx, cell)
-	local target = Vector2.new(cell.cx, cell.cz)
-	local length = target.Magnitude
-	if length < 1 then
-		return
-	end
-	local dir = target / length
-	local from = dir * (ctx.plazaRadius + 16)
-	local to = target - dir * 60
-	local span = to - from
-	local steps = math.floor(span.Magnitude / 8)
-	for index = 0, steps do
-		local at = from + dir * (index * 8)
-		local drift = ctx.rng:NextNumber(-1.4, 1.4)
-		local x = at.X - dir.Y * drift
-		local z = at.Y + dir.X * drift
-		local size = 7 * ctx.rng:NextNumber(0.82, 1.1)
-		if not ctx.isReserved(x, z) then
-			ctx.helpers.block(ctx, {
-				name = "PathStone",
-				shape = Enum.PartType.Cylinder,
-				size = Vector3.new(0.5, size, size),
-				color = if ctx.rng:NextNumber() > 0.82
-					then Color3.fromRGB(244, 206, 210)
-					else Color3.fromRGB(246, 240, 228),
-				material = Enum.Material.SmoothPlastic,
-				cframe = CFrame.new(ctx.origin + Vector3.new(x, surfaceY(ctx, x, z) + 0.16, z))
-					* CFrame.Angles(0, 0, math.rad(90)),
-				collide = false,
-			})
-		end
+	if vertical then
+		Props.miniFence(ctx, minX, minZ + 6, minX, minZ + SIZE - 6)
+	else
+		Props.miniFence(ctx, minX + 6, minZ, minX + SIZE - 6, minZ)
 	end
 end
 
@@ -321,17 +244,6 @@ function SectionDressing.dress(ctx)
 	for j = 1, Sections.GRID - 1 do
 		for i = 1, Sections.GRID do
 			dressBorder(ctx, i, j, false)
-		end
-	end
-
-	for _, target in Sections.PATH_TARGETS do
-		local cell = Sections.cell(target[1], target[2])
-		if cell and cell.coord == Farming.CELL_COORD then
-			continue
-		end
-		local theme = cell and Sections.THEMES[cell.theme]
-		if cell and theme and not theme.wild then
-			dressPath(ctx, cell)
 		end
 	end
 end

@@ -1,23 +1,5 @@
 --!strict
 
---[[
-	Yoroi-san hands out work. See Config/WorkOrders.lua.
-
-	--------------------------------------------------------------------------------
-	THE CLIENT NEVER SENDS A NUMBER
-	--------------------------------------------------------------------------------
-
-	An order's progress is counted here, from events this server already owns:
-	ForagingService says what was pulled, MobService says what died, and the
-	cave publishes which floor a character is standing on. The only things a
-	client may send are an order id to accept and an order id to claim, and both
-	are checked against what the board actually offered.
-
-	One order at a time. `profile.workOrders.active` is a map because the schema
-	made it one, but exactly one key ever lives in it: a player carrying six
-	errands is reading a list instead of walking into a cave.
-]]
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -31,6 +13,7 @@ local WorkOrders = require(Shared.Modules.Config.WorkOrders)
 local CurrencyService = require(script.Parent.CurrencyService)
 local DataService = require(script.Parent.DataService)
 local ForagingService = require(script.Parent.ForagingService)
+local HarvestNodes = require(script.Parent.HarvestNodes)
 local MobService = require(script.Parent.MobService)
 local NotifyService = require(script.Parent.NotifyService)
 local SkillService = require(script.Parent.SkillService)
@@ -45,22 +28,13 @@ local acceptRemote: RemoteEvent
 local turnInRemote: RemoteEvent
 local eventRemote: RemoteEvent
 
--- What the board last showed each player, so Accept cannot name an order the
--- player was never offered.
 local offered: { [Player]: { string } } = {}
-
---------------------------------------------------------------------------------
--- Profile shape
---------------------------------------------------------------------------------
 
 local function stateOf(profile: any)
 	local state = profile.workOrders
 	state.completed = state.completed or {}
 	state.active = state.active or {}
-	-- How many GENERATED orders have been handed in. The chain is remembered by
-	-- id because it is six things; the endless ledger is remembered by a count
-	-- because it is not, and an id list that grows forever is a save file that
-	-- grows forever.
+
 	state.rank = state.rank or 0
 	return state
 end
@@ -81,10 +55,6 @@ local function activeId(state: any): string?
 	return nil
 end
 
---------------------------------------------------------------------------------
--- The board
---------------------------------------------------------------------------------
-
 local function chainDone(state: any): boolean
 	for _, order in WorkOrders.CHAIN do
 		if not hasCompleted(state, order.id) then
@@ -94,15 +64,6 @@ local function chainDone(state: any): boolean
 	return true
 end
 
---[[
-	What the booth is offering.
-
-	While the chain is unfinished this is exactly one order: the next rung.
-	After it, it is the three orders generated for the player's current rank,
-	and there is always a next rank -- the booth is never empty again. An order
-	already in progress is offered back, so walking up to the booth mid errand
-	shows you what you are carrying rather than an empty counter.
-]]
 local function boardFor(profile: any): { WorkOrders.OrderDefinition }
 	local state = stateOf(profile)
 
@@ -172,10 +133,6 @@ function WorkOrderService.open(player: Player)
 	sendBoard(player, true)
 end
 
---------------------------------------------------------------------------------
--- Progress
---------------------------------------------------------------------------------
-
 local function activeOrder(profile: any): (WorkOrders.OrderDefinition?, number)
 	local state = stateOf(profile)
 	local id = activeId(state)
@@ -195,12 +152,6 @@ local function report(player: Player, order: WorkOrders.OrderDefinition, progres
 	})
 end
 
---[[
-	A collect order measures WHAT YOU ARE CARRYING, not how many times you bent
-	down. Counting pulls would let a player finish an order for twenty
-	mushrooms while cooking nineteen of them on the way, and would show zero to
-	a player who already had a full bag when they took the job.
-]]
 local function refreshCollect(player: Player)
 	local profile = DataService.get(player)
 	if not profile then
@@ -250,18 +201,6 @@ local function advance(player: Player, kind: string, target: string, amount: num
 	end
 end
 
---------------------------------------------------------------------------------
--- Rewards
---------------------------------------------------------------------------------
-
---[[
-	The lantern lives on the CHARACTER as an attribute rather than in a remote.
-
-	The client's cave lighting has to answer "can this player see down here" on
-	every level change, and an attribute is already replicated and already
-	survives the player walking out of range of anything. Re-applied on spawn,
-	because a character is a new instance every time.
-]]
 local function applyGear(player: Player, profile: any)
 	local character = player.Character
 	if not character then
@@ -304,10 +243,6 @@ local function grant(player: Player, profile: any, order: WorkOrders.OrderDefini
 	end
 end
 
---------------------------------------------------------------------------------
--- Client intent
---------------------------------------------------------------------------------
-
 local function wasOffered(player: Player, id: string): boolean
 	local list: { string } = offered[player] or {}
 	for _, candidate in list do
@@ -332,12 +267,7 @@ local function onAccept(player: Player, id: any)
 	if activeId(state) then
 		return
 	end
-	--[[
-		A generated order is checked by its RANK rather than against a completed
-		list: it is only takeable while the player stands on the rank it was
-		generated for, so a replayed accept from an old board cannot re-run work
-		that has already been paid for.
-	]]
+
 	local generatedRank = WorkOrders.rankOf(id)
 	if generatedRank then
 		if generatedRank ~= state.rank then
@@ -351,11 +281,6 @@ local function onAccept(player: Player, id: any)
 	NotifyService.send(player, `Took on "{order.name}".`, "info")
 	sendBoard(player, false)
 
-	--[[
-		A "reach" order the player has ALREADY satisfied would otherwise sit at
-		zero until they walked out of the cave and back in. Credit the floor
-		they are standing on the moment they take the order.
-	]]
 	if order.objective.kind == "reach" then
 		local character = player.Character
 		local level = character and character:GetAttribute(LEVEL_ATTRIBUTE)
@@ -385,11 +310,6 @@ local function onTurnIn(player: Player, id: any)
 		return
 	end
 
-	--[[
-		Collect orders take the ingredients back. Yoroi asked you to BRING them,
-		so keeping the mushrooms and the pay is not a reward, it is a bug: the
-		count would then only ever have measured how much you happened to hold.
-	]]
 	if order.objective.kind == "collect" then
 		local held = profile.currencies.ingredients
 		local have = held[order.objective.target] or 0
@@ -415,16 +335,6 @@ local function onTurnIn(player: Player, id: any)
 	sendBoard(player, false)
 end
 
---------------------------------------------------------------------------------
--- Depth
---------------------------------------------------------------------------------
-
---[[
-	Watched rather than pushed, because the thing that knows a player's depth is
-	an attribute CaveService keeps current, and a "reach" order is the only
-	thing in the game that cares. One sweep a second beats a signal nobody else
-	has a use for.
-]]
 local function watchDepth()
 	while true do
 		task.wait(1)
@@ -449,8 +359,6 @@ local function watchDepth()
 	end
 end
 
---------------------------------------------------------------------------------
-
 function WorkOrderService.init()
 	openRemote = Remotes.event("Order", "Open")
 	acceptRemote = Remotes.event("Order", "Accept")
@@ -464,17 +372,16 @@ function WorkOrderService.init()
 		refreshCollect(player)
 	end)
 
+	HarvestNodes.onHarvested(function(player)
+		refreshCollect(player)
+	end)
+
 	MobService.onKilled(function(definition, _slot, killer)
 		if killer then
 			advance(killer, "defeat", definition.id, 1)
 		end
 	end)
 
-	--[[
-		Sent on join without being asked for, so a player who logged out halfway
-		through an order sees it in the HUD immediately instead of having to
-		walk back to the booth to find out they still have it.
-	]]
 	local function onPlayer(player: Player)
 		player.CharacterAdded:Connect(function()
 			local profile = DataService.get(player)
@@ -499,13 +406,6 @@ function WorkOrderService.init()
 		offered[player] = nil
 	end)
 
-	--[[
-		The booth counter is built by SafeZoneService, which knows where the
-		attendant stands and nothing about what it hands out. Found by name
-		rather than passed in, so neither service has to require the other --
-		SafeZoneService is already reached from MobService, which this file
-		reaches, and the loop would not close.
-	]]
 	task.spawn(function()
 		local prompt = Workspace:WaitForChild("SafeZone", 60)
 		prompt = if prompt then (prompt :: Instance):FindFirstChild("OrderBoardPrompt", true) else nil

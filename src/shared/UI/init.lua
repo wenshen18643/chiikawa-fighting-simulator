@@ -1,25 +1,3 @@
---[[
-	The UI barrel. One import gets you tokens, motion, glyphs, primitives and
-	components:
-
-		local UI = require(ReplicatedStorage.Shared.UI)
-
-		local card = UI.card(parent, "Purse")
-		UI.padding(card, UI.space.base)
-		UI.label(card, "Yen", { text = "0", font = UI.font.display, size = UI.text.display })
-		UI.glyph(card, "coin", { color = UI.color.gold })
-		UI.motion.to(card, UI.motion.pop, { Size = UDim2.fromOffset(240, 96) })
-
-	Shared deliberately, not client-only: area files and server services build
-	world-space signs from the same components the HUD is made of, so the game
-	looks like one thing rather than two.
-
-	Nothing in here depends on an uploaded asset. Icons are geometry (Glyphs),
-	shadows and rings are frames (Primitives), and motion is named rather than
-	hand-tuned per call site (Motion). That is what keeps the whole interface
-	reviewable in a diff.
-]]
-
 local Components = require(script.Components)
 local Glyphs = require(script.Glyphs)
 local Motion = require(script.Motion)
@@ -29,18 +7,23 @@ local Theme = require(script.Theme)
 
 local UI = {}
 
--- Tokens
 UI.color = Theme.color
 UI.font = Theme.font
 UI.radius = Theme.radius
 UI.space = Theme.space
 UI.text = Theme.text
+UI.surface = Theme.surface
+UI.elevation = Theme.elevation
+UI.opacity = Theme.opacity
 UI.Theme = Theme
 
--- Motion
+UI.lighten = Theme.lighten
+UI.darken = Theme.darken
+UI.readable = Theme.readable
+UI.skillColor = Theme.skillColor
+
 UI.motion = Motion
 
--- Primitives
 UI.corner = Primitives.corner
 UI.stroke = Primitives.stroke
 UI.padding = Primitives.padding
@@ -51,8 +34,12 @@ UI.aspect = Primitives.aspect
 UI.grid = Primitives.grid
 UI.ring = Primitives.ring
 UI.vignette = Primitives.vignette
+UI.sheen = Primitives.sheen
+UI.innerLine = Primitives.innerLine
+UI.focusRing = Primitives.focusRing
+UI.divider = Primitives.divider
+UI.well = Primitives.well
 
--- Components
 UI.card = Components.card
 UI.label = Components.label
 UI.bar = Components.bar
@@ -63,13 +50,17 @@ UI.ticker = Components.ticker
 UI.pips = Components.pips
 UI.tabs = Components.tabs
 UI.modal = Components.modal
+UI.iconButton = Components.iconButton
+UI.header = Components.header
+UI.badge = Components.badge
+UI.statTile = Components.statTile
+UI.meter = Components.meter
+UI.toast = Components.toast
 
--- Studio-authored templates (assets/UI/*.model.json)
 UI.template = Templates.mount
 UI.hasTemplate = Templates.exists
 UI.Templates = Templates
 
--- Glyphs
 UI.glyph = Glyphs.render
 UI.skillGlyph = Glyphs.forSkill
 UI.Glyphs = Glyphs

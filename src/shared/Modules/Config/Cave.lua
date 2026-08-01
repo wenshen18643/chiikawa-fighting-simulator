@@ -1,43 +1,5 @@
 --!strict
 
---[[
-	The mushroom cave: three board sections carved out from underneath, one
-	level per section, each deeper than the last.
-
-	The whole cave is DATA. Every corridor, every clump and every spawn is a
-	character in a grid here, so the maze can be read, redrawn and argued with
-	without opening Studio -- and so the client's cave map can be drawn from the
-	same source the server carved from, the way Minimap already draws the
-	surface from Config/Layout. Two descriptions of one place always drift.
-
-	Grids are stored top row first, where the top row is the HIGHEST Z, matching
-	Sections.MAP. A level is 13 x 13 cells of 16 studs, which is 208 studs
-	inside a 212-stud section: a 2-stud rind of untouched rock all the way
-	round, so no level ever breaks out through the side of its own cell.
-
-	Levels do not share XZ, so a ramp between them cannot be a hole in a floor.
-	A descent is instead a short tunnel at the UPPER level's depth, running to a
-	spiral shaft sunk at the lower level's landing. The tunnel's headroom stops
-	well above the lower level's ceiling, which is what keeps the two from
-	punching into each other -- see SHAFT and CaveService.
-
-	--------------------------------------------------------------------------------
-	MOVING THE CAVE
-	--------------------------------------------------------------------------------
-
-	Change the `coord` on a level below. That is the whole procedure.
-
-	Every other place a section is named derives from these three strings: the
-	rock plinth, the carve, the sinkhole, the mob spawns, the mushroom clumps and
-	the client's cave map all ask Sections.byCoord(level.coord). There is
-	deliberately no second copy of "which section is the cave in" to keep in
-	sync -- the entrance used to carry its own and it is gone.
-
-	Cave.check() is run by CaveService at startup and will say so, by name, if
-	the new coords are unknown, doubled up, or so far apart that the tunnel
-	between two levels would cross half the board.
-]]
-
 local Sections = require(script.Parent.Sections)
 
 local Cave = {}
@@ -61,20 +23,22 @@ Cave.MOONCAP = "M"
 Cave.BOSS = "B"
 Cave.SURFACE = "X"
 
-Cave.OPEN = ({
-	["."] = true,
-	["O"] = true,
-	["E"] = true,
-	["^"] = true,
-	["v"] = true,
-	["G"] = true,
-	["M"] = true,
-	["B"] = true,
-	["X"] = true,
-	["s"] = true,
-	["p"] = true,
-	["w"] = true,
-}) :: { [string]: boolean }
+Cave.OPEN = (
+	{
+		["."] = true,
+		["O"] = true,
+		["E"] = true,
+		["^"] = true,
+		["v"] = true,
+		["G"] = true,
+		["M"] = true,
+		["B"] = true,
+		["X"] = true,
+		["s"] = true,
+		["p"] = true,
+		["w"] = true,
+	}
+) :: { [string]: boolean }
 
 Cave.CEILING_FOR = ({
 	["O"] = Cave.ROOM_CEILING,
@@ -87,14 +51,6 @@ Cave.SPAWN_CHARS = ({
 	w = "cave_wisp",
 }) :: { [string]: string }
 
---[[
-	How many stand at one letter. Sporelings come in threes because a single
-	one is a speed bump; a Pebblejaw pair is already a corridor you think twice
-	about; a wisp is alone or it is a lamp rather than a thing you chase.
-
-	Nine Sporelings, six Pebblejaws, two wisps and the Cap Mother: twenty-seven
-	across three levels, against the sausage forest's ninety.
-]]
 Cave.SPAWN_COUNT = ({
 	s = 3,
 	p = 2,
@@ -108,108 +64,49 @@ Cave.CLUMP_CHARS = ({
 	M = "cave_mooncap",
 }) :: { [string]: string }
 
---[[
-	The way down, and the way back up.
-
-	--------------------------------------------------------------------------------
-	THE RAMP IS BUILT, NOT CARVED
-	--------------------------------------------------------------------------------
-
-	It used to be terrain: a helix of air carved into rock, walked on the rock
-	left underneath. That trapped players twice, for the same reason both times.
-	The walkable surface only existed as an ABSENCE, so anything else carved in
-	the same footprint deleted it -- first a 30-stud ball at the mouth that ate
-	the top thirty studs of staircase, then a 56-stud landing box that ate the
-	bottom twenty-four. Both times the player could walk in and not climb out.
-
-	Terrain also could not hold the shape. Voxels are four studs; a rise of one
-	and a half is below the resolution the engine stores, so what got built was
-	never quite what the numbers said.
-
-	So the shaft is now a wide carved VOID with an anchored spiral ramp standing
-	inside it. A part cannot be accidentally deleted by a later fill, it is
-	exactly the size it says, and it can be lit and railed and read as a made
-	thing -- which is what a player needs, because this is the only way in or out.
-]]
 Cave.SHAFT = {
-	-- Half-width of the carved void. Comfortably clear of the ramp's outer edge
-	-- so no future carve can reach the walkable surface.
-	bore = 36,
-	-- Centreline of the ramp, and how wide the walkable slab is.
-	radius = 22,
-	width = 14,
+
+	bore = 50,
+
+	radius = 30,
+	width = 18,
 	thickness = 2,
-	-- Degrees of turn per built segment. Smaller is smoother and costs parts.
+
 	stepAngle = 15,
-	-- Rise over run, as an angle. Fifteen degrees is a walk; the engine will
-	-- take far worse, but this is meant to read as a ramp rather than a climb.
+
 	slopeDegrees = 15,
-	-- Headroom above the ramp, and how far the void extends past the top step.
+
 	headroom = 18,
-	-- Meets the ramp's inner edge (radius - width/2 = 15). Any smaller leaves an
-	-- open slot down the centre of the shaft to fall through.
-	pillarRadius = 14.5,
+
+	pillarRadius = 20.5,
 	railHeight = 4,
 	railEvery = 2,
 	lightEvery = 5,
 }
 
---[[
-	What the mouth looks like from fifty studs away.
-
-	The first build put a hole in a field and nothing else, and a hole is
-	invisible until you are standing over it -- there is no silhouette, no
-	landmark, nothing to walk towards. So the entrance gets a broken ring of
-	standing rock with a gap where the ramp goes in, two taller stones marking
-	that gap, lanterns, and glowing caps spilling out of it.
-
-	The ring is BROKEN ON PURPOSE. A closed ring reads as a wall; a gap reads as
-	a door, and it points at the top of the ramp.
-]]
 Cave.MOUTH_DRESSING = {
-	--[[
-		OUTSIDE THE BORE, including its corners. The shaft is carved as an
-		octagon whose widest point is about 8% past `bore` (39 studs at bore 36),
-		so a ring any tighter than that stands its stones over open air.
-	]]
-	ringRadius = 46,
-	stones = 11,
-	stoneHeight = { 7, 16 },
-	stoneWidth = { 6, 13 },
-	gateHeight = 26,
-	gateWidth = 7,
-	-- Degrees either side of the entry bearing left clear of standing stone.
-	gapDegrees = 34,
-	lanterns = 4,
-	caps = 14,
-	-- Also clear of the bore, for the same reason as the ring.
-	capRadius = { 42, 74 },
+
+	ringRadius = 64,
+	stones = 14,
+	stoneHeight = { 9, 21 },
+	stoneWidth = { 7, 15 },
+	gateHeight = 34,
+	gateWidth = 8,
+
+	gapDegrees = 30,
+	lanterns = 6,
+	caps = 20,
+
+	capRadius = { 58, 96 },
 }
 
---[[
-	Where the sinkhole opens, as an offset from the ENTRANCE LEVEL's cell centre.
-
-	There is no `coord` here on purpose. The mouth belongs to whichever section
-	Cave.LEVELS[1] names, so moving the cave moves its entrance with it and the
-	two cannot disagree.
-
-	The offset is a PREFERENCE, not a coordinate: the skill districts radiate
-	from the plaza and cross the section grid, so CaveService validates the spot
-	against Layout.isReserved and walks it outward until it clears one.
-
-	`clearRadius` is how much surface dressing is swept away around the hole.
-	The scenery pass seats its props by raycast long before this carves the
-	ground out from under them, so without the sweep the mouth wears a halo of
-	mushrooms and stones hanging in mid-air.
-]]
 Cave.MOUTH = {
-	offset = Vector2.new(-52, 44),
+	offset = Vector2.new(0, 0),
 	search = 24,
 	searchLimit = 8,
-	-- Wider than the stone ring, so the dressing lands on swept ground.
-	clearRadius = 80,
-	-- How far above the measured ground the ramp's top step starts, so the way
-	-- in is a notch you can see and walk into rather than a seam in the grass.
+
+	clearRadius = 100,
+
 	lip = 6,
 }
 
@@ -236,17 +133,17 @@ Cave.LEVELS = {
 		floorY = -60,
 		grid = {
 			"#############",
-			"#E...#...G..#",
-			"#.#.#.#.###.#",
-			"#.#.....#s..#",
-			"#.#####.#.#.#",
-			"#G..s.#...#.#",
-			"###.#.###.#.#",
-			"#...#...#.#G#",
-			"#.###.#.#.#.#",
-			"#.#G..#...#.#",
+			"#GG.......GG#",
 			"#.#.#####.#.#",
-			"#...s.....#.^",
+			"#..OOOOOOO..#",
+			"#.#OOOOOOO#.#",
+			"#..OOOOOOO..#",
+			"#.#OOOEOOO#.#",
+			"#..OOOOOOO..#",
+			"#.#OOOOOOO#.#",
+			"#..OOOOOOO..#",
+			"#.#.#####.#.#",
+			"#Gs.......s^#",
 			"#############",
 		},
 		light = {
@@ -296,9 +193,9 @@ Cave.LEVELS = {
 			"#.#.#.#.#.#.#",
 			"#.#.....#.#.#",
 			"#.###.#.#.#.#",
-			"#...#.#.s.#X#",
+			"#...#.#.s.#.#",
 			"#.#.#.#.#.#.#",
-			"#.#.s...#...#",
+			"#.#.s.X.#...#",
 			"#.###.###.#.#",
 			"#...#BBBBB#.#",
 			"#.###BBBBB#.#",
@@ -322,15 +219,6 @@ function Cave.get(index: number): LevelDefinition?
 	return Cave.LEVELS[index]
 end
 
---[[
-	Everything that can go wrong when the cave is moved, in one list.
-
-	Returns the complaints rather than warning, so CaveService can decide what
-	is fatal. Changing a `coord` is a one-word edit with three ways to be
-	quietly wrong -- a section that does not exist, two levels stacked in the
-	same square, or levels so far apart that the connecting tunnel runs under
-	half the board -- and none of the three is visible from the config.
-]]
 function Cave.check(): { string }
 	local problems = {}
 	local seen: { [string]: number } = {}
@@ -338,7 +226,10 @@ function Cave.check(): { string }
 	for _, level in Cave.LEVELS do
 		local cell = Sections.byCoord(level.coord)
 		if not cell then
-			table.insert(problems, `level {level.index} ({level.name}) names section "{level.coord}", which is not on the board`)
+			table.insert(
+				problems,
+				`level {level.index} ({level.name}) names section "{level.coord}", which is not on the board`
+			)
 			continue
 		end
 		if seen[level.coord] then
@@ -360,12 +251,6 @@ function Cave.check(): { string }
 			continue
 		end
 
-		--[[
-			The descent tunnel runs at the upper level's depth from its own
-			section into the one below it. Neighbouring sections keep that to a
-			few studs; opposite corners of the board make it a two-thousand-stud
-			corridor through everything in between.
-		]]
 		local gap = math.max(math.abs(a.i - b.i), math.abs(a.j - b.j))
 		if gap > 1 then
 			table.insert(

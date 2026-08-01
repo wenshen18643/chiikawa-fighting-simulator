@@ -1,11 +1,3 @@
---[[
-	The small decorations every component is assembled from.
-
-	Split out from the components themselves so there is exactly one place that
-	decides what a corner radius, a border or a shadow is — otherwise every new
-	panel invents its own and the interface drifts.
-]]
-
 local Theme = require(script.Parent.Theme)
 
 local Primitives = {}
@@ -17,19 +9,12 @@ function Primitives.corner(parent: Instance, radius: number?): UICorner
 	return corner
 end
 
---[[
-	The outline.
-
-	Solid and heavy by default, where this used to be a 1.5px hairline at 35%
-	transparency. A near-black border at full opacity is most of what separates
-	the arcade look from a flat dark panel, and it is the one property that has
-	to be consistent across every surface for the set to look like one thing.
-]]
 function Primitives.stroke(parent: Instance, color: Color3?, thickness: number?): UIStroke
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = color or Theme.color.line
 	stroke.Thickness = thickness or Theme.stroke.base
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.LineJoinMode = Enum.LineJoinMode.Round
 	stroke.Transparency = 0
 	stroke.Parent = parent
 	return stroke
@@ -63,31 +48,6 @@ function Primitives.list(parent: Instance, padding: number?, align: Enum.Horizon
 	return layout
 end
 
---[[
-	A soft drop shadow, faked with a stack of offset frames rather than an image
-	asset. Costs a few frames and needs no upload, which matters because the
-	whole UI is built in code and has no asset dependencies.
-]]
-function Primitives.shadow(target: GuiObject, layers: number?)
-	local count = layers or 3
-	for index = count, 1, -1 do
-		local shade = Instance.new("Frame")
-		shade.Name = `Shadow_{index}`
-		shade.AnchorPoint = target.AnchorPoint
-		shade.Position = target.Position + UDim2.fromOffset(0, index)
-		shade.Size = target.Size
-		-- Near-black, and denser than the old warm-brown shadow: a soft brown
-		-- haze under a dark panel is invisible, and the drop is part of the
-		-- chunky look rather than a nicety.
-		shade.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-		shade.BackgroundTransparency = 0.62 + index * 0.08
-		shade.BorderSizePixel = 0
-		shade.ZIndex = target.ZIndex - 1
-		shade.Parent = target.Parent
-		Primitives.corner(shade, Theme.radius.card)
-	end
-end
-
 function Primitives.aspect(parent: Instance, ratio: number): UIAspectRatioConstraint
 	local constraint = Instance.new("UIAspectRatioConstraint")
 	constraint.AspectRatio = ratio
@@ -104,29 +64,160 @@ function Primitives.grid(parent: Instance, cell: UDim2, padding: UDim2?): UIGrid
 	return layout
 end
 
---[[
-	A radial progress meter, with no image assets.
+local function elevationOf(level: (string | number)?): { layers: number, spread: number, opacity: number }
+	if type(level) == "number" then
+		return { layers = level, spread = 3, opacity = 0.68 }
+	end
+	return (Theme.elevation :: any)[level or "base"] or Theme.elevation.base
+end
 
-	Built as N discrete tick marks arranged around a circle, lit up to the
-	fraction. NOT as a swept arc: Roblox has no arc primitive, and the usual
-	two-mask trick (clip the circle in half, rotate a leaf inside each half)
-	only works if the leaf is a half-disc — rotate a FULL disc and nothing
-	visibly moves, which is exactly the bug the obvious implementation has.
+function Primitives.shadow(target: GuiObject, level: (string | number)?, tint: Color3?)
+	local spec = elevationOf(level)
+	if spec.layers <= 0 then
+		return
+	end
 
-	Ticks sidestep the whole problem, and are honestly the better read for a
-	gauge: they give the eye something to count.
+	local radius = Theme.radius.card
+	local corner = target:FindFirstChildOfClass("UICorner")
+	if corner then
+		radius = corner.CornerRadius.Offset
+	end
 
-	Returns `(container, setProgress)`. The caller never sees the ticks.
+	for index = spec.layers, 1, -1 do
+		local grow = index * spec.spread
+		local shade = Instance.new("Frame")
+		shade.Name = `Shadow_{index}`
+		shade.AnchorPoint = target.AnchorPoint
+		shade.Position = target.Position + UDim2.fromOffset(0, math.ceil(index * spec.spread * 0.5))
+		shade.Size = target.Size + UDim2.fromOffset(grow, grow)
+		shade.BackgroundColor3 = tint or Theme.color.shadow
+		shade.BackgroundTransparency = spec.opacity + (1 - spec.opacity) * (index / spec.layers) * 0.92
+		shade.BorderSizePixel = 0
+		shade.ZIndex = target.ZIndex - 1
+		shade.Parent = target.Parent
+		Primitives.corner(shade, radius + math.floor(grow / 2))
+	end
+end
 
-	Used for the stamina ring in the work core — the most looked-at number in
-	the game, and worth not being another horizontal bar in a stack of them.
-]]
-local RING_TICKS = 40
+function Primitives.sheen(target: GuiObject, strength: number?): Frame
+	local gloss = Instance.new("Frame")
+	gloss.Name = "Sheen"
+	gloss.BackgroundColor3 = Theme.color.white
+	gloss.BackgroundTransparency = 1 - (strength or 0.34)
+	gloss.BorderSizePixel = 0
+	gloss.Size = UDim2.new(1, 0, 0.52, 0)
+	gloss.ZIndex = target.ZIndex
+	gloss.Parent = target
+
+	local corner = target:FindFirstChildOfClass("UICorner")
+	Primitives.corner(gloss, if corner then corner.CornerRadius.Offset else Theme.radius.card)
+
+	local fade = Instance.new("UIGradient")
+	fade.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(0.68, 0.72),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	fade.Rotation = 90
+	fade.Parent = gloss
+
+	return gloss
+end
+
+function Primitives.innerLine(target: GuiObject, color: Color3?, inset: number?): Frame
+	local amount = inset or 3
+	local liner = Instance.new("Frame")
+	liner.Name = "InnerLine"
+	liner.AnchorPoint = Vector2.new(0.5, 0.5)
+	liner.Position = UDim2.fromScale(0.5, 0.5)
+	liner.Size = UDim2.new(1, -amount * 2, 1, -amount * 2)
+	liner.BackgroundTransparency = 1
+	liner.ZIndex = target.ZIndex
+	liner.Parent = target
+
+	local corner = target:FindFirstChildOfClass("UICorner")
+	local base = if corner then corner.CornerRadius.Offset else Theme.radius.card
+	Primitives.corner(liner, math.max(2, base - amount))
+
+	local edge = Primitives.stroke(liner, color or Theme.color.lineBright, Theme.stroke.hair)
+	edge.Transparency = 0.55
+
+	return liner
+end
+
+function Primitives.focusRing(target: GuiObject, color: Color3?): UIStroke
+	local ring = Instance.new("UIStroke")
+	ring.Name = "FocusRing"
+	ring.Color = color or Theme.color.sky
+	ring.Thickness = Theme.state.focus.thickness
+	ring.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	ring.LineJoinMode = Enum.LineJoinMode.Round
+	ring.Transparency = 1
+	ring.Parent = target
+	return ring
+end
+
+function Primitives.divider(parent: Instance, color: Color3?): Frame
+	local rule = Instance.new("Frame")
+	rule.Name = "Divider"
+	rule.BackgroundColor3 = color or Theme.color.lineSoft
+	rule.BorderSizePixel = 0
+	rule.Size = UDim2.new(1, 0, 0, 2)
+	rule.ZIndex = 3
+	rule.Parent = parent
+	Primitives.corner(rule, 1)
+	return rule
+end
+
+function Primitives.well(parent: Instance, name: string, config: { [string]: any }?): Frame
+	local options = config or {}
+	local frame = Instance.new("Frame")
+	frame.Name = name
+	frame.BackgroundColor3 = options.color or Theme.color.paperSunken
+	frame.BorderSizePixel = 0
+	frame.ZIndex = options.zIndex or 3
+	if options.extent then
+		frame.Size = options.extent
+	end
+	if options.position then
+		frame.Position = options.position
+	end
+	if options.anchor then
+		frame.AnchorPoint = options.anchor
+	end
+	frame.Parent = parent
+
+	Primitives.corner(frame, options.radius or Theme.radius.well)
+	local edge = Primitives.stroke(frame, Theme.color.lineSoft, Theme.stroke.hair)
+	edge.Transparency = 0.2
+
+	local shade = Instance.new("Frame")
+	shade.Name = "InnerShade"
+	shade.BackgroundColor3 = Theme.color.shadow
+	shade.BackgroundTransparency = 0.86
+	shade.BorderSizePixel = 0
+	shade.Size = UDim2.new(1, 0, 0, 10)
+	shade.ZIndex = frame.ZIndex + 1
+	shade.Parent = frame
+	Primitives.corner(shade, options.radius or Theme.radius.well)
+
+	local fade = Instance.new("UIGradient")
+	fade.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	fade.Rotation = 90
+	fade.Parent = shade
+
+	return frame
+end
+
+local RING_TICKS = 44
 
 function Primitives.ring(parent: Instance, name: string, config: { [string]: any }): (Frame, (fraction: number) -> ())
 	local thickness = config.thickness or 8
 	local color = config.color or Theme.color.leaf
-	local track = config.trackColor or Theme.color.line
+	local track = config.trackColor or Theme.color.lineSoft
 
 	local container = Instance.new("Frame")
 	container.Name = name
@@ -141,33 +232,40 @@ function Primitives.ring(parent: Instance, name: string, config: { [string]: any
 	end
 	container.Parent = parent
 
-	-- Ticks sit on this radius, in scale. Leaves room inside for a glyph and a
-	-- number without either crowding the ring.
 	local radius = 0.42
 
 	local ticks: { Frame } = {}
+	local glows: { Frame } = {}
 	for index = 1, RING_TICKS do
-		--[[
-			Clockwise from the top, which is how every dial a player has ever
-			seen reads. Screen +Y is DOWN, so "up" from the centre is -Y and the
-			cosine term is subtracted.
-		]]
 		local angle = (index - 1) / RING_TICKS * math.pi * 2
+		local px = 0.5 + math.sin(angle) * radius
+		local py = 0.5 - math.cos(angle) * radius
+
+		local glow = Instance.new("Frame")
+		glow.Name = `Glow_{index}`
+		glow.AnchorPoint = Vector2.new(0.5, 0.5)
+		glow.Position = UDim2.fromScale(px, py)
+		glow.Size = UDim2.fromOffset(math.max(4, thickness * 0.9), thickness + 6)
+		glow.Rotation = math.deg(angle)
+		glow.BackgroundColor3 = color
+		glow.BackgroundTransparency = 1
+		glow.BorderSizePixel = 0
+		glow.ZIndex = container.ZIndex
+		glow.Parent = container
+		Primitives.corner(glow, 4)
+		glows[index] = glow
 
 		local tick = Instance.new("Frame")
 		tick.Name = `Tick_{index}`
 		tick.AnchorPoint = Vector2.new(0.5, 0.5)
-		tick.Position = UDim2.fromScale(0.5 + math.sin(angle) * radius, 0.5 - math.cos(angle) * radius)
+		tick.Position = UDim2.fromScale(px, py)
 		tick.Size = UDim2.fromOffset(math.max(2, thickness * 0.42), thickness)
-		-- A Frame at rotation 0 has its long axis vertical, which is radial at
-		-- the top of the circle — so the rotation IS the bearing, unchanged.
 		tick.Rotation = math.deg(angle)
 		tick.BackgroundColor3 = track
 		tick.BorderSizePixel = 0
 		tick.ZIndex = container.ZIndex + 1
 		tick.Parent = container
 		Primitives.corner(tick, 2)
-
 		ticks[index] = tick
 	end
 
@@ -184,7 +282,8 @@ function Primitives.ring(parent: Instance, name: string, config: { [string]: any
 		for index, tick in ticks do
 			local on = index <= count
 			tick.BackgroundColor3 = if on then color else track
-			tick.BackgroundTransparency = if on then 0 else 0.45
+			tick.BackgroundTransparency = if on then 0 else 0.5
+			glows[index].BackgroundTransparency = if on and index > count - 4 then 0.72 else 1
 		end
 	end
 
@@ -192,12 +291,6 @@ function Primitives.ring(parent: Instance, name: string, config: { [string]: any
 	return container, setProgress
 end
 
---[[
-	A vignette: four edge gradients that darken or tint the screen border.
-
-	Used for the click pulse. Four frames rather than one image keeps the
-	no-assets rule and costs nothing, since they are transparent at rest.
-]]
 function Primitives.vignette(parent: Instance, name: string, color: Color3): { Frame }
 	local edges = {
 		{ anchor = Vector2.new(0.5, 0), pos = UDim2.fromScale(0.5, 0), size = UDim2.new(1, 0, 0, 130), rot = 90 },

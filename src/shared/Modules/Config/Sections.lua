@@ -42,8 +42,8 @@ local MAP = {
 	{ "flower", "ramen", "farm", "sakura", "study", "flower" },
 	{ "meadow", "berry", "farm", "farm", "tea", "grove" },
 	{ "meadow", "bramble", "town", "town", "picnic", "grove" },
-	{ "meadow", "sausage", "sausage", "mushroom", "snow", "meadow" },
-	{ "meadow", "sausage", "sausage", "grove", "rocky", "meadow" },
+	{ "meadow", "sausage", "sausage", "mushroom", "snow", "lake" },
+	{ "meadow", "sausage", "sausage", "grove", "quarry", "meadowQuiet" },
 }
 
 function Sections.themeAt(i: number, j: number): string?
@@ -88,7 +88,6 @@ function Sections.byCoord(coord: string): Cell?
 	return Sections.cell(i, j)
 end
 
--- True where nobody built: no paving, no signposts, no houses.
 function Sections.isWild(x: number, z: number): boolean
 	local cell = Sections.cellAt(x, z)
 	local theme = cell and Sections.THEMES[cell.theme]
@@ -205,16 +204,7 @@ Sections.THEMES = {
 			{ kind = "coded", fn = "boulder", count = 1 },
 		},
 	},
-	--[[
-		`wild` means nobody built here: no signpost, no arch, no paving, and no
-		road along its borders. What grows is forest floor -- ferns, flowers,
-		fallen wood, rock -- because a forest with nothing but its trees reads
-		as a lawn with poles on it.
 
-		`relief` breaks the flat ground up. The section pass is coarse by
-		default, so a wild cell subdivides further and adds its own low noise on
-		top of the island's rolling hills.
-	]]
 	sausage = {
 		name = "Sausage Forest",
 		sub = "they grow on trees",
@@ -371,20 +361,55 @@ Sections.THEMES = {
 			{ kind = "grass", count = 6 },
 		},
 	},
-}
-
-Sections.PATH_TARGETS = {
-	{ 6, 3 },
-	{ 2, 4 },
-	{ 4, 2 },
-	{ 5, 2 },
-	{ 3, 1 },
-	{ 3, 6 },
-	{ 5, 4 },
-	{ 2, 5 },
-	{ 5, 3 },
-	{ 3, 5 },
-	{ 5, 5 },
+	meadowQuiet = {
+		name = "Quiet Meadow",
+		sub = "nobody built here",
+		material = "LeafyGrass",
+		recipe = {
+			{ kind = "tree", count = 13, h = { 9, 17 }, canopy = { 10, 16 } },
+			{ kind = "bush", count = 16, s = { 3, 7 } },
+			{ kind = "stone", count = 8, s = { 3, 6 } },
+			{ kind = "log", count = 5, l = { 6, 11 } },
+			{ kind = "grass", count = 30 },
+			{ kind = "grassPatch", count = 8, h = { 1.6, 2.6 } },
+			{ kind = "flower", count = 9 },
+			{ kind = "coded", fn = "boulder", count = 2 },
+		},
+	},
+	lake = {
+		name = "Still Water",
+		sub = "something is biting",
+		material = "Sand",
+		recipe = {
+			{ kind = "coded", fn = "reedClump", count = 16 },
+			{ kind = "coded", fn = "cattailStand", count = 10 },
+			{ kind = "coded", fn = "mooringPost", count = 4 },
+			{ kind = "coded", fn = "rowBoat", count = 1 },
+			{ kind = "coded", fn = "boulder", count = 2 },
+			{ kind = "stone", count = 9, s = { 3, 6 } },
+			{ kind = "log", count = 4, l = { 6, 11 } },
+			{ kind = "tree", count = 6, h = { 10, 15 }, canopy = { 9, 13 } },
+			{ kind = "grassPatch", count = 10, h = { 1.6, 2.6 } },
+			{ kind = "grass", count = 18 },
+			{ kind = "flower", count = 5 },
+		},
+	},
+	quarry = {
+		name = "The Quarry",
+		sub = "mind the drop",
+		material = "Slate",
+		recipe = {
+			{ kind = "coded", fn = "spoilHeap", count = 6 },
+			{ kind = "coded", fn = "timberScaffold", count = 4 },
+			{ kind = "coded", fn = "quarryCart", count = 2 },
+			{ kind = "coded", fn = "cairn", count = 3 },
+			{ kind = "coded", fn = "boulder", count = 5 },
+			{ kind = "stone", count = 18, s = { 4, 10 } },
+			{ kind = "log", count = 3, l = { 6, 10 } },
+			{ kind = "bush", count = 4, s = { 3, 5 } },
+			{ kind = "grass", count = 5 },
+		},
+	},
 }
 
 return Sections
