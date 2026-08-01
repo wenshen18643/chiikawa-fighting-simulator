@@ -15,9 +15,13 @@
 	  - Companion.Select    client -> server, which friend follows them.
 	  - Study.Page          client -> server, one completed study-page intent.
 	  - Study.Answer        client -> server, an option from the issued question.
-	  - Study.SitExam       client -> server, request to begin the Grade 5 exam.
 	  - Study.Close         client -> server, abandon the current book session.
-	  - Study.Event         server -> client, study/exam presentation payloads.
+	  - Study.Event         server -> client, study presentation payloads.
+	  - Exam.Open           server -> client, open the exam counter at the desk.
+	  - Exam.Sit            client -> server, which skill to be certified in.
+	  - Exam.Answer         client -> server, an option from the issued quiz card.
+	  - Exam.Close          client -> server, abandon an in-progress exam.
+	  - Exam.Event          server -> client, eligibility, quiz and result payloads.
 	  - Forage.Event        server -> client, pluck progress/success for VFX.
 	  - Feast.Event         server -> client, shared bite progress on giant food.
 	  - Cook.Open           server -> client, open the kitchen UI.
@@ -74,11 +78,23 @@ local REMOTE_TREE = {
 		Page = "RemoteEvent",
 		-- The id of the plant button chosen for the currently issued question.
 		Answer = "RemoteEvent",
-		-- Requests the exam once the authoritative readiness requirements are met.
-		SitExam = "RemoteEvent",
-		-- Cancels any pending recall prompt or in-progress exam when the book closes.
+		-- Cancels any pending recall prompt when the book closes.
 		Close = "RemoteEvent",
-		-- Preview, question, feedback and result payloads from server to client.
+		-- Preview, question and feedback payloads from server to client.
+		Event = "RemoteEvent",
+	},
+	Exam = {
+		-- server -> client: the desk prompt was triggered, with one eligibility
+		-- row per skill. Sent rather than derived, because the cap, the item
+		-- counts and the readiness bar are all server-owned.
+		Open = "RemoteEvent",
+		-- client -> server: which skill to sit for. Every gate is rechecked here.
+		Sit = "RemoteEvent",
+		-- client -> server: the id of the plant chosen for the current quiz card.
+		Answer = "RemoteEvent",
+		-- client -> server: walked away mid-exam.
+		Close = "RemoteEvent",
+		-- server -> client: refreshed eligibility, quiz cards and results.
 		Event = "RemoteEvent",
 	},
 	-- Plucking itself uses server ProximityPrompts, so there is deliberately no

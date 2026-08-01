@@ -49,6 +49,8 @@ local BOOT_ORDER = {
 	-- The open-book recall layer subscribes to completed Exam Prep gestures and
 	-- draws above the HUD when a study card or exam question arrives.
 	{ container = script.UI, name = "StudySession" },
+	-- The Exam Hall desk's own prompt opens this; it never polls the world.
+	{ container = script.UI, name = "ExamCounter" },
 	{ container = script.UI, name = "ControlsPanel" },
 	-- Begins after the first-session Field Guide closes and acknowledges the
 	-- intro only after move, sprint, jump and work have actually been performed.

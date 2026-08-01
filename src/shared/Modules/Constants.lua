@@ -41,13 +41,16 @@ Constants.WORK = {
 }
 
 --[[
-	The first certification slice: studying prepares the player for the canon
-	Kusatori Grade 5 exam. Page flips are their own server-validated action;
-	ordinary Work clicks never grant Exam Prep.
+	The book. Page flips are their own server-validated action; ordinary Work
+	clicks never grant Exam Prep.
+
+	PAGE_BASE_GAIN is deliberately one, not two. Exam Prep's certification order
+	is the ceiling on every other skill's, so the stat that gates the game must
+	not also be the fastest one to raise: at two, a page every PAGE_DEBOUNCE
+	beats five clicks a second.
 ]]
 Constants.STUDY = {
-	SUBJECT = "kusatori",
-	PAGE_BASE_GAIN = 2,
+	PAGE_BASE_GAIN = 1,
 	FACT_CHANCE = 0.1,
 	PREVIEW_DURATION = 1.5,
 	CORRECT_PROGRESS = 0.2,
@@ -55,10 +58,17 @@ Constants.STUDY = {
 	FOCUS_BUFF_CHANCE = 0.15,
 	FOCUS_BUFF_DURATION = 30,
 	FOCUS_BUFF_MULTIPLIER = 2,
-	EXAM_QUESTIONS = 5,
-	EXAM_PASSING_ANSWERS = 4,
-	REVIEW_AFTER_FAILURE = 2,
 	PAGE_DEBOUNCE = 0.35,
+}
+
+-- Sitting an exam at the Exam Hall desk. Only Kusatori is quizzed; the rest are
+-- decided by the stat value, the Exam Prep cap, and Exam Prep's item cost.
+Constants.EXAM = {
+	QUESTIONS = 5,
+	PASSING_ANSWERS = 4,
+	REVIEW_AFTER_FAILURE = 2,
+	QUIZ_SKILL = "kusatori",
+	PROMPT_DISTANCE = 14,
 }
 
 --[[

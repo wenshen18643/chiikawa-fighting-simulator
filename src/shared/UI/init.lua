@@ -1,6 +1,7 @@
 local Components = require(script.Components)
 local Glyphs = require(script.Glyphs)
 local Motion = require(script.Motion)
+local Plant = require(script.Plant)
 local Primitives = require(script.Primitives)
 local Templates = require(script.Templates)
 local Theme = require(script.Theme)
@@ -64,6 +65,9 @@ UI.Templates = Templates
 UI.glyph = Glyphs.render
 UI.skillGlyph = Glyphs.forSkill
 UI.Glyphs = Glyphs
+
+UI.plant = Plant.draw
+UI.Plant = Plant
 
 export type LabelConfig = Components.LabelConfig
 export type MountConfig = Templates.MountConfig

@@ -167,7 +167,7 @@ return Area.define({
 		-- The Exam Hall
 		helpers.signpost(ctx, {
 			title = "Exam Hall",
-			subtitle = "grades 5 to 1",
+			subtitle = "certification counter",
 			x = half * 0.48 - 38,
 			z = half * 0.52 - 34,
 		})

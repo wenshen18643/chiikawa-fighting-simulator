@@ -166,6 +166,16 @@ local function reconcile(profile: any): any
 
 	profile.unlockedWorksites = nil
 
+	-- Readiness used to belong to the single Kusatori exam; it is Exam Prep's
+	-- now. Move it across so a returning player does not lose a filled bar.
+	if type(profile.studyProgress) == "table" and (profile.studyProgress.examprep or 0) == 0 then
+		local carried = profile.studyProgress.kusatori
+		if type(carried) == "number" and carried > 0 then
+			profile.studyProgress.examprep = math.clamp(carried, 0, 1)
+			profile.studyProgress.kusatori = 0
+		end
+	end
+
 	if profile.selectedSkill then
 		profile.selectedSkill = Skills.canonicalize(profile.selectedSkill)
 	end
