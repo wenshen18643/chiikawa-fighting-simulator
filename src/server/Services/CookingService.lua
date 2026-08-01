@@ -221,7 +221,7 @@ local function onClick(player: Player)
 	-- Every click invested pays resilience: needed clicks, not surviving ones,
 	-- so a high-resilience cook is not paid less for being better at this.
 	local gain =
-		BigNumber.mulNumber(Formulas.gainPerAction(profile, "resilience", nil), session.needed * COOKING.XP_PER_CLICK)
+		BigNumber.mulNumber(Formulas.gainPerAction(profile, "resilience"), session.needed * COOKING.XP_PER_CLICK)
 	SkillService.award(player, profile, "resilience", gain)
 
 	eventRemote:FireClient(player, "done", recipeId, gain)

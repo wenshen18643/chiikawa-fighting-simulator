@@ -11,11 +11,8 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
-local Areas = require(Shared.Areas)
-local Layout = require(Shared.Modules.Config.Layout)
 local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
-local Worksites = require(Shared.Modules.Config.Worksites)
 local UI = require(Shared.UI)
 
 local WorkController = require(script.Parent.WorkController)
@@ -24,7 +21,6 @@ local FeedbackController = {}
 
 local MAX_POPUPS = 16
 local MAX_SPARKS = 40
-local MAX_RIPPLES = 8
 
 local screen: ScreenGui
 local popupLayer: Frame
@@ -33,7 +29,6 @@ local vignetteFrames: { Frame }
 
 local activePopups = 0
 local activeSparks = 0
-local activeRipples = 0
 
 local punch = 0
 local punchTarget = 0
@@ -310,51 +305,6 @@ local function expireTrail()
 	end
 end
 
-local function ripple(worksiteId: string, regionId: number?)
-	if activeRipples >= MAX_RIPPLES then
-		return
-	end
-
-	local area = regionId and Areas.get(regionId)
-	if not area then
-		return
-	end
-
-	local position = Layout.padPosition(area, worksiteId)
-	local camera = Workspace.CurrentCamera
-	if not position or not camera then
-		return
-	end
-
-	local worksite = Worksites.get(worksiteId)
-	local color = skillColor(worksite and worksite.skill)
-
-	activeRipples += 1
-
-	local ring = Instance.new("Part")
-	ring.Name = "WorkRipple"
-	ring.Anchored = true
-	ring.CanCollide = false
-	ring.CanQuery = false
-	ring.CanTouch = false
-	ring.Shape = Enum.PartType.Cylinder
-	ring.Size = Vector3.new(0.4, 8, 8)
-	ring.CFrame = CFrame.new(position + Vector3.new(0, 2.6, 0)) * CFrame.Angles(0, 0, math.rad(90))
-	ring.Color = color
-	ring.Material = Enum.Material.Neon
-	ring.Transparency = 0.25
-	ring.Parent = camera
-
-	local grow = UI.motion.play(ring, UI.motion.riseOut, {
-		Size = Vector3.new(0.4, 74, 74),
-		Transparency = 1,
-	})
-	grow.Completed:Connect(function()
-		ring:Destroy()
-		activeRipples -= 1
-	end)
-end
-
 local function kickCamera(strength: number)
 	if UI.motion.isReducedMotion() then
 		return
@@ -478,7 +428,7 @@ function FeedbackController.init()
 
 	WorkController.onComplete(onLocalClick)
 
-	Remotes.event("Work", "Feedback").OnClientEvent:Connect(function(skillId, gain, worksiteId, regionId, companionGain)
+	Remotes.event("Work", "Feedback").OnClientEvent:Connect(function(skillId, gain, companionGain)
 		local jx = math.random(-48, 48)
 		local jy = math.random(-14, 14)
 
@@ -486,10 +436,6 @@ function FeedbackController.init()
 
 		if companionGain and not BigNumber.isZero(companionGain) then
 			showGain(companionGain, skillId, jx + 110, jy + 14, 0.6)
-		end
-
-		if worksiteId and regionId then
-			ripple(worksiteId, regionId)
 		end
 	end)
 

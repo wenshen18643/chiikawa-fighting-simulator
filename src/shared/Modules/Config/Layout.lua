@@ -10,8 +10,6 @@ local SafeZone = require(Shared.Modules.Config.SafeZone)
 local SausageForest = require(Shared.Modules.Config.SausageForest)
 local Sections = require(Shared.Modules.Config.Sections)
 local Farming = require(Shared.Modules.Config.Farming)
-local Skills = require(Shared.Modules.Config.Skills)
-local Worksites = require(Shared.Modules.Config.Worksites)
 
 local Layout = {}
 
@@ -41,18 +39,6 @@ export type Zone = {
 	halfWidth: number?,
 }
 
-export type District = {
-	skillId: string,
-	angle: number,
-	direction: Vector3,
-	worksites: { Worksites.WorksiteDefinition },
-	innerRadius: number,
-	spacing: number,
-	plateCFrame: CFrame,
-	plateSize: Vector3,
-	archCFrame: CFrame,
-}
-
 export type Bridge = {
 	fromId: number,
 	toId: number,
@@ -60,17 +46,6 @@ export type Bridge = {
 	size: Vector3,
 	gateCFrame: CFrame,
 }
-
-local ANGLES = { 50, 90, 130, 310, 270, 230 }
-
-Layout.SKILL_ANGLE = {} :: { [string]: number }
-Layout.SKILL_INDEX = {} :: { [string]: number }
-for index, skillId in Skills.ORDER do
-	local angle = ANGLES[index]
-	assert(angle, `Layout: no district bearing for skill "{skillId}" at index {index}`)
-	Layout.SKILL_ANGLE[skillId] = angle
-	Layout.SKILL_INDEX[skillId] = index
-end
 
 local function directionOf(angleDegrees: number): Vector3
 	local radians = math.rad(angleDegrees)
@@ -83,14 +58,6 @@ end
 
 function Layout.plazaDiameter(area: Areas.AreaDefinition): number
 	return math.max(area.terrain.islandSize * WORLD.PLAZA_DIAMETER_FRACTION, WORLD.PLAZA_MIN_DIAMETER)
-end
-
-function Layout.districtRadius(area: Areas.AreaDefinition): number
-	return WORLD.DISTRICT_INNER_RADIUS + area.terrain.islandSize * WORLD.DISTRICT_RADIUS_FRACTION
-end
-
-function Layout.padSpacing(area: Areas.AreaDefinition): number
-	return WORLD.DISTRICT_PAD_SPACING + area.terrain.islandSize * WORLD.DISTRICT_SPACING_FRACTION
 end
 
 function Layout.halfSize(area: Areas.AreaDefinition): number
@@ -158,106 +125,21 @@ export type FarmRouteSegment = {
 }
 
 function Layout.farmRouteSegments(area: Areas.AreaDefinition): { FarmRouteSegment }
-	local kusatori = Layout.padCFrame(area, "kusatori", 1)
-	local start = kusatori:PointToWorldSpace(Vector3.new(0, 0, WORLD.WORKSITE_SIZE.Z / 2 + 5))
-	local kitchenApproach = Layout.kitchenCFrame(area):PointToWorldSpace(Vector3.new(0, 0, -44.5))
-	return {
-		{ id = "KusatoriToFarm", from = start, to = Layout.farmEntranceCFrame(area).Position },
-		{ id = "KusatoriToKitchen", from = start, to = kitchenApproach },
-	}
-end
+	local radius = Layout.plazaDiameter(area) / 2
 
-function Layout.padDistance(area: Areas.AreaDefinition, tierIndex: number): number
-	return Layout.districtRadius(area) + (tierIndex - 1) * Layout.padSpacing(area)
-end
+	local function plazaEdgeToward(target: Vector3): Vector3
+		local flat = Vector3.new(target.X - area.origin.X, 0, target.Z - area.origin.Z)
+		local direction = if flat.Magnitude > 0 then flat.Unit else Vector3.new(0, 0, 1)
+		return area.origin + direction * radius + Vector3.new(0, WORLD.PLATFORM_TOP, 0)
+	end
 
-function Layout.padCFrame(area: Areas.AreaDefinition, skillId: string, tierIndex: number): CFrame
-	local direction = directionOf(Layout.SKILL_ANGLE[skillId])
-	local distance = Layout.padDistance(area, tierIndex)
-	local centre = area.origin + direction * distance + Vector3.new(0, surfaceCentreY(WORLD.WORKSITE_SIZE.Y), 0)
-
-	return CFrame.lookAt(centre, centre + direction)
-end
-
-function Layout.districtFor(area: Areas.AreaDefinition, skillId: string): District
-	local angle = Layout.SKILL_ANGLE[skillId]
-	local direction = directionOf(angle)
-	local worksites = Worksites.getInRegionForSkill(area.id, skillId)
-
-	local innerRadius = Layout.districtRadius(area)
-	local spacing = Layout.padSpacing(area)
-	local margin = WORLD.DISTRICT_PLATE_MARGIN
-	local padHalf = WORLD.WORKSITE_SIZE.X / 2
-
-	local run = math.max(#worksites - 1, 0) * spacing
-	local plateLength = run + WORLD.WORKSITE_SIZE.Z + margin * 2
-	local plateCentre = area.origin
-		+ direction * (innerRadius + run / 2)
-		+ Vector3.new(0, surfaceCentreY(WORLD.PLATFORM_THICKNESS) - 0.5, 0)
-
-	local archCentre = area.origin
-		+ direction * (innerRadius - padHalf - WORLD.DISTRICT_ARCH_SETBACK)
-		+ Vector3.new(0, WORLD.PLATFORM_TOP, 0)
+	local farm = Layout.farmEntranceCFrame(area).Position
+	local kitchen = Layout.kitchenCFrame(area):PointToWorldSpace(Vector3.new(0, 0, -44.5))
 
 	return {
-		skillId = skillId,
-		angle = angle,
-		direction = direction,
-		worksites = worksites,
-		innerRadius = innerRadius,
-		spacing = spacing,
-		plateCFrame = CFrame.lookAt(plateCentre, plateCentre + direction),
-		plateSize = Vector3.new(WORLD.WORKSITE_SIZE.X + margin * 2, WORLD.PLATFORM_THICKNESS, plateLength),
-
-		archCFrame = CFrame.lookAt(archCentre, archCentre - direction),
+		{ id = "PlazaToFarm", from = plazaEdgeToward(farm), to = farm },
+		{ id = "PlazaToKitchen", from = plazaEdgeToward(kitchen), to = kitchen },
 	}
-end
-
-local districtCache: { [number]: { District } } = {}
-
-function Layout.districts(area: Areas.AreaDefinition): { District }
-	local cached = districtCache[area.id]
-	if cached then
-		return cached
-	end
-
-	local result = {}
-	for _, skillId in Skills.ORDER do
-		table.insert(result, Layout.districtFor(area, skillId))
-	end
-
-	districtCache[area.id] = result
-	return result
-end
-
-function Layout.padsFor(
-	area: Areas.AreaDefinition
-): { { worksite: Worksites.WorksiteDefinition, cframe: CFrame, tierIndex: number } }
-	local result = {}
-	for _, district in Layout.districts(area) do
-		for tierIndex, worksite in district.worksites do
-			table.insert(result, {
-				worksite = worksite,
-				cframe = Layout.padCFrame(area, district.skillId, tierIndex),
-				tierIndex = tierIndex,
-			})
-		end
-	end
-	return result
-end
-
-function Layout.padPosition(area: Areas.AreaDefinition, worksiteId: string): Vector3?
-	local worksite = Worksites.get(worksiteId)
-	if not worksite or worksite.homeRegion > area.id then
-		return nil
-	end
-	local available = Worksites.getInRegionForSkill(area.id, worksite.skill)
-	for tierIndex, candidate in available do
-		if candidate.id == worksiteId then
-			return Layout.padCFrame(area, worksite.skill, tierIndex).Position
-		end
-	end
-	return nil
 end
 
 function Layout.mobSpawnCFrames(
@@ -390,21 +272,6 @@ function Layout.reservedZones(area: Areas.AreaDefinition): { Zone }
 			halfWidth = Layout.LIBRARY_APPROACH_WIDTH / 2,
 		})
 	end
-
-	for _, district in Layout.districts(area) do
-		local offset = district.plateCFrame.Position - area.origin
-		table.insert(zones, {
-			kind = "strip",
-			x = offset.X,
-			z = offset.Z,
-			dirX = district.direction.X,
-			dirZ = district.direction.Z,
-			halfLength = district.plateSize.Z / 2 + 40,
-
-			halfWidth = district.plateSize.X / 2 + 16,
-		})
-	end
-
 	for _, entry in SausageForest.CELLS do
 		local cell = Sections.byCoord(entry.coord)
 		if cell then

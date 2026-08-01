@@ -18,12 +18,10 @@ local ExamQuestions = require(Shared.Modules.Config.ExamQuestions)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
-local Worksites = require(Shared.Modules.Config.Worksites)
 
 local DataService = require(script.Parent.DataService)
 local NotifyService = require(script.Parent.NotifyService)
 local SkillService = require(script.Parent.SkillService)
-local WorksiteService = require(script.Parent.WorksiteService)
 
 local StudyService = {}
 
@@ -72,17 +70,6 @@ local function hasSkillRequirement(profile: any): boolean
 		and BigNumber.gte(current, BigNumber.coerce(Certifications.requirementForOrder(1)))
 end
 
-local function studyWorksite(player: Player, profile: any): string?
-	local spot = WorksiteService.getOccupied(player)
-	if spot and WorksiteService.validate(player, profile, spot) then
-		local worksite = Worksites.get(spot.worksiteId)
-		if worksite and Skills.canonicalize(worksite.skill) == "examprep" then
-			return spot.worksiteId
-		end
-	end
-	return nil
-end
-
 local function focusExpiresAt(profile: any): number
 	local now = os.time()
 	for _, boost in profile.boosts do
@@ -113,15 +100,7 @@ local function grantFocus(profile: any): number
 end
 
 local function awardPage(player: Player, profile: any): BigNumber.BigNum
-	local worksiteId = studyWorksite(player, profile)
-	local gain =
-		BigNumber.mulNumber(Formulas.gainMultiplier(profile, "examprep", worksiteId), Constants.STUDY.PAGE_BASE_GAIN)
-	if not worksiteId then
-		gain = BigNumber.mulNumber(gain, Constants.WORK.OFF_PAD_MULTIPLIER)
-		if WorksiteService.isInSkillDistrict(player, "examprep") then
-			gain = BigNumber.mulNumber(gain, Constants.STUDY.DECK_MULTIPLIER)
-		end
-	end
+	local gain = BigNumber.mulNumber(Formulas.gainMultiplier(profile, "examprep"), Constants.STUDY.PAGE_BASE_GAIN)
 	SkillService.award(player, profile, "examprep", gain)
 	return gain
 end

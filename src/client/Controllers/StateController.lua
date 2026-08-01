@@ -30,11 +30,6 @@ function StateController.onChanged(callback: (snapshot: any) -> ()): () -> ()
 	end
 end
 
-function StateController.isWorking(): boolean
-	local snapshot = StateController.snapshot
-	return snapshot ~= nil and snapshot.currentWorksite ~= nil
-end
-
 function StateController.init()
 	Remotes.event("State", "Snapshot").OnClientEvent:Connect(function(snapshot)
 		StateController.snapshot = snapshot

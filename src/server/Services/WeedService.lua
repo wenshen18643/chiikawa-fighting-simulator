@@ -1,5 +1,7 @@
 local CollectionService = game:GetService("CollectionService")
 
+local WorldService = require(script.Parent.WorldService)
+
 local WeedService = {}
 
 WeedService.PULL_RADIUS = 10
@@ -89,6 +91,24 @@ function WeedService.pull(section: Section)
 		for part, transparency in section.transparency do
 			if part.Parent then
 				part.Transparency = transparency
+			end
+		end
+	end)
+end
+
+local PATCH_MODEL = "WeedingPatchProp"
+
+local function isSprout(child: Instance): boolean
+	return child.Name:match("^WeedSprout_") ~= nil
+end
+
+function WeedService.init()
+	task.spawn(function()
+		WorldService.awaitDressed()
+
+		for _, descendant in workspace:GetDescendants() do
+			if descendant:IsA("Model") and descendant.Name == PATCH_MODEL then
+				WeedService.registerPatch(descendant, isSprout)
 			end
 		end
 	end)

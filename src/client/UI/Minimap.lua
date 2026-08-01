@@ -6,15 +6,15 @@
 	that is a requirement rather than a preference: the world runs with
 	StreamingEnabled, so at any moment most of it does not exist on the client.
 	A minimap built by scanning for parts would show the player standing in a
-	void with three pads in it.
+	void with a few props in it.
 
 	Because Layout is the same module the server built the world from, the map is
 	correct by construction — there is no second description of where anything is
 	that could drift.
 
 	Two views, because they answer different questions:
-	  - the LOCAL view answers "which way is the Craft district" and is what you
-	    look at while playing;
+	  - the LOCAL view answers "which way is the plaza" and is what you look at
+	    while playing;
 	  - the WORLD strip answers "how far along am I", and at 27,000 studs across
 	    with six areas in a line, a strip is honestly what the world looks like.
 ]]
@@ -30,7 +30,6 @@ local Areas = require(Shared.Areas)
 local Cave = require(Shared.Modules.Config.Cave)
 local Layout = require(Shared.Modules.Config.Layout)
 local Sections = require(Shared.Modules.Config.Sections)
-local Skills = require(Shared.Modules.Config.Skills)
 local UI = require(Shared.UI)
 
 local StateController = require(script.Parent.Parent.Controllers.StateController)
@@ -104,48 +103,6 @@ local function buildLocalView(area: Areas.AreaDefinition)
 	road.BorderSizePixel = 0
 	road.ZIndex = 4
 	road.Parent = layer
-
-	-- Districts: one rotated bar per skill, at its real bearing.
-	for _, district in Layout.districts(area) do
-		if #district.worksites == 0 then
-			continue
-		end
-
-		local skill = Skills.get(district.skillId)
-		local colour = (skill and skill.color) or UI.color.leaf or Color3.fromRGB(126, 190, 104)
-		local offset = district.plateCFrame.Position - area.origin
-		local fraction = toLocalFraction(area, offset.X, offset.Z)
-
-		local bar = Instance.new("Frame")
-		bar.Name = district.skillId
-		bar.AnchorPoint = Vector2.new(0.5, 0.5)
-		bar.Position = UDim2.fromScale(fraction.X, fraction.Y)
-		-- Long axis is WIDTH, so Rotation can be the world bearing unchanged:
-		-- a Frame rotated by R sends its local +X to (cos R, sin R) in screen
-		-- space, and screen +Y is world +Z on this map.
-		bar.Size = UDim2.fromOffset(math.max(6, district.plateSize.Z / area.terrain.islandSize * LOCAL_SIZE), 7)
-		bar.Rotation = district.angle
-		bar.BackgroundColor3 = colour
-		bar.BorderSizePixel = 0
-		bar.ZIndex = 5
-		bar.Parent = layer
-		UI.corner(bar, 3)
-
-		-- The tier-1 pad end gets a dot, so a district reads as having a near
-		-- end and a far end rather than as a floating dash.
-		local head = Instance.new("Frame")
-		head.Name = "Head"
-		head.AnchorPoint = Vector2.new(0.5, 0.5)
-		local headOffset = district.direction * district.innerRadius
-		local headFraction = toLocalFraction(area, headOffset.X, headOffset.Z)
-		head.Position = UDim2.fromScale(headFraction.X, headFraction.Y)
-		head.Size = UDim2.fromOffset(7, 7)
-		head.BackgroundColor3 = colour
-		head.BorderSizePixel = 0
-		head.ZIndex = 6
-		head.Parent = layer
-		UI.corner(head, 999)
-	end
 
 	-- The plaza, and — in Town — the cottage on top of it.
 	local plaza = Instance.new("Frame")

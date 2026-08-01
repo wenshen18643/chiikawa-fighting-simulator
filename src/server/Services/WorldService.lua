@@ -88,10 +88,10 @@ local GATE_PREFIX = "Gate_"
 
 	Gates then FAIL OPEN: the barrier is left non-collidable and a player can
 	walk into an area they have not unlocked. That is deliberately the safe
-	direction. The area gate is still enforced server-side in
-	WorksiteService.canUse, so arriving somewhere early pays out nothing — while
-	failing CLOSED would mean an impassable wall with no way through it, which
-	ends the game for that player.
+	direction. The area gate is still enforced server-side by RegionService,
+	which decides what a profile has unlocked — while failing CLOSED would mean
+	an impassable wall with no way through it, which ends the game for that
+	player.
 ]]
 local collisionGroupsReady = false
 
@@ -690,8 +690,6 @@ local function decorateArea(area: Areas.AreaDefinition, parent: Folder, step: ((
 			first the next time an island is resized.
 		]]
 		plazaRadius = Layout.plazaDiameter(area) / 2,
-		districtRadius = Layout.districtRadius(area),
-		padSpacing = Layout.padSpacing(area),
 		isReserved = function(x: number, z: number): boolean
 			return Layout.isReserved(zones, x, z)
 		end,
@@ -860,9 +858,8 @@ end
 
 	This used to be the first statement in `init()`. On a build without the
 	property that error propagated out of the whole service, so no region folders
-	were ever created — and WorksiteService then reported six missing regions in
-	a row and laid no worksites at all. The player got an empty world because of
-	a rendering hint.
+	were ever created — and every service that builds into one then found nothing
+	to build into. The player got an empty world because of a rendering hint.
 
 	So it is attempted, tolerated, and done LAST, after everything real exists.
 ]]

@@ -101,7 +101,6 @@ export type PlayerProfile = {
 		active: { [string]: number },
 		rank: number,
 	},
-	unlockedWorksites: { [string]: boolean },
 	unlockedRegions: { [string]: boolean }, -- string keys: JSON has no integer keys
 	home: Home,
 	gamepasses: { [number]: boolean },
@@ -133,7 +132,6 @@ export type StateSnapshot = {
 		focusExpiresAt: number,
 		factId: number,
 	},
-	currentWorksite: string?,
 	gainPerAction: BigNum?,
 	yenPerMinute: BigNum,
 	regionId: number,

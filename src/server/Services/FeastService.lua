@@ -208,7 +208,7 @@ local function tell(food: Food, kind: string)
 end
 
 local function awardResilience(player: Player, profile: any, clicks: number)
-	local gain = BigNumber.mulNumber(Formulas.gainPerAction(profile, "resilience", nil), clicks)
+	local gain = BigNumber.mulNumber(Formulas.gainPerAction(profile, "resilience"), clicks)
 	SkillService.award(player, profile, "resilience", gain)
 	if not BigNumber.isZero(gain) then
 		workFeedback:FireClient(player, "resilience", gain)

@@ -6,9 +6,9 @@
 	running across it IS enduring a long shift, and it should pay something.
 
 	Before this, travel was the only activity in the game that produced nothing.
-	A player crossing four areas to reach a district spent minutes going
-	backwards relative to someone stood still on a pad, which is a strange thing
-	for a game about doing an honest day's work to say.
+	A player crossing the map spent minutes going backwards relative to someone
+	stood still clicking, which is a strange thing for a game about doing an
+	honest day's work to say.
 
 	--------------------------------------------------------------------------
 	THE EXPLOIT, AND WHY THIS IS MEASURED RATHER THAN REPORTED
@@ -36,7 +36,6 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Constants = require(Shared.Modules.Constants)
 local Formulas = require(Shared.Modules.Formulas)
-local Remotes = require(Shared.Modules.Remotes)
 
 local CurrencyService = require(script.Parent.CurrencyService)
 local DataService = require(script.Parent.DataService)
@@ -53,8 +52,6 @@ local lastPosition: { [Player]: Vector3 } = {}
 local carry: { [Player]: number } = {}
 local lastJump: { [Player]: number } = {}
 
-local feedback: RemoteEvent?
-
 --------------------------------------------------------------------------------
 -- Awarding
 --------------------------------------------------------------------------------
@@ -69,22 +66,13 @@ local function award(player: Player, units: number)
 		return
 	end
 
-	-- No worksite: the same base rate free-form clicking gets, so travel scales
-	-- with certifications and season rather than becoming worthless by tier 3.
-	local perUnit = Formulas.gainPerAction(profile, SKILL, nil)
-	local gain = BigNumber.mulNumber(perUnit, units * Constants.WORK.OFF_PAD_MULTIPLIER)
+	local gain = BigNumber.mulNumber(Formulas.gainPerAction(profile, SKILL), units)
 
 	SkillService.award(player, profile, SKILL, gain)
 
 	local yen = Formulas.yenForGain(SKILL, gain)
 	if not BigNumber.isZero(yen) then
 		CurrencyService.award(profile, "yen", yen)
-	end
-
-	-- Reuses the click feedback path so a "+N" floats up while running. Nil
-	-- worksite and region, so the client draws no pad ripple.
-	if feedback then
-		feedback:FireClient(player, SKILL, gain, nil, nil)
 	end
 end
 
@@ -163,8 +151,6 @@ end
 --------------------------------------------------------------------------------
 
 function TrainingService.init()
-	feedback = Remotes.event("Work", "Feedback")
-
 	local function bind(player: Player)
 		player.CharacterAdded:Connect(function(character)
 			-- A fresh character is somewhere else entirely; carrying the old

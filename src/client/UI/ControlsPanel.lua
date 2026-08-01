@@ -2,10 +2,10 @@
 	The Field Guide: first-session onboarding and the permanent player manual.
 
 	The old panel put controls and four loop bullets into one fixed 460x500 card.
-	That was enough to start clicking, but not enough to explain selected versus
-	active skills, locked-pad practice, the ladder, region gates or the first
-	half-hour. This version keeps those ideas in six short chapters and gives the
-	30-minute route its own timeline.
+	That was enough to start clicking, but not enough to explain how a skill is
+	chosen, the certification ladder, region gates or the first half-hour. This
+	version keeps those ideas in six short chapters and gives the 30-minute
+	route its own timeline.
 
 	H / F1 / Start and the HUD's ? button reopen the guide. Closing it once is
 	the same acknowledgement the server already saves; page navigation remains

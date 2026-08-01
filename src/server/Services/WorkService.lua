@@ -10,7 +10,6 @@ local Remotes = require(Shared.Modules.Remotes)
 local Companions = require(Shared.Modules.Config.Companions)
 local Seasonings = require(Shared.Modules.Config.Seasonings)
 local Skills = require(Shared.Modules.Config.Skills)
-local Worksites = require(Shared.Modules.Config.Worksites)
 
 local CurrencyService = require(script.Parent.CurrencyService)
 local DataService = require(script.Parent.DataService)
@@ -23,7 +22,6 @@ local QuarryService = require(script.Parent.QuarryService)
 local SkillService = require(script.Parent.SkillService)
 local StaminaService = require(script.Parent.StaminaService)
 local WeedService = require(script.Parent.WeedService)
-local WorksiteService = require(script.Parent.WorksiteService)
 
 local WorkService = {
 	perform = nil :: RemoteEvent?,
@@ -48,7 +46,6 @@ local function credit(
 	player: Player,
 	profile: any,
 	skillId: string,
-	worksiteId: string?,
 	actions: number,
 	actionMultiplier: number?,
 	grantYen: boolean?
@@ -57,12 +54,7 @@ local function credit(
 		return nil
 	end
 
-	local perAction = Formulas.gainPerAction(profile, skillId, worksiteId)
-	if not worksiteId then
-		perAction = BigNumber.mulNumber(perAction, Constants.WORK.OFF_PAD_MULTIPLIER)
-	end
-
-	local gain = BigNumber.mulNumber(perAction, actions)
+	local gain = BigNumber.mulNumber(Formulas.gainPerAction(profile, skillId), actions)
 	if actionMultiplier then
 		gain = BigNumber.mulNumber(gain, actionMultiplier)
 	end
@@ -91,15 +83,7 @@ local function credit(
 	return gain, bonus
 end
 
-local function freeformSkill(player: Player, profile: any): string
-	local blockedSpot = WorksiteService.getBlocked(player)
-	if blockedSpot then
-		local worksite = Worksites.get(blockedSpot.worksiteId)
-		if worksite then
-			return Skills.canonicalize(worksite.skill)
-		end
-	end
-
+local function freeformSkill(_player: Player, profile: any): string
 	local selected = profile.selectedSkill
 	if type(selected) == "string" and Skills.exists(selected) then
 		local canonical = Skills.canonicalize(selected)
@@ -180,13 +164,11 @@ local function pullSomething(player: Player, profile: any): boolean
 end
 
 local WORKING_ATTRIBUTE = "WorkingSkill"
-
-local TIER_ATTRIBUTE = "WorkTier"
 local WORKING_LINGER = 1.2
 
 local workingUntil: { [Player]: number } = {}
 
-local function markWorking(player: Player, skillId: string, tier: number)
+local function markWorking(player: Player, skillId: string)
 	workingUntil[player] = os.clock() + WORKING_LINGER
 
 	local character = player.Character
@@ -195,9 +177,6 @@ local function markWorking(player: Player, skillId: string, tier: number)
 	end
 	if character:GetAttribute(WORKING_ATTRIBUTE) ~= skillId then
 		character:SetAttribute(WORKING_ATTRIBUTE, skillId)
-	end
-	if character:GetAttribute(TIER_ATTRIBUTE) ~= tier then
-		character:SetAttribute(TIER_ATTRIBUTE, tier)
 	end
 end
 
@@ -211,7 +190,6 @@ local function expireWorkingFlags()
 				local character = player.Character
 				if character then
 					character:SetAttribute(WORKING_ATTRIBUTE, nil)
-					character:SetAttribute(TIER_ATTRIBUTE, nil)
 				end
 			end
 		end
@@ -239,23 +217,16 @@ local function onPerform(player: Player)
 			return
 		end
 
-		local gain, bonus = credit(player, profile, "tobatsu", nil, 1, hitDefinition.hitGainMultiplier, false)
+		local gain, bonus = credit(player, profile, "tobatsu", 1, hitDefinition.hitGainMultiplier, false)
 		if not gain then
 			return
 		end
-		markWorking(player, "tobatsu", 1)
-		WorkService.feedback:FireClient(player, "tobatsu", gain, nil, nil, bonus)
+		markWorking(player, "tobatsu")
+		WorkService.feedback:FireClient(player, "tobatsu", gain, bonus)
 		return
 	end
 
-	local spot = WorksiteService.getOccupied(player)
-
-	if spot and not WorksiteService.validate(player, profile, spot) then
-		spot = nil
-	end
-
-	local worksite = if spot then Worksites.get(spot.worksiteId) else nil
-	local skillId = if worksite then (worksite :: any).skill else freeformSkill(player, profile)
+	local skillId = freeformSkill(player, profile)
 
 	if Skills.canonicalize(skillId) == "examprep" then
 		return
@@ -283,28 +254,14 @@ local function onPerform(player: Player)
 		return
 	end
 
-	local gain, bonus = credit(player, profile, skillId, spot and spot.worksiteId or nil, 1, nil)
+	local gain, bonus = credit(player, profile, skillId, 1, nil)
 	if not gain then
 		return
 	end
 
-	markWorking(player, skillId, if worksite then (worksite :: any).tier else 1)
+	markWorking(player, skillId)
 
-	if not spot then
-		local blockedSpot = WorksiteService.getBlocked(player)
-		if blockedSpot then
-			explain(player, WorksiteService.explain(profile, blockedSpot) or "Practising here for now.")
-		end
-	end
-
-	WorkService.feedback:FireClient(
-		player,
-		skillId,
-		gain,
-		spot and spot.worksiteId or nil,
-		spot and spot.regionId or nil,
-		bonus
-	)
+	WorkService.feedback:FireClient(player, skillId, gain, bonus)
 end
 
 local function onSelectSkill(player: Player, skillId: any)
@@ -322,41 +279,6 @@ local function onSelectSkill(player: Player, skillId: any)
 	end
 
 	profile.selectedSkill = Skills.canonicalize(skillId)
-end
-
-local function afkLoop()
-	local interval = Constants.WORK.AFK_TICK_INTERVAL
-
-	while true do
-		task.wait(interval)
-
-		for _, player in Players:GetPlayers() do
-			local profile = DataService.get(player)
-			if not profile then
-				continue
-			end
-
-			local spot = WorksiteService.getOccupied(player)
-			if not spot then
-				continue
-			end
-			if not WorksiteService.validate(player, profile, spot) then
-				continue
-			end
-
-			local worksite = Worksites.get(spot.worksiteId)
-			if not worksite then
-				continue
-			end
-
-			if Skills.canonicalize(worksite.skill) == "examprep" then
-				continue
-			end
-
-			local actions = Formulas.afkActionsPerSecond(profile) * interval
-			credit(player, profile, worksite.skill, spot.worksiteId, actions)
-		end
-	end
 end
 
 function WorkService.init()
@@ -377,7 +299,6 @@ function WorkService.init()
 		workingUntil[player] = nil
 	end)
 
-	task.spawn(afkLoop)
 	task.spawn(expireWorkingFlags)
 end
 

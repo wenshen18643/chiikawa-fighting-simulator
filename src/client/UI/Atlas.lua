@@ -1,15 +1,10 @@
 --[[
 	The Atlas: the full-screen panel behind M / Tab.
 
-	Three tabs, each answering a question the HUD is too small to answer:
+	Two tabs, each answering a question the HUD is too small to answer:
 
 	  WORLD   where everything is, what is open, and fast travel. The map is the
 	          real landmass at real proportions, drawn from Config/Layout.
-	  LADDER  the whole worksite ladder as a grid — four skills across, seven
-	          tiers down, every cell showing its requirement, multiplier and
-	          which area it first appears in. This is where the cumulative ladder
-	          becomes legible: you can see at a glance that the tier you want
-	          exists in the area you are standing in.
 	  GUIDE   controls, and what the game expects of you.
 
 	Nothing here is authoritative. Every value is read from the last snapshot or
@@ -22,12 +17,9 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local BigNumber = require(Shared.Modules.BigNumber)
 local Areas = require(Shared.Areas)
 local Layout = require(Shared.Modules.Config.Layout)
 local Remotes = require(Shared.Modules.Remotes)
-local Skills = require(Shared.Modules.Config.Skills)
-local Worksites = require(Shared.Modules.Config.Worksites)
 local UI = require(Shared.UI)
 
 local StateController = require(script.Parent.Parent.Controllers.StateController)
@@ -44,7 +36,6 @@ local isOpen = false
 
 local travelRemote: RemoteEvent
 local areaCells: { [number]: { cell: Frame, status: TextLabel, button: TextButton } } = {}
-local ladderCells: { [string]: { cell: Frame, status: TextLabel } } = {}
 local playerPin: Frame
 
 --------------------------------------------------------------------------------
@@ -173,130 +164,6 @@ local function buildWorldPage(parent: Frame)
 end
 
 --------------------------------------------------------------------------------
--- Ladder page
---------------------------------------------------------------------------------
-
-local function buildLadderPage(parent: Frame)
-	local page = Instance.new("Frame")
-	page.Name = "Ladder"
-	page.Size = UDim2.fromScale(1, 1)
-	page.BackgroundTransparency = 1
-	page.Visible = false
-	page.ZIndex = parent.ZIndex + 1
-	page.Parent = parent
-	pages.ladder = page
-
-	UI.label(page, "Heading", {
-		text = "EVERY SKILL, EVERY TIER",
-		font = UI.font.bold,
-		size = 11,
-		color = UI.color.inkFaint,
-		extent = UDim2.new(1, 0, 0, 16),
-	})
-
-	UI.label(page, "Blurb", {
-		text = "Each area carries every earlier tier, so all four skills stay trainable.",
-		font = UI.font.light,
-		size = 13,
-		color = UI.color.inkSoft,
-		extent = UDim2.new(1, 0, 0, 18),
-		position = UDim2.fromOffset(0, 18),
-	})
-
-	local grid = Instance.new("Frame")
-	grid.Name = "Grid"
-	grid.Position = UDim2.fromOffset(0, 44)
-	grid.Size = UDim2.new(1, 0, 1, -44)
-	grid.BackgroundTransparency = 1
-	grid.ZIndex = page.ZIndex + 1
-	grid.Parent = page
-
-	local columns = #Skills.ORDER
-	local HEADER_HEIGHT = 34
-	local ROW_HEIGHT = 46
-
-	for columnIndex, skillId in Skills.ORDER do
-		local skill = Skills.get(skillId)
-		local x = (columnIndex - 1) / columns
-
-		-- Column header: the skill's glyph and name.
-		local header = Instance.new("Frame")
-		header.Name = `Header_{skillId}`
-		header.Position = UDim2.new(x, 3, 0, 0)
-		header.Size = UDim2.new(1 / columns, -6, 0, 30)
-		header.BackgroundTransparency = 1
-		header.ZIndex = grid.ZIndex + 1
-		header.Parent = grid
-
-		UI.skillGlyph(header, skillId, {
-			color = skill and skill.color or UI.color.leaf,
-			extent = UDim2.fromOffset(16, 16),
-			anchor = Vector2.new(0.5, 0),
-			position = UDim2.fromScale(0.5, 0),
-			zIndex = header.ZIndex + 1,
-		})
-
-		UI.label(header, "Name", {
-			text = skill and skill.name or skillId,
-			font = UI.font.bold,
-			size = 11,
-			color = skill and skill.color or UI.color.ink,
-			align = Enum.TextXAlignment.Center,
-			extent = UDim2.new(1, 0, 0, 12),
-			position = UDim2.fromOffset(0, 18),
-			zIndex = header.ZIndex + 1,
-		})
-
-		for tierIndex, worksite in Worksites.getLadder(skillId) do
-			local cell = Instance.new("Frame")
-			cell.Name = worksite.id
-			cell.Position = UDim2.new(x, 3, 0, HEADER_HEIGHT + (tierIndex - 1) * ROW_HEIGHT)
-			cell.Size = UDim2.new(1 / columns, -6, 0, ROW_HEIGHT - 4)
-			cell.BackgroundColor3 = UI.color.paperDeep
-			cell.BorderSizePixel = 0
-			cell.ZIndex = grid.ZIndex + 1
-			cell.Parent = grid
-			UI.corner(cell, 8)
-
-			UI.label(cell, "Tier", {
-				text = `T{worksite.tier}  ·  x{worksite.multiplier}`,
-				font = UI.font.bold,
-				size = 11,
-				extent = UDim2.new(1, -10, 0, 13),
-				position = UDim2.fromOffset(6, 4),
-				zIndex = cell.ZIndex + 1,
-			})
-
-			UI.label(cell, "Requirement", {
-				text = if BigNumber.isZero(BigNumber.coerce(worksite.requirement))
-					then "free"
-					else BigNumber.toString(BigNumber.coerce(worksite.requirement)),
-				font = UI.font.light,
-				size = 10,
-				color = UI.color.inkSoft,
-				extent = UDim2.new(1, -10, 0, 12),
-				position = UDim2.fromOffset(6, 16),
-				zIndex = cell.ZIndex + 1,
-			})
-
-			local status = UI.label(cell, "Status", {
-				text = "",
-				font = UI.font.bold,
-				size = 10,
-				color = UI.color.inkFaint,
-				extent = UDim2.new(1, -10, 0, 12),
-				position = UDim2.fromOffset(6, 28),
-				zIndex = cell.ZIndex + 1,
-			})
-
-			ladderCells[worksite.id] = { cell = cell, status = status }
-		end
-	end
-
-	return page
-end
-
---------------------------------------------------------------------------------
 -- Guide page
 --------------------------------------------------------------------------------
 
@@ -350,7 +217,7 @@ local function buildGuidePage(parent: Frame)
 	end
 
 	local notes = {
-		"Standing on a pad still earns while you are away, at half rate. Clicking is better.",
+		"Pick a skill on the bar and click anywhere. Running and jumping raise Resilience on their own.",
 		"Out of stamina is a sit-down, not a penalty. You keep earning through it.",
 		"Nothing in this game can hurt you. Your cottage is safe by rule, not by luck.",
 		"An area opens by itself the moment you have earned it. The gate east unlocks with it.",
@@ -410,37 +277,6 @@ local function refresh()
 		playerPin.Position = UDim2.fromScale(fraction.X, 0.5)
 	end
 
-	--------------------------------------------------------------------------
-	-- The ladder grid. A cell says which of three things it is: earned, the
-	-- next thing to reach for, or further off.
-	--------------------------------------------------------------------------
-	local currentArea = Areas.get(snapshot.regionId)
-
-	for worksiteId, entry in ladderCells do
-		local worksite = Worksites.get(worksiteId)
-		if not worksite then
-			continue
-		end
-
-		local value = snapshot.skills[worksite.skill]
-		local met = value ~= nil and not BigNumber.lt(value, BigNumber.coerce(worksite.requirement))
-		local hereNow = currentArea ~= nil and worksite.homeRegion <= currentArea.id
-
-		if met and hereNow then
-			entry.status.Text = "OPEN HERE"
-			entry.status.TextColor3 = UI.color.leafDeep
-			entry.cell.BackgroundTransparency = 0
-		elseif met then
-			local home = Areas.get(worksite.homeRegion)
-			entry.status.Text = string.upper(`from {home and home.name or "?"}`)
-			entry.status.TextColor3 = UI.color.inkSoft
-			entry.cell.BackgroundTransparency = 0.25
-		else
-			entry.status.Text = "LOCKED"
-			entry.status.TextColor3 = UI.color.inkFaint
-			entry.cell.BackgroundTransparency = 0.55
-		end
-	end
 end
 
 --------------------------------------------------------------------------------
@@ -502,7 +338,6 @@ function Atlas.build(parent: Instance)
 	body.Parent = panel
 
 	buildWorldPage(body)
-	buildLadderPage(body)
 	buildGuidePage(body)
 
 	UI.tabs(panel, "Tabs", {
@@ -511,7 +346,6 @@ function Atlas.build(parent: Instance)
 		zIndex = panel.ZIndex + 1,
 		entries = {
 			{ key = "world", label = "World" },
-			{ key = "ladder", label = "Ladder" },
 			{ key = "guide", label = "Guide" },
 		},
 		onChanged = function(key)

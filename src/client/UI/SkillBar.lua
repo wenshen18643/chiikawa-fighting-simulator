@@ -20,8 +20,8 @@
 
 		( 1 )   <- round button, glyph, ringed in the skill's own colour
 		 1.2K   <- the stat value
-		 ====   <- progress to the next worksite tier
-		 ooooo  <- one pip per tier, lit for the ones earned
+		 ====   <- progress to the next certification grade
+		 ooooo  <- one pip per canon grade, lit for the ones reached
 
 	So the bar did not lose what the stack showed; it stacked it vertically
 	under each icon instead of horizontally across a row.
@@ -30,11 +30,8 @@
 	ACTIVE vs. SELECTED
 	--------------------------------------------------------------------------
 
-	Two states, and they are genuinely different (see HUD.update). ACTIVE is
-	what a click raises right now — the pad under your feet if there is one.
-	SELECTED is what free-form clicking falls back to off a pad. Standing on a
-	Tobatsu pad with Kusatori selected, Tobatsu is lit and Kusatori keeps its
-	ring, so neither piece of behaviour looks like a bug.
+	Two states the caller passes separately (see HUD.update). ACTIVE is what a
+	click raises right now; SELECTED is what the player picked.
 
 	This module owns how those look and exposes them as `setState(lit, picked)`
 	rather than handing its Instances out, so HUD never reaches in to tween a
@@ -44,8 +41,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Certifications = require(Shared.Modules.Config.Certifications)
 local Skills = require(Shared.Modules.Config.Skills)
-local Worksites = require(Shared.Modules.Config.Worksites)
 local UI = require(Shared.UI)
 
 local WorkController = require(script.Parent.Parent.Controllers.WorkController)
@@ -71,7 +68,7 @@ local function buildCell(
 	parent: Instance,
 	index: number,
 	skillId: string,
-	tierCount: number,
+	gradeCount: number,
 	onBlocked: (string) -> ()
 ): SkillEntry
 	local definition = Skills.get(skillId)
@@ -174,8 +171,8 @@ local function buildCell(
 	track.Position = UDim2.fromOffset(10, BUTTON + 24)
 	track.ZIndex = 4
 
-	local _, setPips = UI.pips(cell, "Tiers", {
-		total = tierCount,
+	local _, setPips = UI.pips(cell, "Grades", {
+		total = gradeCount,
 		color = accent,
 		extent = UDim2.fromOffset(CELL_WIDTH - 24, 4),
 		position = UDim2.fromOffset(12, BUTTON + 33),
@@ -240,7 +237,7 @@ end
 ]]
 function SkillBar.build(parent: Instance, onBlocked: (string) -> ()): ({ [string]: SkillEntry }, Frame)
 	local count = #Skills.ORDER
-	local tierCount = #Worksites.getLadder(Skills.ORDER[1])
+	local gradeCount = Certifications.MAX_CANON_ORDER
 
 	holder = Instance.new("Frame")
 	holder.Name = "SkillBar"
@@ -261,7 +258,7 @@ function SkillBar.build(parent: Instance, onBlocked: (string) -> ()): ({ [string
 
 	local entries: { [string]: SkillEntry } = {}
 	for index, skillId in Skills.ORDER do
-		entries[skillId] = buildCell(holder, index, skillId, tierCount, onBlocked)
+		entries[skillId] = buildCell(holder, index, skillId, gradeCount, onBlocked)
 	end
 
 	return entries, holder

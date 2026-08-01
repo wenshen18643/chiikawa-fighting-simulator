@@ -36,12 +36,6 @@ local function edgeDistance(zones: { Layout.Zone }, x: number, z: number): numbe
 		if zone.kind == "circle" then
 			local dx, dz = x - zone.x, z - zone.z
 			distance = math.sqrt(dx * dx + dz * dz) - (zone.radius or 0)
-		elseif zone.kind == "strip" then
-			local dx, dz = x - zone.x, z - zone.z
-			distance = math.max(
-				math.abs(dx * (zone.dirX or 0) + dz * (zone.dirZ or 0)) - (zone.halfLength or 0),
-				math.abs(dx * (zone.dirZ or 0) - dz * (zone.dirX or 0)) - (zone.halfWidth or 0)
-			)
 		else
 			distance = math.max(math.abs(x - zone.x) - (zone.halfX or 0), math.abs(z - zone.z) - (zone.halfZ or 0))
 		end

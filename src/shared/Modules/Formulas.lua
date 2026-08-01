@@ -6,21 +6,13 @@ local Constants = require(Shared.Modules.Constants)
 local Certifications = require(Shared.Modules.Config.Certifications)
 local Gear = require(Shared.Modules.Config.Gear)
 local Skills = require(Shared.Modules.Config.Skills)
-local Worksites = require(Shared.Modules.Config.Worksites)
 
 type BigNum = BigNumber.BigNum
 
 local Formulas = {}
 
-function Formulas.gainMultiplier(profile: any, skillId: string, worksiteId: string?): BigNum
+function Formulas.gainMultiplier(profile: any, skillId: string): BigNum
 	local multiplier = BigNumber.one()
-
-	if worksiteId then
-		local worksite = Worksites.get(worksiteId)
-		if worksite then
-			multiplier = BigNumber.mulNumber(multiplier, worksite.multiplier)
-		end
-	end
 
 	local canonical = Skills.canonicalize(skillId)
 	local order = profile.certifications[canonical] or profile.certifications[skillId] or 0
@@ -36,9 +28,9 @@ function Formulas.gainMultiplier(profile: any, skillId: string, worksiteId: stri
 	return multiplier
 end
 
-function Formulas.gainPerAction(profile: any, skillId: string, worksiteId: string?): BigNum
+function Formulas.gainPerAction(profile: any, skillId: string): BigNum
 	local base = BigNumber.fromNumber(Constants.WORK.BASE_GAIN)
-	return BigNumber.mul(base, Formulas.gainMultiplier(profile, skillId, worksiteId))
+	return BigNumber.mul(base, Formulas.gainMultiplier(profile, skillId))
 end
 
 function Formulas.comfortMultiplier(profile: any): number
@@ -74,10 +66,6 @@ function Formulas.maxActionsPerSecond(profile: any): number
 		return Constants.WORK.MAX_ACTIONS_PER_SECOND_GAMEPASS
 	end
 	return Constants.WORK.MAX_ACTIONS_PER_SECOND
-end
-
-function Formulas.afkActionsPerSecond(profile: any): number
-	return Formulas.maxActionsPerSecond(profile) * Constants.WORK.AFK_RATE_FRACTION
 end
 
 function Formulas.maxStamina(profile: any): number
@@ -164,19 +152,6 @@ end
 
 function Formulas.fishClicks(profile: any, baseClicks: number): number
 	return Formulas.harvestClicks(profile, "rod", baseClicks)
-end
-
-function Formulas.meetsWorksiteRequirement(profile: any, worksiteId: string): boolean
-	local worksite = Worksites.get(worksiteId)
-	if not worksite then
-		return false
-	end
-	local canonical = Skills.canonicalize(worksite.skill)
-	local current = profile.skills[canonical] or profile.skills[worksite.skill]
-	if not BigNumber.isValid(current) then
-		return false
-	end
-	return BigNumber.gte(current, BigNumber.coerce(worksite.requirement))
 end
 
 return Formulas

@@ -74,10 +74,9 @@ local function buildTemplate(): any
 		},
 		seasons = 0,
 		--[[
-			Which skill free-form training raises when the player is not on a
-			worksite pad (§5). Server-owned so a client cannot switch skill
-			per-click to launder gains; changed through Work.SelectSkill, which
-			validates it.
+			Which skill training raises (§5). Server-owned so a client cannot
+			switch skill per-click to launder gains; changed through
+			Work.SelectSkill, which validates it.
 
 			Existing profiles pick this up through reconcile without a migration,
 			since it is a new scalar with a default.
@@ -95,7 +94,6 @@ local function buildTemplate(): any
 			cleared the first time you take one on a new day.
 		]]
 		workOrders = { completed = {}, active = {}, rank = 0 },
-		unlockedWorksites = {},
 		-- String keys throughout: DataStore serialises through JSON, which has
 		-- no integer keys, so {[1] = true} would come back as {["1"] = true}.
 		unlockedRegions = { [tostring(Areas.STARTING_AREA)] = true },
@@ -139,7 +137,6 @@ local OPEN_MAPS = {
 	ingredients = true,
 	seasonings = true,
 	materials = true,
-	unlockedWorksites = true,
 	unlockedRegions = true,
 	gamepasses = true,
 	companions = true,
@@ -166,6 +163,8 @@ local function reconcile(profile: any): any
 	end
 
 	walk(profile, template)
+
+	profile.unlockedWorksites = nil
 
 	if profile.selectedSkill then
 		profile.selectedSkill = Skills.canonicalize(profile.selectedSkill)

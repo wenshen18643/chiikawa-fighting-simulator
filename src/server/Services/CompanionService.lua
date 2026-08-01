@@ -667,8 +667,8 @@ end
 	A table you press E at.
 
 	Deliberately a physical object in the world rather than a HUD button: the
-	menu is a place you go to, which is the same reason worksites are pads you
-	stand on. It is also self-explaining -- a prompt on a table with friends
+	menu is a place you go to, which is the same reason the kitchen and the farm
+	are places. It is also self-explaining -- a prompt on a table with friends
 	carved into the sign needs no tutorial line.
 ]]
 local function buildStand(base: CFrame): Model?

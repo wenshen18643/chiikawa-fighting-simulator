@@ -227,7 +227,7 @@ local function harvest(player: Player, profile: any, node: Node)
 
 	profile.currencies.ingredients[def.id] = (profile.currencies.ingredients[def.id] or 0) + yield
 
-	local gain = BigNumber.mulNumber(Formulas.gainPerAction(profile, "kusatori", nil), def.xpMultiplier * yield)
+	local gain = BigNumber.mulNumber(Formulas.gainPerAction(profile, "kusatori"), def.xpMultiplier * yield)
 	SkillService.award(player, profile, "kusatori", gain)
 
 	local yen = Formulas.yenForGain("kusatori", gain)

@@ -35,11 +35,9 @@ export type DecorateContext = {
 	parent: Folder,
 	rng: Random,
 	isReserved: (x: number, z: number) -> boolean,
-	-- Where the plaza ends and where the pads start, so area files place things
-	-- relative to the town instead of to a hardcoded island size.
+	-- Where the plaza ends, so area files place things relative to the town
+	-- instead of to a hardcoded island size.
 	plazaRadius: number,
-	districtRadius: number,
-	padSpacing: number,
 	helpers: typeof(Area.helpers),
 	UI: typeof(UI),
 	--[[

@@ -16,7 +16,6 @@ local ChiikawaFacts = require(Shared.Modules.Config.ChiikawaFacts)
 local ExamQuestions = require(Shared.Modules.Config.ExamQuestions)
 local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
-local Worksites = require(Shared.Modules.Config.Worksites)
 local UI = require(Shared.UI)
 
 local StateController = require(script.Parent.Parent.Controllers.StateController)
@@ -766,13 +765,6 @@ local function renderResult(payload: any)
 end
 
 local function activeSkill(snapshot: any): string?
-	local worksiteId = snapshot.currentWorksite or snapshot.blockedWorksite
-	if worksiteId then
-		local worksite = Worksites.get(worksiteId)
-		if worksite then
-			return Skills.canonicalize(worksite.skill)
-		end
-	end
 	return snapshot.selectedSkill and Skills.canonicalize(snapshot.selectedSkill) or nil
 end
 
