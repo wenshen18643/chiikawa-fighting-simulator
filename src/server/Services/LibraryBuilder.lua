@@ -10,8 +10,10 @@
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Constants = require(Shared.Modules.Constants)
 local Layout = require(Shared.Modules.Config.Layout)
 
 local LibraryBuilder = {}
@@ -84,6 +86,11 @@ end
 local function localPart(parent: Instance, frame: CFrame, options: PartOptions): Part
 	options.cframe = frame * options.cframe
 	return makePart(parent, options)
+end
+
+local function groundYAt(position: Vector3): number
+	local hit = Workspace:Raycast(position + Vector3.new(0, 100, 0), Vector3.new(0, -240, 0))
+	return if hit then hit.Position.Y else Constants.WORLD.PLATFORM_TOP
 end
 
 local function buildWindow(parent: Instance, frame: CFrame, side: number)
@@ -492,7 +499,8 @@ local function buildApproach(parent: Instance, frame: CFrame)
 end
 
 function LibraryBuilder.build(parent: Instance, configuredFrame: CFrame): BuildResult
-	local frame = CFrame.new(configuredFrame.Position) * configuredFrame.Rotation
+	local groundY = groundYAt(configuredFrame.Position)
+	local frame = CFrame.new(configuredFrame.Position.X, groundY, configuredFrame.Position.Z) * configuredFrame.Rotation
 
 	local library = Instance.new("Model")
 	library.Name = "PeachStudyLibrary"
