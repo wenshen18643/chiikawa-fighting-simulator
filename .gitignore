@@ -35,3 +35,5 @@ Thumbs.db
 .claude
 .agents
 AGENTS.md
+# reload.ps1 incremental cache
+/.reload/

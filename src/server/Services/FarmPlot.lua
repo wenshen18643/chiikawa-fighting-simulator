@@ -43,28 +43,27 @@ export type Dependencies = {
 local FarmPlot = {}
 FarmPlot.__index = FarmPlot
 
-export type FarmPlot = typeof(setmetatable(
-	{} :: {
-		_id: number,
-		_model: Model,
-		_base: BasePart,
-		_cropFolder: Folder,
-		_cropCFrame: CFrame,
-		_dependencies: Dependencies,
-		_promptConnection: RBXScriptConnection?,
-		_ownerUserId: number?,
-		_ownerName: string?,
-		_leaseEndsAt: number?,
-		_bid: BidState?,
-		_crop: CropState?,
-		_leaseGeneration: number,
-		_cropGeneration: number,
-		_leaseTask: thread?,
-		_cropTasks: { thread },
-		_destroyed: boolean,
-	},
-	FarmPlot
-))
+type Fields = {
+	_id: number,
+	_model: Model,
+	_base: BasePart,
+	_cropFolder: Folder,
+	_cropCFrame: CFrame,
+	_dependencies: Dependencies,
+	_promptConnection: RBXScriptConnection?,
+	_ownerUserId: number?,
+	_ownerName: string?,
+	_leaseEndsAt: number?,
+	_bid: BidState?,
+	_crop: CropState?,
+	_leaseGeneration: number,
+	_cropGeneration: number,
+	_leaseTask: thread?,
+	_cropTasks: { thread },
+	_destroyed: boolean,
+}
+
+export type FarmPlot = typeof(setmetatable({} :: Fields, FarmPlot))
 
 local function makePart(parent: Instance, name: string, size: Vector3, cframe: CFrame, color: Color3): Part
 	local part = Instance.new("Part")
@@ -188,7 +187,7 @@ function FarmPlot.new(
 	model.Parent = parent
 	CollectionService:AddTag(model, "FarmPlot")
 
-	local self: FarmPlot = setmetatable({
+	local self = setmetatable({
 		_id = plotId,
 		_model = model,
 		_base = base,
@@ -206,7 +205,7 @@ function FarmPlot.new(
 		_leaseTask = nil,
 		_cropTasks = {},
 		_destroyed = false,
-	}, FarmPlot)
+	} :: Fields, FarmPlot)
 
 	self._promptConnection = prompt.Triggered:Connect(function(player)
 		dependencies.onPrompt(player, plotId)

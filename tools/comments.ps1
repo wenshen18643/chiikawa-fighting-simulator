@@ -1,6 +1,7 @@
 param(
     [string]$Path = "src",
-    [switch]$Fix
+    [switch]$Fix,
+    [string[]]$Files
 )
 
 $ErrorActionPreference = "Stop"
@@ -13,6 +14,7 @@ $ErrorActionPreference = "Stop"
 function Get-CommentMask([string]$Text) {
     $n = $Text.Length
     $mask = New-Object 'bool[]' $n
+    if ($Text.IndexOf('--') -lt 0) { return $mask }
     $i = 0
 
     while ($i -lt $n) {
@@ -204,21 +206,28 @@ function Remove-Comments([string]$Text, [bool[]]$Mask) {
     return ($out -join $newline) + $newline
 }
 
-$root = if ([System.IO.Path]::IsPathRooted($Path)) { $Path } else { Join-Path (Get-Location) $Path }
-$files = Get-ChildItem -Path $root -Recurse -Include *.lua, *.luau -File
+if ($PSBoundParameters.ContainsKey('Files')) {
+    # Caller already knows which files changed; skip the directory walk.
+    $targets = @($Files | Where-Object { $_ -match '\.luau?$' -and (Test-Path -LiteralPath $_) })
+}
+else {
+    $root = if ([System.IO.Path]::IsPathRooted($Path)) { $Path } else { Join-Path (Get-Location) $Path }
+    $targets = @(Get-ChildItem -Path $root -Recurse -Include *.lua, *.luau -File |
+        ForEach-Object { $_.FullName })
+}
 
 $offenders = @()
 $changed = 0
 
-foreach ($file in $files) {
-    $text = [System.IO.File]::ReadAllText($file.FullName)
+foreach ($target in $targets) {
+    $text = [System.IO.File]::ReadAllText($target)
     $mask = Get-CommentMask $text
     $hasComment = $mask -contains $true
 
     if ($Fix) {
         $new = Remove-Comments $text $mask
         if ($new -ne $text) {
-            [System.IO.File]::WriteAllText($file.FullName, $new)
+            [System.IO.File]::WriteAllText($target, $new)
             $changed++
         }
         continue
@@ -226,7 +235,7 @@ foreach ($file in $files) {
 
     if (-not $hasComment) { continue }
 
-    $rel = $file.FullName.Substring((Get-Location).Path.Length).TrimStart('\', '/')
+    $rel = $target.Substring((Get-Location).Path.Length).TrimStart('\', '/')
     $lineNo = 1
     $reported = @{}
     for ($i = 0; $i -lt $text.Length; $i++) {

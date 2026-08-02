@@ -13,7 +13,7 @@ local authored: { [Instance]: number } = {}
 local function veil(instance: Instance, away: boolean)
 	if instance:IsA("BasePart") then
 		instance.LocalTransparencyModifier = if away then 1 else 0
-	elseif instance:IsA("Decal") or instance:IsA("Texture") then
+	elseif instance:IsA("Decal") then
 		if authored[instance] == nil then
 			authored[instance] = instance.Transparency
 		end

@@ -318,14 +318,15 @@ local function renderReading()
 	readinessTrack.ZIndex = 44
 	readinessTrack.Parent = leftPage
 	UI.corner(readinessTrack, 999)
-	readingReadinessFill = Instance.new("Frame")
-	readingReadinessFill.Name = "Fill"
-	readingReadinessFill.Size = UDim2.fromScale(0, 1)
-	readingReadinessFill.BackgroundColor3 = BOOK_GREEN
-	readingReadinessFill.BorderSizePixel = 0
-	readingReadinessFill.ZIndex = 45
-	readingReadinessFill.Parent = readinessTrack
-	UI.corner(readingReadinessFill, 999)
+	local readinessFill = Instance.new("Frame")
+	readinessFill.Name = "Fill"
+	readinessFill.Size = UDim2.fromScale(0, 1)
+	readinessFill.BackgroundColor3 = BOOK_GREEN
+	readinessFill.BorderSizePixel = 0
+	readinessFill.ZIndex = 45
+	readinessFill.Parent = readinessTrack
+	UI.corner(readinessFill, 999)
+	readingReadinessFill = readinessFill
 
 	readingFocusLabel = textLabel(leftPage, "Focus", {
 		text = "10% chance to find a field note",

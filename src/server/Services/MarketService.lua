@@ -70,17 +70,19 @@ local function boothStation(): (Vector3?, number?)
 		return nil, nil
 	end
 
-	local centre = booth:GetAttribute("PlotCentre")
-	local size = booth:GetAttribute("PlotSize")
-	local yaw = booth:GetAttribute("PlotYaw")
-	if typeof(centre) ~= "Vector3" or typeof(size) ~= "Vector3" or type(yaw) ~= "number" then
+	local spot = Market.YOROI
+	local box, size = booth:GetBoundingBox()
+	local front = box:VectorToWorldSpace(spot.boothFront)
+	front = Vector3.new(front.X, 0, front.Z)
+	if front.Magnitude < 0.01 then
 		return nil, nil
 	end
+	front = front.Unit
 
-	local spot = Market.YOROI
-	local frame = CFrame.new(centre) * CFrame.Angles(0, math.rad(yaw), 0)
-	local station = frame * CFrame.new(spot.outFromCounter * size.X / 2, 0, spot.alongCounter * size.Z / 2)
-	return station.Position, yaw + spot.facingOffset
+	local depth = math.abs(spot.boothFront.X) * size.X + math.abs(spot.boothFront.Z) * size.Z
+	local across = Vector3.new(-front.Z, 0, front.X)
+	local station = box.Position - front * (depth / 2 + spot.standoff) + across * spot.alongCounter
+	return station, math.deg(math.atan2(-front.X, -front.Z))
 end
 
 local function prompt(parent: BasePart, name: string, objectText: string, actionText: string)

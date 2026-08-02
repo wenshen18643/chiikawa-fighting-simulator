@@ -55,7 +55,7 @@ local Mobs = {}
 
 Mobs.ORDER = { "mushroom_frog", "duck", "wolf" }
 
-Mobs.DEFINITIONS = {
+local DEFINITIONS: { [string]: MobDefinition } = {
 	mushroom_frog = {
 		id = "mushroom_frog",
 		name = "Mushroom Frog",
@@ -63,7 +63,7 @@ Mobs.DEFINITIONS = {
 		assetKey = "mushroomFrog",
 		rigProfile = "mushroomFrog",
 		animProfile = "mushroomFrog",
-		behavior = "fight",
+		behavior = "fight" :: "fight",
 		regionId = 1,
 		population = 6,
 		height = 5.5,
@@ -89,7 +89,7 @@ Mobs.DEFINITIONS = {
 		assetKey = "duck",
 		rigProfile = "duck",
 		animProfile = "duck",
-		behavior = "flee",
+		behavior = "flee" :: "flee",
 		regionId = 1,
 		population = 4,
 		height = 4.5,
@@ -114,7 +114,7 @@ Mobs.DEFINITIONS = {
 		assetKey = "wolf",
 		rigProfile = "wolf",
 		animProfile = "wolf",
-		behavior = "fight",
+		behavior = "fight" :: "fight",
 		regionId = 1,
 		population = 3,
 		height = 4.5,
@@ -133,7 +133,9 @@ Mobs.DEFINITIONS = {
 		hitGainMultiplier = 3,
 		damageStatScale = 0.01,
 	},
-} :: { [string]: MobDefinition }
+}
+
+Mobs.DEFINITIONS = DEFINITIONS
 
 local CAVE_CREAM = Color3.fromRGB(228, 217, 200)
 local CAVE_VIOLET = Color3.fromRGB(146, 112, 156)

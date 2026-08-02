@@ -5,12 +5,14 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Constants = require(Shared.Modules.Constants)
 local Formulas = require(Shared.Modules.Formulas)
+local Remotes = require(Shared.Modules.Remotes)
 local CurrencyService = require(script.Parent.CurrencyService)
 local DataService = require(script.Parent.DataService)
 local SkillService = require(script.Parent.SkillService)
 local TrainingService = {}
 local MOVEMENT = Constants.MOVEMENT
 local SKILL = "resilience"
+local feedback: RemoteEvent
 local lastPosition: { [Player]: Vector3 } = {}
 local carry: { [Player]: number } = {}
 local lastJump: { [Player]: number } = {}
@@ -33,6 +35,8 @@ local function award(player: Player, units: number)
 	if not BigNumber.isZero(yen) then
 		CurrencyService.award(profile, "yen", yen)
 	end
+
+	feedback:FireClient(player, SKILL, gain)
 end
 
 local function sampleDistance(player: Player, elapsed: number)
@@ -87,6 +91,8 @@ local function watchJumps(player: Player, character: Model)
 end
 
 function TrainingService.init()
+	feedback = Remotes.event("Work", "Feedback")
+
 	local function bind(player: Player)
 		player.CharacterAdded:Connect(function(character)
 			lastPosition[player] = nil

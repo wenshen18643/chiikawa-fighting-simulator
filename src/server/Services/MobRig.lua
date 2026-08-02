@@ -99,8 +99,8 @@ local function weldLoose(
 )
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") and not articulated[descendant] then
-			local target = if overrides then overrides[descendant.Name] else nil
-			target = target or nearestArticulatedAncestor(descendant, articulated, fallback)
+			local override = if overrides then overrides[descendant.Name] else nil
+			local target = override or nearestArticulatedAncestor(descendant, articulated, fallback)
 			if target ~= descendant then
 				weld(target, descendant)
 			end

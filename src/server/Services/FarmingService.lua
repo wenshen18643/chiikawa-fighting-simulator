@@ -205,7 +205,7 @@ local function settleCrop(plot: FarmPlot, crop: CropState, elapsed: number, forc
 	end
 end
 
-local function withPlotLock(plotId: number, callback: (FarmPlot) -> ())
+local function withPlotLock(plotId: number, callback: (FarmPlot) -> ...any)
 	local plot = plots[plotId]
 	if not plot or plotLocks[plotId] then
 		return

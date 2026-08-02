@@ -53,9 +53,9 @@ Market.beast = { asset = "yoroiBeast", x = 42, z = 14, fit = 7, yaw = 200 } :: P
 
 Market.YOROI = {
 	booth = Market.JOB_BOOTH,
+	boothFront = Vector3.new(0, 0, -1),
 	alongCounter = 0,
-	outFromCounter = 1.45,
-	facingOffset = -Market.STALL_FRONT_OFFSET,
+	standoff = 1.8,
 	height = 8.5,
 }
 

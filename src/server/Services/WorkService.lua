@@ -243,10 +243,7 @@ local function onPerform(player: Player)
 			selfAwarded = true
 		end
 	elseif skillId == "tobatsu" then
-		if not QuarryService.swing(player, profile) then
-			explain(player, "Nothing to strike here — find a monster or the rock face.")
-			return
-		end
+		QuarryService.swing(player, profile)
 	elseif skillId == "kusatori" then
 		if not pullSomething(player, profile) then
 			explain(player, "Nothing to pull here — find weeds or something growing.")
