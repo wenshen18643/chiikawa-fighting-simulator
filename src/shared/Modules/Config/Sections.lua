@@ -39,9 +39,9 @@ end
 
 local MAP = {
 	{ "sakura", "sakura", "sakura", "sakura", "flower", "meadow" },
-	{ "flower", "ramen", "farm", "sakura", "study", "flower" },
-	{ "meadow", "berry", "farm", "farm", "tea", "grove" },
-	{ "meadow", "bramble", "town", "town", "picnic", "grove" },
+	{ "flower", "ramen", "farm", "sakura", "meadow", "flower" },
+	{ "meadow", "berry", "kitchen", "library", "tea", "grove" },
+	{ "meadow", "bramble", "market", "bare", "picnic", "grove" },
 	{ "meadow", "sausage", "sausage", "mushroom", "snow", "lake" },
 	{ "meadow", "sausage", "sausage", "grove", "quarry", "meadowQuiet" },
 }
@@ -146,7 +146,7 @@ Sections.THEMES = {
 		material = "Grass",
 		recipe = {
 			{ kind = "house", count = 2 },
-			{ kind = "prop", key = "pinkBench", count = 3, h = { 3.2, 3.2 } },
+			{ kind = "prop", key = "pinkBench", count = 3, h = { 3.2, 3.2 }, faceOrigin = true },
 			{ kind = "prop", key = "lantern", count = 6, h = { 4.4, 4.6 } },
 			{ kind = "prop", key = "mailBox", count = 2, h = { 3.6, 3.6 } },
 			{ kind = "prop", key = "laundryLine", count = 1, h = { 5.5, 5.5 } },
@@ -154,6 +154,73 @@ Sections.THEMES = {
 			{ kind = "grass", count = 12 },
 			{ kind = "grassPatch", count = 3, h = { 1.6, 2.4 } },
 		},
+	},
+	--[[
+		Nothing is scattered in a district that has its own builder.
+
+		Every one of these has a street through it, a building on it, or both, and
+		all three are furnished by something that knows where its own road is:
+		Streets places the lanterns and benches off the verges, MarketService
+		furnishes the square, and the two builders raise the kitchen and the
+		library. What is left for the scatter pass is ground cover -- and even that
+		stays sparse, because a district reads as built rather than grown.
+
+		Benches in particular are gone from here on purpose. The scatter pass gives
+		every prop a random yaw, so a bench placed by it faces nowhere; four of
+		them in a cell is a lawn with furniture dropped on it.
+	]]
+	library = {
+		name = "Library",
+		sub = "quiet, and then an exam",
+		material = "Grass",
+		arch = false,
+		recipe = {
+			{ kind = "desk", count = 3 },
+			{ kind = "coded", fn = "bookStack", count = 4 },
+			{ kind = "prop", key = "sakuraTree", count = 5, h = { 15, 20 } },
+			{ kind = "flower", count = 5 },
+			{ kind = "grassPatch", count = 5, h = { 1.6, 2.4 } },
+			{ kind = "grass", count = 12 },
+		},
+	},
+	kitchen = {
+		name = "Kitchen",
+		sub = "something is always on",
+		material = "Grass",
+		arch = false,
+		recipe = {
+			{ kind = "coded", fn = "berryCrate", count = 4 },
+			{ kind = "prop", key = "wateringCan", count = 1, h = { 1.5, 1.8 } },
+			{ kind = "prop", key = "sakuraTree", count = 3, h = { 14, 18 } },
+			{ kind = "flower", count = 5 },
+			{ kind = "grassPatch", count = 5, h = { 1.6, 2.4 } },
+			{ kind = "grass", count = 12 },
+		},
+	},
+	market = {
+		name = "Market Square",
+		sub = "spend it while you have it",
+		material = "Grass",
+		arch = false,
+		recipe = {
+			{ kind = "coded", fn = "berryCrate", count = 3 },
+			{ kind = "prop", key = "mailBox", count = 1, h = { 3.6, 3.6 } },
+			{ kind = "flower", count = 6 },
+			{ kind = "grassPatch", count = 4, h = { 1.6, 2.4 } },
+			{ kind = "grass", count = 10 },
+		},
+	},
+	--[[
+		D3 is deliberately empty ground. `bare` short-circuits the dressing pass
+		entirely, sign included -- an empty recipe would still get a signpost
+		announcing the nothing.
+	]]
+	bare = {
+		name = "Open Ground",
+		sub = "nothing here yet",
+		material = "LeafyGrass",
+		bare = true,
+		recipe = {},
 	},
 	farm = {
 		name = "Farm Land",
@@ -259,8 +326,8 @@ Sections.THEMES = {
 		arch = true,
 		recipe = {
 			{ kind = "prop", key = "sakuraTree", count = 8, h = { 16, 24 } },
-			{ kind = "prop", key = "pinkBench", count = 3, h = { 3.2, 3.2 } },
-			{ kind = "prop", key = "picnicTable", count = 2, h = { 3.4, 3.4 } },
+			{ kind = "prop", key = "pinkBench", count = 3, h = { 3.2, 3.2 }, faceOrigin = true },
+			{ kind = "prop", key = "picnicTable", count = 2, h = { 3.4, 3.4 }, faceOrigin = true },
 			{ kind = "prop", key = "dango", count = 1, h = { 9, 9 }, edible = true },
 			{ kind = "flower", count = 6 },
 			{ kind = "grassPatch", count = 6, h = { 1.6, 2.4 } },
@@ -304,13 +371,13 @@ Sections.THEMES = {
 		sub = "bring an appetite",
 		material = "Grass",
 		recipe = {
-			{ kind = "prop", key = "picnicTable", count = 3, h = { 3.4, 3.4 } },
+			{ kind = "prop", key = "picnicTable", count = 3, h = { 3.4, 3.4 }, faceOrigin = true },
 			{ kind = "prop", key = "pancakes", count = 1, h = { 9, 9 } },
 			{ kind = "prop", key = "yogurtBerry", count = 1, h = { 7, 7 } },
 			{ kind = "prop", key = "yogurtVanilla", count = 1, h = { 7, 7 }, pitch = 90 },
 			{ kind = "prop", key = "dangoPlatter", count = 1, h = { 9, 9 }, edible = true },
 			{ kind = "prop", key = "friendStand", count = 1, h = { 8, 8 } },
-			{ kind = "prop", key = "pinkBench", count = 3, h = { 3.2, 3.2 } },
+			{ kind = "prop", key = "pinkBench", count = 3, h = { 3.2, 3.2 }, faceOrigin = true },
 			{ kind = "prop", key = "sakuraTree", count = 3, h = { 14, 18 } },
 			{ kind = "flower", count = 5 },
 			{ kind = "grass", count = 12 },

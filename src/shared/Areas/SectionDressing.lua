@@ -32,6 +32,25 @@ end
 
 local CLEARANCE = { bush = 7, stone = 6, log = 8, prop = 5, coded = 10, tree = 9, house = 14 }
 
+--[[
+	The yaw that turns a prop to look back at the plaza.
+
+	Scatter otherwise hands every prop `rng:NextNumber() * 2 * pi`, which is fine
+	for a bush and wrong for anything with a front. A bench at a random angle in
+	an open field is the single thing that makes a dressed section read as debris
+	rather than as somewhere people go, because a bench facing nowhere is a bench
+	nobody chose to put there.
+
+	Props are authored facing their own +Z, and CFrame.Angles(0, t, 0) sends +Z to
+	(sin t, cos t) -- so t = atan2 of the direction wanted, in that order.
+]]
+local function facingOrigin(x: number, z: number): number
+	if math.abs(x) < 0.01 and math.abs(z) < 0.01 then
+		return 0
+	end
+	return math.atan2(-x, -z)
+end
+
 local function solidify(instance)
 	if not instance then
 		return
@@ -82,6 +101,7 @@ local function dressRecipe(ctx, cell, entry, placed)
 					height = range(ctx, entry.h, 4),
 					upright = entry.upright,
 					pitch = entry.pitch,
+					rotation = if entry.faceOrigin then facingOrigin(x, z) else nil,
 				})
 
 				if made and entry.edible and Feast.get(entry.key) then
@@ -169,7 +189,7 @@ local function dressCell(ctx, cell)
 		return
 	end
 	local theme = Sections.THEMES[cell.theme]
-	if not theme then
+	if not theme or theme.bare then
 		return
 	end
 

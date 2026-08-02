@@ -87,10 +87,24 @@ local function bind(model: Model)
 	end)
 end
 
-function SafeZoneAnimController.init()
-	local folder = Workspace:WaitForChild("SafeZone", FOLDER_TIMEOUT)
+--[[
+	Watched folders, not one folder.
+
+	Yoroi-san moved out to the market square when the town grew around the plot,
+	and is the only rigged resident that was ever in here. Watching both is a
+	smaller change than splitting a second controller off for one model, and the
+	bind rule is unchanged: only something carrying the profile attribute is a
+	resident, wherever it happens to stand.
+
+	Each is awaited on its own thread. Sequential WaitForChild would make a folder
+	that never arrives cost the next one its whole timeout.
+]]
+local WATCHED = { "SafeZone", "Market" }
+
+local function watch(name: string)
+	local folder = Workspace:WaitForChild(name, FOLDER_TIMEOUT)
 	if not folder then
-		warn("[SafeZoneAnim] Workspace.SafeZone never appeared - residents will not animate")
+		warn(`[SafeZoneAnim] Workspace.{name} never appeared - its residents will not animate`)
 		return
 	end
 
@@ -111,6 +125,12 @@ function SafeZoneAnimController.init()
 			unbind(child)
 		end
 	end)
+end
+
+function SafeZoneAnimController.init()
+	for _, name in WATCHED do
+		task.spawn(watch, name)
+	end
 
 	--[[
 		One step behind Character priority, matching CompanionAnimController.

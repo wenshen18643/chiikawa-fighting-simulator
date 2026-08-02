@@ -54,7 +54,6 @@ local Areas = require(Shared.Areas)
 local Assets = require(Shared.Modules.Config.Assets)
 local Remotes = require(Shared.Modules.Remotes)
 local SafeZone = require(Shared.Modules.Config.SafeZone)
-local Skeleton = require(Shared.Modules.Anim.Skeleton)
 local UI = require(Shared.UI)
 
 local AssetService = require(script.Parent.AssetService)
@@ -1053,288 +1052,6 @@ local function placeAll(rows: { SafeZone.Placement }, groundY: number, deckY: nu
 end
 
 --------------------------------------------------------------------------------
--- Yoroi-san
---------------------------------------------------------------------------------
-
---[[
-	R6 joint names, keyed by the limb the joint drives.
-
-	The rig is renamed from this rather than trusting the names it shipped with.
-	See rigYoroi: one of its two `Snap`s is called "Neck" and connects nothing,
-	while the one that actually holds the head on is called "Snap". Deriving the
-	name from the child part is the only version of this that cannot be lied to.
-]]
-local YOROI_JOINTS = {
-	Head = "Neck",
-	["Left Arm"] = "Left Shoulder",
-	["Right Arm"] = "Right Shoulder",
-	["Left Leg"] = "Left Hip",
-	["Right Leg"] = "Right Hip",
-}
-
---[[
-	Make the job-booth attendant animatable.
-
-	The model is a legacy R6 rig: the right six parts with the right names, held
-	together by `Motor` and `Snap`. Those are the pre-Motor6D joint classes and
-	nothing in Roblox's animation stack -- or in Anim/Machine -- will touch
-	them, which is why this arrives as a statue and not as a character.
-
-	Converting the classes is the easy half. The rig underneath them is wrong in
-	three separate ways, and all three are silent:
-
-	  BOTH SHOULDERS ARE BACKWARDS. `Right Shoulder` has Part0 = Right Arm and
-	  Part1 = Torso. A Motor6D moves its Part1, so driving that joint swings the
-	  BODY around a stationary arm. Every joint is therefore re-pointed away
-	  from the Torso, swapping C0 and C1 with it so the rest pose is unchanged.
-
-	  THE NECK IS A DECOY. There are two Snaps: one named "Neck" with Part0 and
-	  Part1 both null, and one named "Snap" that actually holds the head on.
-	  Joints are dropped if either part is missing and renamed afterwards from
-	  YOROI_JOINTS, so the profile binds to the joint that exists rather than to
-	  the one with the right name.
-
-	  THERE IS NO ROOT. No HumanoidRootPart means no joint for a root track to
-	  drive, and the whole body would be rigid while its limbs moved. An
-	  invisible root joined to the Torso gives Machine the one joint it needs to
-	  breathe.
-
-	Order matters. ScaleTo runs FIRST, because it rewrites Motor6D offsets to
-	match and any joint built afterwards would be measured against parts that
-	have already moved.
-
-	Note `ClassName` and not `IsA` on the conversion. Motor6D inherits from
-	Motor, so `IsA("Motor")` is true of the very objects being created and the
-	loop would eat its own output.
-]]
-local function rigYoroi(model: Model, height: number): BasePart?
-	local extents = model:GetExtentsSize()
-	if extents.Y > 0.01 then
-		model:ScaleTo(model:GetScale() * (height / extents.Y))
-	end
-
-	local torso = model:FindFirstChild("Torso", true)
-	if not (torso and torso:IsA("BasePart")) then
-		warn("[SafeZoneService] yoroiKnight has no Torso; leaving it unrigged")
-		return nil
-	end
-
-	for _, descendant in model:GetDescendants() do
-		if descendant.ClassName ~= "Motor" and descendant.ClassName ~= "Snap" then
-			continue
-		end
-
-		local legacy = descendant :: any
-		local part0, part1 = legacy.Part0, legacy.Part1
-		local c0, c1 = legacy.C0, legacy.C1
-		legacy:Destroy()
-
-		if not (part0 and part1) then
-			continue
-		end
-
-		-- Point the joint away from the Torso, so Part1 is always the limb.
-		if part1 == torso then
-			part0, part1 = part1, part0
-			c0, c1 = c1, c0
-		end
-
-		local named = YOROI_JOINTS[part1.Name]
-		if not named then
-			continue
-		end
-
-		local motor = Instance.new("Motor6D")
-		motor.Name = named
-		motor.Part0 = part0
-		motor.Part1 = part1
-		motor.C0 = c0
-		motor.C1 = c1
-		motor.Parent = part0
-	end
-
-	local root = Instance.new("Part")
-	root.Name = "HumanoidRootPart"
-	root.Size = torso.Size
-	root.CFrame = torso.CFrame
-	root.Transparency = 1
-	root.CanCollide = false
-	root.CanQuery = false
-	root.CanTouch = false
-	root.Anchored = true
-	root.Parent = model
-
-	local rootJoint = Instance.new("Motor6D")
-	rootJoint.Name = "RootJoint"
-	rootJoint.Part0 = root
-	rootJoint.Part1 = torso
-	rootJoint.C0 = CFrame.new()
-	rootJoint.C1 = CFrame.new()
-	rootJoint.Parent = root
-
-	--[[
-		Anything the rig left loose -- the two shoulder plates -- is welded to
-		the torso so it travels with the animation instead of hanging in the air
-		where the model was authored.
-
-		Everything except the root is unanchored. An anchored part ignores its
-		joints, so a rig anchored part-by-part animates nothing; anchoring only
-		the root holds the whole assembly in place through the joints while
-		leaving Motor6D.Transform free to move it.
-	]]
-	local jointed: { [BasePart]: boolean } = { [root] = true, [torso] = true }
-	for _, descendant in model:GetDescendants() do
-		if descendant:IsA("Motor6D") then
-			if descendant.Part1 then
-				jointed[descendant.Part1] = true
-			end
-		end
-	end
-
-	--[[
-		Solid, like everything else on the plot.
-
-		Safe because of the anchoring above: joints propagate anchoring through
-		an assembly, so limbs joined to an anchored root cannot be shoved
-		anywhere by a player walking into them. Collision here only means Yoroi
-		occupies its own space instead of being a hologram of a bailiff.
-
-		The root is the exception. It is an invisible box sitting exactly on the
-		torso, so leaving it solid would give the torso two collision hulls.
-	]]
-	for _, descendant in model:GetDescendants() do
-		if descendant:IsA("BasePart") then
-			local isRoot = descendant == root
-			descendant.Anchored = isRoot
-			descendant.CanCollide = not isRoot
-			descendant.CanQuery = not isRoot
-			descendant.CanTouch = false
-			if not jointed[descendant] then
-				local weld = Instance.new("WeldConstraint")
-				weld.Part0 = torso
-				weld.Part1 = descendant
-				weld.Parent = torso
-			end
-		end
-	end
-
-	model.PrimaryPart = root
-	model:SetAttribute(Skeleton.PROFILE_ATTRIBUTE, "yoroi")
-	return root
-end
-
---[[
-	Where the attendant stands, derived from the booth that is already placed.
-
-	The booth is the thing that moves. It has been resized twice and re-yawed
-	twice, and both times Yoroi-san stayed at the coordinates written next to it
-	-- which is how it ended up standing inside its own counter. So this reads
-	the booth's recorded frame and measures off it, and the config now says
-	"just past the end of the counter" in units of the booth rather than in
-	studs of the world.
-
-	Standing at the END of the counter and not behind it is forced by the model.
-	ShopStall's back board sits at local X -1.60 and its counter spans -1.50 to
-	+1.50, so there is no gap to stand in -- and the board runs the full height
-	of the stall, so anything behind it is hidden completely. The open end is the
-	only place an attendant is both out of the geometry and visible.
-]]
-local function boothStation(): (CFrame?, number?)
-	local booth = houseFolder:FindFirstChild(SafeZone.YOROI.booth)
-	if not (booth and booth:IsA("Model")) then
-		return nil, nil
-	end
-
-	local centre = booth:GetAttribute("PlotCentre")
-	local size = booth:GetAttribute("PlotSize")
-	local yaw = booth:GetAttribute("PlotYaw")
-	if typeof(centre) ~= "Vector3" or typeof(size) ~= "Vector3" or type(yaw) ~= "number" then
-		return nil, nil
-	end
-
-	local spot = SafeZone.YOROI
-	local frame = CFrame.new(centre) * CFrame.Angles(0, math.rad(yaw), 0)
-	local station = frame * CFrame.new(spot.outFromCounter * size.X / 2, 0, spot.alongCounter * size.Z / 2)
-
-	--[[
-		Facing, derived rather than typed.
-
-		The booth serves along its own +X, which is the bearing yaw + 90. The rig
-		faces its own -X -- every part in it carries a 90 degree yaw, and "Right
-		Arm" sits at -Z where a standard R6 rig puts it at +X -- so a rig at yaw
-		phi faces the bearing phi - 90. Setting those equal gives phi = yaw + 180,
-		and `facingOffset` is that 180 with a name on it.
-	]]
-	return CFrame.new(station.Position), yaw + spot.facingOffset
-end
-
-local function buildYoroi(groundY: number)
-	local model = AssetService.clone("yoroiKnight")
-	if not model then
-		warn("[SafeZoneService] yoroiKnight did not load; the job booth is unstaffed")
-		return
-	end
-
-	local spot = SafeZone.YOROI
-	model.Name = "YoroiSan"
-
-	local root = rigYoroi(model, spot.height)
-	if not root then
-		model:Destroy()
-		return
-	end
-
-	local station, facing = boothStation()
-	if not (station and facing) then
-		warn("[SafeZoneService] job booth is not placed; standing Yoroi-san at its fallback spot")
-		station, facing = toWorld(spot.x, 0, spot.z), spot.yaw
-	end
-
-	-- Feet on the ground: the rig's own extents are measured after scaling, and
-	-- the root sits at the torso, which is not the bottom of the model.
-	model:PivotTo(CFrame.new(station.Position) * CFrame.Angles(0, math.rad(facing), 0))
-	local box, size = model:GetBoundingBox()
-	local lift = (origin.Y + groundY + size.Y / 2) - box.Position.Y
-	model:PivotTo(model:GetPivot() + Vector3.new(0, lift, 0))
-
-	--[[
-		Parented last, and only once it is rigged and standing.
-
-		SafeZoneAnimController binds on ChildAdded and reads the profile
-		attribute to decide whether a model is animatable. Parenting first would
-		make that a race against the rig it is waiting for.
-	]]
-	model.Parent = houseFolder
-
-	UI.sign(root, {
-		name = "BoothSign",
-		title = "Weeding — apply here",
-		subtitle = "certification raises the rate",
-		offset = Vector3.new(0, 9, 0),
-		extent = UDim2.fromScale(16, 4.5),
-		maxDistance = 140,
-	})
-
-	--[[
-		The counter Yoroi-san hands work over.
-
-		Built here because this is where the attendant is placed, but deliberately
-		NOT wired here: WorkOrderService finds this prompt and connects to it, so
-		the safe zone keeps knowing nothing about what the work is. Requiring the
-		order service from this file would also close a loop, since it reaches
-		MobService, which reaches back here for the safe volume.
-	]]
-	local prompt = Instance.new("ProximityPrompt")
-	prompt.Name = "OrderBoardPrompt"
-	prompt.ObjectText = "Yoroi-san"
-	prompt.ActionText = "Work orders"
-	prompt.HoldDuration = 0
-	prompt.MaxActivationDistance = 14
-	prompt.RequiresLineOfSight = false
-	prompt.Parent = root
-end
-
---------------------------------------------------------------------------------
 -- Garden
 --------------------------------------------------------------------------------
 
@@ -1343,7 +1060,12 @@ end
 
 	Legibility is the point: the boundary is a real rule, so it has to be
 	something the player can see rather than a line they discover by being hurt
-	on the far side of it. The front is left open where the path crosses it.
+	on the far side of it. Each side is left open where its street crosses it.
+
+	Solid now, posts and rails both. The plot is the middle of a town rather than
+	a lawn in a field, so the fence has to hold a line between the garden and the
+	high street. It is still only 5.5 tall against a 6.9-stud jump: you can hop
+	it if you insist, and the gates are for everyone who does not.
 
 	Round caps, not points. A pointed picket is a fence; a round-topped one is
 	the same fence drawn by somebody being nice about it, and that is the whole
@@ -1355,15 +1077,25 @@ local function buildFence()
 	local frontZ = SafeZone.VOLUME.centreOffset.Z + SafeZone.VOLUME.size.Z / 2 - garden.fenceInset
 	local backZ = SafeZone.VOLUME.centreOffset.Z - SafeZone.VOLUME.size.Z / 2 + garden.fenceInset
 
-	local function post(x: number, z: number)
-		if math.abs(x) < garden.gateGap and math.abs(z - frontZ) < 0.01 then
+	--[[
+		Each run carries the POINT its gate is centred on, not just a flag.
+
+		The plot used to have one opening in the front because there was one thing
+		to walk to. It now sits at the centre of four districts, and the east and
+		west gates have to line up with the streets that run to the library and
+		the kitchen doors -- both at Z 90, neither at the midpoint of the run they
+		pierce. A gate cut at the middle of the side would have put both openings
+		fifty studs from the road that uses them.
+	]]
+	local function post(x: number, z: number, run: { [string]: any })
+		local alongX, alongZ = x - run.gateX, z - run.gateZ
+		if math.sqrt(alongX * alongX + alongZ * alongZ) < garden.gateGap then
 			return
 		end
 		piece({
 			name = "FencePost",
 			size = Vector3.new(1.1, garden.fenceHeight, 1.1),
 			color = palette.linen,
-			collide = false,
 			cframe = toWorld(x, garden.fenceHeight / 2, z),
 		})
 		piece({
@@ -1377,43 +1109,52 @@ local function buildFence()
 		})
 	end
 
-	local function rails(fromX: number, fromZ: number, toX: number, toZ: number, gate: boolean)
-		local length = (Vector2.new(toX, toZ) - Vector2.new(fromX, fromZ)).Magnitude
-		local yaw = math.atan2(toX - fromX, toZ - fromZ)
+	--[[
+		Two rails per height, split at wherever the gate happens to be. Measuring
+		the opening along the run rather than from its centre is what lets the
+		gate sit off-centre; the halves either side come out different lengths and
+		that is the point.
+	]]
+	local function rails(run: { [string]: any })
+		local from = Vector2.new(run.fromX, run.fromZ)
+		local span = Vector2.new(run.toX, run.toZ) - from
+		local length = span.Magnitude
+		local direction = span.Unit
+		local yaw = math.atan2(direction.X, direction.Y)
+		local gateAt = (Vector2.new(run.gateX, run.gateZ) - from):Dot(direction)
+
+		local halves = {
+			{ start = 0, finish = gateAt - garden.gateGap },
+			{ start = gateAt + garden.gateGap, finish = length },
+		}
+
 		for _, height in { garden.fenceHeight * 0.35, garden.fenceHeight * 0.72 } do
-			if gate then
-				-- Two runs either side of the opening the path passes through.
-				local span = (length / 2) - garden.gateGap
-				for _, side in { -1, 1 } do
+			for _, half in halves do
+				local run_ = half.finish - half.start
+				if run_ > 0.5 then
+					local centre = from + direction * (half.start + run_ / 2)
 					piece({
 						name = "FenceRail",
-						size = Vector3.new(0.5, 0.5, span),
+						size = Vector3.new(0.5, 0.5, run_),
 						color = palette.linen,
-						collide = false,
 						castShadow = false,
-						cframe = toWorld((fromX + toX) / 2, height, (fromZ + toZ) / 2)
-							* CFrame.Angles(0, yaw, 0)
-							* CFrame.new(0, 0, side * (garden.gateGap + span / 2)),
+						cframe = toWorld(centre.X, height, centre.Y) * CFrame.Angles(0, yaw, 0),
 					})
 				end
-			else
-				piece({
-					name = "FenceRail",
-					size = Vector3.new(0.5, 0.5, length),
-					color = palette.linen,
-					collide = false,
-					castShadow = false,
-					cframe = toWorld((fromX + toX) / 2, height, (fromZ + toZ) / 2) * CFrame.Angles(0, yaw, 0),
-				})
 			end
 		end
 	end
 
+	--[[
+		Gate positions, chosen to meet the streets: north and south on the axis of
+		the spokes at X 0, east and west opposite the library and kitchen doors at
+		Z 90. See Config/Streets.
+	]]
 	local runs = {
-		{ fromX = -halfX, fromZ = frontZ, toX = halfX, toZ = frontZ, gate = true },
-		{ fromX = -halfX, fromZ = backZ, toX = halfX, toZ = backZ, gate = false },
-		{ fromX = -halfX, fromZ = backZ, toX = -halfX, toZ = frontZ, gate = false },
-		{ fromX = halfX, fromZ = backZ, toX = halfX, toZ = frontZ, gate = false },
+		{ fromX = -halfX, fromZ = frontZ, toX = halfX, toZ = frontZ, gateX = 0, gateZ = frontZ },
+		{ fromX = -halfX, fromZ = backZ, toX = halfX, toZ = backZ, gateX = 0, gateZ = backZ },
+		{ fromX = -halfX, fromZ = backZ, toX = -halfX, toZ = frontZ, gateX = -halfX, gateZ = 90 },
+		{ fromX = halfX, fromZ = backZ, toX = halfX, toZ = frontZ, gateX = halfX, gateZ = 90 },
 	}
 
 	for _, run in runs do
@@ -1421,9 +1162,9 @@ local function buildFence()
 		local count = math.max(1, math.floor(length / garden.postSpacing))
 		for index = 0, count do
 			local alpha = index / count
-			post(run.fromX + (run.toX - run.fromX) * alpha, run.fromZ + (run.toZ - run.fromZ) * alpha)
+			post(run.fromX + (run.toX - run.fromX) * alpha, run.fromZ + (run.toZ - run.fromZ) * alpha, run)
 		end
-		rails(run.fromX, run.fromZ, run.toX, run.toZ, run.gate)
+		rails(run)
 	end
 end
 
@@ -1620,7 +1361,6 @@ local function build(rng: Random)
 	placeAll(SafeZone.interior, SafeZone.FLOOR_Y, deckY)
 	local outdoors = placeAll(SafeZone.exterior, SafeZone.FLOOR_Y, deckY)
 	scatterGrass(rng, outdoors)
-	buildYoroi(SafeZone.FLOOR_Y)
 
 	--[[
 		The nameplate over the door.

@@ -4,7 +4,9 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Props = require(ReplicatedStorage.Shared.Modules.Props)
 local Sections = require(ReplicatedStorage.Shared.Modules.Config.Sections)
+local Streets = require(ReplicatedStorage.Shared.Modules.Config.Streets)
 
 local Area = require(script.Parent.Area)
 local SectionDressing = require(script.Parent.SectionDressing)
@@ -48,7 +50,9 @@ return Area.define({
 
 		local sasumataAt = { name = "Sasumata Yard", x = -half * 0.48 - 25, z = half * 0.35 }
 		local weedsAt = { name = "Roadside Weeds", x = 30, z = 190 }
-		local desksAt = { name = "Study Desks", x = half * 0.48 - 18, z = half * 0.52 - 36 }
+		-- Moved to D4, south of the library it belongs to. The exam counter is
+		-- the library's front garden now, not a field two sections away.
+		local desksAt = { name = "Study Desks", x = 150, z = 30 }
 
 		--[[
 			Nothing stands on the axis of the front door. The plaza centre is
@@ -65,32 +69,30 @@ return Area.define({
 		end
 
 		--[[
-			The market row. Seven fronts around the western half of the square
-			rather than three: a town that feels lived in is mostly a question
-			of how much of the horizon has a building on it.
+			The streets.
+
+			Laid before anything is scattered, because Layout reserves every
+			carriageway and the dressing pass reads those reserves: the road has
+			to be a fact before the town is allowed to grow up around it.
+
+			The seven-shop arc that used to stand here swept 150 to 282 degrees
+			at radius 123, which runs straight through the kitchen's forecourt
+			and the market square. The shops are in the market now, where they
+			have a square to face rather than a lawn.
 		]]
-		local shops = { "shopRed", "shopBlue", "shopStall", "shopBlue", "shopRed", "shopStall", "shopRed" }
-		for index, key in shops do
-			local angle = math.rad(150 + (index - 1) * 22)
-			helpers.prop(ctx, key, math.cos(angle) * (plazaEdge + 26), math.sin(angle) * (plazaEdge + 26), {
-				height = if key == "shopStall" then 7 else 10,
-				rotation = angle + math.pi,
-			})
-			if index % 2 == 1 then
-				local lampAngle = angle + math.rad(11)
-				helpers.prop(
-					ctx,
-					"lantern",
-					math.cos(lampAngle) * (plazaEdge + 6),
-					math.sin(lampAngle) * (plazaEdge + 6),
-					{
-						height = 4.6,
-					}
-				)
-			end
+		for _, area in Streets.PAVING do
+			helpers.paving(ctx, area, Streets)
+		end
+		helpers.paving(ctx, Streets.SQUARE, Streets, Streets.SQUARE_COLOR)
+
+		-- The hedges that give the roads an edge, and the lanterns and benches
+		-- they carry. Everything a street is furnished with is measured off its
+		-- own verge, so nothing can end up standing in the carriageway.
+		for _, verge in Streets.VERGES do
+			helpers.hedge(ctx, verge, Streets)
 		end
 
-		for index, landmark in { sasumataAt, weedsAt, desksAt } do
+		for index, landmark in { sasumataAt, weedsAt } do
 			local reach = math.sqrt(landmark.x * landmark.x + landmark.z * landmark.z)
 			local dirX, dirZ = landmark.x / reach, landmark.z / reach
 			helpers.signpost(ctx, {
@@ -125,13 +127,84 @@ return Area.define({
 			z = half * 0.5 - 30,
 		})
 
-		-- The Exam Hall
-		helpers.signpost(ctx, {
-			title = "Exam Hall",
-			subtitle = "certification counter",
-			x = half * 0.48 - 38,
-			z = half * 0.52 - 34,
-		})
+		--[[
+			A sign inside each gate, naming what is through it.
+
+			Placed here rather than left to SectionDressing. That pass walks a
+			district's sign in from the cell centre toward the plaza and gives up
+			if every candidate is reserved -- and for these three every candidate
+			is: the safe volume, the plaza skirt and the building's own reserve
+			between them cover the whole approach. So the town's three newest
+			districts would have been the only unlabelled ones on the board.
+
+			No arch over any of them. The gate is the threshold; a second one
+			built on top of it is set dressing standing in the doorway.
+		]]
+		for _, marker in
+			{
+				{ title = "Library", subtitle = "and the exam hall", x = 70, z = 106 },
+				{ title = "Kitchen", subtitle = "something is always on", x = -70, z = 106 },
+				{ title = "Market Square", subtitle = "upgrades and work", x = -30, z = -42 },
+			}
+		do
+			helpers.signpost(ctx, marker)
+		end
+
+		--[[
+			The kitchen's forecourt and yard.
+
+			The library reads well because a big building carries a cell on its own.
+			The kitchen is 52 x 42 against the library's 84 x 62, so stripping its
+			scatter left it standing in a field -- correct in principle, empty in
+			practice. What it wants is not scatter back but the same treatment the
+			market got: things PLACED, facing the road or the door.
+
+			The building runs X -171..-129, Z 64..116 with its door on the east
+			face, and the kitchen road is X -129..-103, Z 83..97 with hedges either
+			side of it. Everything below is clear of both.
+
+			A stall serves along its own +X, and CFrame.Angles(0, t, 0) sends +X to
+			(cos t, -sin t) -- so 90 serves south and -90 serves north. Both stalls
+			here therefore face the road they stand beside.
+		]]
+		local KITCHEN_YARD = {
+			{ key = "shopStall", x = -118, z = 108, height = 7, yaw = 90 },
+			{ key = "shopStall", x = -118, z = 72, height = 7, yaw = -90 },
+
+			-- The eating yard north of the building, laid out around one table.
+			{ key = "lowTable", x = -152, z = 138, height = 7 },
+			{ key = "floorCushion", x = -143, z = 138, height = 3.5, yaw = -90 },
+			{ key = "floorCushion", x = -161, z = 138, height = 3.5, yaw = 90 },
+			{ key = "floorCushion", x = -152, z = 147, height = 3.5, yaw = 180 },
+			{ key = "ramen", x = -168, z = 144, height = 9 },
+			{ key = "lanternTall", x = -134, z = 142, height = 6.5 },
+			{ key = "lanternTall", x = -172, z = 142, height = 6.5 },
+
+			-- A second, smaller one south of it, so the yard is not one island.
+			{ key = "lowTable", x = -150, z = 42, height = 6.5 },
+			{ key = "floorCushion", x = -141, z = 42, height = 3.5, yaw = -90 },
+			{ key = "floorCushion", x = -159, z = 42, height = 3.5, yaw = 90 },
+			{ key = "teaPot", x = -166, z = 46, height = 3.5 },
+			{ key = "lantern", x = -136, z = 38, height = 4.6 },
+			{ key = "lantern", x = -166, z = 34, height = 4.6 },
+
+			-- Stock against the west wall, where a kitchen keeps it.
+			{ key = "wateringCan", x = -178, z = 100, height = 1.7, yaw = 180, pitch = -35 },
+			{ key = "sakuraTree", x = -188, z = 132, height = 17 },
+			{ key = "sakuraTree", x = -188, z = 52, height = 16 },
+		}
+
+		for _, row in KITCHEN_YARD do
+			helpers.prop(ctx, row.key, row.x, row.z, {
+				height = row.height,
+				rotation = math.rad(row.yaw or 0),
+				pitch = row.pitch,
+			})
+		end
+
+		for _, at in { { -176, 92 }, { -176, 76 }, { -122, 122 }, { -122, 58 } } do
+			Props.berryCrate(ctx, at[1], at[2])
+		end
 
 		-- Landmark Study Desk outside Exam Hall
 		helpers.studyDesk(ctx, { x = desksAt.x, z = desksAt.z, y = 2.4 })

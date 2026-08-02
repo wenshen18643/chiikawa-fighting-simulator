@@ -49,6 +49,7 @@ local function buildSnapshot(player: Player, profile: any)
 		seasonings = profile.currencies.seasonings,
 		dishes = profile.dishes,
 		boosts = profile.boosts,
+		upgrades = profile.upgrades,
 		stamina = { current = profile.stamina.current, max = profile.stamina.max },
 		resting = StaminaService.isResting(player),
 		seasons = profile.seasons,

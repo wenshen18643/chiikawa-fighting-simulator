@@ -99,6 +99,9 @@ local function buildTemplate(): any
 		unlockedRegions = { [tostring(Areas.STARTING_AREA)] = true },
 		home = { furniture = {}, comfort = Constants.HOME.BASE_COMFORT },
 		gamepasses = {},
+		-- Market upgrade ladders, {upgradeId = level}. Bought with yen, never
+		-- reset by a season: they are the sink that makes the wage matter.
+		upgrades = {},
 		boosts = {},
 		stamina = { current = Constants.STAMINA.BASE_MAX, max = Constants.STAMINA.BASE_MAX },
 		settings = { autoWork = false, vfxQuality = "high", musicVolume = 1 },

@@ -108,7 +108,9 @@ local function placeAsset(ctx: DecorateContext, key: string, x: number, z: numbe
 	if options.upright then
 		local extents = model:GetExtentsSize()
 		if extents.Y < extents.X or extents.Y < extents.Z then
-			local fix = if extents.X > extents.Z then CFrame.Angles(0, 0, math.rad(90)) else CFrame.Angles(math.rad(90), 0, 0)
+			local fix = if extents.X > extents.Z
+				then CFrame.Angles(0, 0, math.rad(90))
+				else CFrame.Angles(math.rad(90), 0, 0)
 			model:PivotTo(model:GetPivot() * fix)
 		end
 	end
@@ -669,8 +671,7 @@ function Area.helpers.weedingPatch(ctx: DecorateContext, config: { [string]: any
 			size = Vector3.new(0.6, 2.2, 0.6),
 			color = if i % 2 == 0 then Color3.fromRGB(126, 190, 104) else Color3.fromRGB(96, 162, 78),
 			material = Enum.Material.Grass,
-			cframe = CFrame.new(ctx.origin + Vector3.new(gx, gy + y + 1.2, gz))
-				* CFrame.Angles(0, angle, math.rad(15)),
+			cframe = CFrame.new(ctx.origin + Vector3.new(gx, gy + y + 1.2, gz)) * CFrame.Angles(0, angle, math.rad(15)),
 			parent = model,
 		})
 	end
@@ -867,9 +868,8 @@ function Area.helpers.path(ctx: DecorateContext, config: { [string]: any })
 		stone.Name = "PathStone"
 		stone.Shape = Enum.PartType.Cylinder
 		stone.Size = Vector3.new(0.5, size, size)
-		stone.CFrame = CFrame.new(
-			ctx.origin + Vector3.new(stoneX, groundAt(ctx, stoneX, stoneZ) + 0.16, stoneZ)
-		) * CFrame.Angles(0, 0, math.rad(90))
+		stone.CFrame = CFrame.new(ctx.origin + Vector3.new(stoneX, groundAt(ctx, stoneX, stoneZ) + 0.16, stoneZ))
+			* CFrame.Angles(0, 0, math.rad(90))
 		stone.Color = if ctx.rng:NextNumber() > 0.82
 			then config.accent or Color3.fromRGB(244, 206, 210)
 			else config.color or Color3.fromRGB(246, 240, 228)
@@ -880,6 +880,146 @@ function Area.helpers.path(ctx: DecorateContext, config: { [string]: any })
 		stone.CanTouch = false
 		stone.CastShadow = false
 		stone.Parent = ctx.parent
+	end
+end
+
+--[[
+	A paved rectangle: one street, or the market square.
+
+	One slab per rectangle rather than a run of tiles. Paving is always inside a
+	reserved zone and TerrainBuilder flattens reserved ground to zero, so there is
+	no slope here for a tiled road to follow — and an 800-stud ring laid in 12-stud
+	tiles is 200 parts spent solving a problem the terrain does not have.
+
+	Seated on the HIGHEST ground it covers, so a surface that is not quite flat
+	gets a road buried into it rather than a road floating over it. Collidable,
+	because unlike the stepping stones this is what the player walks on.
+
+	The rectangles are authored not to overlap (see Config/Streets), so nothing
+	here has to arbitrate between two slabs claiming the same ground.
+]]
+function Area.helpers.paving(
+	ctx: DecorateContext,
+	area: { [string]: any },
+	style: { [string]: any },
+	color: Color3?
+): Part
+	step(ctx)
+
+	local midX = (area.minX + area.maxX) / 2
+	local midZ = (area.minZ + area.maxZ) / 2
+	local top = style.SURFACE_Y + (area.rise or 0)
+
+	local part = Instance.new("Part")
+	part.Name = area.name or "Paving"
+	part.Size = Vector3.new(area.maxX - area.minX, style.THICKNESS, area.maxZ - area.minZ)
+	part.CFrame = CFrame.new(ctx.origin + Vector3.new(midX, top - style.THICKNESS / 2, midZ))
+	part.Color = color or style.COLOR
+	part.Material = style.MATERIAL
+	part.Anchored = true
+	part.CanCollide = true
+	part.CanTouch = false
+	part.CastShadow = false
+	part.Parent = ctx.parent
+	return part
+end
+
+--[[
+	A hedge along a verge, and the street furniture that lines up with it.
+
+	A strip of paving on open grass is a strip of paving. What makes it read as a
+	STREET is having an edge — something at eye level saying the road stops here
+	and somebody's garden starts. So the hedge is the enclosure, and it is also
+	the datum: lanterns and benches are placed off it at fixed intervals rather
+	than scattered, which is why none of them can end up standing in the road.
+
+	Built in segments so a long run is a row of bushes rather than one 200-stud
+	box, with a lighter crown on top so it reads as clipped rather than as a green
+	wall. The body reaches well below the pavement it stands against: the street
+	is three studs proud of the terrain beside it, and the hedge is what hides
+	that drop instead of standing on the bottom of it.
+]]
+function Area.helpers.hedge(ctx: DecorateContext, verge: { [string]: any }, style: { [string]: any })
+	local from = Vector2.new(verge.fromX, verge.fromZ)
+	local span = Vector2.new(verge.toX, verge.toZ) - from
+	local length = span.Magnitude
+	if length < 1 then
+		return
+	end
+
+	local direction = span.Unit
+	local yaw = math.atan2(direction.X, direction.Y)
+	local count = math.max(1, math.round(length / style.HEDGE_SEGMENT))
+	local piece = length / count
+
+	local top = style.SURFACE_Y + style.HEDGE_HEIGHT
+	local bodyHeight = style.HEDGE_HEIGHT + style.HEDGE_SKIRT
+
+	for index = 0, count - 1 do
+		step(ctx)
+
+		local at = from + direction * ((index + 0.5) * piece)
+
+		local body = Instance.new("Part")
+		body.Name = "Hedge"
+		body.Size = Vector3.new(style.HEDGE_WIDTH, bodyHeight, piece + 0.2)
+		body.CFrame = CFrame.new(ctx.origin + Vector3.new(at.X, top - bodyHeight / 2, at.Y)) * CFrame.Angles(0, yaw, 0)
+		body.Color = style.HEDGE_COLOR
+		body.Material = Enum.Material.Grass
+		body.Anchored = true
+		body.CanCollide = true
+		body.CanTouch = false
+		body.CastShadow = false
+		body.Parent = ctx.parent
+
+		local crown = Instance.new("Part")
+		crown.Name = "HedgeCrown"
+		crown.Size = Vector3.new(style.HEDGE_WIDTH * 0.72, 0.5, piece + 0.2)
+		crown.CFrame = CFrame.new(ctx.origin + Vector3.new(at.X, top + 0.15, at.Y)) * CFrame.Angles(0, yaw, 0)
+		crown.Color = style.HEDGE_CROWN
+		crown.Material = Enum.Material.Grass
+		crown.Anchored = true
+		crown.CanCollide = false
+		crown.CanQuery = false
+		crown.CanTouch = false
+		crown.CastShadow = false
+		crown.Parent = ctx.parent
+	end
+
+	--[[
+		Furniture, standing ON the pavement against the hedge.
+
+		`facing` is the yaw that looks at the carriageway, so stepping in along
+		that direction from the hedge line lands on the road surface, and turning
+		to it gives a bench somebody would actually sit on to watch the street.
+		Both come off the same line, which is why neither can end up in the
+		middle of the road or out in a field.
+
+		Seated by `y` rather than by the ground under them: the pavement is a part
+		three studs above the terrain the raycast would find, and street furniture
+		belongs on the street.
+	]]
+	local inward = Vector2.new(math.sin(math.rad(verge.facing)), math.cos(math.rad(verge.facing)))
+
+	local function alongRun(spacing: number, inset: number, place: (x: number, z: number, y: number) -> ())
+		local slots = math.floor(length / spacing)
+		for index = 1, slots do
+			local at = from + direction * (index * spacing - spacing / 2)
+			local x, z = at.X + inward.X * inset, at.Y + inward.Y * inset
+			place(x, z, style.SURFACE_Y - groundAt(ctx, x, z))
+		end
+	end
+
+	if verge.lamps then
+		alongRun(style.LAMP_SPACING, style.LAMP_INSET, function(x, z, y)
+			ctx.helpers.prop(ctx, "lantern", x, z, { height = 4.6, y = y, rotation = math.rad(verge.facing) })
+		end)
+	end
+
+	if verge.benches then
+		alongRun(style.BENCH_SPACING, style.BENCH_INSET, function(x, z, y)
+			ctx.helpers.prop(ctx, "pinkBench", x, z, { height = 3.2, y = y, rotation = math.rad(verge.facing) })
+		end)
 	end
 end
 

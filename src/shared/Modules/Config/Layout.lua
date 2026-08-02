@@ -9,17 +9,31 @@ local Quarry = require(Shared.Modules.Config.Quarry)
 local SafeZone = require(Shared.Modules.Config.SafeZone)
 local SausageForest = require(Shared.Modules.Config.SausageForest)
 local Sections = require(Shared.Modules.Config.Sections)
+local Streets = require(Shared.Modules.Config.Streets)
 local Farming = require(Shared.Modules.Config.Farming)
 
 local Layout = {}
 
 local WORLD = Constants.WORLD
 
-Layout.KITCHEN_CELL = "B5"
+--[[
+	The two buildings that face the home plot across the ring road.
+
+	Placed by explicit offset rather than at their cell's centre, and facing an
+	axis rather than the plaza. A cell centre puts the kitchen 106 studs from the
+	road it is supposed to front, and looking at the plaza leaves both buildings
+	skewed a few degrees off every street around them. Both now stand square to
+	the road, on the far side of it from the fence.
+]]
+Layout.KITCHEN_CELL = "C4"
+Layout.KITCHEN_OFFSET = Vector3.new(-150, 0, 90)
+Layout.KITCHEN_FACING = Vector3.new(1, 0, 0)
 Layout.KITCHEN_FOOTPRINT = Vector2.new(52, 42)
 Layout.KITCHEN_SIZE = Vector3.new(Layout.KITCHEN_FOOTPRINT.X, 30, Layout.KITCHEN_FOOTPRINT.Y)
 
-Layout.LIBRARY_CELL = "F6"
+Layout.LIBRARY_CELL = "D4"
+Layout.LIBRARY_OFFSET = Vector3.new(150, 0, 90)
+Layout.LIBRARY_FACING = Vector3.new(-1, 0, 0)
 Layout.LIBRARY_FOOTPRINT = Vector2.new(84, 62)
 Layout.LIBRARY_SIZE = Vector3.new(Layout.LIBRARY_FOOTPRINT.X, 27, Layout.LIBRARY_FOOTPRINT.Y)
 Layout.LIBRARY_RESERVED_RADIUS = 66
@@ -77,21 +91,13 @@ function Layout.spawnCFrame(area: Areas.AreaDefinition): CFrame
 end
 
 function Layout.kitchenCFrame(area: Areas.AreaDefinition): CFrame
-	local cell = Sections.byCoord(Layout.KITCHEN_CELL)
-	assert(cell, `Layout: kitchen cell "{Layout.KITCHEN_CELL}" is invalid`)
-
-	local centre = area.origin + Vector3.new(cell.cx, 0, cell.cz)
-	local plaza = Vector3.new(area.origin.X, centre.Y, area.origin.Z)
-	return CFrame.lookAt(centre, plaza)
+	local centre = area.origin + Layout.KITCHEN_OFFSET
+	return CFrame.lookAt(centre, centre + Layout.KITCHEN_FACING)
 end
 
 function Layout.libraryCFrame(area: Areas.AreaDefinition): CFrame
-	local cell = Sections.byCoord(Layout.LIBRARY_CELL)
-	assert(cell, `Layout: library cell "{Layout.LIBRARY_CELL}" is invalid`)
-
-	local centre = area.origin + Vector3.new(cell.cx, WORLD.TERRAIN_TOP, cell.cz)
-	local plaza = Vector3.new(area.origin.X, centre.Y, area.origin.Z)
-	return CFrame.lookAt(centre, plaza)
+	local centre = area.origin + Layout.LIBRARY_OFFSET + Vector3.new(0, WORLD.TERRAIN_TOP, 0)
+	return CFrame.lookAt(centre, centre + Layout.LIBRARY_FACING)
 end
 
 function Layout.farmFieldCFrame(area: Areas.AreaDefinition): CFrame
@@ -161,11 +167,16 @@ end
 function Layout.reservedZones(area: Areas.AreaDefinition): { Zone }
 	local zones: { Zone } = {}
 
+	--[[
+		The plaza's skirt was 60 studs wide, which put the reserve at 145 and ate
+		the ring road plus the inner corner of all four town cells. The square
+		itself still owns its own paving; 20 is the kerb, not a district.
+	]]
 	table.insert(zones, {
 		kind = "circle",
 		x = 0,
 		z = 0,
-		radius = Layout.plazaDiameter(area) / 2 + 60,
+		radius = Layout.plazaDiameter(area) / 2 + 20,
 	})
 
 	local farmCell = Sections.byCoord(Farming.CELL_COORD)
@@ -233,11 +244,9 @@ function Layout.reservedZones(area: Areas.AreaDefinition): { Zone }
 		})
 
 		local direction = libraryFrame.LookVector
-		local approachCentre = libraryFrame:PointToWorldSpace(Vector3.new(
-			0,
-			0,
-			-(Layout.LIBRARY_FOOTPRINT.Y / 2 + Layout.LIBRARY_APPROACH_LENGTH / 2)
-		)) - area.origin
+		local approachCentre = libraryFrame:PointToWorldSpace(
+			Vector3.new(0, 0, -(Layout.LIBRARY_FOOTPRINT.Y / 2 + Layout.LIBRARY_APPROACH_LENGTH / 2))
+		) - area.origin
 		table.insert(zones, {
 			kind = "strip",
 			x = approachCentre.X,
@@ -283,13 +292,18 @@ function Layout.reservedZones(area: Areas.AreaDefinition): { Zone }
 		end
 	end
 
-	table.insert(zones, {
-		kind = "rect",
-		x = 0,
-		z = 0,
-		halfX = Layout.halfSize(area),
-		halfZ = WORLD.BRIDGE_WIDTH / 2 + 70,
-	})
+	--[[
+		The streets, and the market square they run past.
+
+		Reserved so scatter never lands in a carriageway. The town cells are
+		dressed like anywhere else; the roads are what keep the dressing off the
+		one surface the player is meant to walk down.
+	]]
+	if area.id == Areas.STARTING_AREA then
+		for _, zone in Streets.reservedZones() do
+			table.insert(zones, zone :: Zone)
+		end
+	end
 
 	return zones
 end

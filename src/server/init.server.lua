@@ -15,6 +15,7 @@ local BOOT_ORDER = {
 	"LibraryService",
 	"WeedService",
 	"SafeZoneService",
+	"MarketService",
 	"NpcService",
 
 	"MobService",
@@ -50,6 +51,7 @@ local BOOT_ORDER = {
 	"GuideService",
 
 	"WorkOrderService",
+	"ShopService",
 	"ReplicationService",
 
 	"BoardService",

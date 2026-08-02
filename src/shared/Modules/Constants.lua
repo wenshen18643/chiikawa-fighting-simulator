@@ -200,7 +200,7 @@ Constants.DATA = {
 	LOAD_RETRIES = 4,
 	RETRY_BACKOFF = 2,
 	-- Bump when PlayerProfile changes shape; DataService.migrate handles the gap.
-	SCHEMA_VERSION = 3,
+	SCHEMA_VERSION = 4,
 }
 
 Constants.REPLICATION = {

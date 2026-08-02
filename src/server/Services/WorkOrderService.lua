@@ -407,8 +407,8 @@ function WorkOrderService.init()
 	end)
 
 	task.spawn(function()
-		local prompt = Workspace:WaitForChild("SafeZone", 60)
-		prompt = if prompt then (prompt :: Instance):FindFirstChild("OrderBoardPrompt", true) else nil
+		local market = Workspace:WaitForChild("Market", 60)
+		local prompt = if market then (market :: Instance):FindFirstChild("OrderBoardPrompt", true) else nil
 		if not (prompt and prompt:IsA("ProximityPrompt")) then
 			warn("[WorkOrderService] no OrderBoardPrompt found; the booth cannot be talked to")
 			return

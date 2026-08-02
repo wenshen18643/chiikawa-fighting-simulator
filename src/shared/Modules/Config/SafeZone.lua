@@ -345,69 +345,12 @@ SafeZone.exterior = {
 	{ asset = "shopRed", x = 40, z = 100, fit = 18, yaw = -34 },
 
 	--[[
-		The job booth. Yoroi-san hand out weeding and subjugation work from a
-		desk, so the booth is the reason the plot has a gate at all -- you leave
-		the house to take a job. `yoroiKnight` is rigged and animated behind it;
-		see SafeZoneService.rigYoroi.
-
-		The stall's back board sits at lower local X than its counter, so the
-		model serves toward its own +X, and at yaw 118 it was serving the fence.
-		Yawed to -20 the counter faces the path and angles up toward the gate.
-
-		`fit` was 18 on a model whose largest dimension is its 9.2-stud height, so
-		the booth was 18 studs tall and 6 wide -- a chimney with a counter.
+		The job booth moved out to the market square. The plot sits at the centre
+		of a town now, and handing work orders out inside your own fence made the
+		one errand that gets you outdoors something you could do in a dressing
+		gown. See Config/Market.
 	]]
-	{ asset = "shopStall", x = -18, z = 76, fit = 12, yaw = -20, name = "JobBooth" },
-	-- Sat clear of the attendant, which moved when the booth did.
-	{ asset = "yoroiBeast", x = -29, z = 92, fit = 7, yaw = -140 },
 } :: { Placement }
-
---[[
-	Where the rigged Yoroi-san stands, and which way it faces.
-
-	The rig is built facing its own -X: every part in the model carries a 90
-	degree yaw, its arms and legs separate along Z, and its shoulder plates sit
-	at lower X than its torso. Everything else on this plot is authored facing
-	+Z, so the number here is 90 degrees out from what it looks like it says --
-	which is why Yoroi-san was standing beside its own counter looking off across
-	the garden. 160 turns it to face the same way the booth serves.
-
-	Position is derived from the booth rather than set near it: two studs behind
-	the counter's back face along the booth's own backward axis. It used to be
-	5.8 studs from the booth's CENTRE, which on an 18-stud booth is inside it.
-]]
-SafeZone.YOROI = {
-	booth = "JobBooth",
-	--[[
-		Position, in units of the booth's own half-extents rather than in studs.
-
-		`alongCounter` runs down the booth's long axis; past 1.0 is past the end
-		of it. `outFromCounter` runs across the serving side. Written this way so
-		resizing or re-yawing the booth carries the attendant with it -- the
-		previous version was a second pair of world coordinates that had to agree
-		with the booth's and did not.
-	]]
-	--[[
-		1.7, not 1.25. Both are "past the end of the counter", but the attendant
-		is 5.7 studs deep and stands turned 180 to the booth, so its own box
-		reaches back toward the stall -- at 1.25 the two still overlapped by 1.3
-		studs, which is now something you can walk into rather than something
-		that merely looks wrong. This leaves 1.4 studs of daylight.
-	]]
-	alongCounter = 1.7,
-	outFromCounter = 0.35,
-	--[[
-		Turned to face the way the booth serves. 180 rather than 0 because the rig
-		faces its own -X while the booth serves its own +X; see boothStation.
-	]]
-	facingOffset = 180,
-	height = 8.5, -- deliberately taller than the player: they are the authority
-
-	-- Used only if the booth failed to load and there is nothing to measure off.
-	x = -18,
-	z = 84,
-	yaw = 160,
-}
 
 --------------------------------------------------------------------------------
 -- Garden

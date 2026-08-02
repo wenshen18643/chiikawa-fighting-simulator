@@ -6,6 +6,7 @@ local Constants = require(Shared.Modules.Constants)
 local Certifications = require(Shared.Modules.Config.Certifications)
 local Gear = require(Shared.Modules.Config.Gear)
 local Skills = require(Shared.Modules.Config.Skills)
+local Upgrades = require(Shared.Modules.Config.Upgrades)
 
 type BigNum = BigNumber.BigNum
 
@@ -24,6 +25,7 @@ function Formulas.gainMultiplier(profile: any, skillId: string): BigNum
 
 	multiplier = BigNumber.mulNumber(multiplier, Formulas.comfortMultiplier(profile))
 	multiplier = BigNumber.mulNumber(multiplier, Formulas.boostMultiplier(profile, canonical))
+	multiplier = BigNumber.mulNumber(multiplier, Upgrades.multiplier(profile, "gain"))
 
 	return multiplier
 end
@@ -71,7 +73,8 @@ end
 function Formulas.maxStamina(profile: any): number
 	local resilienceVal = profile.skills.resilience or profile.skills.grit or profile.skills.durability
 	local gritLog = if BigNumber.isValid(resilienceVal) then math.max(BigNumber.log10(resilienceVal), 0) else 0
-	return Constants.STAMINA.BASE_MAX + gritLog * Constants.STAMINA.MAX_PER_GRIT_LOG
+	return (Constants.STAMINA.BASE_MAX + gritLog * Constants.STAMINA.MAX_PER_GRIT_LOG)
+		* Upgrades.multiplier(profile, "stamina")
 end
 
 function Formulas.staminaRegenPerSecond(profile: any): number
@@ -95,6 +98,7 @@ function Formulas.yenPerMinute(profile: any): BigNum
 	wage = BigNumber.mulNumber(wage, 1 + weedingLog)
 
 	wage = BigNumber.mulNumber(wage, Formulas.boostStatMultiplier(profile, "yen"))
+	wage = BigNumber.mulNumber(wage, Upgrades.multiplier(profile, "yen"))
 
 	return wage
 end

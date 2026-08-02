@@ -42,7 +42,6 @@ local Npcs = {}
 
 local WHITE = Color3.fromRGB(250, 248, 244)
 local CREAM = Color3.fromRGB(244, 236, 222)
-local BLUE = Color3.fromRGB(142, 198, 226)
 local PINK = Color3.fromRGB(244, 196, 206)
 local YELLOW = Color3.fromRGB(246, 216, 140)
 local BROWN = Color3.fromRGB(196, 156, 116)
@@ -51,37 +50,13 @@ local ARMOUR = Color3.fromRGB(178, 186, 198)
 Npcs.DEFINITIONS = {
 	-- Region 1: the starting town.
 	{
-		id = "little_one",
-		name = "Little One",
-		role = "your friend",
-		regionId = 1,
-		offset = Vector3.new(-62, 0, 128),
-		build = { bodyColor = WHITE, bellyColor = CREAM, earStyle = "round", height = 3.2, blush = true },
-		lines = {
-			"Weeds! There are so many weeds.",
-			"I got Grade 5. I studied really hard.",
-			"If you get tired, you can just sit down.",
-		},
-	},
-	{
-		id = "halfsie",
-		name = "Halfsie",
-		role = "cheerful",
-		regionId = 1,
-		offset = Vector3.new(62, 0, 128),
-		build = { bodyColor = WHITE, bellyColor = BLUE, earStyle = "tall", earColor = BLUE, height = 3.6, blush = true },
-		lines = {
-			"The pay is per minute, so standing around still counts!",
-			"Higher grade means better wages. That's the whole trick.",
-			"Wanna go past the weed field later? I found a sausage tree.",
-		},
-	},
-	{
 		id = "labour_official",
 		name = "Labour Official",
 		role = "assigns work and pay",
 		regionId = 1,
-		offset = Vector3.new(0, 0, -132),
+		-- Was at (0, -132), which is D3 -- now deliberately empty ground. Moved
+		-- onto the market square, beside the booth that posts the work.
+		offset = Vector3.new(-82, 0, -132),
 		build = { bodyColor = ARMOUR, bellyColor = ARMOUR, earStyle = "none", height = 5.2, blush = false },
 		lines = {
 			"Work is posted daily. Take what you can carry.",
@@ -109,22 +84,6 @@ Npcs.DEFINITIONS = {
 		with four people in it is a diorama.
 	]]
 	{
-		id = "hoppy",
-		name = "Hoppy",
-		role = "loud",
-		regionId = 1,
-		offset = Vector3.new(150, 0, 132),
-		build = {
-			bodyColor = CREAM,
-			bellyColor = WHITE,
-			earStyle = "tall",
-			earColor = CREAM,
-			height = 3.4,
-			blush = false,
-		},
-		lines = { "YAH!", "URA!", "...ha?" },
-	},
-	{
 		id = "forager",
 		name = "Forager",
 		role = "knows where things grow",
@@ -142,7 +101,8 @@ Npcs.DEFINITIONS = {
 		name = "Shopkeep",
 		role = "sells things",
 		regionId = 1,
-		offset = Vector3.new(-128, 0, 74),
+		-- On the market square, clear of the corridor the spur enters through.
+		offset = Vector3.new(-110, 0, -132),
 		build = { bodyColor = PINK, bellyColor = WHITE, earStyle = "round", height = 3.6, blush = true },
 		lines = {
 			"Charm gets you a discount. I don't make the rules.",
@@ -154,7 +114,8 @@ Npcs.DEFINITIONS = {
 		name = "Pochette Official",
 		role = "makes things by hand",
 		regionId = 1,
-		offset = Vector3.new(128, 0, 74),
+		-- Clear of the ring's east verge, which owns X 103 to 109.
+		offset = Vector3.new(124, 0, 20),
 		build = { bodyColor = ARMOUR, bellyColor = PINK, earStyle = "none", height = 5.0, blush = false },
 		lines = {
 			"Everything here is handmade. Including the mistakes.",

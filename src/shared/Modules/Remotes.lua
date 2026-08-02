@@ -29,6 +29,9 @@
 	  - Cook.Click          client -> server, one stir click, intent only.
 	  - Cook.Event          server -> client, cook session lifecycle payloads.
 	  - Inventory.Eat       client -> server, dish id to consume, validated.
+	  - Shop.Open           server -> client, the upgrade ladders, on walking up.
+	  - Shop.Buy            client -> server, an upgrade id. No price travels up.
+	  - Shop.Event          server -> client, refreshed levels and affordability.
 
 	There is deliberately no currency remote the client can write to.
 ]]
@@ -136,6 +139,18 @@ local REMOTE_TREE = {
 		sent up: the server counts kills, pulls and depth itself from the events
 		it already owns, so there is no number here for a client to inflate.
 	]]
+	--[[
+		The market's upgrade counter.
+
+		Buy carries an UPGRADE ID and nothing else. The server reads the level off
+		the profile and prices it itself, so there is no cost, no level and no
+		quantity here for a client to argue with.
+	]]
+	Shop = {
+		Open = "RemoteEvent",
+		Buy = "RemoteEvent",
+		Event = "RemoteEvent",
+	},
 	Order = {
 		Open = "RemoteEvent", -- server -> client: the board, on walking up to the booth
 		Accept = "RemoteEvent", -- client -> server: an id from the board it was shown

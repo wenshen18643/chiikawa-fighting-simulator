@@ -31,8 +31,8 @@ local BOOT_ORDER = {
 	{ container = script.Controllers, name = "ForageProgressController" },
 	{ container = script.Controllers, name = "FeastProgressController" },
 	{ container = script.Controllers, name = "CompanionShelfController" },
-	-- Independent of the rest: it waits on Workspace.SafeZone and drives
-	-- whatever the server tagged as rigged.
+	-- Independent of the rest: it waits on Workspace.SafeZone and Workspace.Market
+	-- and drives whatever the server tagged as rigged.
 	{ container = script.Controllers, name = "SafeZoneAnimController" },
 	-- Independent: it reads one replicated character attribute and swaps Lighting.
 	{ container = script.Controllers, name = "CaveController" },
@@ -61,6 +61,9 @@ local BOOT_ORDER = {
 	-- and after HUD so its strip draws over the rail rather than under it.
 	{ container = script.UI, name = "OrderBoard" },
 	{ container = script.UI, name = "OrderTracker" },
+	-- The market counter's prompt opens this; it also rides the HUD snapshot so a
+	-- button that was unaffordable stops being so while the panel is still up.
+	{ container = script.UI, name = "ShopMenu" },
 }
 
 for _, entry in BOOT_ORDER do

@@ -67,7 +67,7 @@ Skeleton.PROFILES = {
 	},
 	--[[
 		The job-booth Yoroi-san. A legacy R6 rig -- correct part names, wrong
-		joint classes -- so SafeZoneService.rigYoroi rebuilds its `Motor` and
+		joint classes -- so Modules.YoroiRig rebuilds its `Motor` and
 		`Snap` joints as Motor6D and hangs a RootJoint off an invisible root
 		before this profile can find anything.
 
