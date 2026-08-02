@@ -84,12 +84,7 @@ end
 local function freeformSkill(_player: Player, profile: any): string
 	local selected = profile.selectedSkill
 	if type(selected) == "string" and Skills.exists(selected) then
-		local canonical = Skills.canonicalize(selected)
-
-		if canonical == "resilience" then
-			return Skills.ORDER[1]
-		end
-		return canonical
+		return Skills.canonicalize(selected)
 	end
 	return Skills.ORDER[1]
 end
@@ -199,7 +194,13 @@ local function onPerform(player: Player)
 		return
 	end
 
+	local skillId = freeformSkill(player, profile)
+
 	if MobService.canAttack(player) then
+		if not Skills.trains(skillId, "mob") then
+			explain(player, Skills.ACTIVITY_HINT.mob)
+			return
+		end
 		if not limiterFor(player, profile):consume() then
 			return
 		end
@@ -214,18 +215,16 @@ local function onPerform(player: Player)
 			return
 		end
 
-		local gain, bonus = credit(player, profile, "tobatsu", 1, hitDefinition.hitGainMultiplier, false)
+		local gain, bonus = credit(player, profile, skillId, 1, hitDefinition.hitGainMultiplier, false)
 		if not gain then
 			return
 		end
-		markWorking(player, "tobatsu")
-		WorkService.feedback:FireClient(player, "tobatsu", gain, bonus)
+		markWorking(player, skillId)
+		WorkService.feedback:FireClient(player, skillId, gain, bonus)
 		return
 	end
 
-	local skillId = freeformSkill(player, profile)
-
-	if Skills.canonicalize(skillId) == "examprep" then
+	if skillId == "examprep" then
 		return
 	end
 
@@ -233,14 +232,23 @@ local function onPerform(player: Player)
 		return
 	end
 
-	local bit = FeastService.bite(player, profile)
+	local selfAwarded = false
 
-	if FishingService.reel(player, profile) then
-		skillId = "resilience"
-	elseif QuarryService.swing(player, profile) then
-		skillId = "tobatsu"
-	elseif Skills.canonicalize(skillId) == "kusatori" then
-		if not pullSomething(player, profile) and not bit then
+	if skillId == "resilience" then
+		if not FishingService.reel(player, profile) then
+			if not FeastService.bite(player, profile) then
+				explain(player, "Nothing here — cast at the lake or bite into giant food.")
+				return
+			end
+			selfAwarded = true
+		end
+	elseif skillId == "tobatsu" then
+		if not QuarryService.swing(player, profile) then
+			explain(player, "Nothing to strike here — find a monster or the rock face.")
+			return
+		end
+	elseif skillId == "kusatori" then
+		if not pullSomething(player, profile) then
 			explain(player, "Nothing to pull here — find weeds or something growing.")
 			return
 		end
@@ -251,22 +259,22 @@ local function onPerform(player: Player)
 		return
 	end
 
+	markWorking(player, skillId)
+
+	if selfAwarded then
+		return
+	end
+
 	local gain, bonus = credit(player, profile, skillId, 1, nil)
 	if not gain then
 		return
 	end
-
-	markWorking(player, skillId)
 
 	WorkService.feedback:FireClient(player, skillId, gain, bonus)
 end
 
 local function onSelectSkill(player: Player, skillId: any)
 	if type(skillId) ~= "string" or not Skills.exists(skillId) then
-		return
-	end
-
-	if Skills.canonicalize(skillId) == "resilience" then
 		return
 	end
 

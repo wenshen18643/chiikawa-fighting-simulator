@@ -231,15 +231,21 @@ local function decorate(part: BasePart, parent: Instance)
 	part.Parent = parent
 end
 
+local SASUMATA_PINK = Color3.fromRGB(243, 167, 193)
+local SASUMATA_BARB = Color3.fromRGB(226, 124, 158)
+local SASUMATA_CREAM = Color3.fromRGB(252, 247, 240)
+local PRONG_SPLAY = 13
+local BARBS_PER_PRONG = 3
+
 local function buildSasumata(scale: number): Model
 	local model = Instance.new("Model")
 	model.Name = "EquippedSasumata"
 
 	local shaft = Instance.new("Part")
 	shaft.Name = "Shaft"
-	shaft.Size = Vector3.new(0.22, 3.4, 0.22) * scale
-	shaft.Color = Color3.fromRGB(126, 92, 62)
-	shaft.Material = Enum.Material.Wood
+	shaft.Size = Vector3.new(0.2, 3.4, 0.2) * scale
+	shaft.Color = SASUMATA_PINK
+	shaft.Material = Enum.Material.SmoothPlastic
 	shaft.CFrame = CFrame.new()
 	decorate(shaft, model)
 	model.PrimaryPart = shaft
@@ -253,28 +259,75 @@ local function buildSasumata(scale: number): Model
 		weld.Parent = shaft
 	end
 
-	local bar = Instance.new("Part")
-	bar.Name = "ForkBar"
-	bar.Size = Vector3.new(1.25, 0.2, 0.2) * scale
-	bar.Color = Color3.fromRGB(226, 232, 240)
-	bar.Material = Enum.Material.Metal
-	attach(bar, CFrame.new(0, 1.7 * scale, 0))
+	local neck = Instance.new("Part")
+	neck.Name = "ForkNeck"
+	neck.Size = Vector3.new(0.86, 0.2, 0.2) * scale
+	neck.Color = SASUMATA_PINK
+	neck.Material = Enum.Material.SmoothPlastic
+	attach(neck, CFrame.new(0, 1.66 * scale, 0))
+
+	local prongLength = 1.3
+	local splay = math.rad(PRONG_SPLAY)
 
 	for _, side in { -1, 1 } do
+		local lean = splay * side
+		local baseX = 0.43 * side * scale
+		local baseY = 1.66 * scale
 		local prong = Instance.new("Part")
 		prong.Name = if side < 0 then "LeftProng" else "RightProng"
-		prong.Size = Vector3.new(0.18, 1.15, 0.2) * scale
-		prong.Color = Color3.fromRGB(226, 232, 240)
-		prong.Material = Enum.Material.Metal
-		attach(prong, CFrame.new(0.55 * side * scale, (1.7 + 0.62) * scale, 0))
+		prong.Size = Vector3.new(0.18 * scale, prongLength * scale, 0.2 * scale)
+		prong.Color = SASUMATA_PINK
+		prong.Material = Enum.Material.SmoothPlastic
+		attach(
+			prong,
+			CFrame.new(
+				baseX + math.sin(lean) * prongLength * scale / 2,
+				baseY + math.cos(lean) * prongLength * scale / 2,
+				0
+			) * CFrame.Angles(0, 0, -lean)
+		)
+
+		local tip = Instance.new("Part")
+		tip.Name = if side < 0 then "LeftTip" else "RightTip"
+		tip.Shape = Enum.PartType.Ball
+		tip.Size = Vector3.new(0.22, 0.22, 0.22) * scale
+		tip.Color = SASUMATA_PINK
+		tip.Material = Enum.Material.SmoothPlastic
+		attach(
+			tip,
+			CFrame.new(baseX + math.sin(lean) * prongLength * scale, baseY + math.cos(lean) * prongLength * scale, 0)
+		)
+
+		for index = 1, BARBS_PER_PRONG do
+			local along = (index - 0.35) / BARBS_PER_PRONG * prongLength * scale
+			local barb = Instance.new("Part")
+			barb.Name = "Barb"
+			barb.Shape = Enum.PartType.Wedge
+			barb.Size = Vector3.new(0.14, 0.26, 0.3) * scale
+			barb.Color = SASUMATA_BARB
+			barb.Material = Enum.Material.SmoothPlastic
+			attach(
+				barb,
+				CFrame.new(baseX + math.sin(lean) * along - 0.16 * side * scale, baseY + math.cos(lean) * along, 0)
+					* CFrame.Angles(0, math.rad(90) * side, -lean)
+			)
+		end
 	end
 
-	local grip = Instance.new("Part")
-	grip.Name = "Grip"
-	grip.Size = Vector3.new(0.28, 0.7, 0.28) * scale
-	grip.Color = Color3.fromRGB(72, 54, 40)
-	grip.Material = Enum.Material.SmoothPlastic
-	attach(grip, CFrame.new(0, -0.9 * scale, 0))
+	local band = Instance.new("Part")
+	band.Name = "GripBand"
+	band.Size = Vector3.new(0.26, 0.8, 0.26) * scale
+	band.Color = SASUMATA_CREAM
+	band.Material = Enum.Material.SmoothPlastic
+	attach(band, CFrame.new(0, -0.85 * scale, 0))
+
+	local butt = Instance.new("Part")
+	butt.Name = "ButtCap"
+	butt.Shape = Enum.PartType.Ball
+	butt.Size = Vector3.new(0.26, 0.26, 0.26) * scale
+	butt.Color = SASUMATA_BARB
+	butt.Material = Enum.Material.SmoothPlastic
+	attach(butt, CFrame.new(0, -1.7 * scale, 0))
 
 	return model
 end

@@ -7,6 +7,7 @@ local Market = require(Shared.Modules.Config.Market)
 local UI = require(Shared.UI)
 local YoroiRig = require(Shared.Modules.YoroiRig)
 local AssetService = require(script.Parent.AssetService)
+local MarketBuilder = require(script.Parent.MarketBuilder)
 local MarketService = {}
 local FOLDER_NAME = "Market"
 local folder: Folder
@@ -31,6 +32,7 @@ local function place(row: Market.Placement): Model?
 
 	local x = Market.CENTRE.X + row.x
 	local z = Market.CENTRE.Y + row.z
+	local yaw = Market.yawFor(row)
 	local extents = model:GetExtentsSize()
 	local largest = math.max(extents.X, extents.Y, extents.Z)
 	if largest > 0.01 then
@@ -38,7 +40,7 @@ local function place(row: Market.Placement): Model?
 		extents *= row.fit / largest
 	end
 
-	model:PivotTo(CFrame.new(origin + Vector3.new(x, 0, z)) * CFrame.Angles(0, math.rad(row.yaw or 0), 0))
+	model:PivotTo(CFrame.new(origin + Vector3.new(x, 0, z)) * CFrame.Angles(0, math.rad(yaw), 0))
 
 	local landed, size = model:GetBoundingBox()
 	local wanted = Vector3.new(origin.X + x, groundAt(x, z) + size.Y / 2, origin.Z + z)
@@ -50,7 +52,7 @@ local function place(row: Market.Placement): Model?
 
 	model:SetAttribute("PlotSize", extents)
 	model:SetAttribute("PlotCentre", wanted)
-	model:SetAttribute("PlotYaw", row.yaw or 0)
+	model:SetAttribute("PlotYaw", yaw)
 
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
@@ -115,7 +117,7 @@ local function buildCounter()
 	UI.sign(anchor, {
 		name = "UpgradeSign",
 		title = "Upgrades",
-		subtitle = "training, wages, stamina",
+		subtitle = "per-stat training, wages, stamina",
 		offset = Vector3.new(0, 10, 0),
 		extent = UDim2.fromScale(16, 4.5),
 		maxDistance = 140,
@@ -179,6 +181,8 @@ function MarketService.init()
 	folder = Instance.new("Folder")
 	folder.Name = FOLDER_NAME
 	folder.Parent = Workspace
+
+	MarketBuilder.build(folder, origin)
 
 	for _, row in Market.stalls do
 		place(row)

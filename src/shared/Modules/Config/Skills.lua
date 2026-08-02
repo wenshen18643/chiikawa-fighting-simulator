@@ -74,6 +74,40 @@ Skills.DEFINITIONS.weeding = Skills.DEFINITIONS.kusatori
 Skills.DEFINITIONS.special = Skills.DEFINITIONS.examprep
 Skills.DEFINITIONS.craft = Skills.DEFINITIONS.examprep
 
+Skills.ACTIVITY_SKILL = {
+	mob = "tobatsu",
+	quarry = "tobatsu",
+	fishing = "resilience",
+	feast = "resilience",
+	forage = "kusatori",
+	study = "examprep",
+} :: { [string]: string }
+
+Skills.ACTIVITY_HINT = {
+	mob = "Select Tobatsu to train on monsters.",
+	quarry = "Select Tobatsu to swing at the rock face.",
+	fishing = "Select Resilience to fish.",
+	feast = "Select Resilience to eat giant food.",
+	forage = "Select Kusatori to pull weeds.",
+	study = "Select Exam Prep to study.",
+} :: { [string]: string }
+
+function Skills.activityFor(skillId: string): { string }
+	local canonical = Skills.canonicalize(skillId)
+	local result = {}
+	for activity, required in Skills.ACTIVITY_SKILL do
+		if required == canonical then
+			table.insert(result, activity)
+		end
+	end
+	table.sort(result)
+	return result
+end
+
+function Skills.trains(skillId: string, activity: string): boolean
+	return Skills.ACTIVITY_SKILL[activity] == Skills.canonicalize(skillId)
+end
+
 function Skills.canonicalize(skillId: string): string
 	local def = Skills.DEFINITIONS[skillId]
 	if def then

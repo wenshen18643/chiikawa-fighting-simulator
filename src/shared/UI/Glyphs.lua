@@ -78,6 +78,7 @@ end
 
 function shapes.sasumata(ctx)
 	bar(ctx, { x = 0.5, y = 0.65, w = 0.1, h = 0.55 })
+	bar(ctx, { x = 0.5, y = 0.82, w = 0.16, h = 0.14, color = Theme.color.paper })
 	bar(ctx, { x = 0.5, y = 0.36, w = 0.52, h = 0.12 })
 	bar(ctx, { x = 0.28, y = 0.22, w = 0.1, h = 0.36, rot = -12 })
 	bar(ctx, { x = 0.72, y = 0.22, w = 0.1, h = 0.36, rot = 12 })

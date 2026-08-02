@@ -7,8 +7,9 @@ Fishing.CELL_COORD = "F2"
 
 Fishing.LAKE = {
 	radius = 78,
-	depth = 15,
-	shelf = 20,
+	depth = 9,
+	bedThickness = 6,
+	bedClearance = 2,
 	surfaceDrop = 1.5,
 	reserveRadius = 96,
 }

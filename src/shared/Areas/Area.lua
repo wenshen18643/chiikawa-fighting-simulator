@@ -547,22 +547,70 @@ function Area.helpers.sasumataDummy(ctx: DecorateContext, config: { [string]: an
 		parent = model,
 	})
 
+	local sasumataPink = Color3.fromRGB(243, 167, 193)
+	local sasumataBarb = Color3.fromRGB(226, 124, 158)
+
 	local sasumataShaft = Area.helpers.block(ctx, {
 		name = "SasumataShaft",
 		size = Vector3.new(0.5, 10.0, 0.5),
-		color = Color3.fromRGB(120, 95, 75),
-		material = Enum.Material.Wood,
+		color = sasumataPink,
+		material = Enum.Material.SmoothPlastic,
 		cframe = dummy.CFrame * CFrame.new(3.5, 0.5, 0) * CFrame.Angles(0, 0, math.rad(-15)),
 		parent = model,
 	})
+
 	Area.helpers.block(ctx, {
-		name = "SasumataFork",
-		size = Vector3.new(3.2, 0.5, 0.5),
-		color = Color3.fromRGB(220, 225, 230),
-		material = Enum.Material.Metal,
-		cframe = sasumataShaft.CFrame * CFrame.new(0, 4.5, 0),
+		name = "SasumataGrip",
+		size = Vector3.new(0.62, 2.2, 0.62),
+		color = Color3.fromRGB(252, 247, 240),
+		material = Enum.Material.SmoothPlastic,
+		cframe = sasumataShaft.CFrame * CFrame.new(0, -2.6, 0),
 		parent = model,
 	})
+
+	Area.helpers.block(ctx, {
+		name = "SasumataForkNeck",
+		size = Vector3.new(2.2, 0.5, 0.5),
+		color = sasumataPink,
+		material = Enum.Material.SmoothPlastic,
+		cframe = sasumataShaft.CFrame * CFrame.new(0, 4.6, 0),
+		parent = model,
+	})
+
+	local prongSplay = math.rad(13)
+	local prongLength = 3.4
+
+	for _, side in { -1, 1 } do
+		local lean = prongSplay * side
+		local baseX = 1.1 * side
+
+		Area.helpers.block(ctx, {
+			name = if side < 0 then "SasumataProngLeft" else "SasumataProngRight",
+			size = Vector3.new(0.46, prongLength, 0.5),
+			color = sasumataPink,
+			material = Enum.Material.SmoothPlastic,
+			cframe = sasumataShaft.CFrame
+				* CFrame.new(baseX + math.sin(lean) * prongLength / 2, 4.6 + math.cos(lean) * prongLength / 2, 0)
+				* CFrame.Angles(0, 0, -lean),
+			parent = model,
+		})
+
+		for index = 1, 3 do
+			local along = (index - 0.35) / 3 * prongLength
+			Area.helpers.block(ctx, {
+				name = "SasumataBarb",
+				shape = Enum.PartType.Wedge,
+				size = Vector3.new(0.36, 0.66, 0.76),
+				color = sasumataBarb,
+				material = Enum.Material.SmoothPlastic,
+				cframe = sasumataShaft.CFrame
+					* CFrame.new(baseX + math.sin(lean) * along - 0.4 * side, 4.6 + math.cos(lean) * along, 0)
+					* CFrame.Angles(0, math.rad(90) * side, -lean),
+				collide = false,
+				parent = model,
+			})
+		end
+	end
 
 	local attachment = Instance.new("Attachment")
 	attachment.Position = Vector3.new(0, 2.5, 0)
@@ -718,11 +766,12 @@ function Area.helpers.hedge(ctx: DecorateContext, verge: { [string]: any }, styl
 	local piece = length / count
 	local top = style.SURFACE_Y + style.HEDGE_HEIGHT
 	local bodyHeight = style.HEDGE_HEIGHT + style.HEDGE_SKIRT
+	local segments = if verge.hedge == false then 0 else count
 
-	for index = 0, count - 1 do
+	for index = 1, segments do
 		step(ctx)
 
-		local at = from + direction * ((index + 0.5) * piece)
+		local at = from + direction * ((index - 0.5) * piece)
 		local body = Instance.new("Part")
 		body.Name = "Hedge"
 		body.Size = Vector3.new(style.HEDGE_WIDTH, bodyHeight, piece + 0.2)

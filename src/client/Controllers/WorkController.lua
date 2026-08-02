@@ -2,12 +2,10 @@ local ContextActionService = game:GetService("ContextActionService")
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Remotes = require(Shared.Modules.Remotes)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
-local Mobs = require(Shared.Modules.Config.Mobs)
 local Skills = require(Shared.Modules.Config.Skills)
 local Feedback = require(Shared.Modules.Config.Feedback)
 local StateController = require(script.Parent.StateController)
@@ -24,57 +22,6 @@ local MIN_GESTURE = 0.12
 local startListeners: { (skillId: string?, duration: number) -> () } = {}
 local completeListeners: { (skillId: string?) -> () } = {}
 local selectionListeners: { (skillId: string) -> () } = {}
-
-local function getMobSkill(): string?
-	local mobs = Workspace:FindFirstChild("Mobs")
-	local root = Players.LocalPlayer.Character
-		and Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-	if not mobs or not root then
-		return nil
-	end
-
-	local forward = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
-	if forward.Magnitude < 0.01 then
-		return nil
-	end
-	forward = forward.Unit
-
-	for _, child in mobs:GetChildren() do
-		if not child:IsA("Model") then
-			continue
-		end
-		local mobId = child:GetAttribute("MobId")
-		local definition = if type(mobId) == "string" then Mobs.get(mobId) else nil
-		if not definition then
-			continue
-		end
-		local mobRoot = child.PrimaryPart or child:FindFirstChild("HumanoidRootPart", true) :: BasePart?
-		local humanoid = child:FindFirstChildOfClass("Humanoid")
-		if not mobRoot or not humanoid or humanoid.Health <= 0 then
-			continue
-		end
-
-		local offset = mobRoot.Position - root.Position
-		local planar = Vector3.new(offset.X, 0, offset.Z)
-		if
-			planar.Magnitude <= 0.01
-			or planar.Magnitude > definition.playerAttackRange
-			or forward:Dot(planar.Unit) < definition.playerFacingMinimum
-		then
-			continue
-		end
-
-		local params = RaycastParams.new()
-		params.FilterType = Enum.RaycastFilterType.Exclude
-		params.FilterDescendantsInstances = { Players.LocalPlayer.Character :: Model, child }
-		local sight = mobRoot.Position + Vector3.new(0, definition.height * 0.5, 0)
-		if Workspace:Raycast(root.Position, sight - root.Position, params) == nil then
-			return "tobatsu"
-		end
-	end
-
-	return nil
-end
 
 function WorkController.onStart(callback: (skillId: string?, duration: number) -> ())
 	table.insert(startListeners, callback)
@@ -139,8 +86,8 @@ local function tryPerform()
 		return
 	end
 	local interval = now - lastSend
-	local skillId = getMobSkill() or WorkController.getTrainingSkill() or "tobatsu"
-	if Skills.canonicalize(skillId) == "examprep" then
+	local skillId = Skills.canonicalize(WorkController.getTrainingSkill() or "tobatsu")
+	if skillId == "examprep" then
 		WorkController.selectSkill("examprep")
 		return
 	end
@@ -196,7 +143,7 @@ function WorkController.getSelectedSkill(): string?
 end
 
 function WorkController.isSelectable(skillId: string): boolean
-	return Skills.canonicalize(skillId) ~= "resilience"
+	return Skills.exists(skillId)
 end
 
 function WorkController.selectSkill(skillId: string)
@@ -254,13 +201,7 @@ function WorkController.init()
 
 	bindSelection()
 
-	ContextActionService:BindAction(
-		ACTION_NAME,
-		onAction,
-		true,
-		Enum.UserInputType.MouseButton1,
-		Enum.KeyCode.ButtonR2
-	)
+	ContextActionService:BindAction(ACTION_NAME, onAction, true, Enum.UserInputType.MouseButton1, Enum.KeyCode.ButtonR2)
 	ContextActionService:SetTitle(ACTION_NAME, "Work")
 
 	local player = Players.LocalPlayer

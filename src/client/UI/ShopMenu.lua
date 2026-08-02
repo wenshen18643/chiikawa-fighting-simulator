@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Remotes = require(Shared.Modules.Remotes)
+local Skills = require(Shared.Modules.Config.Skills)
 local UI = require(Shared.UI)
 local StateController = require(script.Parent.Parent.Controllers.StateController)
 local ShopMenu = {}
@@ -11,6 +12,7 @@ type Row = {
 	id: string,
 	name: string,
 	sub: string,
+	skill: string?,
 	level: number,
 	maxLevel: number,
 	multiplier: number,
@@ -19,7 +21,7 @@ type Row = {
 }
 
 local ROW_HEIGHT = 96
-local ROW_TINTS = { UI.color.leaf, UI.color.gold, UI.color.sky }
+local ROW_TINTS = { UI.color.gold, UI.color.sky }
 local screen: ScreenGui
 local panel: Frame
 local listHolder: ScrollingFrame
@@ -40,8 +42,16 @@ local function canAfford(row: Row): boolean
 	return BigNumber.gte(yen, row.cost)
 end
 
+local function tintFor(row: Row, index: number): Color3
+	local definition = row.skill and Skills.get(row.skill)
+	if definition then
+		return definition.color
+	end
+	return ROW_TINTS[(index - 1) % #ROW_TINTS + 1]
+end
+
 local function buildRow(row: Row, index: number)
-	local tint = ROW_TINTS[(index - 1) % #ROW_TINTS + 1]
+	local tint = tintFor(row, index)
 
 	local card = UI.card(listHolder, row.id, {
 		color = UI.color.paper,
@@ -190,7 +200,7 @@ end
 
 local function buildPanel(parent: ScreenGui)
 	local _scrim, content, toggle = UI.modal(parent, "ShopMenu", {
-		extent = UDim2.new(0, 560, 0, 460),
+		extent = UDim2.new(0, 560, 0, 540),
 		zIndex = 20,
 	})
 	panel = content
@@ -206,7 +216,7 @@ local function buildPanel(parent: ScreenGui)
 	})
 
 	UI.label(panel, "Subtitle", {
-		text = "Permanent, and they stack with everything else you have earned.",
+		text = "Each stat has its own multiplier. Permanent, and they stack with everything else.",
 		font = UI.font.light,
 		size = UI.text.small,
 		color = UI.color.inkSoft,

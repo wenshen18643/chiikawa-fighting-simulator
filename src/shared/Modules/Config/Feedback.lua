@@ -49,7 +49,7 @@ Feedback.SKILLS = {
 	tobatsu = {
 		gesture = {
 			arms = "right",
-			duration = 0.50,
+			duration = 0.42,
 			keys = {
 				{ t = 0.00, pitch = 0, yaw = 0, roll = 0, elbow = 10 },
 				{ t = 0.30, pitch = -95, yaw = -6, roll = 8, elbow = 74 },

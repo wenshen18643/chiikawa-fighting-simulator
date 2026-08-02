@@ -40,6 +40,7 @@ export type Verge = {
 	facing: number,
 	lamps: boolean?,
 	benches: boolean?,
+	hedge: boolean?,
 }
 
 Streets.PAVING = {
@@ -59,6 +60,11 @@ Streets.PAVING = {
 } :: { Paved }
 
 Streets.SQUARE = { name = "MarketSquare", minX = -144, maxX = -48, minZ = -188, maxZ = -92 } :: Paved
+
+Streets.PAVING_BY_NAME = {} :: { [string]: Paved }
+for _, area in Streets.PAVING do
+	Streets.PAVING_BY_NAME[area.name] = area
+end
 
 Streets.VERGES = {
 	{ fromX = -104.2, fromZ = 158.2, toX = -8.2, toZ = 158.2, facing = 180, lamps = true, benches = true },
@@ -81,13 +87,40 @@ Streets.VERGES = {
 	{ fromX = -129, fromZ = 81.8, toX = -104.2, toZ = 81.8, facing = 0, lamps = true },
 	{ fromX = -129, fromZ = 98.2, toX = -104.2, toZ = 98.2, facing = 180, lamps = true },
 
-	{ fromX = -87.8, fromZ = -90.8, toX = -87.8, toZ = -78.2, facing = -90 },
+	{ fromX = -87.8, fromZ = -90.8, toX = -87.8, toZ = -78.2, facing = -90, hedge = false },
 
-	{ fromX = -145.2, fromZ = -90.8, toX = -104.2, toZ = -90.8, facing = 180, lamps = true },
-	{ fromX = -87.8, fromZ = -90.8, toX = -46.8, toZ = -90.8, facing = 180, lamps = true },
-	{ fromX = -145.2, fromZ = -189.2, toX = -46.8, toZ = -189.2, facing = 0, lamps = true, benches = true },
-	{ fromX = -145.2, fromZ = -189.2, toX = -145.2, toZ = -90.8, facing = 90, lamps = true, benches = true },
-	{ fromX = -46.8, fromZ = -189.2, toX = -46.8, toZ = -90.8, facing = -90, lamps = true, benches = true },
+	{ fromX = -145.2, fromZ = -90.8, toX = -104.2, toZ = -90.8, facing = 180, lamps = true, hedge = false },
+	{ fromX = -87.8, fromZ = -90.8, toX = -46.8, toZ = -90.8, facing = 180, lamps = true, hedge = false },
+	{
+		fromX = -145.2,
+		fromZ = -189.2,
+		toX = -46.8,
+		toZ = -189.2,
+		facing = 0,
+		lamps = true,
+		benches = true,
+		hedge = false,
+	},
+	{
+		fromX = -145.2,
+		fromZ = -189.2,
+		toX = -145.2,
+		toZ = -90.8,
+		facing = 90,
+		lamps = true,
+		benches = true,
+		hedge = false,
+	},
+	{
+		fromX = -46.8,
+		fromZ = -189.2,
+		toX = -46.8,
+		toZ = -90.8,
+		facing = -90,
+		lamps = true,
+		benches = true,
+		hedge = false,
+	},
 } :: { Verge }
 
 function Streets.reservedZones(margin: number?): { { [string]: any } }

@@ -59,14 +59,17 @@ end
 local function carveLake(area: Areas.AreaDefinition, centre: Vector2, step: any)
 	local lake = Fishing.LAKE
 	local top = WORLD.TERRAIN_TOP
+	local islandBottom = top - WORLD.ISLAND_DEPTH / 2 - WORLD.ISLAND_DEPTH
 	local waterTop = top - lake.surfaceDrop
-	local floorY = top - lake.depth
+	local floorY = math.max(top - lake.depth, islandBottom + lake.bedClearance)
+	local basinDepth = top - floorY
 	local rings = 6
+
 	for index = 0, rings do
 		local alpha = index / rings
 		local radius = lake.radius * (1 - alpha * 0.78)
 		local cutTop = top + 6
-		local cutBottom = top - lake.depth * (0.32 + alpha * 0.68)
+		local cutBottom = top - basinDepth * (0.32 + alpha * 0.68)
 		TerrainBuilder.fillCylinder(
 			area.origin + Vector3.new(centre.X, (cutTop + cutBottom) / 2, centre.Y),
 			cutTop - cutBottom,
@@ -77,9 +80,17 @@ local function carveLake(area: Areas.AreaDefinition, centre: Vector2, step: any)
 	end
 
 	TerrainBuilder.fillCylinder(
+		area.origin + Vector3.new(centre.X, floorY - lake.bedThickness / 2, centre.Y),
+		lake.bedThickness,
+		lake.radius + 4,
+		Enum.Material.Sand,
+		step
+	)
+
+	TerrainBuilder.fillCylinder(
 		area.origin + Vector3.new(centre.X, (waterTop + floorY) / 2, centre.Y),
 		waterTop - floorY,
-		lake.radius - 1,
+		lake.radius,
 		Enum.Material.Water,
 		step
 	)

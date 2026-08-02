@@ -7,6 +7,7 @@ local BigNumber = require(Shared.Modules.BigNumber)
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
 local Skills = require(Shared.Modules.Config.Skills)
+local Upgrades = require(Shared.Modules.Config.Upgrades)
 local DataService = {}
 local profiles: { [Player]: any } = {}
 local releaseCallbacks: { (player: Player, profile: any) -> () } = {}
@@ -153,6 +154,19 @@ local function reconcile(profile: any): any
 			profile.examAttempts[skillId] = 0
 		end
 	end
+
+	if type(profile.upgrades) ~= "table" then
+		profile.upgrades = {}
+	end
+
+	local legacyGain = tonumber(profile.upgrades[Upgrades.LEGACY_GAIN])
+	if legacyGain and legacyGain > 0 then
+		for _, gainId in Upgrades.GAIN_IDS do
+			local existing = tonumber(profile.upgrades[gainId]) or 0
+			profile.upgrades[gainId] = math.max(existing, math.floor(legacyGain))
+		end
+	end
+	profile.upgrades[Upgrades.LEGACY_GAIN] = nil
 
 	for _, currency in { "yen", "stamps" } do
 		if not BigNumber.isValid(profile.currencies[currency]) then

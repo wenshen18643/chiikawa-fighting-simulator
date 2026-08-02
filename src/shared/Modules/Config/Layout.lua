@@ -4,6 +4,7 @@ local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
 local Fishing = require(Shared.Modules.Config.Fishing)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
+local Market = require(Shared.Modules.Config.Market)
 local Quarry = require(Shared.Modules.Config.Quarry)
 local SafeZone = require(Shared.Modules.Config.SafeZone)
 local SausageForest = require(Shared.Modules.Config.SausageForest)
@@ -279,6 +280,14 @@ function Layout.reservedZones(area: Areas.AreaDefinition): { Zone }
 		for _, zone in Streets.reservedZones() do
 			table.insert(zones, zone :: Zone)
 		end
+
+		table.insert(zones, {
+			kind = "rect",
+			x = Market.CENTRE.X,
+			z = Market.CENTRE.Y,
+			halfX = Market.HALF.X + Market.TERRACE + 4,
+			halfZ = Market.HALF.Y + Market.TERRACE + 4,
+		})
 	end
 
 	return zones

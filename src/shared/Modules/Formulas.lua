@@ -23,7 +23,7 @@ function Formulas.gainMultiplier(profile: any, skillId: string): BigNum
 
 	multiplier = BigNumber.mulNumber(multiplier, Formulas.comfortMultiplier(profile))
 	multiplier = BigNumber.mulNumber(multiplier, Formulas.boostMultiplier(profile, canonical))
-	multiplier = BigNumber.mulNumber(multiplier, Upgrades.multiplier(profile, "gain"))
+	multiplier = BigNumber.mulNumber(multiplier, Upgrades.gainMultiplier(profile, canonical))
 
 	return multiplier
 end

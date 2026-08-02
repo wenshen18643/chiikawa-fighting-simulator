@@ -1,9 +1,11 @@
 --!strict
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
+local RateLimiter = require(Shared.Modules.RateLimiter)
 local Remotes = require(Shared.Modules.Remotes)
 local Upgrades = require(Shared.Modules.Config.Upgrades)
 local CurrencyService = require(script.Parent.CurrencyService)
@@ -12,14 +14,42 @@ local NotifyService = require(script.Parent.NotifyService)
 local ReplicationService = require(script.Parent.ReplicationService)
 local ShopService = {}
 local PROMPT_NAME = "ShopPrompt"
+local BUY_RATE = 4
+local BUY_BURST = 6
+local COUNTER_REACH = 28
 local openRemote: RemoteEvent
 local buyRemote: RemoteEvent
 local eventRemote: RemoteEvent
+local counter: BasePart? = nil
+local limiters: { [Player]: RateLimiter.RateLimiter } = {}
+
+local function limiterFor(player: Player): RateLimiter.RateLimiter
+	local limiter = limiters[player]
+	if not limiter then
+		limiter = RateLimiter.new(BUY_RATE, BUY_BURST)
+		limiters[player] = limiter
+	end
+	return limiter
+end
+
+local function withinReach(player: Player): boolean
+	if not counter then
+		return true
+	end
+
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not (root and root:IsA("BasePart")) then
+		return false
+	end
+	return (root.Position - counter.Position).Magnitude <= COUNTER_REACH
+end
 
 type Row = {
 	id: string,
 	name: string,
 	sub: string,
+	skill: string?,
 	level: number,
 	maxLevel: number,
 	multiplier: number,
@@ -40,6 +70,7 @@ local function rowFor(profile: any, id: string): Row?
 		id = id,
 		name = definition.name,
 		sub = definition.sub,
+		skill = definition.skill,
 		level = level,
 		maxLevel = definition.maxLevel,
 		multiplier = Upgrades.multiplierAt(id, level),
@@ -69,6 +100,15 @@ end
 
 function ShopService.buy(player: Player, id: any): boolean
 	if type(id) ~= "string" then
+		return false
+	end
+
+	if not limiterFor(player):consume() then
+		return false
+	end
+
+	if not withinReach(player) then
+		NotifyService.send(player, "Step up to the upgrade counter first.", "locked")
 		return false
 	end
 
@@ -110,6 +150,10 @@ function ShopService.init()
 		ShopService.buy(player, id)
 	end)
 
+	Players.PlayerRemoving:Connect(function(player)
+		limiters[player] = nil
+	end)
+
 	task.spawn(function()
 		local market = Workspace:WaitForChild("Market", 60)
 		local prompt = if market then (market :: Instance):FindFirstChild(PROMPT_NAME, true) else nil
@@ -117,6 +161,12 @@ function ShopService.init()
 			warn("[ShopService] no ShopPrompt found; the upgrade counter cannot be reached")
 			return
 		end
+
+		local anchor = prompt.Parent
+		if anchor and anchor:IsA("BasePart") then
+			counter = anchor
+		end
+
 		prompt.Triggered:Connect(function(player)
 			ShopService.open(player)
 		end)

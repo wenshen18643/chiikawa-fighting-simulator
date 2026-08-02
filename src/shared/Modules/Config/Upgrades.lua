@@ -1,3 +1,4 @@
+local Skills = require(script.Parent.Skills)
 local Upgrades = {}
 
 export type Definition = {
@@ -8,39 +9,66 @@ export type Definition = {
 	baseCost: number,
 	costGrowth: number,
 	perLevel: number,
+	skill: string?,
 }
 
-Upgrades.ORDER = { "gain", "yen", "stamina" }
+Upgrades.LEGACY_GAIN = "gain"
 
-Upgrades.DEFS = {
-	gain = {
-		id = "gain",
-		name = "Training",
-		sub = "every skill gain, multiplied",
-		maxLevel = 25,
-		baseCost = 500,
-		costGrowth = 1.55,
-		perLevel = 0.15,
-	},
-	yen = {
-		id = "yen",
-		name = "Wages",
-		sub = "more yen a minute, forever",
-		maxLevel = 25,
-		baseCost = 750,
-		costGrowth = 1.6,
-		perLevel = 0.12,
-	},
-	stamina = {
-		id = "stamina",
-		name = "Stamina",
-		sub = "work longer before you stop",
-		maxLevel = 15,
-		baseCost = 1200,
-		costGrowth = 1.7,
-		perLevel = 0.1,
-	},
-} :: { [string]: Definition }
+Upgrades.GAIN = {
+	maxLevel = 25,
+	baseCost = 500,
+	costGrowth = 1.55,
+	perLevel = 0.15,
+}
+
+function Upgrades.gainIdFor(skillId: string): string
+	local canonical = Skills.canonicalize(skillId)
+	return "gain" .. canonical:sub(1, 1):upper() .. canonical:sub(2)
+end
+
+Upgrades.ORDER = {}
+Upgrades.DEFS = {} :: { [string]: Definition }
+
+for _, skillId in Skills.ORDER do
+	local definition = Skills.get(skillId)
+	local id = Upgrades.gainIdFor(skillId)
+	table.insert(Upgrades.ORDER, id)
+	Upgrades.DEFS[id] = {
+		id = id,
+		name = if definition then definition.name else skillId,
+		sub = "every gain in this stat, multiplied",
+		maxLevel = Upgrades.GAIN.maxLevel,
+		baseCost = Upgrades.GAIN.baseCost,
+		costGrowth = Upgrades.GAIN.costGrowth,
+		perLevel = Upgrades.GAIN.perLevel,
+		skill = Skills.canonicalize(skillId),
+	}
+end
+
+Upgrades.GAIN_IDS = table.clone(Upgrades.ORDER)
+
+Upgrades.DEFS.yen = {
+	id = "yen",
+	name = "Wages",
+	sub = "more yen a minute, forever",
+	maxLevel = 25,
+	baseCost = 750,
+	costGrowth = 1.6,
+	perLevel = 0.12,
+}
+
+Upgrades.DEFS.stamina = {
+	id = "stamina",
+	name = "Stamina",
+	sub = "work longer before you stop",
+	maxLevel = 15,
+	baseCost = 1200,
+	costGrowth = 1.7,
+	perLevel = 0.1,
+}
+
+table.insert(Upgrades.ORDER, "yen")
+table.insert(Upgrades.ORDER, "stamina")
 
 function Upgrades.get(id: string): Definition?
 	return Upgrades.DEFS[id]
@@ -74,6 +102,10 @@ end
 
 function Upgrades.multiplier(profile: any, id: string): number
 	return Upgrades.multiplierAt(id, Upgrades.level(profile, id))
+end
+
+function Upgrades.gainMultiplier(profile: any, skillId: string): number
+	return Upgrades.multiplier(profile, Upgrades.gainIdFor(skillId))
 end
 
 return Upgrades

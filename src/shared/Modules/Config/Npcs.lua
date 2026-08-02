@@ -27,19 +27,6 @@ local ARMOUR = Color3.fromRGB(178, 186, 198)
 
 Npcs.DEFINITIONS = {
 	{
-		id = "labour_official",
-		name = "Labour Official",
-		role = "assigns work and pay",
-		regionId = 1,
-		offset = Vector3.new(-82, 0, -132),
-		build = { bodyColor = ARMOUR, bellyColor = ARMOUR, earStyle = "none", height = 5.2, blush = false },
-		lines = {
-			"Work is posted daily. Take what you can carry.",
-			"Wages are paid per minute. No overtime is expected of you.",
-			"The certification exam hall opens on the quarter hour.",
-		},
-	},
-	{
 		id = "ramen_cook",
 		name = "Ramen Cook",
 		role = "runs the shop",
@@ -63,18 +50,6 @@ Npcs.DEFINITIONS = {
 			"Carrots and potatoes are under the soil. You have to dig for those.",
 			"Mushrooms out past the pads. Don't eat the ones that look back at you.",
 			"Sausages grow on trees out east. You'll need stronger hands first.",
-		},
-	},
-	{
-		id = "shopkeep",
-		name = "Shopkeep",
-		role = "sells things",
-		regionId = 1,
-		offset = Vector3.new(-110, 0, -132),
-		build = { bodyColor = PINK, bellyColor = WHITE, earStyle = "round", height = 3.6, blush = true },
-		lines = {
-			"Charm gets you a discount. I don't make the rules.",
-			"Festival's soon. There'll be stalls.",
 		},
 	},
 	{
