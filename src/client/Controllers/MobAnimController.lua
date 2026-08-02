@@ -3,19 +3,15 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Machine = require(Shared.Modules.Anim.Machine)
 local Skeleton = require(Shared.Modules.Anim.Skeleton)
 local MobAnims = require(Shared.Modules.Config.MobAnims)
-
 local MobAnimController = {}
-
 local ACTION_ATTRIBUTE = "MobAction"
 local ACTION_SERIAL_ATTRIBUTE = "MobActionSerial"
 local FOLDER_TIMEOUT = 60
 local BIND_TIMEOUT = 15
-
 local machines: { [Model]: any } = {}
 local connections: { [Model]: RBXScriptConnection } = {}
 

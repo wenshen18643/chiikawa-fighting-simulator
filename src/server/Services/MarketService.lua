@@ -1,19 +1,14 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Areas = require(Shared.Areas)
 local Constants = require(Shared.Modules.Constants)
 local Market = require(Shared.Modules.Config.Market)
 local UI = require(Shared.UI)
 local YoroiRig = require(Shared.Modules.YoroiRig)
-
 local AssetService = require(script.Parent.AssetService)
-
 local MarketService = {}
-
 local FOLDER_NAME = "Market"
-
 local folder: Folder
 local origin: Vector3
 
@@ -36,7 +31,6 @@ local function place(row: Market.Placement): Model?
 
 	local x = Market.CENTRE.X + row.x
 	local z = Market.CENTRE.Y + row.z
-
 	local extents = model:GetExtentsSize()
 	local largest = math.max(extents.X, extents.Y, extents.Z)
 	if largest > 0.01 then

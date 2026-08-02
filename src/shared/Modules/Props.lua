@@ -1,5 +1,4 @@
 local Props = {}
-
 local WOOD = Color3.fromRGB(170, 134, 100)
 local WOOD_DARK = Color3.fromRGB(130, 98, 72)
 local STRAW = Color3.fromRGB(232, 210, 150)

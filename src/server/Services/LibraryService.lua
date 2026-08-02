@@ -1,17 +1,13 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Areas = require(Shared.Areas)
 local Layout = require(Shared.Modules.Config.Layout)
 local Remotes = require(Shared.Modules.Remotes)
-
 local LibraryBuilder = require(script.Parent.LibraryBuilder)
 local WorldService = require(script.Parent.WorldService)
-
 local LibraryService = {}
-
 local PROMPT_DISTANCE = 10
 local CLOSE_DISTANCE = 32
 

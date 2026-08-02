@@ -3,7 +3,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Budget = require(Shared.Modules.Budget)
 local Constants = require(Shared.Modules.Constants)
@@ -14,21 +13,16 @@ local Layout = require(Shared.Modules.Config.Layout)
 local Quarry = require(Shared.Modules.Config.Quarry)
 local Sections = require(Shared.Modules.Config.Sections)
 local UI = require(Shared.UI)
-
 local ForagingService = require(script.Parent.ForagingService)
 local MobService = require(script.Parent.MobService)
 local TerrainBuilder = require(script.Parent.TerrainBuilder)
 local WorldService = require(script.Parent.WorldService)
-
 local CaveService = {}
-
 local WORLD = Constants.WORLD
 local LEVEL_ATTRIBUTE = "CaveLevel"
-
 local STONE = Color3.fromRGB(104, 100, 112)
 local STONE_DARK = Color3.fromRGB(66, 63, 74)
 local GLOW_COLOR = Color3.fromRGB(178, 226, 208)
-
 local folder: Folder
 local mouthPosition: Vector3? = nil
 
@@ -122,7 +116,6 @@ end
 
 local function sconce(parent: Instance, at: CFrame)
 	local post = rock(parent, "Sconce", Vector3.new(0.8, 5, 0.8), at * CFrame.new(0, 2.5, 0), STONE_DARK)
-
 	local crystal = Instance.new("Part")
 	crystal.Name = "Crystal"
 	crystal.Size = Vector3.new(2.2, 2.8, 2.2)
@@ -154,7 +147,6 @@ local function buildShaft(
 ): (Vector3, number)
 	local shaft = Cave.SHAFT
 	local drop = math.max(topY - bottomY, 1)
-
 	local bore = Vector3.new(shaft.bore * 2, (topY + shaft.headroom) - bottomY, shaft.bore * 2)
 	local boreAt = CFrame.new(x, (topY + shaft.headroom + bottomY) / 2, z)
 	Workspace.Terrain:FillBlock(boreAt, bore, Enum.Material.Air)
@@ -177,7 +169,6 @@ local function buildShaft(
 	local arc = math.rad(shaft.stepAngle) * shaft.radius
 	local rise = arc * math.tan(math.rad(shaft.slopeDegrees))
 	local segments = math.max(1, math.ceil(drop / rise))
-
 	local topAngle = 0
 	local topPosition = Vector3.new(x + shaft.radius, topY, z)
 
@@ -186,7 +177,6 @@ local function buildShaft(
 		local a1 = math.rad((index + 1) * shaft.stepAngle)
 		local y0 = topY - (index / segments) * drop
 		local y1 = topY - ((index + 1) / segments) * drop
-
 		local p0 = Vector3.new(x + math.cos(a0) * shaft.radius, y0, z + math.sin(a0) * shaft.radius)
 		local p1 = Vector3.new(x + math.cos(a1) * shaft.radius, y1, z + math.sin(a1) * shaft.radius)
 		local mid = (p0 + p1) / 2
@@ -296,14 +286,12 @@ end
 local function decorateMouth(parent: Instance, centre: Vector3, entryAngle: number)
 	local dressing = Cave.MOUTH_DRESSING
 	local rng = Random.new(4211)
-
 	local mouthFolder = Instance.new("Folder")
 	mouthFolder.Name = "Mouth"
 	mouthFolder.Parent = parent
 
 	for index = 0, dressing.stones - 1 do
 		local angle = (index / dressing.stones) * math.pi * 2
-
 		local delta = math.abs((angle - entryAngle + math.pi) % (math.pi * 2) - math.pi)
 		if math.deg(delta) < dressing.gapDegrees then
 			continue
@@ -363,7 +351,6 @@ local function decorateMouth(parent: Instance, centre: Vector3, entryAngle: numb
 		local reach = rng:NextNumber(dressing.capRadius[1], dressing.capRadius[2])
 		local at = centre + Vector3.new(math.cos(angle) * reach, 0, math.sin(angle) * reach)
 		local size = rng:NextNumber(1.6, 3.4)
-
 		local stalk = Instance.new("Part")
 		stalk.Name = "CapStalk"
 		stalk.Size = Vector3.new(size * 0.32, size, size * 0.32)
@@ -401,7 +388,6 @@ end
 local function findMouth(area: Areas.AreaDefinition, level: Cave.LevelDefinition): Vector3
 	local entrance = Cave.first(level, Cave.ENTRANCE)
 	local landing = if entrance then Cave.cellPosition(level, entrance.row, entrance.col) else nil
-
 	local cell = Cave.mouthCell()
 	local fallback = Vector3.new(if cell then cell.cx else 0, WORLD.TERRAIN_TOP, if cell then cell.cz else 0)
 	if not cell then
@@ -457,7 +443,6 @@ local function carve(area: Areas.AreaDefinition, step: Step)
 
 	local first = Cave.LEVELS[1]
 	local mouth = findMouth(area, first)
-
 	local groundY = ForagingService.groundAt(mouth.X, mouth.Z)
 	mouth = Vector3.new(mouth.X, groundY, mouth.Z)
 	mouthPosition = mouth

@@ -2,11 +2,9 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Layout = require(Shared.Modules.Config.Layout)
-
 local LibraryBuilder = {}
 
 export type BuildResult = {
@@ -32,7 +30,6 @@ local SIZE = Layout.LIBRARY_SIZE
 local FLOOR_HEIGHT = 1.2
 local WALL_HEIGHT = 20
 local WALL_THICKNESS = 1.5
-
 local WHITE = Color3.fromRGB(255, 251, 246)
 local PAPER = Color3.fromRGB(250, 243, 234)
 local PEACH = Color3.fromRGB(246, 178, 158)
@@ -492,7 +489,6 @@ end
 function LibraryBuilder.build(parent: Instance, configuredFrame: CFrame): BuildResult
 	local groundY = groundYAt(configuredFrame.Position)
 	local frame = CFrame.new(configuredFrame.Position.X, groundY, configuredFrame.Position.Z) * configuredFrame.Rotation
-
 	local library = Instance.new("Model")
 	library.Name = "PeachStudyLibrary"
 	library:SetAttribute("Cell", Layout.LIBRARY_CELL)

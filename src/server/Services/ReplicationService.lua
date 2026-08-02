@@ -1,6 +1,5 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Certifications = require(Shared.Modules.Config.Certifications)
@@ -8,7 +7,6 @@ local Constants = require(Shared.Modules.Constants)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
-
 local DataService = require(script.Parent.DataService)
 local RegionService = require(script.Parent.RegionService)
 local StaminaService = require(script.Parent.StaminaService)

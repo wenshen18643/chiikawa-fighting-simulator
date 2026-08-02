@@ -2,7 +2,6 @@ local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Areas = require(Shared.Areas)
 local BigNumber = require(Shared.Modules.BigNumber)
@@ -13,7 +12,6 @@ local Remotes = require(Shared.Modules.Remotes)
 local Feast = require(Shared.Modules.Config.Feast)
 local Layout = require(Shared.Modules.Config.Layout)
 local Sections = require(Shared.Modules.Config.Sections)
-
 local AirdropService = require(script.Parent.AirdropService)
 local AssetService = require(script.Parent.AssetService)
 local CurrencyService = require(script.Parent.CurrencyService)
@@ -22,7 +20,6 @@ local NotifyService = require(script.Parent.NotifyService)
 local SafeZoneService = require(script.Parent.SafeZoneService)
 local SkillService = require(script.Parent.SkillService)
 local WorldService = require(script.Parent.WorldService)
-
 local FeastService = {}
 
 FeastService.TAG = "Feast"
@@ -99,7 +96,6 @@ end
 
 local function spawnOne()
 	local def = Feast.roll(rng)
-
 	local model = AssetService.clone(def.asset)
 	if not model then
 		return
@@ -200,7 +196,6 @@ end
 
 local function finish(player: Player, profile: any, food: Food)
 	local def = food.def
-
 	local yen = BigNumber.mulNumber(Formulas.yenPerMinute(profile), def.wageMinutes)
 	CurrencyService.award(profile, "yen", yen)
 	Boosts.apply(profile, def.buff)

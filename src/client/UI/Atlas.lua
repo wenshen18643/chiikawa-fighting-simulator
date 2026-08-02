@@ -1,25 +1,19 @@
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Areas = require(Shared.Areas)
 local Layout = require(Shared.Modules.Config.Layout)
 local Remotes = require(Shared.Modules.Remotes)
 local UI = require(Shared.UI)
-
 local StateController = require(script.Parent.Parent.Controllers.StateController)
-
 local Atlas = {}
-
 local ACTION_NAME = "Atlas"
-
 local scrim: Frame
 local panel: Frame
 local setOpen: (boolean) -> ()
 local pages: { [string]: Frame } = {}
 local isOpen = false
-
 local travelRemote: RemoteEvent
 local areaCells: { [number]: { cell: Frame, status: TextLabel, button: TextButton } } = {}
 local playerPin: Frame
@@ -68,7 +62,6 @@ local function buildWorldPage(parent: Frame)
 		local left = (area.origin.X - half - Layout.BOUNDS_MIN.X) / bounds.X
 		local width = (half * 2) / bounds.X
 		local height = (half * 2) / bounds.Z
-
 		local cell = Instance.new("Frame")
 		cell.Name = area.key
 		cell.AnchorPoint = Vector2.new(0, 0.5)
@@ -267,6 +260,7 @@ function Atlas.build(parent: Instance)
 	scrim, panel, setOpen = UI.modal(parent, "Atlas", {
 		extent = UDim2.fromScale(0.78, 0.8),
 		zIndex = 30,
+
 		onToggled = function(open)
 			isOpen = open
 		end,
@@ -286,6 +280,7 @@ function Atlas.build(parent: Instance)
 		position = UDim2.new(1, 0, 0, 2),
 		extent = UDim2.fromOffset(88, 28),
 		zIndex = panel.ZIndex + 1,
+
 		onActivated = function()
 			Atlas.setOpen(false)
 		end,
@@ -310,6 +305,7 @@ function Atlas.build(parent: Instance)
 			{ key = "world", label = "World" },
 			{ key = "guide", label = "Guide" },
 		},
+
 		onChanged = function(key)
 			for pageKey, page in pages do
 				page.Visible = pageKey == key

@@ -3,11 +3,9 @@
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Constants = require(Shared.Modules.Constants)
-
 local CurrencyService = require(script.Parent.CurrencyService)
 local DataService = require(script.Parent.DataService)
 local NotifyService = require(script.Parent.NotifyService)
@@ -28,9 +26,7 @@ type MailboxRecord = {
 
 local MAX_RECEIPTS = 128
 local RETRIES = 3
-
 local FarmMailboxService = {}
-
 local store: GlobalDataStore? = nil
 local useMemory = false
 local memoryMailboxes: { [number]: { Credit } } = {}

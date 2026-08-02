@@ -1,16 +1,11 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Feedback = require(Shared.Modules.Config.Feedback)
 local Skills = require(Shared.Modules.Config.Skills)
-
 local WorkController = require(script.Parent.WorkController)
-
 local SoundController = {}
-
 local VOICES_PER_SKILL = 4
-
 local container: Folder
 local voices: { [string]: { Sound } } = {}
 local nextVoice: { [string]: number } = {}

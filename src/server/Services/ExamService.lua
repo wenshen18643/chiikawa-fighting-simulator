@@ -1,6 +1,5 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Certifications = require(Shared.Modules.Config.Certifications)
@@ -9,14 +8,11 @@ local ExamQuestions = require(Shared.Modules.Config.ExamQuestions)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
 local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
-
 local DataService = require(script.Parent.DataService)
 local NotifyService = require(script.Parent.NotifyService)
 local StudyService = require(script.Parent.StudyService)
 local WorldService = require(script.Parent.WorldService)
-
 local ExamService = {}
-
 local DESK_MODEL = "StudyDeskProp"
 local CAP_SKILL = Certifications.CAP_SKILL
 local QUIZ_SKILL = Constants.EXAM.QUIZ_SKILL
@@ -34,7 +30,6 @@ type Session = {
 local sessions: { [Player]: Session } = {}
 local reviewRemaining: { [Player]: { [string]: number } } = {}
 local randoms: { [Player]: Random } = {}
-
 local eventRemote: RemoteEvent
 local openRemote: RemoteEvent
 

@@ -1,8 +1,6 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Primitives = require(script.Parent.Primitives)
 local Theme = require(script.Parent.Theme)
-
 local Templates = {}
 
 local COLOR_TARGET: { [string]: string } = {
@@ -31,7 +29,6 @@ end
 
 local function applyTokens(instance: Instance)
 	local where = instance:GetFullName()
-
 	local colorKey = instance:GetAttribute("ThemeColor")
 	if colorKey ~= nil then
 		local target = COLOR_TARGET[instance.ClassName] or DEFAULT_COLOR_TARGET;
@@ -86,7 +83,6 @@ export type MountConfig = {
 
 function Templates.mount(templateName: string, config: MountConfig?): Instance
 	local settings = config or {}
-
 	local source = templateRoot():FindFirstChild(templateName)
 	if not source then
 		error(`[Templates] no template named "{templateName}" under assets/UI/`, 0)

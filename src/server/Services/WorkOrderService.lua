@@ -3,13 +3,11 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Remotes = require(Shared.Modules.Remotes)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
 local WorkOrders = require(Shared.Modules.Config.WorkOrders)
-
 local CurrencyService = require(script.Parent.CurrencyService)
 local DataService = require(script.Parent.DataService)
 local ForagingService = require(script.Parent.ForagingService)
@@ -17,17 +15,13 @@ local HarvestNodes = require(script.Parent.HarvestNodes)
 local MobService = require(script.Parent.MobService)
 local NotifyService = require(script.Parent.NotifyService)
 local SkillService = require(script.Parent.SkillService)
-
 local WorkOrderService = {}
-
 local LEVEL_ATTRIBUTE = "CaveLevel"
 local LANTERN_ATTRIBUTE = "HasLantern"
-
 local openRemote: RemoteEvent
 local acceptRemote: RemoteEvent
 local turnInRemote: RemoteEvent
 local eventRemote: RemoteEvent
-
 local offered: { [Player]: { string } } = {}
 
 local function stateOf(profile: any)
@@ -66,7 +60,6 @@ end
 
 local function boardFor(profile: any): { WorkOrders.OrderDefinition }
 	local state = stateOf(profile)
-
 	local current = activeId(state)
 	if current then
 		local order = WorkOrders.get(current)
@@ -89,7 +82,6 @@ local function payloadFor(profile: any)
 	local state = stateOf(profile)
 	local current = activeId(state)
 	local board = boardFor(profile)
-
 	local ids = {}
 	local entries = {}
 	for _, order in board do

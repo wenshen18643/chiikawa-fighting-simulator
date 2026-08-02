@@ -1,5 +1,4 @@
 local Primitives = require(script.Parent.Primitives)
-
 local Plant = {}
 
 Plant.PAPER_DEEP = Color3.fromRGB(246, 229, 190)

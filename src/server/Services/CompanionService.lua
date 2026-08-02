@@ -5,7 +5,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Assets = require(Shared.Modules.Config.Assets)
 local Companions = require(Shared.Modules.Config.Companions)
@@ -16,42 +15,30 @@ local Remotes = require(Shared.Modules.Remotes)
 local Skeleton = require(Shared.Modules.Anim.Skeleton)
 local Skills = require(Shared.Modules.Config.Skills)
 local UI = require(Shared.UI)
-
 local AssetService = require(script.Parent.AssetService)
 local DataService = require(script.Parent.DataService)
 local MobRig = require(script.Parent.MobRig)
 local NotifyService = require(script.Parent.NotifyService)
-
 local CompanionService = {}
-
 local FOLLOW_OFFSET = Vector3.new(-3.5, 0, 4.5)
-
 local FOLLOW_RESPONSIVENESS = 18
 local TURN_RESPONSIVENESS = 12
-
 local TARGET_HEIGHT = 4
-
 local SHOW_LABEL = true
-
 local TELEPORT_DISTANCE = 60
 local WATCHDOG_INTERVAL = 0.5
-
 local LOAD_TIMEOUT = 15
-
 local COLLISION_GROUP = "Companion"
-
 local ANIM_OWNER_ATTRIBUTE = "AnimOwner"
 local ANIM_ACTION_ATTRIBUTE = "AnimAction"
 local ANIM_SKILL_ATTRIBUTE = "AnimSkill"
 local ACT_COOLDOWN = 0.12
-
 local COMPANION_ID_ATTRIBUTE = "CompanionId"
 local SHELF_PLUSHIE_SIZE = 1.5
 local TOSS_HAND_OFFSET = CFrame.new(1.2, 0.7, -1.9)
 local TOSS_TO_HAND = 0.26
 local TOSS_TO_APEX = 0.5
 local TOSS_HEIGHT = 11
-
 local folder: Folder
 local resolved = false
 local reported = false
@@ -468,7 +455,6 @@ local function buildStand(base: CFrame): Model?
 
 	local pivot = model:GetPivot()
 	local topY = base.Position.Y + boxSize.Y
-
 	local shelfY = topY
 	local boards: { BasePart } = {}
 	for _, descendant in model:GetDescendants() do

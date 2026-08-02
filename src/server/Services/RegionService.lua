@@ -1,21 +1,16 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Formulas = require(Shared.Modules.Formulas)
 local Areas = require(Shared.Areas)
 local Layout = require(Shared.Modules.Config.Layout)
 local Remotes = require(Shared.Modules.Remotes)
-
 local DataService = require(script.Parent.DataService)
 local NotifyService = require(script.Parent.NotifyService)
 local WorldService = require(script.Parent.WorldService)
-
 local RegionService = {}
-
 local CHECK_INTERVAL = 2
-
 local lastKnownRegion: { [Player]: number } = {}
 
 function RegionService.isUnlocked(profile: any, regionId: number): boolean

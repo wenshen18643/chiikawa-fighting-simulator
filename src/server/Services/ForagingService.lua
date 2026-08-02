@@ -2,7 +2,6 @@ local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Constants = require(Shared.Modules.Constants)
@@ -12,18 +11,14 @@ local Remotes = require(Shared.Modules.Remotes)
 local Areas = require(Shared.Areas)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
 local Layout = require(Shared.Modules.Config.Layout)
-
 local Budget = require(Shared.Modules.Budget)
-
 local AssetService = require(script.Parent.AssetService)
 local CurrencyService = require(script.Parent.CurrencyService)
 local TerrainBuilder = require(script.Parent.TerrainBuilder)
 local NotifyService = require(script.Parent.NotifyService)
 local SkillService = require(script.Parent.SkillService)
 local WorldService = require(script.Parent.WorldService)
-
 local ForagingService = {}
-
 local FORAGE = Constants.FORAGE
 
 ForagingService.TAG = "Forage"
@@ -77,14 +72,12 @@ type DynamicZoneRuntime = {
 }
 
 local nodes: { [Node]: boolean } = {}
-
 local BUCKET = 32
 local BUCKET_STRIDE = 100000
 local buckets: { [number]: { [Node]: boolean } } = {}
 local nodeBucketKeys: { [Node]: number } = {}
 local nodeClumps: { [Node]: DynamicClump } = {}
 local clumpRuntimes: { [DynamicClump]: DynamicZoneRuntime } = {}
-
 local CLUMP_PLACEMENT_ATTEMPTS = 32
 local NODE_PLACEMENT_ATTEMPTS = 24
 local NODE_MIN_SPACING = 3
@@ -244,7 +237,6 @@ end
 function ForagingService.nearestPullable(position: Vector3, maxDist: number): Node?
 	local best: Node? = nil
 	local bestDist = maxDist
-
 	local minX = math.floor((position.X - maxDist) / BUCKET)
 	local maxX = math.floor((position.X + maxDist) / BUCKET)
 	local minZ = math.floor((position.Z - maxDist) / BUCKET)
@@ -311,7 +303,6 @@ end
 
 local function buildDirt(parent: Instance, position: Vector3, rng: Random)
 	local size = FORAGE.DIRT_PATCH_SIZE * rng:NextNumber(0.85, 1.2)
-
 	local dirt = Instance.new("Part")
 	dirt.Name = "Soil"
 	dirt.Shape = Enum.PartType.Cylinder
@@ -688,7 +679,6 @@ local function buildZone(
 
 	local rng = Random.new(seedOf(zone.id))
 	local centre = Layout.forageZoneCentre(area, zone)
-
 	local folder = Instance.new("Folder")
 	folder.Name = zone.id
 	folder.Parent = parent

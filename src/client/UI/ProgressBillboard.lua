@@ -1,7 +1,6 @@
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local UI = require(ReplicatedStorage:WaitForChild("Shared").UI)
 
 export type Options = {
@@ -36,7 +35,6 @@ export type Board = typeof(setmetatable(
 
 function ProgressBillboard.new(name: string, options: Options?): Board
 	local config = options or {}
-
 	local anchor = Instance.new("Part")
 	anchor.Name = `{name}Anchor`
 	anchor.Size = Vector3.one

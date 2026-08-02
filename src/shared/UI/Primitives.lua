@@ -1,5 +1,4 @@
 local Theme = require(script.Parent.Theme)
-
 local Primitives = {}
 
 function Primitives.corner(parent: Instance, radius: number?): UICorner
@@ -218,7 +217,6 @@ function Primitives.ring(parent: Instance, name: string, config: { [string]: any
 	local thickness = config.thickness or 8
 	local color = config.color or Theme.color.leaf
 	local track = config.trackColor or Theme.color.lineSoft
-
 	local container = Instance.new("Frame")
 	container.Name = name
 	container.BackgroundTransparency = 1
@@ -233,14 +231,12 @@ function Primitives.ring(parent: Instance, name: string, config: { [string]: any
 	container.Parent = parent
 
 	local radius = 0.42
-
 	local ticks: { Frame } = {}
 	local glows: { Frame } = {}
 	for index = 1, RING_TICKS do
 		local angle = (index - 1) / RING_TICKS * math.pi * 2
 		local px = 0.5 + math.sin(angle) * radius
 		local py = 0.5 - math.cos(angle) * radius
-
 		local glow = Instance.new("Frame")
 		glow.Name = `Glow_{index}`
 		glow.AnchorPoint = Vector2.new(0.5, 0.5)

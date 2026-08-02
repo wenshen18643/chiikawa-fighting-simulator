@@ -1,16 +1,13 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared.Modules.Remotes)
 local UI = require(Shared.UI)
-
 local CompanionMenu = {}
 
 type Entry = { id: string, name: string, blurb: string }
 
 local ROW_HEIGHT = 62
-
 local screen: ScreenGui
 local panel: Frame
 local listHolder: ScrollingFrame
@@ -61,6 +58,7 @@ local function buildRow(entry: Entry, index: number, isSelected: boolean)
 		textColor = UI.color.paperDeep,
 		extent = UDim2.fromOffset(104, 30),
 		position = UDim2.new(1, -116, 0.5, -15),
+
 		onActivated = function()
 			selectRemote:FireServer(entry.id)
 			setOpen(false)
@@ -132,6 +130,7 @@ local function buildPanel(parent: ScreenGui)
 		text = "Close",
 		extent = UDim2.fromOffset(120, 34),
 		position = UDim2.new(0.5, -60, 1, -34),
+
 		onActivated = function()
 			setOpen(false)
 		end,

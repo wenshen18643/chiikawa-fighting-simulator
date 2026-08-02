@@ -5,18 +5,13 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local UI = require(Shared.UI)
-
 local StateController = require(script.Parent.Parent.Controllers.StateController)
 local TutorialContent = require(script.Parent.TutorialContent)
-
 local ControlsPanel = {}
-
 local TOGGLE_ACTION = "ToggleControls"
 local COMPACT_WIDTH = 760
-
 local screen: ScreenGui
 local scrim: TextButton
 local panel: Frame
@@ -25,12 +20,10 @@ local closeButton: TextButton
 local navigation: ScrollingFrame
 local navigationLayout: UIListLayout
 local contentHost: Frame
-
 local open = false
 local acknowledged = false
 local currentPage = "start"
 local closedListeners: { (firstSession: boolean) -> () } = {}
-
 local pages: { TutorialContent.Page } = {}
 local pageViews: { [string]: ScrollingFrame } = {}
 local pageButtons: { [string]: TextButton } = {}
@@ -223,6 +216,7 @@ local function addTimelineRow(parent: Instance, index: number, rowData: Tutorial
 		radius = UI.radius.pill,
 		stroke = true,
 		zIndex = 28,
+
 		onActivated = function()
 			complete = not complete
 			check.Text = if complete then "✓" else ""
@@ -539,6 +533,7 @@ local function buildPanel(parent: ScreenGui)
 		extent = UDim2.fromOffset(124, 30),
 		stroke = true,
 		zIndex = 24,
+
 		onActivated = function()
 			ControlsPanel.setOpen(false)
 		end,
@@ -573,6 +568,7 @@ local function buildPanel(parent: ScreenGui)
 			textSize = 12,
 			radius = UI.radius.chip,
 			zIndex = 23,
+
 			onActivated = function()
 				selectPage(pageData.key)
 			end,

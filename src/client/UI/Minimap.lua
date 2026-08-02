@@ -3,32 +3,25 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Areas = require(Shared.Areas)
 local Cave = require(Shared.Modules.Config.Cave)
 local Layout = require(Shared.Modules.Config.Layout)
 local Sections = require(Shared.Modules.Config.Sections)
 local UI = require(Shared.UI)
-
 local StateController = require(script.Parent.Parent.Controllers.StateController)
-
 local Minimap = {}
-
 local LOCAL_SIZE = 186
 local STRIP_HEIGHT = 34
 local REFRESH_INTERVAL = 0.25
-
 local root: Frame
 local localView: Frame
 local localTitle: TextLabel
 local playerMarker: Frame
 local strip: Frame
-
 local areaLayers: { [number]: Frame } = {}
 local stripCells: { [number]: Frame } = {}
 local stripMarker: Frame
-
 local builtArea: number? = nil
 local accumulator = 0
 
@@ -96,7 +89,6 @@ local function buildLocalView(area: Areas.AreaDefinition)
 end
 
 local REVEAL_RADIUS = 34
-
 local caveLayers: { [number]: Frame } = {}
 local caveCells: { [number]: { [number]: Frame } } = {}
 local revealed: { [number]: { [number]: boolean } } = {}
@@ -223,7 +215,6 @@ local function buildStrip()
 		local half = Layout.halfSize(area)
 		local left = (area.origin.X - half - Layout.BOUNDS_MIN.X) / bounds.X
 		local width = (half * 2) / bounds.X
-
 		local cell = Instance.new("Frame")
 		cell.Name = area.key
 		cell.Position = UDim2.fromScale(left, 0)

@@ -1,7 +1,6 @@
 --!strict
 
 local Sections = require(script.Parent.Sections)
-
 local Cave = {}
 
 Cave.GRID = 13

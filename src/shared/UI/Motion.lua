@@ -1,8 +1,6 @@
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-
 local Motion = {}
-
 local reducedMotion = false
 
 function Motion.setReducedMotion(enabled: boolean)
@@ -19,7 +17,6 @@ Motion.pop = TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out
 Motion.riseOut = TweenInfo.new(0.85, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 Motion.wipe = TweenInfo.new(0.55, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
 Motion.slow = TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-
 Motion.hover = TweenInfo.new(0.16, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 Motion.press = TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 Motion.release = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)

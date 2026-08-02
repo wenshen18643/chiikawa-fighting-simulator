@@ -1,7 +1,6 @@
 --!strict
 
 local Sections = require(script.Parent.Sections)
-
 local Fishing = {}
 
 Fishing.CELL_COORD = "F2"

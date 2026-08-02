@@ -2,24 +2,19 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CompanionAnims = require(Shared.Modules.Config.CompanionAnims)
 local Machine = require(Shared.Modules.Anim.Machine)
 local Remotes = require(Shared.Modules.Remotes)
 local Skeleton = require(Shared.Modules.Anim.Skeleton)
-
 local WorkController = require(script.Parent.WorkController)
-
 local CompanionAnimController = {}
-
 local ACTION_ATTRIBUTE = "AnimAction"
 local SKILL_ATTRIBUTE = "AnimSkill"
 local OWNER_ATTRIBUTE = "AnimOwner"
 local ECHO_WINDOW = 0.75
 local BIND_TIMEOUT = 20
 local FOLDER_TIMEOUT = 60
-
 local machines: { [Model]: any } = {}
 local connections: { [Model]: RBXScriptConnection } = {}
 local localPlayedAt = 0

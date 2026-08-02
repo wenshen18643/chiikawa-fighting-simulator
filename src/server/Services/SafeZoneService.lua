@@ -2,7 +2,6 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
@@ -10,22 +9,17 @@ local Assets = require(Shared.Modules.Config.Assets)
 local Remotes = require(Shared.Modules.Remotes)
 local SafeZone = require(Shared.Modules.Config.SafeZone)
 local UI = require(Shared.UI)
-
 local AssetService = require(script.Parent.AssetService)
 local WeedService = require(script.Parent.WeedService)
 local WorldService = require(script.Parent.WorldService)
-
 local SafeZoneService = {}
-
 local CHECK_INTERVAL = 0.2
-
 local palette = SafeZone.palette
 local dome = SafeZone.DOME
 local houseFolder: Folder
 local origin: Vector3
 local volumeCentre: Vector3
 local volumeHalf: Vector3
-
 local inside: { [Player]: boolean } = {}
 local healthGuards: { [Player]: RBXScriptConnection } = {}
 local changedRemote: RemoteEvent?
@@ -111,15 +105,12 @@ local function buildShell()
 		local t0, t1 = ring / dome.rings, (ring + 1) / dome.rings
 		local r0, y0 = SafeZone.profile(t0)
 		local r1, y1 = SafeZone.profile(t1)
-
 		local midRadius = (r0 + r1) / 2
 		local midHeight = (y0 + y1) / 2
 		local span = math.sqrt((r1 - r0) ^ 2 + (y1 - y0) ^ 2)
 		local lean = math.atan2(r0 - r1, math.max(y1 - y0, 1e-5))
-
 		local count = math.max(8, math.ceil(2 * math.pi * midRadius / dome.segmentArc))
 		local width = (2 * math.pi * midRadius / count) * dome.overlap
-
 		local phase = if ring % 2 == 1 then 0.5 else 0
 
 		for index = 0, count - 1 do
@@ -156,7 +147,6 @@ local function glazeRound(opening: { [string]: any })
 	local centreY = (opening.bottom + opening.top) / 2
 	local azimuth = math.rad(opening.azimuth)
 	local frame = surfaceFrame(azimuth, centreY)
-
 	local radius = select(1, SafeZone.profile(parameterAt(centreY)))
 	local halfWidth = radius * math.sin(math.rad(opening.halfAngle)) + horizontalSlack(centreY)
 	local halfHeight = (opening.top - opening.bottom) / 2 + verticalSlack()
@@ -260,7 +250,6 @@ local function buildStrawberryDoor(opening: { [string]: any })
 	local sill = SafeZone.FLOOR_Y
 	local head = opening.top - verticalSlack() * 0.6
 	local doorHeight = head - sill
-
 	local _, extents = model:GetBoundingBox()
 	local axes = { Vector3.xAxis, Vector3.yAxis, Vector3.zAxis }
 	local spans = { extents.X, extents.Y, extents.Z }
@@ -277,11 +266,9 @@ local function buildStrawberryDoor(opening: { [string]: any })
 	local up = axes[tallest]
 	local through = axes[thinnest]
 	local across = up:Cross(through)
-
 	local scale = doorHeight / spans[tallest]
 	model:ScaleTo(scale)
 	local doorWidth = math.abs(across:Dot(extents)) * scale
-
 	local upright = CFrame.fromMatrix(Vector3.zero, across, up, through):Inverse()
 
 	for _, descendant in model:GetDescendants() do
@@ -300,7 +287,6 @@ local function buildStrawberryDoor(opening: { [string]: any })
 
 	local hinge = frame * CFrame.new(doorWidth / 2, 0, 0)
 	local rel = frame:Inverse() * model:GetPivot()
-
 	local threshold = surfaceFrame(math.rad(opening.azimuth), sill)
 
 	model.Parent = houseFolder
@@ -503,7 +489,6 @@ end
 local function buildFuton(deckY: number)
 	local loft = SafeZone.LOFT
 	local deckRadius = SafeZone.interiorRadiusAt(loft.y) - loft.inset
-
 	local width, depth = 12, 15
 	local x = -7
 	local usable = deckRadius - 1.5
@@ -575,6 +560,7 @@ local function worldHeight(cframe: CFrame, size: Vector3): number
 		+ math.abs(cframe.YVector.Y) * size.Y
 		+ math.abs(cframe.ZVector.Y) * size.Z
 end
+
 local function place(row: SafeZone.Placement, baseY: number): Model?
 	local model = AssetService.clone(row.asset)
 	if not model then
@@ -631,7 +617,6 @@ local function drape(cloth: Model, table_: Model, groundY: number)
 
 	local clothCFrame, clothSize = cloth:GetBoundingBox()
 	local tableCFrame, tableSize = table_:GetBoundingBox()
-
 	local hemTop = clothCFrame.Position.Y - worldHeight(clothCFrame, clothSize) / 2
 	local hemBottom = math.max(groundY + 0.1, tableCFrame.Position.Y - worldHeight(tableCFrame, tableSize) / 2 + 0.1)
 	local drop = hemTop - hemBottom
@@ -811,7 +796,6 @@ local function scatterGrass(rng: Random, occupied: { Footprint })
 	local halfX = SafeZone.VOLUME.size.X / 2 - garden.fenceInset - 5
 	local frontZ = SafeZone.VOLUME.centreOffset.Z + SafeZone.VOLUME.size.Z / 2 - garden.fenceInset - 5
 	local backZ = SafeZone.VOLUME.centreOffset.Z - SafeZone.VOLUME.size.Z / 2 + garden.fenceInset + 5
-
 	local spacing = garden.grassSpacing
 	local columns = math.floor((halfX * 2) / spacing)
 	local rows = math.floor((frontZ - backZ) / spacing)

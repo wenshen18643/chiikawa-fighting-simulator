@@ -1,17 +1,13 @@
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Farming = require(Shared.Modules.Config.Farming)
 local Areas = require(Shared.Areas)
 local Sections = require(Shared.Modules.Config.Sections)
-
 local TerrainBuilder = require(script.Parent.TerrainBuilder)
-
 local BoardService = {}
-
 local FOLDER = "Board"
 local LIGHT = Color3.fromRGB(248, 244, 236)
 local DARK = Color3.fromRGB(116, 146, 128)

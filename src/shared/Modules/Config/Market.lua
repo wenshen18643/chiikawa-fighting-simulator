@@ -1,7 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Streets = require(ReplicatedStorage.Shared.Modules.Config.Streets)
-
 local Market = {}
 
 Market.CENTRE =

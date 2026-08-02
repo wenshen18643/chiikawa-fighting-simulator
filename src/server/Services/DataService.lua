@@ -2,15 +2,12 @@ local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
 local Skills = require(Shared.Modules.Config.Skills)
-
 local DataService = {}
-
 local profiles: { [Player]: any } = {}
 local releaseCallbacks: { (player: Player, profile: any) -> () } = {}
 local loadedCallbacks: { (player: Player, profile: any) -> () } = {}

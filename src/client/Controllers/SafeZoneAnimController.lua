@@ -1,17 +1,13 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CompanionAnims = require(Shared.Modules.Config.CompanionAnims)
 local Machine = require(Shared.Modules.Anim.Machine)
 local Skeleton = require(Shared.Modules.Anim.Skeleton)
-
 local SafeZoneAnimController = {}
-
 local FOLDER_TIMEOUT = 60
 local BIND_TIMEOUT = 15
-
 local machines: { [Model]: any } = {}
 
 local function unbind(model: Model)

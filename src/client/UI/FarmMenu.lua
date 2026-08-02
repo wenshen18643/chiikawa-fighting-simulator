@@ -2,13 +2,11 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Farming = require(Shared.Modules.Config.Farming)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
 local Remotes = require(Shared.Modules.Remotes)
 local UI = require(Shared.UI)
-
 local StateController = require(script.Parent.Parent.Controllers.StateController)
 local WorkController = require(script.Parent.Parent.Controllers.WorkController)
 
@@ -32,7 +30,6 @@ type PlotSnapshot = {
 }
 
 local FarmMenu = {}
-
 local screen: ScreenGui
 local panel: Frame
 local body: ScrollingFrame
@@ -45,7 +42,6 @@ local selected: PlotSnapshot? = nil
 local usageCount = 0
 local isOpen = false
 local pendingLateCrop: string? = nil
-
 local rentRemote: RemoteEvent
 local bidRemote: RemoteEvent
 local plantRemote: RemoteEvent
@@ -195,6 +191,7 @@ local function buildRent(snapshot: PlotSnapshot)
 		position = UDim2.new(1, -154, 0, 40),
 		extent = UDim2.fromOffset(140, 40),
 		zIndex = 27,
+
 		onActivated = function()
 			rentRemote:FireServer(snapshot.plotId)
 		end,
@@ -206,7 +203,6 @@ local function buildBid(snapshot: PlotSnapshot)
 	sectionTitle(auction, "BID FOR THE NEXT LEASE")
 	local minimum = snapshot.minimumBid
 	local capped = minimum > Farming.MAX_BID
-
 	local input = Instance.new("TextBox")
 	input.Name = "BidAmount"
 	input.BackgroundColor3 = UI.color.paperDeep
@@ -239,6 +235,7 @@ local function buildBid(snapshot: PlotSnapshot)
 		position = UDim2.new(1, -144, 0, 42),
 		extent = UDim2.fromOffset(130, 40),
 		zIndex = 27,
+
 		onActivated = function()
 			if not capped then
 				bidRemote:FireServer(snapshot.plotId, amount())
@@ -252,6 +249,7 @@ local function buildBid(snapshot: PlotSnapshot)
 			position = UDim2.new((index - 1) / 3, 14 - (index - 1) * 4, 0, 94),
 			extent = UDim2.new(1 / 3, -14, 0, 38),
 			zIndex = 27,
+
 			onActivated = function()
 				input.Text = tostring(math.clamp(amount() + increment, math.min(minimum, Farming.MAX_BID), Farming.MAX_BID))
 			end,
@@ -314,6 +312,7 @@ local function buildPlant(snapshot: PlotSnapshot)
 			position = UDim2.new(1, -146, 0, y),
 			extent = UDim2.fromOffset(132, 38),
 			zIndex = 27,
+
 			onActivated = function()
 				if owned >= Farming.SEED_COST then
 					requestPlant(snapshot, cropId)
@@ -343,6 +342,7 @@ local function buildCrop(snapshot: PlotSnapshot, crop: CropSnapshot)
 			position = UDim2.fromOffset(14, 78),
 			extent = UDim2.new(1, -28, 0, 38),
 			zIndex = 27,
+
 			onActivated = function()
 				harvestRemote:FireServer(snapshot.plotId)
 			end,
@@ -381,6 +381,7 @@ local function buildPanel(parent: ScreenGui)
 	local scrim, content, toggle = UI.modal(parent, "FarmMenu", {
 		extent = UDim2.new(0.9, 0, 0.84, 0),
 		zIndex = 24,
+
 		onToggled = function(open)
 			isOpen = open
 			WorkController.setInputLocked("farm-menu", open)
@@ -412,6 +413,7 @@ local function buildPanel(parent: ScreenGui)
 		position = UDim2.new(1, -54, 0, 14),
 		extent = UDim2.fromOffset(40, 36),
 		zIndex = 27,
+
 		onActivated = function()
 			setPanelOpen(false)
 		end,

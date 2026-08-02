@@ -1,5 +1,4 @@
 local Workspace = game:GetService("Workspace")
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Budget = require(Shared.Modules.Budget)
@@ -7,16 +6,13 @@ local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
 local Layout = require(Shared.Modules.Config.Layout)
 local Sections = require(Shared.Modules.Config.Sections)
-
 local TerrainBuilder = {}
-
 local WORLD = Constants.WORLD
 
 TerrainBuilder.ready = false
 
 local readySignal = Instance.new("BindableEvent")
 local filled = 0
-
 local MASK_FADE = 70
 
 local MOUNTAINS = {
@@ -79,7 +75,6 @@ local function fillBox(centre: Vector3, size: Vector3, material: Enum.Material, 
 	local terrain = Workspace.Terrain
 	local tile = WORLD.TERRAIN_TILE
 	local overlap = 1
-
 	local countX = math.max(1, math.ceil(size.X / tile))
 	local countZ = math.max(1, math.ceil(size.Z / tile))
 	local stepX = size.X / countX
@@ -291,7 +286,6 @@ function TerrainBuilder.init()
 
 	task.spawn(function()
 		local step = Budget.stepper()
-
 		local ok, err = pcall(function()
 			TerrainBuilder.paintSections(town, step)
 

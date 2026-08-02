@@ -3,7 +3,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Areas = require(Shared.Areas)
 local Budget = require(Shared.Modules.Budget)
@@ -12,13 +11,11 @@ local Layout = require(Shared.Modules.Config.Layout)
 local Mobs = require(Shared.Modules.Config.Mobs)
 local SausageForest = require(Shared.Modules.Config.SausageForest)
 local Sections = require(Shared.Modules.Config.Sections)
-
 local DataService = require(script.Parent.DataService)
 local ForagingService = require(script.Parent.ForagingService)
 local MobService = require(script.Parent.MobService)
 local NotifyService = require(script.Parent.NotifyService)
 local WorldService = require(script.Parent.WorldService)
-
 local SausageForestService = {}
 
 type Plan = {
@@ -29,9 +26,7 @@ type Plan = {
 
 local plans: { [number]: Plan } = {}
 local tierOfMob: { [string]: number } = {}
-
 local reserved: { Layout.Zone } = {}
-
 local overlapParams = OverlapParams.new()
 
 local function blocked(x: number, z: number, yaw: number?, length: number?): (boolean, number)
@@ -219,7 +214,6 @@ local function scatterFallen(plot: Plot, folder: Folder, trunks: { Vector2 }, st
 		local reach = rng:NextNumber(drift[1], drift[2])
 		local x = trunk.X + math.cos(angle) * reach
 		local z = trunk.Y + math.sin(angle) * reach
-
 		local species = SausageForest.pick(SausageForest.SPECIES, rng)
 		local def = Ingredients.get(species.id)
 		if
@@ -281,7 +275,6 @@ local function buildCell(entry: { coord: string, tier: number }, parent: Instanc
 	local guardianId = SausageForest.guardianId(entry.tier)
 	local definition = Mobs.get(guardianId)
 	local count = if definition then definition.population else 0
-
 	local guardians = {}
 	for index = 1, count do
 		local angle = (index - 1) / count * math.pi * 2

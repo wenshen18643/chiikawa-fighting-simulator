@@ -1,15 +1,11 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Companions = require(Shared.Modules.Config.Companions)
 local Remotes = require(Shared.Modules.Remotes)
-
 local CompanionShelfController = {}
-
 local COMPANION_ID_ATTRIBUTE = "CompanionId"
 local STAND_TIMEOUT = 60
-
 local plushies: Instance? = nil
 local taken: string? = nil
 local authored: { [Instance]: number } = {}

@@ -18,7 +18,6 @@ export type NpcDefinition = {
 }
 
 local Npcs = {}
-
 local WHITE = Color3.fromRGB(250, 248, 244)
 local CREAM = Color3.fromRGB(244, 236, 222)
 local PINK = Color3.fromRGB(244, 196, 206)

@@ -1,39 +1,29 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Clip = require(Shared.Modules.Anim.Clip)
 local Feedback = require(Shared.Modules.Config.Feedback)
 local PlayerAnims = require(Shared.Modules.Config.PlayerAnims)
 local Skeleton = require(Shared.Modules.Anim.Skeleton)
-
 local WorkController = require(script.Parent.WorkController)
-
 local GestureController = {}
-
 local WORKING_ATTRIBUTE = "WorkingSkill"
 local FORAGE_CLIP_ATTRIBUTE = "ForageClip"
 local FORAGE_STAMP_ATTRIBUTE = "ForageClipAt"
 local COOKING_ATTRIBUTE = "Cooking"
 local COOKING_CLIP = "cook_stir"
-
 local BLEND_IN = 0.07
 local BLEND_OUT = 0.13
-
 local BIND_TIMEOUT = 15
-
 local BOOK_OPEN_TIME = 0.28
 local BOOK_CLOSE_TIME = 0.4
 local BOOK_HOLD = 1.1
 local BOOK_FLIP_TIME = 0.22
-
 local SASUMATA_SKILLS = { tobatsu = true, subjugation = true, strength = true }
 local BOOK_SKILLS = { examprep = true, special = true, craft = true }
 local KUSATORI_SKILLS = { kusatori = true, weeding = true, agility = true }
-
 local PROP_NAMES = { "EquippedSasumata", "EquippedOpenBook", "EquippedWeedTuft" }
-
 local TUFT_SHOW_T = 0.55
 local TUFT_HIDE_T = 0.98
 
@@ -67,13 +57,10 @@ type BookState = {
 local localRig: Rig? = nil
 local localCharacter: Model? = nil
 local playing: Playing? = nil
-
 local remoteRigs: { [Model]: Rig } = {}
 local remotePhase: { [Model]: number } = {}
-
 local forageStamps: { [Model]: number? } = {}
 local forageShots: { [Model]: ForageShot } = {}
-
 local books: { [Model]: BookState } = {}
 local tuftShown: { [Model]: boolean } = {}
 
@@ -112,7 +99,6 @@ local function buildRig(character: Model): Rig?
 
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
-
 	local basis, inverse = Skeleton.basisFor(character, joints, root)
 	return { joints = joints, basis = basis, inverse = inverse, animator = animator }
 end
@@ -364,7 +350,6 @@ local function buildOpenBook(scale: number): Model
 	local coverLeft = page("CoverLeft", true)
 	local rightPage = page("RightPage", false)
 	local leftPage = page("LeftPage", false)
-
 	local middlePage = Instance.new("Part")
 	middlePage.Name = "MiddlePage"
 	middlePage.Size = Vector3.new(0.94, 0.01, 1.34) * scale
@@ -429,7 +414,6 @@ local function animateBook(character: Model, openAmount: number, flipAmount: num
 
 	local scale = book:GetAttribute("Scale") or 1
 	local open = smoothstep(openAmount)
-
 	local rightAngle = math.rad(-15 * open)
 	local rightCover = CFrame.Angles(0, 0, rightAngle) * CFrame.new(0.5 * scale, -0.02 * scale, 0)
 	coverRight.C0 = rightCover
@@ -624,7 +608,6 @@ local function stepLocal(constraints: boolean)
 	local duration = playing.duration
 	local elapsed = os.clock() - playing.startedAt
 	local t = math.clamp(elapsed / duration, 0, 1)
-
 	local weight: number
 	if elapsed < duration then
 		weight = smoothstep(elapsed / BLEND_IN)
@@ -690,7 +673,6 @@ local function stepRemote(constraints: boolean)
 		end
 
 		local phase = remotePhase[character] or 0
-
 		local skillId = character:GetAttribute(WORKING_ATTRIBUTE)
 		if type(skillId) == "string" then
 			local definition = PlayerAnims.get(skillId)
@@ -776,6 +758,7 @@ function GestureController.init()
 		if player == localPlayer then
 			return
 		end
+
 		local function bindRemote(character: Model)
 			local stamp = character:GetAttribute(FORAGE_STAMP_ATTRIBUTE)
 			forageStamps[character] = if type(stamp) == "number" then stamp else nil

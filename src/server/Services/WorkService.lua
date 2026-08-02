@@ -1,6 +1,5 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Constants = require(Shared.Modules.Constants)
@@ -10,7 +9,6 @@ local Remotes = require(Shared.Modules.Remotes)
 local Companions = require(Shared.Modules.Config.Companions)
 local Seasonings = require(Shared.Modules.Config.Seasonings)
 local Skills = require(Shared.Modules.Config.Skills)
-
 local CurrencyService = require(script.Parent.CurrencyService)
 local DataService = require(script.Parent.DataService)
 local FeastService = require(script.Parent.FeastService)
@@ -165,7 +163,6 @@ end
 
 local WORKING_ATTRIBUTE = "WorkingSkill"
 local WORKING_LINGER = 1.2
-
 local workingUntil: { [Player]: number } = {}
 
 local function markWorking(player: Player, skillId: string)

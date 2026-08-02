@@ -2,15 +2,11 @@ local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
-
 local MovementController = {}
-
 local MOVEMENT = Constants.MOVEMENT
 local ACTION_NAME = "Sprint"
-
 local sprinting = false
 local humanoid: Humanoid?
 

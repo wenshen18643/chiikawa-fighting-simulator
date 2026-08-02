@@ -266,7 +266,6 @@ local BLURBS = {
 }
 
 local ID_PREFIX = "wo"
-
 local candidateCache: { [number]: { Objective } } = {}
 
 local function candidatesFor(index: number, grade: Grade): { Objective }

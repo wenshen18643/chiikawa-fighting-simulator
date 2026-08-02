@@ -2,13 +2,10 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Layout = require(Shared.Modules.Config.Layout)
-
 local AssetService = require(script.Parent.AssetService)
-
 local KitchenBuilder = {}
 
 export type BuildResult = {
@@ -39,7 +36,6 @@ local WOOD_DARK = Color3.fromRGB(128, 94, 72)
 local METAL = Color3.fromRGB(190, 196, 198)
 local GLASS = Color3.fromRGB(214, 238, 244)
 local WARM = Color3.fromRGB(255, 226, 174)
-
 local SIZE = Layout.KITCHEN_SIZE
 local FLOOR_HEIGHT = 1
 local WALL_HEIGHT = 18
@@ -791,7 +787,6 @@ end
 function KitchenBuilder.build(parent: Instance, configuredFrame: CFrame): BuildResult
 	local groundY = groundYAt(configuredFrame.Position)
 	local frame = CFrame.new(configuredFrame.Position.X, groundY, configuredFrame.Position.Z) * configuredFrame.Rotation
-
 	local kitchen = Instance.new("Model")
 	kitchen.Name = "Kitchen"
 

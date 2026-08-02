@@ -1,12 +1,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared.Modules.Remotes)
 local Feast = require(Shared.Modules.Config.Feast)
 local UI = require(Shared.UI)
-
 local ProgressBillboard = require(script.Parent.Parent.UI.ProgressBillboard)
-
 local FeastProgressController = {}
 
 function FeastProgressController.init()

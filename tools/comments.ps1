@@ -92,6 +92,26 @@ function Get-CommentMask([string]$Text) {
     return $mask
 }
 
+function Get-Indent([string]$Line) {
+    $lead = [regex]::Match($Line, '^[\t ]*').Value
+    return ($lead -replace ' {4}', "`t").Length
+}
+
+function Test-FunctionDef([string]$Line) {
+    return ($Line -match '^\s*(local\s+)?function\b') -or ($Line -match '^\s*[\w\.\:\[\]"'']+\s*=\s*function\b')
+}
+
+# A one-line `local x = ...`. A declaration that continues onto the next line
+# is not one, so the blank after its closing brace is left alone.
+function Test-VarDecl([string]$Line) {
+    if ($Line -match '^\s*local\s+function\b') { return $false }
+    if ($Line -notmatch '^\s*local\s+') { return $false }
+    if ($Line -match '[\{\(\[,=]\s*$') { return $false }
+    if ($Line -match '\b(and|or|not|then|do)\s*$') { return $false }
+    if ($Line -match '\.\.\s*$') { return $false }
+    return $true
+}
+
 function Remove-Comments([string]$Text, [bool[]]$Mask) {
     $newline = if ($Text.Contains("`r`n")) { "`r`n" } else { "`n" }
     $lines = New-Object System.Collections.Generic.List[string]
@@ -138,28 +158,47 @@ function Remove-Comments([string]$Text, [bool[]]$Mask) {
 
     # Whitespace left behind by the removed lines: no blank lines at the top of
     # a file, never two blank lines in a row, exactly one trailing newline.
-    $out = New-Object System.Collections.Generic.List[string]
+    $packed = New-Object System.Collections.Generic.List[string]
     for ($k = 0; $k -lt $lines.Count; $k++) {
         $l = $lines[$k]
-        if ($l.Trim() -ne "") { $out.Add($l); continue }
+        if ($l.Trim() -ne "") { $packed.Add($l); continue }
 
-        if ($out.Count -eq 0) { continue }
-        if ($out[$out.Count - 1].Trim() -eq "") { continue }
-
-        # A comment that opened or closed a block leaves the blank line behind;
-        # a block should not start or end with one.
-        $prev = $out[$out.Count - 1].Trim()
-        if ($prev -match '(\{|\(|\bthen|\bdo|\belse|\brepeat)$') { continue }
+        if ($packed.Count -eq 0) { continue }
+        if ($packed[$packed.Count - 1].Trim() -eq "") { continue }
 
         $nextIdx = $k
         while ($nextIdx -lt $lines.Count -and $lines[$nextIdx].Trim() -eq "") { $nextIdx++ }
-        if ($nextIdx -lt $lines.Count) {
-            $next = $lines[$nextIdx].Trim()
-            if ($next -match '^(end|else|elseif|until|\}|\))') { continue }
-        }
+        if ($nextIdx -ge $lines.Count) { continue }
 
+        $prevLine = $packed[$packed.Count - 1]
+        $nextLine = $lines[$nextIdx]
+
+        # A block never opens or closes on a blank line. Indent, rather than a
+        # list of keywords, catches every opener: function headers, if/for/while,
+        # table constructors and multi-line calls alike.
+        if ((Get-Indent $nextLine) -gt (Get-Indent $prevLine)) { continue }
+        if ($nextLine.Trim() -match '^(end|else|elseif|until|\}|\))') { continue }
+
+        # Consecutive variable declarations stay packed together.
+        if ((Test-VarDecl $prevLine) -and (Test-VarDecl $nextLine) -and
+            (Get-Indent $prevLine) -eq (Get-Indent $nextLine)) { continue }
+
+        $packed.Add($l)
+    }
+
+    # One blank line before every function definition, unless it is the first
+    # statement of the block that just opened.
+    $out = New-Object System.Collections.Generic.List[string]
+    foreach ($l in $packed) {
+        if ((Test-FunctionDef $l) -and $out.Count -gt 0) {
+            $prevLine = $out[$out.Count - 1]
+            if ($prevLine.Trim() -ne "" -and (Get-Indent $l) -le (Get-Indent $prevLine)) {
+                $out.Add("")
+            }
+        }
         $out.Add($l)
     }
+
     while ($out.Count -gt 0 -and $out[$out.Count - 1].Trim() -eq "") { $out.RemoveAt($out.Count - 1) }
 
     return ($out -join $newline) + $newline

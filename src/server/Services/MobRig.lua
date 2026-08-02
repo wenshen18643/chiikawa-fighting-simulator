@@ -1,14 +1,11 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Skeleton = require(Shared.Modules.Anim.Skeleton)
 local ModelUtil = require(Shared.Modules.ModelUtil)
 local Mobs = require(Shared.Modules.Config.Mobs)
-
 local MobRig = {}
-
 local ACTION_ATTRIBUTE = "MobAction"
 local ACTION_SERIAL_ATTRIBUTE = "MobActionSerial"
 
@@ -319,7 +316,6 @@ local function rigSausageGuardian(model: Model): (BasePart?, BasePart?)
 
 	local centre, size = ModelUtil.worldBox(model)
 	local radius = math.max(math.min(size.X, size.Z) / 2, 0.1)
-
 	local root = Instance.new("Part")
 	root.Name = "HumanoidRootPart"
 	root.Size = Vector3.new(math.max(radius * 2, 2), 2, math.max(radius * 2, 2))
@@ -429,7 +425,6 @@ local function buildSporeling(model: Model, definition: Mobs.MobDefinition): (Ba
 	local capRadius = h * 0.42
 	local stalkHeight = h * 0.42
 	local legHeight = h * 0.18
-
 	local stalkY = legHeight + stalkHeight / 2
 	local stalk = piece(
 		model,
@@ -509,7 +504,6 @@ local function buildPebblejaw(model: Model, definition: Mobs.MobDefinition): (Ba
 	local legHeight = h * 0.26
 	local length = h * 1.5
 	local width = h * 0.9
-
 	local bodyY = legHeight + bodyHeight / 2
 	local body = piece(
 		model,
@@ -725,7 +719,6 @@ local function buildMycelia(model: Model, definition: Mobs.MobDefinition): (Base
 
 	local armL = model:FindFirstChild("ArmLeft") :: BasePart
 	local armR = model:FindFirstChild("ArmRight") :: BasePart
-
 	local root = buildRoot(model, definition.modelName, h * 0.44, 0, Vector3.zero)
 	connectAt(root, trunk, "RootJoint", trunk.Position)
 	connectAt(trunk, cap, "Neck", Vector3.new(0, trunkHeight, 0))
@@ -859,7 +852,6 @@ function MobRig.rig(
 ): (BasePart?, Humanoid?, Frame?)
 	local root: BasePart?
 	local displayPart: BasePart?
-
 	local builtDisplay = model:GetAttribute("BuiltDisplay")
 	if type(builtDisplay) == "string" then
 		local found = model:FindFirstChild("HumanoidRootPart")

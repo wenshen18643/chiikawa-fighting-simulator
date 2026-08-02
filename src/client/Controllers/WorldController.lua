@@ -1,24 +1,18 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Areas = require(Shared.Areas)
 local Remotes = require(Shared.Modules.Remotes)
 local UI = require(Shared.UI)
-
 local StateController = require(script.Parent.StateController)
-
 local WorldController = {}
-
 local CARD_HOLD = 1.5
-
 local screen: ScreenGui
 local card: Frame
 local cardTitle: TextLabel
 local cardSubtitle: TextLabel
 local cardRule: Frame
-
 local cardToken = 0
 
 local function showCard(title: string, subtitle: string)

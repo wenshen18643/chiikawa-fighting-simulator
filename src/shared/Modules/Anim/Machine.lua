@@ -1,11 +1,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Clip = require(Shared.Modules.Anim.Clip)
 local Props = require(Shared.Modules.Anim.Props)
 local Skeleton = require(Shared.Modules.Anim.Skeleton)
 local Skills = require(Shared.Modules.Config.Skills)
-
 local Machine = {}
 Machine.__index = Machine
 
@@ -200,7 +198,6 @@ function Machine:update(dt: number, now: number)
 	local set = self.set
 	local clips = set.clips
 	local speed = self.speed
-
 	local locoWeight = smoothstep(math.clamp((speed - MOVE_THRESHOLD) / (set.walkSpeed * 0.55), 0, 1))
 	local runFloor = set.walkSpeed * 0.82
 	local runBlend = smoothstep(math.clamp((speed - runFloor) / math.max(set.runSpeed - runFloor, 1), 0, 1))

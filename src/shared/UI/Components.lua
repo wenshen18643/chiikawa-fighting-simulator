@@ -1,7 +1,6 @@
 local Motion = require(script.Parent.Motion)
 local Primitives = require(script.Parent.Primitives)
 local Theme = require(script.Parent.Theme)
-
 local Components = {}
 
 export type LabelConfig = {
@@ -26,7 +25,6 @@ end
 function Components.card(parent: Instance, name: string, config: { [string]: any }?): Frame
 	local options = config or {}
 	local surface = surfaceOf(options.surface)
-
 	local frame = Instance.new("Frame")
 	frame.Name = name
 	frame.BackgroundColor3 = options.color or surface.fill
@@ -258,7 +256,6 @@ end
 
 function Components.button(parent: Instance, name: string, config: { [string]: any }): TextButton
 	local base = config.color or Theme.color.paperRaised
-
 	local button = Instance.new("TextButton")
 	button.Name = name
 	button.BackgroundColor3 = base
@@ -439,7 +436,6 @@ end
 
 function Components.meter(parent: Instance, name: string, config: { [string]: any }): (Frame, (number) -> ())
 	local color = config.color or Theme.color.leaf
-
 	local holder = Instance.new("Frame")
 	holder.Name = name
 	holder.BackgroundTransparency = 1
@@ -549,7 +545,6 @@ end
 
 function Components.ticker(parent: Instance, name: string, config: LabelConfig): (TextLabel, (string, number?) -> ())
 	local label = Components.label(parent, name, config)
-
 	local displayed: number? = nil
 	local target: number? = nil
 	local pending: string = label.Text
@@ -608,7 +603,6 @@ end
 function Components.pips(parent: Instance, name: string, config: { [string]: any }): (Frame, (number) -> ())
 	local total = config.total or 7
 	local color = config.color or Theme.color.leaf
-
 	local row = Instance.new("Frame")
 	row.Name = name
 	row.BackgroundTransparency = 1
@@ -689,6 +683,7 @@ function Components.tabs(
 			stroke = false,
 			sheen = false,
 			states = false,
+
 			onActivated = function()
 				activate(entry.key)
 			end,
@@ -719,7 +714,6 @@ end
 
 function Components.modal(parent: Instance, name: string, config: { [string]: any }): (Frame, Frame, (boolean) -> ())
 	local extent = config.extent or UDim2.fromScale(0.72, 0.76)
-
 	local scrim = Instance.new("TextButton")
 	scrim.Name = `{name}_Scrim`
 	scrim.Size = UDim2.fromScale(1, 1)
@@ -743,6 +737,7 @@ function Components.modal(parent: Instance, name: string, config: { [string]: an
 	panel.Size = extent
 
 	local setOpen
+
 	local function close()
 		setOpen(false)
 	end

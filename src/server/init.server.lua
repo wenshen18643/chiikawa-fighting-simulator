@@ -1,5 +1,4 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Remotes = require(ReplicatedStorage.Shared.Modules.Remotes)
 Remotes.init()
 

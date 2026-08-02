@@ -3,15 +3,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared.Modules.Remotes)
 local UI = require(Shared.UI)
-
 local MovementController = require(script.Parent.Parent.Controllers.MovementController)
 local WorkController = require(script.Parent.Parent.Controllers.WorkController)
 local ControlsPanel = require(script.Parent.ControlsPanel)
-
 local ControlTutorial = {}
 
 type Step = {
@@ -31,7 +28,6 @@ local instructionLabel: TextLabel
 local keycap: Frame
 local keycapText: TextLabel
 local pips: { Frame } = {}
-
 local steps: { Step } = {}
 local current = 0
 local active = false
@@ -286,6 +282,7 @@ local function build(parent: ScreenGui)
 		extent = UDim2.fromOffset(94, 28),
 		stroke = true,
 		zIndex = 33,
+
 		onActivated = function()
 			if active then
 				finished = true

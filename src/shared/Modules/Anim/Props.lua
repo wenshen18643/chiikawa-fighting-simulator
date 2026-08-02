@@ -1,6 +1,5 @@
 local Debris = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
-
 local Props = {}
 
 local function piece(parent: Model, name: string, size: Vector3, color: Color3, material: Enum.Material): Part

@@ -1,5 +1,4 @@
 local Theme = require(script.Parent.Theme)
-
 local Glyphs = {}
 
 type Ctx = { parent: Frame, color: Color3, zIndex: number }
@@ -316,7 +315,6 @@ end
 
 function Glyphs.render(parent: Instance, name: string, config: { [string]: any }?): Frame
 	local options = config or {}
-
 	local container = Instance.new("Frame")
 	container.Name = `Glyph_{name}`
 	container.BackgroundTransparency = 1

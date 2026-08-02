@@ -1,5 +1,4 @@
 local Areas = {}
-
 local Area = require(script.Area)
 
 export type AreaDefinition = Area.AreaDefinition

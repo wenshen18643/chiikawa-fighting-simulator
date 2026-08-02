@@ -5,19 +5,15 @@ local PhysicsService = game:GetService("PhysicsService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Areas = require(Shared.Areas)
 local Layout = require(Shared.Modules.Config.Layout)
 local Mobs = require(Shared.Modules.Config.Mobs)
-
 local AssetService = require(script.Parent.AssetService)
 local MobRig = require(script.Parent.MobRig)
 local SafeZoneService = require(script.Parent.SafeZoneService)
 local WorldService = require(script.Parent.WorldService)
-
 local MobService = {}
-
 local ACTION_ATTRIBUTE = "MobAction"
 local ACTION_SERIAL_ATTRIBUTE = "MobActionSerial"
 local COLLISION_GROUP = "Mobs"
@@ -31,10 +27,8 @@ local folder: Folder
 local spawnCFrames: { [string]: { CFrame } } = {}
 local spawnHomes: { [string]: Vector3? } = {}
 local collisionGroupReady = false
-
 local lockedSpecies: { [string]: boolean } = {}
 local killedCallbacks: { (Mobs.MobDefinition, number, Player?) -> () } = {}
-
 local Mob = {}
 Mob.__index = Mob
 
@@ -571,6 +565,7 @@ local function actorKey(definition: Mobs.MobDefinition, slot: number): string
 end
 
 local spawnSlot: (Mobs.MobDefinition, number) -> ()
+
 spawnSlot = function(definition: Mobs.MobDefinition, slot: number)
 	local key = actorKey(definition, slot)
 	if actors[key] or not folder.Parent then

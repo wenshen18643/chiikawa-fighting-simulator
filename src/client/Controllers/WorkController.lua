@@ -3,32 +3,24 @@ local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Remotes = require(Shared.Modules.Remotes)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
 local Mobs = require(Shared.Modules.Config.Mobs)
 local Skills = require(Shared.Modules.Config.Skills)
-
 local Feedback = require(Shared.Modules.Config.Feedback)
-
 local StateController = require(script.Parent.StateController)
-
 local WorkController = {}
-
 local ACTION_NAME = "Work"
 local WEED_RADIUS = 14
 local FORAGE_RADIUS = Constants.FORAGE.PULL_RADIUS
 local FORAGE_TAG = "Forage"
-
 local performRemote: RemoteEvent
 local selectRemote: RemoteEvent
 local lastSend = 0
 local inputLocks: { [string]: boolean } = {}
-
 local MIN_GESTURE = 0.12
-
 local startListeners: { (skillId: string?, duration: number) -> () } = {}
 local completeListeners: { (skillId: string?) -> () } = {}
 local selectionListeners: { (skillId: string) -> () } = {}
@@ -147,7 +139,6 @@ local function tryPerform()
 		return
 	end
 	local interval = now - lastSend
-
 	local skillId = getMobSkill() or WorkController.getTrainingSkill() or "tobatsu"
 	if Skills.canonicalize(skillId) == "examprep" then
 		WorkController.selectSkill("examprep")
@@ -160,7 +151,6 @@ local function tryPerform()
 
 	local feedbackEntry = Feedback.get(clipId or skillId)
 	local authored = if feedbackEntry and feedbackEntry.gesture then feedbackEntry.gesture.duration else 0.38
-
 	local duration = math.min(authored, math.max(interval, MIN_GESTURE))
 	lastSend = now
 

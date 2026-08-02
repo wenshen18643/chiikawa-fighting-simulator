@@ -19,7 +19,6 @@ export type RecipeDefinition = {
 }
 
 local Ingredients = require(script.Parent.Ingredients)
-
 local Recipes = {}
 
 Recipes.ORDER = {

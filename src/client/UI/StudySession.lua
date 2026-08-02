@@ -1,6 +1,5 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local ChiikawaFacts = require(Shared.Modules.Config.ChiikawaFacts)
@@ -8,12 +7,9 @@ local ExamQuestions = require(Shared.Modules.Config.ExamQuestions)
 local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
 local UI = require(Shared.UI)
-
 local StateController = require(script.Parent.Parent.Controllers.StateController)
 local WorkController = require(script.Parent.Parent.Controllers.WorkController)
-
 local StudySession = {}
-
 local BOOK_PAPER = Color3.fromRGB(255, 248, 222)
 local BOOK_PAPER_DEEP = Color3.fromRGB(246, 229, 190)
 local BOOK_INK = Color3.fromRGB(61, 48, 55)
@@ -21,7 +17,6 @@ local BOOK_PENCIL = Color3.fromRGB(255, 138, 226)
 local BOOK_GREEN = Color3.fromRGB(104, 198, 91)
 local BOOK_RED = Color3.fromRGB(222, 92, 96)
 local BOOK_GOLD = Color3.fromRGB(238, 183, 62)
-
 local screen: ScreenGui
 local bookmark: Frame
 local bookmarkFill: Frame
@@ -33,11 +28,9 @@ local leftPage: Frame
 local rightPage: Frame
 local seam: Frame
 local closeButton: TextButton
-
 local pageRemote: RemoteEvent
 local answerRemote: RemoteEvent
 local closeRemote: RemoteEvent
-
 local modalOpen = false
 local currentQuestionPayload: any = nil
 local optionButtons: { [string]: TextButton } = {}
@@ -783,6 +776,7 @@ local function buildBook(parent: ScreenGui)
 		radius = UI.radius.pill,
 		zIndex = 61,
 		stroke = true,
+
 		onActivated = function()
 			dismissed = true
 			renderSerial += 1

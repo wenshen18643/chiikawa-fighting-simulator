@@ -1,15 +1,11 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Formulas = require(Shared.Modules.Formulas)
-
 local DataService = require(script.Parent.DataService)
-
 local StaminaService = {}
-
 local restingUntil: { [Player]: number } = {}
 
 function StaminaService.isResting(player: Player): boolean

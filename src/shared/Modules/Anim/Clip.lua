@@ -23,7 +23,6 @@ export type Definition = {
 export type Pose = { [string]: CFrame }
 
 local CHANNELS = { "pitch", "yaw", "roll", "x", "y", "z" }
-
 local IDENTITY = CFrame.new()
 
 local function catmullRom(p0: number, p1: number, p2: number, p3: number, a: number): number
@@ -104,7 +103,6 @@ function Clip.sample(track: Track, phase: number, looped: boolean): CFrame
 	local p1 = neighbour(track, index, looped)
 	local p2 = neighbour(track, index + 1, looped)
 	local p3 = neighbour(track, index + 2, looped)
-
 	local values = {}
 	for _, name in CHANNELS do
 		values[name] = catmullRom(channel(p0, name), channel(p1, name), channel(p2, name), channel(p3, name), alpha)

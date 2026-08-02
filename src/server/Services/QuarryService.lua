@@ -2,7 +2,6 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Budget = require(Shared.Modules.Budget)
@@ -11,7 +10,6 @@ local Areas = require(Shared.Areas)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
 local Quarry = require(Shared.Modules.Config.Quarry)
 local UI = require(Shared.UI)
-
 local CaveService = require(script.Parent.CaveService)
 local CurrencyService = require(script.Parent.CurrencyService)
 local DataService = require(script.Parent.DataService)
@@ -20,9 +18,7 @@ local HarvestNodes = require(script.Parent.HarvestNodes)
 local NotifyService = require(script.Parent.NotifyService)
 local TerrainBuilder = require(script.Parent.TerrainBuilder)
 local WorldService = require(script.Parent.WorldService)
-
 local QuarryService = {}
-
 local WORLD = Constants.WORLD
 local SLATE = Color3.fromRGB(150, 148, 148)
 local TIMBER = Color3.fromRGB(150, 116, 84)
@@ -218,7 +214,6 @@ local function plantVeins(area: Areas.AreaDefinition, centre: Vector2)
 			math.clamp(math.ceil(index / math.max(1, Quarry.VEIN.count / Quarry.PIT.terraces)), 1, Quarry.PIT.terraces)
 		local ringOuter = Quarry.terraceRadius(terrace)
 		local ringInner = Quarry.terraceRadius(math.min(terrace + 1, Quarry.PIT.terraces))
-
 		local spot: Vector2? = nil
 		for _ = 1, 24 do
 			local angle = rng:NextNumber() * math.pi * 2
@@ -388,6 +383,7 @@ function QuarryService.init()
 	nodes.onSpent = function(node)
 		setVeinVisible(node, false)
 	end
+
 	nodes.onReset = function(node)
 		setVeinVisible(node, true)
 	end

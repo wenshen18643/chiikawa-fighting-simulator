@@ -1,6 +1,5 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Boosts = require(Shared.Modules.Boosts)
@@ -9,14 +8,11 @@ local Ingredients = require(Shared.Modules.Config.Ingredients)
 local Recipes = require(Shared.Modules.Config.Recipes)
 local Remotes = require(Shared.Modules.Remotes)
 local UI = require(Shared.UI)
-
 local FeedbackController = require(script.Parent.Parent.Controllers.FeedbackController)
 local GestureController = require(script.Parent.Parent.Controllers.GestureController)
 local StateController = require(script.Parent.Parent.Controllers.StateController)
 local WorkController = require(script.Parent.Parent.Controllers.WorkController)
-
 local CookingMenu = {}
-
 local COOKING = Constants.COOKING
 local ROW_HEIGHT = 112
 local STIR_DEBOUNCE = 1.05 / COOKING.MAX_CLICKS_PER_SECOND
@@ -38,7 +34,6 @@ local stirButton: TextButton
 local setPanelOpen: (boolean) -> ()
 local selectRemote: RemoteEvent
 local clickRemote: RemoteEvent
-
 local rowUpdaters: { (any) -> () } = {}
 local session: Session? = nil
 local isOpen = false
@@ -64,7 +59,6 @@ end
 
 local function buildRecipeRow(parent: ScrollingFrame, def: Recipes.RecipeDefinition, index: number): (any) -> ()
 	local tint = Ingredients.RARITY[Recipes.rarity(def)].color
-
 	local row = UI.card(parent, def.id, { radius = UI.radius.chip })
 	row.Size = UDim2.new(1, 0, 0, ROW_HEIGHT)
 	row.LayoutOrder = index
@@ -120,13 +114,13 @@ local function buildRecipeRow(parent: ScrollingFrame, def: Recipes.RecipeDefinit
 		zIndex = row.ZIndex + 1,
 	})
 	local stirsText = stirsChip:FindFirstChild("Text") :: TextLabel
-
 	local affordable = false
 	local cook = UI.button(row, "Cook", {
 		text = "Cook",
 		extent = UDim2.fromOffset(104, 36),
 		position = UDim2.new(1, -118, 1, -52),
 		zIndex = row.ZIndex + 1,
+
 		onActivated = function()
 			if affordable then
 				selectRemote:FireServer(def.id)
@@ -278,6 +272,7 @@ local function buildRecipesView(parent: Frame)
 		extent = UDim2.fromOffset(120, 34),
 		position = UDim2.new(0.5, -60, 1, -34),
 		zIndex = recipesView.ZIndex + 1,
+
 		onActivated = function()
 			setPanelOpen(false)
 		end,
@@ -357,6 +352,7 @@ local function buildCookingView(parent: Frame)
 		extent = UDim2.fromOffset(120, 34),
 		position = UDim2.new(0.5, -60, 1, -34),
 		zIndex = cookingView.ZIndex + 1,
+
 		onActivated = function()
 			setPanelOpen(false)
 		end,
@@ -367,6 +363,7 @@ local function buildPanel(parent: ScreenGui)
 	local scrim, content, toggle = UI.modal(parent, "CookingMenu", {
 		extent = UDim2.new(0, 600, 0.82, 0),
 		zIndex = 22,
+
 		onToggled = function(open)
 			isOpen = open
 			WorkController.setInputLocked("cooking-menu", open)
@@ -427,7 +424,6 @@ function CookingMenu.init()
 	end
 
 	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
-
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "CookingMenu"
 	gui.ResetOnSpawn = false

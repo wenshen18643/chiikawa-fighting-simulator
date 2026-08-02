@@ -2,7 +2,6 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Areas = require(Shared.Areas)
 local BigNumber = require(Shared.Modules.BigNumber)
@@ -14,7 +13,6 @@ local Remotes = require(Shared.Modules.Remotes)
 local Farming = require(Shared.Modules.Config.Farming)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
 local Layout = require(Shared.Modules.Config.Layout)
-
 local AssetService = require(script.Parent.AssetService)
 local CurrencyService = require(script.Parent.CurrencyService)
 local DataService = require(script.Parent.DataService)
@@ -28,7 +26,6 @@ type CropState = FarmPlotModule.CropState
 type Credit = FarmMailboxService.Credit
 
 local FarmingService = {}
-
 local plots: { [number]: FarmPlot } = {}
 local plotLocks: { [number]: boolean } = {}
 local limiters: { [Player]: RateLimiter.RateLimiter } = {}
@@ -36,7 +33,6 @@ local deferredCredits: { { userId: number, credit: Credit } } = {}
 local creditSequence = 0
 local farmFolder: Folder? = nil
 local shuttingDown = false
-
 local rentRemote: RemoteEvent
 local bidRemote: RemoteEvent
 local plantRemote: RemoteEvent

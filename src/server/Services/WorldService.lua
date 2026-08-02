@@ -4,25 +4,19 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Budget = require(Shared.Modules.Budget)
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
 local Layout = require(Shared.Modules.Config.Layout)
 local UI = require(Shared.UI)
-
 local AssetService = require(script.Parent.AssetService)
 local NotifyService = require(script.Parent.NotifyService)
 local TerrainBuilder = require(script.Parent.TerrainBuilder)
-
 local WorldService = {}
-
 local WORLD = Constants.WORLD
-
 local regionSpawns: { [number]: CFrame } = {}
 local worldFolder: Folder
-
 local dressedSignal = Instance.new("BindableEvent")
 
 WorldService.dressed = false
@@ -36,7 +30,6 @@ end
 
 local ACCESS_PREFIX = "Access_"
 local GATE_PREFIX = "Gate_"
-
 local collisionGroupsReady = false
 
 function WorldService.accessGroupFor(highestUnlocked: number): string
@@ -122,7 +115,6 @@ local function buildWallSide(
 	local span = area.terrain.islandSize
 	local thickness = WORLD.WALL_THICKNESS
 	local wallHeight = WORLD.WALL_HEIGHT
-
 	local segments: { { centre: number, length: number } } = {}
 	if gapWidth <= 0 then
 		table.insert(segments, { centre = 0, length = span })
@@ -302,7 +294,6 @@ end
 
 local function buildFence(area: Areas.AreaDefinition, parent: Folder, step: (() -> ())?)
 	local half = Layout.halfSize(area)
-
 	local fence = Instance.new("Folder")
 	fence.Name = "Fence"
 	fence.Parent = parent
@@ -332,7 +323,6 @@ local function buildGate(bridge: Layout.Bridge, parent: Folder)
 	local height = WORLD.GATE_HEIGHT
 	local pillar = WORLD.GATE_PILLAR
 	local base = bridge.gateCFrame.Position
-
 	local gate = Instance.new("Folder")
 	gate.Name = `Gate_{target.id}`
 	gate:SetAttribute("RegionId", target.id)
@@ -439,15 +429,14 @@ local function decorateArea(area: Areas.AreaDefinition, parent: Folder, step: ((
 	scenery.Parent = parent
 
 	local zones = Layout.reservedZones(area)
-
 	local packRng = Random.new(area.id * 104729)
-
 	local groundParams = RaycastParams.new()
 	groundParams.FilterType = Enum.RaycastFilterType.Exclude
 	local ignored: { Instance } = { scenery }
 	groundParams.FilterDescendantsInstances = ignored
 
 	local groundCache: { [string]: number } = {}
+
 	local function groundY(x: number, z: number): number
 		local key = `{math.floor(x / 8)}:{math.floor(z / 8)}`
 		local cached = groundCache[key]
@@ -486,15 +475,18 @@ local function decorateArea(area: Areas.AreaDefinition, parent: Folder, step: ((
 		groundY = groundY,
 
 		plazaRadius = Layout.plazaDiameter(area) / 2,
+
 		isReserved = function(x: number, z: number): boolean
 			return Layout.isReserved(zones, x, z)
 		end,
 		helpers = Areas.helpers,
 		UI = UI,
 		step = step,
+
 		model = function(key: string): Model?
 			return AssetService.clone(key)
 		end,
+
 		packItem = function(key: string, match: string?): Model?
 			return AssetService.clonePackItem(key, packRng, match)
 		end,

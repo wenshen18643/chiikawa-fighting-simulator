@@ -1,15 +1,11 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
-
 local AssetService = require(script.Parent.AssetService)
 local WorldService = require(script.Parent.WorldService)
-
 local AssetProbeService = {}
-
 local ENABLED = false
 
 local PROBES: { { key: string, offset: Vector3, faceSpawn: boolean? } } = {
@@ -55,7 +51,6 @@ function AssetProbeService.init()
 
 			local base = spawnCFrame * CFrame.new(probe.offset)
 			local ground = Vector3.new(base.Position.X, Constants.WORLD.PLATFORM_TOP, base.Position.Z)
-
 			local yaw = math.atan2(-spawnCFrame.LookVector.X, -spawnCFrame.LookVector.Z)
 			AssetService.place(model, ground, if probe.faceSpawn then yaw + math.pi else yaw)
 

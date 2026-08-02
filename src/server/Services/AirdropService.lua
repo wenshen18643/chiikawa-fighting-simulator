@@ -3,15 +3,11 @@
 local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Airdrop = require(Shared.Modules.Config.Airdrop)
 local ModelUtil = require(Shared.Modules.ModelUtil)
-
 local AirdropService = {}
-
 local rng = Random.new()
-
 local CYLINDER = CFrame.Angles(0, math.rad(90), 0)
 local DISC = CFrame.Angles(0, 0, math.rad(90))
 
@@ -257,7 +253,6 @@ local function descend(
 	local diameter = math.max(Airdrop.CANOPY_MIN, math.max(size.X, size.Z) * Airdrop.CANOPY_SPAN)
 	local cordDrop = diameter * Airdrop.CORD_DROP
 	local color = Airdrop.CANOPY_COLORS[rng:NextInteger(1, #Airdrop.CANOPY_COLORS)]
-
 	local distance = dropY - target.Y
 	local fallen = 0
 	local velocity = 0
@@ -336,7 +331,6 @@ function AirdropService.deliver(payload: Model, target: Vector3, yaw: number, on
 	local cruiseY = target.Y + Airdrop.CRUISE_HEIGHT
 	local dropY = cruiseY - Airdrop.BELLY
 	local overhead = Vector3.new(target.X, cruiseY, target.Z)
-
 	local angle = rng:NextNumber(0, math.pi * 2)
 	local heading = Vector3.new(math.cos(angle), 0, math.sin(angle))
 	local start = overhead - heading * Airdrop.APPROACH
@@ -346,7 +340,6 @@ function AirdropService.deliver(payload: Model, target: Vector3, yaw: number, on
 	local basePivot = payload:GetPivot()
 	local centre = ModelUtil.worldBox(payload)
 	local centreOffset = centre - basePivot.Position
-
 	local plane = buildPlane()
 	plane:PivotTo(CFrame.lookAt(start, start + heading))
 	plane.Parent = folder

@@ -1,7 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared").Modules.Remotes)
-
 local StateController = {}
 
 StateController.snapshot = nil :: any?

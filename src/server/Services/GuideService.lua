@@ -1,7 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared").Modules.Remotes)
-
 local DataService = require(script.Parent.DataService)
 local NotifyService = require(script.Parent.NotifyService)
 

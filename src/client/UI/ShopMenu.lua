@@ -1,13 +1,10 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Remotes = require(Shared.Modules.Remotes)
 local UI = require(Shared.UI)
-
 local StateController = require(script.Parent.Parent.Controllers.StateController)
-
 local ShopMenu = {}
 
 type Row = {
@@ -23,13 +20,11 @@ type Row = {
 
 local ROW_HEIGHT = 96
 local ROW_TINTS = { UI.color.leaf, UI.color.gold, UI.color.sky }
-
 local screen: ScreenGui
 local panel: Frame
 local listHolder: ScrollingFrame
 local setOpen: (boolean) -> ()
 local buyRemote: RemoteEvent
-
 local built: { [string]: { [string]: any } } = {}
 local order: { string } = {}
 local latest: { [string]: Row } = {}
@@ -98,6 +93,7 @@ local function buildRow(row: Row, index: number)
 		extent = UDim2.fromOffset(150, 34),
 		position = UDim2.new(1, -166, 1, -46),
 		states = false,
+
 		onActivated = function()
 			local current = latest[row.id]
 			if current and canAfford(current) then
@@ -240,6 +236,7 @@ local function buildPanel(parent: ScreenGui)
 		extent = UDim2.fromOffset(120, 34),
 		position = UDim2.new(0.5, -60, 1, -34),
 		zIndex = panel.ZIndex + 1,
+
 		onActivated = function()
 			setOpen(false)
 		end,

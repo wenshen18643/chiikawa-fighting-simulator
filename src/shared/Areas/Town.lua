@@ -1,9 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Props = require(ReplicatedStorage.Shared.Modules.Props)
 local Sections = require(ReplicatedStorage.Shared.Modules.Config.Sections)
 local Streets = require(ReplicatedStorage.Shared.Modules.Config.Streets)
-
 local Area = require(script.Parent.Area)
 local SectionDressing = require(script.Parent.SectionDressing)
 
@@ -25,9 +23,7 @@ return Area.define({
 	decorate = function(ctx)
 		local helpers = ctx.helpers
 		local half = ctx.area.terrain.islandSize / 2
-
 		local plazaEdge = ctx.plazaRadius + 12
-
 		local sasumataAt = { name = "Sasumata Yard", x = -half * 0.48 - 25, z = half * 0.35 }
 		local weedsAt = { name = "Roadside Weeds", x = 30, z = 190 }
 		local desksAt = { name = "Study Desks", x = 150, z = 30 }
@@ -101,14 +97,12 @@ return Area.define({
 			{ key = "ramen", x = -168, z = 144, height = 9 },
 			{ key = "lanternTall", x = -134, z = 142, height = 6.5 },
 			{ key = "lanternTall", x = -172, z = 142, height = 6.5 },
-
 			{ key = "lowTable", x = -150, z = 42, height = 6.5 },
 			{ key = "floorCushion", x = -141, z = 42, height = 3.5, yaw = -90 },
 			{ key = "floorCushion", x = -159, z = 42, height = 3.5, yaw = 90 },
 			{ key = "teaPot", x = -166, z = 46, height = 3.5 },
 			{ key = "lantern", x = -136, z = 38, height = 4.6 },
 			{ key = "lantern", x = -166, z = 34, height = 4.6 },
-
 			{ key = "wateringCan", x = -178, z = 100, height = 1.7, yaw = 180, pitch = -35 },
 			{ key = "sakuraTree", x = -188, z = 132, height = 17 },
 			{ key = "sakuraTree", x = -188, z = 52, height = 16 },
@@ -127,17 +121,13 @@ return Area.define({
 		end
 
 		helpers.studyDesk(ctx, { x = desksAt.x, z = desksAt.z, y = 2.4 })
-
 		helpers.sasumataDummy(ctx, { x = sasumataAt.x, z = sasumataAt.z, y = 4.5 })
-
 		helpers.weedingPatch(ctx, { x = weedsAt.x, z = weedsAt.z, y = 1.5 })
-
 		helpers.waterfallZone(ctx, {
 			x = half * 0.65,
 			z = -half * 0.45,
 			y = 8.0,
 		})
-
 		helpers.prop(ctx, "bridge", half * 0.65 - 46, -half * 0.45, { height = 7, rotation = math.rad(90) })
 		helpers.prop(ctx, "pinkBench", half * 0.65 - 24, -half * 0.45 + 30, { height = 3.2, rotation = math.rad(180) })
 		helpers.prop(ctx, "flowerBed3", half * 0.65 - 34, -half * 0.45 + 40, { height = 2.2 })

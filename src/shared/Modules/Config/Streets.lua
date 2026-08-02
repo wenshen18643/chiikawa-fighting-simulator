@@ -1,7 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
-
 local Streets = {}
 
 Streets.SURFACE_Y = Constants.WORLD.PLATFORM_TOP

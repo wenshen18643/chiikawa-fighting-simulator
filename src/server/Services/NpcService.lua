@@ -1,26 +1,20 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Mascot = require(Shared.Modules.Mascot)
 local Npcs = require(Shared.Modules.Config.Npcs)
 local Areas = require(Shared.Areas)
-
 local NotifyService = require(script.Parent.NotifyService)
 local WorldService = require(script.Parent.WorldService)
-
 local NpcService = {}
-
 local spoken: { [Player]: { [string]: number } } = {}
 
 local function buildMascot(definition: Npcs.NpcDefinition, position: Vector3): Model
 	local h = definition.build.height
-
 	local footToRoot = Constants.WORLD.PLATFORM_TOP + Constants.WORLD.NPC_FOOT_CLEARANCE + h * Mascot.ROOT_TO_FOOT
 	local model = Mascot.build(definition.build, CFrame.new(position + Vector3.new(0, footToRoot, 0)), definition.id)
-
 	local root = model.PrimaryPart :: BasePart
 	root.Anchored = true
 

@@ -1,7 +1,6 @@
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Boosts = require(Shared.Modules.Boosts)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
@@ -9,12 +8,9 @@ local Recipes = require(Shared.Modules.Config.Recipes)
 local Remotes = require(Shared.Modules.Remotes)
 local Seasonings = require(Shared.Modules.Config.Seasonings)
 local UI = require(Shared.UI)
-
 local StateController = require(script.Parent.Parent.Controllers.StateController)
 local WorkController = require(script.Parent.Parent.Controllers.WorkController)
-
 local InventoryMenu = {}
-
 local INGREDIENT_CELL = UDim2.fromOffset(160, 96)
 local CONSUMABLE_CELL = UDim2.fromOffset(246, 122)
 local USE_COOLDOWN = 0.5
@@ -33,7 +29,6 @@ local emptyLabel: TextLabel
 local setPanelOpen: (boolean) -> ()
 local eatRemote: RemoteEvent
 local useSeasoningRemote: RemoteEvent
-
 local currentTab = "ingredients"
 local isOpen = false
 local renderedFrom: string? = nil
@@ -95,7 +90,6 @@ end
 local function buildIngredientCard(row: { [string]: any }, index: number)
 	local def = Ingredients.get(row.id) :: Ingredients.IngredientDefinition
 	local tint = row.rarity.color
-
 	local card = UI.card(listHolder, def.id, { radius = UI.radius.chip })
 	card.LayoutOrder = index
 
@@ -183,6 +177,7 @@ local function buildConsumableCard(config: { [string]: any }, index: number)
 		extent = UDim2.fromOffset(80, 30),
 		position = UDim2.new(1, -94, 1, -44),
 		zIndex = card.ZIndex + 1,
+
 		onActivated = function()
 			if (usingUntil[id] or 0) > os.clock() then
 				return
@@ -268,6 +263,7 @@ local function buildPanel(parent: ScreenGui)
 	local scrim, content, toggle = UI.modal(parent, "InventoryMenu", {
 		extent = UDim2.new(0, 560, 0.78, 0),
 		zIndex = 20,
+
 		onToggled = function(open)
 			isOpen = open
 			WorkController.setInputLocked("inventory", open)
@@ -304,6 +300,7 @@ local function buildPanel(parent: ScreenGui)
 		initial = currentTab,
 		position = UDim2.fromOffset(0, 60),
 		zIndex = panel.ZIndex + 1,
+
 		onChanged = function(key)
 			currentTab = key
 			if listHolder then
@@ -347,6 +344,7 @@ local function buildPanel(parent: ScreenGui)
 		extent = UDim2.fromOffset(120, 34),
 		position = UDim2.new(0.5, -60, 1, -34),
 		zIndex = panel.ZIndex + 1,
+
 		onActivated = function()
 			setPanelOpen(false)
 		end,
@@ -373,7 +371,6 @@ function InventoryMenu.init()
 	end
 
 	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
-
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "InventoryMenu"
 	gui.ResetOnSpawn = false

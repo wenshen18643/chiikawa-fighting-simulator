@@ -231,7 +231,6 @@ end
 function Skeleton.resolveCharacter(character: Model): (Joints?, string)
 	local kind = Skeleton.rigKind(character)
 	local names = Skeleton.PLAYER_PROFILES[kind]
-
 	local available: { [string]: Joint } = {}
 	for _, descendant in character:GetDescendants() do
 		if descendant:IsA("Motor6D") then

@@ -2,7 +2,6 @@
 
 local Cave = require(script.Parent.Cave)
 local Sections = require(script.Parent.Sections)
-
 local Quarry = {}
 
 Quarry.LEVEL_INDEX = 3

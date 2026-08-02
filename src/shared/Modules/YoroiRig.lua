@@ -1,7 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Skeleton = require(ReplicatedStorage.Shared.Modules.Anim.Skeleton)
-
 local YoroiRig = {}
 
 YoroiRig.PROFILE = "yoroi"

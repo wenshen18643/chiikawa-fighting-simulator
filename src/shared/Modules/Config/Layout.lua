@@ -1,5 +1,4 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
@@ -11,9 +10,7 @@ local SausageForest = require(Shared.Modules.Config.SausageForest)
 local Sections = require(Shared.Modules.Config.Sections)
 local Streets = require(Shared.Modules.Config.Streets)
 local Farming = require(Shared.Modules.Config.Farming)
-
 local Layout = {}
-
 local WORLD = Constants.WORLD
 
 Layout.KITCHEN_CELL = "C4"

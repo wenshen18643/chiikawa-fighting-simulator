@@ -110,7 +110,6 @@ end
 
 function Mascot.build(build: Build, rootCFrame: CFrame, name: string?): Model
 	local h = build.height
-
 	local model = Instance.new("Model")
 	model.Name = name or "Mascot"
 

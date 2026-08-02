@@ -1,14 +1,11 @@
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Farming = require(Shared.Modules.Config.Farming)
 local Feast = require(Shared.Modules.Config.Feast)
 local Sections = require(Shared.Modules.Config.Sections)
 local Props = require(Shared.Modules.Props)
-
 local SectionDressing = {}
-
 local SIZE = Sections.SIZE
 local LIMIT = Sections.SCATTER_LIMIT
 
@@ -47,7 +44,6 @@ local function solidify(instance)
 	for _, part in parts do
 		if part:IsA("BasePart") then
 			part.CanCollide = true
-
 			part.CanQuery = true
 		end
 	end
@@ -56,6 +52,7 @@ end
 local function dressRecipe(ctx, cell, entry, placed)
 	local inset = if entry.kind == "tree" or entry.kind == "prop" then 16 else 10
 	local clearance = placed and CLEARANCE[entry.kind]
+
 	local function openSpot()
 		for _ = 1, 6 do
 			local x, z = samplePoint(ctx, cell, inset)
@@ -213,7 +210,6 @@ local function dressBorder(ctx, i, j, vertical)
 
 	local minX = if vertical then -Sections.HALF + i * SIZE else -Sections.HALF + (i - 1) * SIZE
 	local minZ = if vertical then -Sections.HALF + (j - 1) * SIZE else -Sections.HALF + j * SIZE
-
 	local clear = true
 	for step = 0, 4 do
 		local along = (step / 4) * (SIZE - 12) + 6

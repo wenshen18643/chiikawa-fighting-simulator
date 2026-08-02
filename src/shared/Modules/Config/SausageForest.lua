@@ -1,7 +1,6 @@
 --!strict
 
 local Sections = require(script.Parent.Sections)
-
 local SausageForest = {}
 
 SausageForest.CELLS = {
@@ -94,6 +93,7 @@ end
 
 function SausageForest.bounds(cell: Sections.Cell): { minX: number, maxX: number, minZ: number, maxZ: number }
 	local seam = SausageForest.MIN_GAP / 2
+
 	local function pad(x: number, z: number): number
 		return if Sections.isWild(x, z) then seam else SausageForest.TREE_INSET
 	end

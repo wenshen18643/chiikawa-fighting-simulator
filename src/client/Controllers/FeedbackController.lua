@@ -4,32 +4,24 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
 local UI = require(Shared.UI)
-
 local WorkController = require(script.Parent.WorkController)
-
 local FeedbackController = {}
-
 local MAX_POPUPS = 16
 local MAX_SPARKS = 40
-
 local screen: ScreenGui
 local popupLayer: Frame
 local sparkLayer: Frame
 local vignetteFrames: { Frame }
-
 local activePopups = 0
 local activeSparks = 0
-
 local punch = 0
 local punchTarget = 0
 local baseFieldOfView = 70
-
 local PUNCH_CAP = 0.45
 local PUNCH_FOV = 0.9
 local VIGNETTE_ALPHA = 0.94
@@ -88,7 +80,6 @@ local function burst(skillId: string?)
 
 	local origin = UserInputService:GetMouseLocation()
 	local color = skillColor(skillId)
-
 	local glyphName = "spark"
 	if skillId == "kusatori" or skillId == "agility" or skillId == "weeding" then
 		glyphName = "leaf"

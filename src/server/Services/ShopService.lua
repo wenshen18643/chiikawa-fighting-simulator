@@ -2,21 +2,16 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Remotes = require(Shared.Modules.Remotes)
 local Upgrades = require(Shared.Modules.Config.Upgrades)
-
 local CurrencyService = require(script.Parent.CurrencyService)
 local DataService = require(script.Parent.DataService)
 local NotifyService = require(script.Parent.NotifyService)
 local ReplicationService = require(script.Parent.ReplicationService)
-
 local ShopService = {}
-
 local PROMPT_NAME = "ShopPrompt"
-
 local openRemote: RemoteEvent
 local buyRemote: RemoteEvent
 local eventRemote: RemoteEvent

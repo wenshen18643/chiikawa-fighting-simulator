@@ -1,10 +1,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared.Modules.Remotes)
 local UI = require(Shared.UI)
-
 local OrderBoard = {}
 
 type Entry = {
@@ -21,7 +19,6 @@ type Entry = {
 
 local ROW_HEIGHT = 108
 local TEMPLATE = "OrderBoard"
-
 local screen: ScreenGui
 local panel: Frame
 local listHolder: ScrollingFrame
@@ -122,6 +119,7 @@ local function buildRow(entry: Entry, index: number)
 		textColor = UI.color.paperDeep,
 		extent = UDim2.fromOffset(112, 32),
 		position = UDim2.new(1, -128, 1, -46),
+
 		onActivated = function()
 			if done then
 				turnInRemote:FireServer(entry.id)
@@ -159,6 +157,7 @@ local function buildPanel(parent: ScreenGui)
 				listHolder = holder
 				emptyLabel = empty
 				panel.Visible = false
+
 				setOpen = function(open: boolean)
 					panel.Visible = open
 				end
@@ -226,6 +225,7 @@ local function buildPanel(parent: ScreenGui)
 		extent = UDim2.fromOffset(120, 34),
 		position = UDim2.new(0.5, -60, 1, -34),
 		zIndex = panel.ZIndex + 1,
+
 		onActivated = function()
 			setOpen(false)
 		end,

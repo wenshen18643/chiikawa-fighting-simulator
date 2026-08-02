@@ -1,16 +1,12 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared.Modules.Remotes)
 local UI = require(Shared.UI)
-
 local OrderTracker = {}
-
 local WIDTH = 260
 local HEIGHT = 54
 local TEMPLATE = "OrderTracker"
-
 local root: Frame
 local title: TextLabel
 local detail: TextLabel
@@ -106,7 +102,6 @@ end
 
 function OrderTracker.init()
 	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
-
 	local screen = Instance.new("ScreenGui")
 	screen.Name = "OrderTracker"
 	screen.ResetOnSpawn = false

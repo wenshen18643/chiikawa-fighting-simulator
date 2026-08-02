@@ -5,7 +5,6 @@ local Plant = require(script.Plant)
 local Primitives = require(script.Primitives)
 local Templates = require(script.Templates)
 local Theme = require(script.Theme)
-
 local UI = {}
 
 UI.color = Theme.color
@@ -17,14 +16,11 @@ UI.surface = Theme.surface
 UI.elevation = Theme.elevation
 UI.opacity = Theme.opacity
 UI.Theme = Theme
-
 UI.lighten = Theme.lighten
 UI.darken = Theme.darken
 UI.readable = Theme.readable
 UI.skillColor = Theme.skillColor
-
 UI.motion = Motion
-
 UI.corner = Primitives.corner
 UI.stroke = Primitives.stroke
 UI.padding = Primitives.padding
@@ -40,7 +36,6 @@ UI.innerLine = Primitives.innerLine
 UI.focusRing = Primitives.focusRing
 UI.divider = Primitives.divider
 UI.well = Primitives.well
-
 UI.card = Components.card
 UI.label = Components.label
 UI.bar = Components.bar
@@ -57,15 +52,12 @@ UI.badge = Components.badge
 UI.statTile = Components.statTile
 UI.meter = Components.meter
 UI.toast = Components.toast
-
 UI.template = Templates.mount
 UI.hasTemplate = Templates.exists
 UI.Templates = Templates
-
 UI.glyph = Glyphs.render
 UI.skillGlyph = Glyphs.forSkill
 UI.Glyphs = Glyphs
-
 UI.plant = Plant.draw
 UI.Plant = Plant
 

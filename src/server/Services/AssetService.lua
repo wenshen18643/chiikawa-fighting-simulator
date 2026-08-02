@@ -1,12 +1,9 @@
 local InsertService = game:GetService("InsertService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Assets = require(Shared.Modules.Config.Assets)
-
 local AssetService = {}
-
 local cache: { [string]: Model } = {}
 local packItems: { [string]: { Instance } } = {}
 local failed: { [string]: string } = {}
@@ -22,7 +19,6 @@ end
 local SHADOW_MIN_SIZE = 6
 
 local function prepare(model: Model, spec: Assets.AssetSpec)
-
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("Tool") then
 			local parent = descendant.Parent

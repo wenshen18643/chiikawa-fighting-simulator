@@ -1,7 +1,5 @@
 local CollectionService = game:GetService("CollectionService")
-
 local WorldService = require(script.Parent.WorldService)
-
 local WeedService = {}
 
 WeedService.PULL_RADIUS = 10

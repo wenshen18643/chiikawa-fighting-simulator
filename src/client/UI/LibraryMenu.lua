@@ -6,13 +6,10 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared.Modules.Remotes)
 local UI = require(Shared.UI)
-
 local WorkController = require(script.Parent.Parent.Controllers.WorkController)
-
 local LibraryMenu = {}
 
 type OpenPayload = {
@@ -23,13 +20,11 @@ type OpenPayload = {
 local ACTION_NAME = "CloseLibraryMenu"
 local INPUT_LOCK = "library-menu"
 local DISTANCE_CHECK_SECONDS = 0.25
-
 local player = Players.LocalPlayer
 local screen: ScreenGui?
 local panel: Frame?
 local closeButton: TextButton?
 local setPanelOpen: ((boolean) -> ())?
-
 local isOpen = false
 local anchorPosition: Vector3?
 local closeDistance = 32
@@ -70,6 +65,7 @@ end
 local function bindCloseAction()
 	ContextActionService:BindActionAtPriority(
 		ACTION_NAME,
+
 		function(_name, state)
 			if state == Enum.UserInputState.Begin then
 				closeMenu()

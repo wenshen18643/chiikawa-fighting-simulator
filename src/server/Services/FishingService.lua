@@ -2,26 +2,21 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Budget = require(Shared.Modules.Budget)
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
 local Fishing = require(Shared.Modules.Config.Fishing)
 local UI = require(Shared.UI)
-
 local ForagingService = require(script.Parent.ForagingService)
 local HarvestNodes = require(script.Parent.HarvestNodes)
 local TerrainBuilder = require(script.Parent.TerrainBuilder)
 local WorldService = require(script.Parent.WorldService)
-
 local FishingService = {}
-
 local WORLD = Constants.WORLD
 local WOOD = Color3.fromRGB(168, 132, 98)
 local WOOD_DARK = Color3.fromRGB(126, 94, 68)
 local FLOAT_RED = Color3.fromRGB(238, 116, 108)
-
 local folder: Folder
 local nodes = HarvestNodes.new({
 	tag = "FishingSpot",
@@ -66,7 +61,6 @@ local function carveLake(area: Areas.AreaDefinition, centre: Vector2, step: any)
 	local top = WORLD.TERRAIN_TOP
 	local waterTop = top - lake.surfaceDrop
 	local floorY = top - lake.depth
-
 	local rings = 6
 	for index = 0, rings do
 		local alpha = index / rings
@@ -97,7 +91,6 @@ local function buildPier(area: Areas.AreaDefinition, base: Vector2, tip: Vector2
 	local span = tip - base
 	local length = span.Magnitude
 	local yaw = math.atan2(span.X, span.Y)
-
 	local model = Instance.new("Model")
 	model.Name = "Pier"
 	model.Parent = folder
@@ -303,6 +296,7 @@ function FishingService.init()
 	nodes.onProgress = function(node, _player, current, needed)
 		showBobber(node, current, needed)
 	end
+
 	nodes.onSpent = function(node)
 		resetSpot(node)
 	end

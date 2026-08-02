@@ -1,21 +1,16 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Constants = require(Shared.Modules.Constants)
 local Formulas = require(Shared.Modules.Formulas)
-
 local CurrencyService = require(script.Parent.CurrencyService)
 local DataService = require(script.Parent.DataService)
 local SkillService = require(script.Parent.SkillService)
-
 local TrainingService = {}
-
 local MOVEMENT = Constants.MOVEMENT
 local SKILL = "grit"
-
 local lastPosition: { [Player]: Vector3 } = {}
 local carry: { [Player]: number } = {}
 local lastJump: { [Player]: number } = {}
@@ -58,7 +53,6 @@ local function sampleDistance(player: Player, elapsed: number)
 
 	local delta = position - previous
 	local distance = Vector3.new(delta.X, 0, delta.Z).Magnitude
-
 	local plausible = MOVEMENT.SPRINT_SPEED * elapsed * MOVEMENT.MAX_PLAUSIBLE_SPEED_FACTOR
 	if distance > plausible then
 		return

@@ -1,5 +1,4 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Constants = require(Shared.Modules.Constants)
@@ -14,7 +13,6 @@ local Formulas = {}
 
 function Formulas.gainMultiplier(profile: any, skillId: string): BigNum
 	local multiplier = BigNumber.one()
-
 	local canonical = Skills.canonicalize(skillId)
 	local order = profile.certifications[canonical] or profile.certifications[skillId] or 0
 	multiplier = BigNumber.mulNumber(multiplier, Certifications.gainMultiplier(order))

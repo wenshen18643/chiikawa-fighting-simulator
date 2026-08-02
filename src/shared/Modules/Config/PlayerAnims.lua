@@ -1,5 +1,4 @@
 local Skills = require(script.Parent.Skills)
-
 local PlayerAnims = {}
 
 local LEGS_LIGHT = {

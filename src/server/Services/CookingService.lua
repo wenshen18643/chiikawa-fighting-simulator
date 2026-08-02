@@ -1,6 +1,5 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Constants = require(Shared.Modules.Constants)
@@ -10,13 +9,11 @@ local Remotes = require(Shared.Modules.Remotes)
 local Recipes = require(Shared.Modules.Config.Recipes)
 local Areas = require(Shared.Areas)
 local Layout = require(Shared.Modules.Config.Layout)
-
 local DataService = require(script.Parent.DataService)
 local KitchenBuilder = require(script.Parent.KitchenBuilder)
 local NotifyService = require(script.Parent.NotifyService)
 local SkillService = require(script.Parent.SkillService)
 local WorldService = require(script.Parent.WorldService)
-
 local CookingService = {}
 
 type Session = {
@@ -26,12 +23,9 @@ type Session = {
 }
 
 local COOKING = Constants.COOKING
-
 local sessions: { [Player]: Session } = {}
 local limiters: { [Player]: RateLimiter.RateLimiter } = {}
-
 local stationPosition: Vector3? = nil
-
 local openRemote: RemoteEvent
 local eventRemote: RemoteEvent
 

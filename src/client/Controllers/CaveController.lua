@@ -2,12 +2,9 @@ local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Cave = require(Shared.Modules.Config.Cave)
-
 local CaveController = {}
-
 local LEVEL_ATTRIBUTE = "CaveLevel"
 local LANTERN_ATTRIBUTE = "HasLantern"
 local FADE = TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)

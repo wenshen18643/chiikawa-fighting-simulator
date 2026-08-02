@@ -1,11 +1,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local ModelUtil = require(Shared.Modules.ModelUtil)
 -- selene: allow(unused_variable)
 local UI = require(Shared.UI)
-
 local Area = {}
 
 export type Gate = {
@@ -92,7 +90,6 @@ local function placeAsset(ctx: DecorateContext, key: string, x: number, z: numbe
 
 	local size = model:GetExtentsSize()
 	local base = ctx.origin + Vector3.new(x, groundAt(ctx, x, z) + (options.y or 0) + size.Y / 2, z)
-
 	local pivot = CFrame.new(base)
 	local spin = options.rotation
 	if spin then
@@ -211,7 +208,6 @@ function Area.helpers.tree(ctx: DecorateContext, x: number, z: number, height: n
 		local jitterX = if rng then (rng:NextNumber() - 0.5) * canopySize * 0.16 else 0
 		local jitterZ = if rng then (rng:NextNumber() - 0.5) * canopySize * 0.16 else 0
 		local size = canopySize * blob.scale
-
 		local shade = if blob.tint >= 0
 			then leaf:Lerp(Color3.fromRGB(150, 208, 118), blob.tint)
 			else leaf:Lerp(Color3.fromRGB(58, 112, 52), -blob.tint)
@@ -664,7 +660,6 @@ function Area.helpers.path(ctx: DecorateContext, config: { [string]: any })
 		local size = width * ctx.rng:NextNumber(0.82, 1.1)
 		local stoneX = along.X - direction.Y * drift
 		local stoneZ = along.Y + direction.X * drift
-
 		local stone = Instance.new("Part")
 		stone.Name = "PathStone"
 		stone.Shape = Enum.PartType.Cylinder
@@ -695,7 +690,6 @@ function Area.helpers.paving(
 	local midX = (area.minX + area.maxX) / 2
 	local midZ = (area.minZ + area.maxZ) / 2
 	local top = style.SURFACE_Y + (area.rise or 0)
-
 	local part = Instance.new("Part")
 	part.Name = area.name or "Paving"
 	part.Size = Vector3.new(area.maxX - area.minX, style.THICKNESS, area.maxZ - area.minZ)
@@ -722,7 +716,6 @@ function Area.helpers.hedge(ctx: DecorateContext, verge: { [string]: any }, styl
 	local yaw = math.atan2(direction.X, direction.Y)
 	local count = math.max(1, math.round(length / style.HEDGE_SEGMENT))
 	local piece = length / count
-
 	local top = style.SURFACE_Y + style.HEDGE_HEIGHT
 	local bodyHeight = style.HEDGE_HEIGHT + style.HEDGE_SKIRT
 
@@ -730,7 +723,6 @@ function Area.helpers.hedge(ctx: DecorateContext, verge: { [string]: any }, styl
 		step(ctx)
 
 		local at = from + direction * ((index + 0.5) * piece)
-
 		local body = Instance.new("Part")
 		body.Name = "Hedge"
 		body.Size = Vector3.new(style.HEDGE_WIDTH, bodyHeight, piece + 0.2)

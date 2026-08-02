@@ -2,11 +2,8 @@
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Farming = require(ReplicatedStorage:WaitForChild("Shared").Modules.Config.Farming)
-
 local FarmController = {}
-
 local TAG = "FarmPlot"
 local TIMER_NAME = "OwnerCropTimer"
 local tracked: { [Model]: boolean } = {}

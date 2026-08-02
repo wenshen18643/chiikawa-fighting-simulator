@@ -1,26 +1,20 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Skills = require(Shared.Modules.Config.Skills)
 local UI = require(Shared.UI)
-
 local WorkCore = {}
-
 local RING_SIZE = 84
-
 local root: Frame
 local setRing: (number) -> ()
 local ringGlyph: Frame
 local ringValue: TextLabel
 local ringCaption: TextLabel
-
 local titleLabel: TextLabel
 local detailLabel: TextLabel
 local actionPill: Frame
 local actionLabel: TextLabel
-
 local currentSkill: string? = nil
 local ringGlyphSkill: string? = nil
 local lastRatio = 0

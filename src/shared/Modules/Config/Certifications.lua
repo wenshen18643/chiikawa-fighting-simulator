@@ -52,7 +52,6 @@ end
 function Certifications.itemsForOrder(order: number): { [string]: number }
 	local tier = ITEM_TIERS[math.min(math.ceil(order / ITEMS_PER_TIER), #ITEM_TIERS)]
 	local count = (order - 1) % ITEMS_PER_TIER + 1
-
 	local cost = {}
 	for _, ingredientId in tier do
 		cost[ingredientId] = count

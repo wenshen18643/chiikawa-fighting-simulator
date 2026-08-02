@@ -1,5 +1,4 @@
 local RunService = game:GetService("RunService")
-
 local Budget = {}
 
 Budget.SLICE = 1 / 400

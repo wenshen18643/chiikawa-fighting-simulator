@@ -1,6 +1,5 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Certifications = require(Shared.Modules.Config.Certifications)
@@ -8,15 +7,11 @@ local ExamQuestions = require(Shared.Modules.Config.ExamQuestions)
 local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
 local UI = require(Shared.UI)
-
 local WorkController = require(script.Parent.Parent.Controllers.WorkController)
-
 local ExamCounter = {}
-
 local ROW_HEIGHT = 96
 local ROW_TALL = 136
 local GAP = 10
-
 local screen: ScreenGui
 local scrim: Frame
 local panel: Frame
@@ -24,11 +19,9 @@ local setOpen: (boolean) -> ()
 local capLabel: TextLabel
 local list: ScrollingFrame
 local quiz: Frame
-
 local sitRemote: RemoteEvent
 local answerRemote: RemoteEvent
 local closeRemote: RemoteEvent
-
 local isOpen = false
 local quizLocked = false
 local currentQuestion: any = nil
@@ -359,6 +352,7 @@ function ExamCounter.build(parent: Instance)
 	scrim, panel, setOpen = UI.modal(parent, "ExamCounter", {
 		extent = UDim2.fromScale(0.62, 0.82),
 		zIndex = 32,
+
 		onToggled = function(open)
 			isOpen = open
 			WorkController.setInputLocked("exam-counter", open)
@@ -392,6 +386,7 @@ function ExamCounter.build(parent: Instance)
 		position = UDim2.new(1, 0, 0, 2),
 		extent = UDim2.fromOffset(88, 28),
 		zIndex = panel.ZIndex + 1,
+
 		onActivated = function()
 			ExamCounter.setOpen(false)
 		end,

@@ -3,13 +3,11 @@
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
-
 local CurrencyService = require(script.Parent.CurrencyService)
 local NotifyService = require(script.Parent.NotifyService)
 local SkillService = require(script.Parent.SkillService)

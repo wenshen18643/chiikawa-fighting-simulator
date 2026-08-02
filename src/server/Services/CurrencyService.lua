@@ -1,17 +1,14 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Constants = require(Shared.Modules.Constants)
 local Formulas = require(Shared.Modules.Formulas)
-
 local DataService = require(script.Parent.DataService)
 
 type BigNum = BigNumber.BigNum
 
 local CurrencyService = {}
-
 local VALID = { yen = true, stamps = true }
 
 function CurrencyService.get(profile: any, currency: string): BigNum

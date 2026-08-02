@@ -1,14 +1,12 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Certifications = require(Shared.Modules.Config.Certifications)
 local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
 local UI = require(Shared.UI)
-
 local StateController = require(script.Parent.Parent.Controllers.StateController)
 local Atlas = require(script.Parent.Atlas)
 local ControlsPanel = require(script.Parent.ControlsPanel)
@@ -16,13 +14,9 @@ local InventoryMenu = require(script.Parent.InventoryMenu)
 local Minimap = require(script.Parent.Minimap)
 local SkillBar = require(script.Parent.SkillBar)
 local WorkCore = require(script.Parent.WorkCore)
-
 local HUD = {}
-
 local COMPACT_WIDTH = 760
-
 local skillEntries: { [string]: SkillBar.SkillEntry } = {}
-
 local screen: ScreenGui
 local identityCard: Frame
 local skillBarHolder: Frame
@@ -32,7 +26,6 @@ local stampLabel: TextLabel
 local seasonChip: Frame
 local toastHolder: Frame
 local buffHolder: Frame
-
 local activeSkill: string? = nil
 local selectedSkill: string? = nil
 local buffChips: { TextLabel } = {}
@@ -206,7 +199,6 @@ local function updateBuffs(boosts: { any }?)
 	local now = os.time()
 	local active = {}
 	local key = ""
-
 	local all: { any } = boosts or {}
 	for _, boost in all do
 		if (boost.expiresAt or 0) - now > 0 then
@@ -333,7 +325,6 @@ end
 
 local function showToast(message: string, kind: string)
 	local isUnlock = kind == "unlock"
-
 	local card = Instance.new("Frame")
 	card.Size = UDim2.new(1, 0, 0, 44)
 	card.BackgroundColor3 = if isUnlock then UI.color.leaf else UI.color.paper
@@ -382,7 +373,6 @@ end
 
 local function gradeProgress(value: any): (number, number)
 	local current = math.max(BigNumber.log10(value), 0)
-
 	local lower = 0
 	local met = 0
 
@@ -485,6 +475,7 @@ function HUD.init()
 		{
 			glyph = "pin",
 			hint = "M",
+
 			activated = function()
 				Minimap.toggle()
 			end,
@@ -492,6 +483,7 @@ function HUD.init()
 		{
 			glyph = "map",
 			hint = "N",
+
 			activated = function()
 				Atlas.toggle()
 			end,
@@ -499,6 +491,7 @@ function HUD.init()
 		{
 			glyph = "platter",
 			hint = "I",
+
 			activated = function()
 				InventoryMenu.toggle()
 			end,
@@ -506,6 +499,7 @@ function HUD.init()
 		{
 			glyph = "help",
 			hint = "H",
+
 			activated = function()
 				ControlsPanel.setOpen(true)
 			end,

@@ -1,14 +1,11 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Boosts = require(Shared.Modules.Boosts)
 local Recipes = require(Shared.Modules.Config.Recipes)
 local Remotes = require(Shared.Modules.Remotes)
 local Seasonings = require(Shared.Modules.Config.Seasonings)
-
 local DataService = require(script.Parent.DataService)
 local NotifyService = require(script.Parent.NotifyService)
-
 local InventoryService = {}
 
 local function spend(counts: { [string]: number }, id: string): boolean

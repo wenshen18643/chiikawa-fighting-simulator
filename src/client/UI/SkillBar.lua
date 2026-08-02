@@ -1,14 +1,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Certifications = require(Shared.Modules.Config.Certifications)
 local Skills = require(Shared.Modules.Config.Skills)
 local UI = require(Shared.UI)
-
 local WorkController = require(script.Parent.Parent.Controllers.WorkController)
-
 local SkillBar = {}
-
 local BUTTON = 68
 local CELL_WIDTH = 82
 local CELL_HEIGHT = 106
@@ -33,7 +29,6 @@ local function buildCell(
 ): SkillEntry
 	local definition = Skills.get(skillId)
 	local accent = (definition and definition.color) or UI.color.leaf
-
 	local cell = Instance.new("Frame")
 	cell.Name = skillId
 	cell.BackgroundTransparency = 1
@@ -55,7 +50,6 @@ local function buildCell(
 	UI.corner(button, UI.radius.pill)
 
 	local ring = UI.stroke(button, UI.color.line, UI.Theme.stroke.heavy)
-
 	local wash = Instance.new("Frame")
 	wash.Name = "Wash"
 	wash.Size = UDim2.fromScale(1, 1)
@@ -160,10 +154,12 @@ local function buildCell(
 
 	return {
 		setValue = setValue,
+
 		setProgress = function(fraction: number)
 			fill.Size = UDim2.fromScale(fraction, 1)
 		end,
 		setPips = setPips,
+
 		setGrade = function(text: string?)
 			grade.Visible = text ~= nil
 			grade.Text = text or ""
