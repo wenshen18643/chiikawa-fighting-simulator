@@ -1,16 +1,3 @@
---[[
-	Token-bucket rate limiter. See docs/GAME.md §13.
-
-	Server-side only in practice: every remote that credits anything goes
-	through one of these. Excess requests are DROPPED, not queued and not
-	credited — a client that sends 200 work actions in a second gets the
-	capped number and nothing else happens to them (§2 rule 3: no punishment,
-	just no reward).
-
-	The burst allowance exists so a player on a bad connection whose packets
-	arrive bunched is not silently under-credited for input they really made.
-]]
-
 local RateLimiter = {}
 RateLimiter.__index = RateLimiter
 
@@ -35,8 +22,6 @@ function RateLimiter.new(ratePerSecond: number, burst: number?): RateLimiter
 	}, RateLimiter)
 end
 
--- The cap can change at runtime (a gamepass purchase mid-session), so callers
--- push the new rate in rather than rebuilding the bucket and losing its state.
 function RateLimiter:setRate(ratePerSecond: number, burst: number?)
 	self.rate = ratePerSecond
 	self.burst = burst or ratePerSecond
@@ -55,7 +40,6 @@ function RateLimiter:_refill()
 	self.tokens = math.min(self.burst, self.tokens + elapsed * self.rate)
 end
 
--- Returns true if the action is allowed. Consumes a token when it is.
 function RateLimiter:consume(count: number?): boolean
 	local amount = count or 1
 	self:_refill()

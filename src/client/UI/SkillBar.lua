@@ -1,43 +1,3 @@
---[[
-	The bottom-centre skill bar: one big round button per skill, numbered.
-
-	--------------------------------------------------------------------------
-	WHY THIS REPLACED THE SIDE STACK
-	--------------------------------------------------------------------------
-
-	The skills used to live in a card down the left as six text rows. Everything
-	needed was in it and none of it was reachable — the one control the player
-	touches constantly sat as far from the crosshair as it is possible to put
-	something, and read as a readout rather than as a row of buttons.
-
-	Round, numbered, bottom-centre is the genre's convention for exactly this
-	reason: it is where the thumb already is on a phone, where the eye already
-	is on a desktop, and the digit on the badge matches the key that selects it.
-
-	--------------------------------------------------------------------------
-	WHAT EACH BUTTON CARRIES
-	--------------------------------------------------------------------------
-
-		( 1 )   <- round button, glyph, ringed in the skill's own colour
-		 1.2K   <- the stat value
-		 ====   <- progress to the next certification grade
-		 ooooo  <- one pip per canon grade, lit for the ones reached
-
-	So the bar did not lose what the stack showed; it stacked it vertically
-	under each icon instead of horizontally across a row.
-
-	--------------------------------------------------------------------------
-	ACTIVE vs. SELECTED
-	--------------------------------------------------------------------------
-
-	Two states the caller passes separately (see HUD.update). ACTIVE is what a
-	click raises right now; SELECTED is what the player picked.
-
-	This module owns how those look and exposes them as `setState(lit, picked)`
-	rather than handing its Instances out, so HUD never reaches in to tween a
-	frame it does not own.
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -82,10 +42,6 @@ local function buildCell(
 	cell.ZIndex = 4
 	cell.Parent = parent
 
-	--[[
-		The button is the circle itself, not a frame containing one, so the
-		whole disc is the hit target rather than a square around it.
-	]]
 	local button = Instance.new("TextButton")
 	button.Name = "Button"
 	button.AnchorPoint = Vector2.new(0.5, 0)
@@ -100,8 +56,6 @@ local function buildCell(
 
 	local ring = UI.stroke(button, UI.color.line, UI.Theme.stroke.heavy)
 
-	-- A wash of the skill's colour inside the disc, so an unlit button still
-	-- says which skill it is without relying on the glyph alone.
 	local wash = Instance.new("Frame")
 	wash.Name = "Wash"
 	wash.Size = UDim2.fromScale(1, 1)
@@ -120,10 +74,6 @@ local function buildCell(
 		zIndex = 7,
 	})
 
-	--[[
-		The number badge. It is the keyboard digit, sitting on the thing that
-		digit selects, which is cheaper than a legend explaining the mapping.
-	]]
 	local badge = Instance.new("Frame")
 	badge.Name = "Badge"
 	badge.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -179,7 +129,6 @@ local function buildCell(
 		zIndex = 5,
 	})
 
-	-- Certification grade, hidden until there is one to show.
 	local grade = UI.label(cell, "Grade", {
 		text = "",
 		font = UI.font.bold,
@@ -192,12 +141,6 @@ local function buildCell(
 	grade.Visible = false
 
 	local function setState(lit: boolean, picked: boolean)
-		--[[
-			Three visual states off two booleans:
-			  lit      full colour ring, thick, disc washed in the colour
-			  picked   colour ring at normal weight
-			  neither  the near-black outline every other surface wears
-		]]
 		UI.motion.to(ring, UI.motion.settle, {
 			Color = if lit or picked then accent else UI.color.line,
 			Thickness = if lit then UI.Theme.stroke.heavy else UI.Theme.stroke.base,
@@ -205,8 +148,6 @@ local function buildCell(
 		UI.motion.to(wash, UI.motion.settle, {
 			BackgroundTransparency = if lit then 0.55 else 0.86,
 		})
-		-- The active button sits slightly proud of the row. Size, not position,
-		-- so the row never reflows and the digits stay where they were learned.
 		UI.motion.to(button, UI.motion.settle, {
 			Size = UDim2.fromOffset(if lit then BUTTON + 6 else BUTTON, if lit then BUTTON + 6 else BUTTON),
 		})
@@ -231,10 +172,6 @@ local function buildCell(
 	}
 end
 
---[[
-	Build the bar. Returns the entries keyed by skill id, plus the holder so the
-	caller can hide it on a compact screen.
-]]
 function SkillBar.build(parent: Instance, onBlocked: (string) -> ()): ({ [string]: SkillEntry }, Frame)
 	local count = #Skills.ORDER
 	local gradeCount = Certifications.MAX_CANON_ORDER

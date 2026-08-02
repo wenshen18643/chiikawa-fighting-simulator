@@ -1,21 +1,3 @@
---[[
-	Yoroi-san's counter, opened by the prompt at the job booth.
-
-	--------------------------------------------------------------------------
-	THE SERVER DECIDES WHAT IS ON IT
-	--------------------------------------------------------------------------
-
-	The board arrives with the open message. Which orders a player may take is
-	a fact about their profile and the day's date, and only the server holds
-	both -- so this module renders rows and sends back an id, exactly as
-	CompanionMenu does with the roster. It has no opinion about what is on it,
-	and it cannot invent an order that was not offered.
-
-	Rebuilt per open rather than kept and reconciled. The board is at most three
-	rows, opening it is a deliberate walk across town, and a stale board that
-	quietly disagrees with the server is worse than a handful of instances.
-]]
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -48,15 +30,6 @@ local setOpen: (boolean) -> ()
 local acceptRemote: RemoteEvent
 local turnInRemote: RemoteEvent
 
---------------------------------------------------------------------------------
--- Reward copy
---------------------------------------------------------------------------------
-
---[[
-	One line, in the order a player cares about: the thing money cannot buy
-	first, then the money. An unlock is the reason to take the job; the yen is
-	why it is a job.
-]]
 local function rewardText(reward: { [string]: any }): string
 	local parts = {}
 	if reward.unlock then
@@ -73,10 +46,6 @@ local function rewardText(reward: { [string]: any }): string
 	end
 	return table.concat(parts, "  •  ")
 end
-
---------------------------------------------------------------------------------
--- Rows
---------------------------------------------------------------------------------
 
 local function buildRow(entry: Entry, index: number)
 	local done = entry.progress >= entry.objective.count
@@ -96,11 +65,6 @@ local function buildRow(entry: Entry, index: number)
 		extent = UDim2.new(1, -160, 0, 26),
 	})
 
-	--[[
-		The grade, where the chain would show nothing. It is the only number on
-		the row that says how far the player has come, and a rank badge next to
-		the job is how Yoroi-san's booth reads in the first place.
-	]]
 	if entry.grade then
 		UI.chip(row, "Grade", {
 			text = entry.grade,
@@ -120,10 +84,6 @@ local function buildRow(entry: Entry, index: number)
 		extent = UDim2.new(1, -UI.space.base * 2, 0, 34),
 	})
 
-	--[[
-		Progress is shown ONLY once the order is taken. On an offer it would be
-		a row of zeroes that reads as a requirement the player has failed.
-	]]
 	local requirement = if entry.accepted
 		then `{entry.summary}  —  {entry.progress}/{entry.objective.count}`
 		else entry.summary
@@ -163,11 +123,6 @@ local function buildRow(entry: Entry, index: number)
 		extent = UDim2.fromOffset(112, 32),
 		position = UDim2.new(1, -128, 1, -46),
 		onActivated = function()
-			--[[
-				Fire and close. The server owns the outcome and toasts it, so
-				sitting here waiting for a confirmation would add a second of
-				dead menu to a decision already made.
-			]]
 			if done then
 				turnInRemote:FireServer(entry.id)
 			else
@@ -193,17 +148,7 @@ local function render(payload: { [string]: any })
 	listHolder.CanvasPosition = Vector2.zero
 end
 
---------------------------------------------------------------------------------
--- Panel
---------------------------------------------------------------------------------
-
 local function buildPanel(parent: ScreenGui)
-	--[[
-		A Studio-authored template wins if one has been exported; otherwise this
-		builds the same shape in code so the board works from the first run.
-		Swapping in a designed panel later means dropping the model into
-		assets/UI and changing nothing here.
-	]]
 	if UI.hasTemplate(TEMPLATE) then
 		local mounted = UI.template(TEMPLATE, { parent = parent })
 		if mounted and mounted:IsA("Frame") then
@@ -266,11 +211,6 @@ local function buildPanel(parent: ScreenGui)
 	UI.list(listHolder, UI.space.snug)
 	UI.padding(listHolder, 0, { right = 14 })
 
-	--[[
-		The booth never actually runs dry -- the ledger past the chain is
-		generated and has no last rung -- so this is a fault message, not a
-		state the game reaches on its own.
-	]]
 	emptyLabel = UI.label(panel, "Empty", {
 		text = "Yoroi-san has nothing on the counter. Try again in a moment.",
 		font = UI.font.light,
@@ -291,10 +231,6 @@ local function buildPanel(parent: ScreenGui)
 		end,
 	})
 end
-
---------------------------------------------------------------------------------
--- Public
---------------------------------------------------------------------------------
 
 function OrderBoard.init()
 	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
@@ -319,12 +255,6 @@ function OrderBoard.init()
 		setOpen(true)
 	end)
 
-	--[[
-		A board refresh while the panel is shut is not an invitation to open it.
-		The server sends one after every accept and turn-in so the next open is
-		already correct; opening on it would put a menu in front of somebody who
-		is halfway down a cave.
-	]]
 	Remotes.event("Order", "Event").OnClientEvent:Connect(function(kind, payload)
 		if kind == "board" and type(payload) == "table" then
 			render(payload)

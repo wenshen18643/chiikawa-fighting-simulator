@@ -1,14 +1,3 @@
---[[
-	Pushes the authoritative display state to each client. See docs/GAME.md §13.
-
-	This is one-way. The snapshot is what the client DRAWS; it is never what the
-	client is trusted to have. Nothing here is accepted back.
-
-	The payload is small — six {m, e} pairs plus a handful of scalars — so a
-	fixed-rate full snapshot is cheaper than diffing would be, and it means a
-	dropped packet self-heals on the next tick instead of leaving the HUD stale.
-]]
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -26,7 +15,7 @@ local StaminaService = require(script.Parent.StaminaService)
 local StudyService = require(script.Parent.StudyService)
 
 local ReplicationService = {
-	remote = nil :: RemoteEvent?, -- resolved in init()
+	remote = nil :: RemoteEvent?,
 }
 
 local function buildSnapshot(player: Player, profile: any)
@@ -62,8 +51,6 @@ local function buildSnapshot(player: Player, profile: any)
 		regionId = RegionService.getCurrentRegion(player),
 		unlockedRegions = profile.unlockedRegions,
 		highestUnlockedRegion = RegionService.getHighestUnlocked(profile),
-		-- Drives the first-run Field Guide. Stays true until the client
-		-- acknowledges, so a dropped packet cannot lose the onboarding.
 		showIntro = profile.meta.introShown ~= true,
 	}
 end
@@ -79,8 +66,6 @@ end
 function ReplicationService.init()
 	ReplicationService.remote = Remotes.event("State", "Snapshot")
 
-	-- Push immediately on load so the HUD is never empty while waiting for the
-	-- first scheduled tick.
 	DataService.onLoaded(function(player)
 		task.defer(ReplicationService.pushTo, player)
 	end)

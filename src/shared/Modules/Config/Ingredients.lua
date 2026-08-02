@@ -410,16 +410,7 @@ Ingredients.ZONES = {
 	{
 		id = "home_fields",
 		name = "Home Fields",
-		--[[
-			Moved to C6, the cell directly north of the farm. At angle 90 distance
-			150 this landed on the C4/D4 line, which is now the town centre --
-			carrots and potatoes growing across the library's front garden and the
-			kitchen road.
 
-			North of C5 rather than on it: the farm cell is 15 plots on a 30-stud
-			grid spanning X -136..-76, Z 258..378, so a 45-radius patch centred
-			anywhere in C5 spawns forage nodes standing in somebody's rented crops.
-		]]
 		angle = 102,
 		distance = 511,
 		radius = 45,

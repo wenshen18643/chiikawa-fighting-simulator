@@ -1,27 +1,3 @@
---[[
-	Area unlocking, gates, and fast travel. See docs/GAME.md §7.
-
-	Areas unlock automatically the moment the gate is met — there is nothing
-	to buy and nothing to claim, because a gate the player can forget to open is
-	a gate that reads as a punishment (§2 rule 3).
-
-	SPEC DEVIATION: §7's areas were separate places reached by teleport. They are
-	now districts of one landmass joined by land bridges, so "unlocked" has to
-	mean something PHYSICAL as well as something in the profile — otherwise a new
-	player simply walks east until they run out of world.
-
-	That physical meaning is a collision group. Each character sits in
-	`Access_k`, where k is the furthest area they have unlocked, and each gate
-	barrier is solid to exactly those groups below it (WorldService owns the
-	matrix). This service's job is to keep k current: on spawn, and again the
-	instant an area opens, so a gate becomes passable the moment it is earned
-	rather than on the next respawn.
-
-	Travel survives as FAST travel rather than as the only way to move. The
-	client asks; the server checks the unlock and moves the character. Walking
-	is always available and is the intended way to see the world.
-]]
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -40,17 +16,12 @@ local RegionService = {}
 
 local CHECK_INTERVAL = 2
 
--- Last area we told each client they were in, so walking across a border fires
--- the title card exactly once.
 local lastKnownRegion: { [Player]: number } = {}
 
 function RegionService.isUnlocked(profile: any, regionId: number): boolean
 	return profile.unlockedRegions[tostring(regionId)] == true
 end
 
--- The furthest area open to this profile. Drives the collision group, so it has
--- to be the MAXIMUM rather than a count: unlocks are ordered, but a future
--- migration or a manual grant could leave a hole.
 function RegionService.getHighestUnlocked(profile: any): number
 	local highest = Areas.STARTING_AREA
 	for _, area in Areas.ALL do
@@ -61,12 +32,6 @@ function RegionService.getHighestUnlocked(profile: any): number
 	return highest
 end
 
---[[
-	SPEC NOTE: §7 gates on total CERTIFICATION level; certifications land in
-	Slice 3. Until then this reads `gate.skillTotal`. Swapping to
-	`gate.certificationTotal` is a one-line change here — see Areas/Area.lua for
-	why an area carries both.
-]]
 local function meetsGate(profile: any, region: Areas.AreaDefinition): boolean
 	local total = Formulas.totalSkill(profile)
 	return BigNumber.gte(total, BigNumber.coerce(region.gate.skillTotal))
@@ -90,19 +55,11 @@ function RegionService.refresh(player: Player, profile: any)
 		end
 	end
 
-	-- Only re-stamp the collision group when something actually changed: this
-	-- walks every part of the character and runs on a 2-second poll for every
-	-- player in the server.
 	if opened then
 		applyAccess(player, profile)
 	end
 end
 
---[[
-	Which area the player is physically standing in. Delegates to Layout so that
-	the answer is the same one the client's minimap computes — and so a player on
-	a land bridge gets the nearest area rather than nothing.
-]]
 function RegionService.getCurrentRegion(player: Player): number
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
@@ -112,8 +69,6 @@ function RegionService.getCurrentRegion(player: Player): number
 	return Layout.areaAt(root.Position).id
 end
 
--- Fires the area title card when the player crosses a border on foot. The world
--- is continuous, so nothing else marks the moment.
 local function watchBorders()
 	local remote = Remotes.event("Region", "Entered")
 
@@ -169,9 +124,6 @@ function RegionService.init()
 		applyAccess(player, profile)
 	end)
 
-	-- A fresh character is a fresh set of parts, all of them back in the default
-	-- collision group. Without this, respawning re-closes every gate you have
-	-- earned.
 	Players.PlayerAdded:Connect(function(player)
 		player.CharacterAdded:Connect(function()
 			local profile = DataService.get(player)

@@ -1,48 +1,3 @@
---[[
-	The dome you spawn in, and the volume in which nothing can touch you.
-
-	See docs/GAME.md §2 and §9.6, and Config/SafeZone.lua for the shape of the
-	building. This file turns that table into parts and owns what the volume
-	MEANS.
-
-	Two responsibilities that look unrelated and are not:
-
-	  1. It is a home. One white round room, a loft you sleep in, and a garden
-	     with a job booth at the end of it, assembled from parts and from the
-	     models under assets/Models/ so it lives in version control and needs no
-	     uploaded ids, the same way NpcService assembles the cast.
-
-	  2. It is THE SAFE ZONE, and the only place in the codebase that is allowed
-	     to define what safety means. There is no damage in the game yet, so this
-	     is deliberately built as a seam rather than as a reaction: when Slice 5
-	     lands, every damage path calls SafeZoneService.isProtected first, and
-	     the answer is already correct.
-
-	Protection is three overlapping mechanisms, because each one leaks alone:
-	  - A ForceField makes Humanoid:TakeDamage() a no-op. That covers anything
-	    written the ordinary way.
-	  - A health guard restores anything that writes Humanoid.Health directly,
-	    which a ForceField does not stop.
-	  - isProtected() is the predicate future systems check before they resolve
-	    at all, so the other two never have to fire.
-
-	--------------------------------------------------------------------------
-	BUILDING A CURVE OUT OF PARTS
-	--------------------------------------------------------------------------
-
-	There is no flat face on this building, which changes how everything below
-	is written. Two ideas carry the whole file:
-
-	  `surfaceFrame(azimuth, y)` returns a CFrame sitting ON the shell with +Z
-	  pointing out of it, +Y running up the slope and +X tangential. Anything
-	  that belongs on the wall -- glass, window rims, the door surround -- is
-	  positioned in that frame and never in world space.
-
-	  `buildShell` walks the profile in rings and lays each ring as tilted
-	  blocks. Tilting each block to the local slope is the load-bearing detail:
-	  untilted rings stair-step, and a stair-stepped dome reads as a ziggurat.
-]]
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -75,10 +30,6 @@ local inside: { [Player]: boolean } = {}
 local healthGuards: { [Player]: RBXScriptConnection } = {}
 local changedRemote: RemoteEvent?
 
---------------------------------------------------------------------------------
--- Geometry helpers
---------------------------------------------------------------------------------
-
 local function toWorld(x: number, y: number, z: number): CFrame
 	return CFrame.new(origin + Vector3.new(x, y, z))
 end
@@ -103,8 +54,6 @@ local function piece(config: { [string]: any }): Part
 	return part
 end
 
--- A flat disc lying in the XZ plane. Cylinder's axis is its X axis, so every
--- disc in this file needs the same roll and it is worth having once.
 local function disc(config: { [string]: any }): Part
 	config.shape = Enum.PartType.Cylinder
 	config.size = Vector3.new(config.thickness, config.diameter, config.diameter)
@@ -112,18 +61,10 @@ local function disc(config: { [string]: any }): Part
 	return piece(config)
 end
 
--- Sweep parameter t (0 at the ground, 1 at the crown) for a given height.
 local function parameterAt(y: number): number
 	return math.asin(math.clamp(y / dome.height, 0, 1)) / (math.pi / 2)
 end
 
---[[
-	How far the shell leans in at sweep parameter t, in radians from vertical.
-
-	Measured from the profile by finite difference rather than differentiated by
-	hand, so changing `bulge` in the config cannot silently desynchronise the
-	tilt from the shape it is supposed to be following.
-]]
 local function leanAt(t: number): number
 	local step = 0.004
 	local r0, y0 = SafeZone.profile(math.max(t - step, 0))
@@ -131,10 +72,6 @@ local function leanAt(t: number): number
 	return math.atan2(r0 - r1, math.max(y1 - y0, 1e-5))
 end
 
---[[
-	A frame sitting on the shell: +Z out of the surface, +Y up its slope, +X
-	tangential. Everything mounted on the wall is placed relative to this.
-]]
 local function surfaceFrame(azimuth: number, y: number): CFrame
 	local t = parameterAt(y)
 	local radius = select(1, SafeZone.profile(t))
@@ -144,29 +81,10 @@ local function surfaceFrame(azimuth: number, y: number): CFrame
 		* CFrame.Angles(-leanAt(t), 0, 0)
 end
 
--- Signed difference between two azimuths in degrees, wrapped to [-180, 180].
 local function azimuthDelta(a: number, b: number): number
 	return (a - b + 540) % 360 - 180
 end
 
---------------------------------------------------------------------------------
--- The shell
---------------------------------------------------------------------------------
-
---[[
-	Which opening, if any, swallows the ring segment centred at `azimuth`
-	spanning `yLow .. yHigh`.
-
-	Round openings test against an ELLIPSE rather than the arc's bounding box.
-	That is the difference between a round window and a square hole with a round
-	frame leaning against it -- the rim drawn later would hide the corners at
-	eye level and expose them from every other angle.
-
-	Both branches test the ring's MIDPOINT, not its span. Overlap was tried on
-	the door first and is wrong: a ring is 3.5 studs tall, so "any part of this
-	ring is below the door head" opens the ring ABOVE the head as well and
-	leaves a slot over the arch that the door surround does not reach.
-]]
 local function openingAt(azimuth: number, yLow: number, yHigh: number)
 	local midY = (yLow + yHigh) / 2
 
@@ -199,17 +117,9 @@ local function buildShell()
 		local span = math.sqrt((r1 - r0) ^ 2 + (y1 - y0) ^ 2)
 		local lean = math.atan2(r0 - r1, math.max(y1 - y0, 1e-5))
 
-		-- Segment count follows the ring's circumference, so the crown is not
-		-- paying for the same 30 blocks the base needed.
 		local count = math.max(8, math.ceil(2 * math.pi * midRadius / dome.segmentArc))
 		local width = (2 * math.pi * midRadius / count) * dome.overlap
 
-		--[[
-			Alternate rings are nudged half a segment round. The seams then form
-			a running bond instead of stacking into continuous vertical lines up
-			the side of the building, which is what makes a segmented dome look
-			segmented.
-		]]
 		local phase = if ring % 2 == 1 then 0.5 else 0
 
 		for index = 0, count - 1 do
@@ -232,22 +142,6 @@ local function buildShell()
 	end
 end
 
---------------------------------------------------------------------------------
--- Openings
---------------------------------------------------------------------------------
-
---[[
-	How far the real edge of a hole can sit from the arc that asked for it.
-
-	An opening is cut by dropping whole segments, so its boundary lands on
-	whichever segment edge is nearest -- up to half a segment away, which at the
-	base of this dome is three and a half studs. Trim sized to the NOMINAL arc
-	therefore floats in the middle of the hole on one ring and sits inside solid
-	shell on the next.
-
-	Every surround below is widened by these instead. It is the difference
-	between a window and a window with daylight leaking round one side of it.
-]]
 local function horizontalSlack(y: number): number
 	local radius = select(1, SafeZone.profile(parameterAt(y)))
 	local count = math.max(8, math.ceil(2 * math.pi * radius / dome.segmentArc))
@@ -258,15 +152,6 @@ local function verticalSlack(): number
 	return dome.height / dome.rings / 2
 end
 
---[[
-	A rim of small blocks following an ellipse drawn ON the shell, plus the glass
-	behind it.
-
-	Offsets are taken in the window's own surface frame rather than recomputed
-	per block. Over ten studs of a thirty-two stud dome the flat-patch error is
-	well under the rim's own thickness, and the alternative -- a fresh
-	surfaceFrame per block -- makes the rim wobble where the two disagree.
-]]
 local function glazeRound(opening: { [string]: any })
 	local centreY = (opening.bottom + opening.top) / 2
 	local azimuth = math.rad(opening.azimuth)
@@ -276,8 +161,6 @@ local function glazeRound(opening: { [string]: any })
 	local halfWidth = radius * math.sin(math.rad(opening.halfAngle)) + horizontalSlack(centreY)
 	local halfHeight = (opening.top - opening.bottom) / 2 + verticalSlack()
 
-	-- Sized to the rim, not to the opening: the pane has to reach whatever the
-	-- rim is covering, or the gap between the two is a hole in the wall.
 	disc({
 		name = `{opening.name}Glass`,
 		thickness = 0.4,
@@ -287,7 +170,6 @@ local function glazeRound(opening: { [string]: any })
 		transparency = 0.55,
 		collide = false,
 		castShadow = false,
-		-- Rotated so the disc's axis lies along the surface normal.
 		cframe = frame * CFrame.Angles(0, math.rad(90), 0) * CFrame.Angles(0, 0, math.rad(-90)),
 	})
 
@@ -295,7 +177,6 @@ local function glazeRound(opening: { [string]: any })
 	for index = 0, blocks - 1 do
 		local angle = (index / blocks) * math.pi * 2
 		local u, v = math.cos(angle) * halfWidth, math.sin(angle) * halfHeight
-		-- Tangent to the ellipse, so consecutive blocks meet flush.
 		local tangent = math.atan2(halfHeight * math.cos(angle), -halfWidth * math.sin(angle))
 		local arc = 2 * math.pi * math.max(halfWidth, halfHeight) / blocks
 
@@ -309,22 +190,10 @@ local function glazeRound(opening: { [string]: any })
 	end
 end
 
---[[
-	The door surround: two jambs up the sides and an arc across the head.
-
-	The head is sampled along the shell rather than drawn as a straight lintel,
-	because the shell is already leaning back by seventeen studs up and a
-	straight lintel would float off it at the middle.
-]]
 local function frameDoor(opening: { [string]: any })
 	local steps = 18
 	local rise = (opening.top - opening.bottom) / steps
 
-	--[[
-		Jambs are as wide as the quantisation can wander and are centred ON the
-		nominal edge, so whichever side of it a given ring's real edge fell,
-		the jamb is already covering it.
-	]]
 	for _, side in { -1, 1 } do
 		local azimuth = math.rad(opening.azimuth + side * opening.halfAngle)
 		for index = 0, steps - 1 do
@@ -339,16 +208,6 @@ local function frameDoor(opening: { [string]: any })
 		end
 	end
 
-	--[[
-		The head is sampled along the shell rather than drawn as a straight
-		lintel: seventeen studs up the wall is already leaning back by twenty
-		degrees, and a straight lintel would leave the middle of the arch
-		floating off the surface.
-
-		It runs past the jambs at both ends and is deep enough to swallow a
-		ring's worth of vertical wander, so the three trim runs meet as corners
-		rather than as a T with daylight in it.
-	]]
 	local headY = opening.top + verticalSlack() * 0.6
 	local headSpan = opening.halfAngle + math.deg(horizontalSlack(headY) / dome.radius)
 
@@ -366,7 +225,6 @@ local function frameDoor(opening: { [string]: any })
 		})
 	end
 
-	-- Threshold, so the doorway has a lip instead of ending at the grass.
 	piece({
 		name = "Threshold",
 		size = Vector3.new(18, 0.6, 6),
@@ -380,19 +238,6 @@ local DOOR_OPEN_ANGLE = math.rad(100)
 local DOOR_TRIGGER_RANGE = 12
 local DOOR_SWING_SPEED = 2.8
 
---[[
-	The leaf is sized off the aperture frameDoor actually leaves, not off the
-	nominal arc in Config/SafeZone. Those are not the same number: the jambs are
-	`horizontalSlack * 2.2` wide and centred ON the nominal edge, so half of each
-	one juts back into the hole, and the head blocks hang `verticalSlack * 1.2`
-	below their own centre. A leaf sized to the config arc came out covering
-	about half of what the player sees.
-
-	Height wins over width. The leaf's authored aspect (5.51 wide to 9.83 tall)
-	is narrower than the aperture's, so filling the width would leave a gap
-	under the arch, whereas filling the height overlaps each jamb by under a
-	stud -- which is where a door sits against its stop anyway.
-]]
 local function buildStrawberryDoor(opening: { [string]: any })
 	local model = AssetService.clone("strawberryDoor")
 	if not model then
@@ -416,25 +261,6 @@ local function buildStrawberryDoor(opening: { [string]: any })
 	local head = opening.top - verticalSlack() * 0.6
 	local doorHeight = head - sill
 
-	--[[
-		Which way round the leaf is, taken from its proportions instead of
-		assumed.
-
-		This is what hung it edge-on. The exporter left a ninety degree yaw on
-		the model's WorldPivot, so in the leaf's OWN space the five-and-a-half
-		stud width is X and the one-and-a-half stud thickness is Z -- the mirror
-		of what the world-space file looks like, and the mirror of what the old
-		`CFrame.Angles(0, -90, 0)` here corrected for. The two cancelled the
-		wrong way: the width ended up pointing out of the wall and the thickness
-		spanning the doorway, which is a full-height three-stud plank standing in
-		the middle of the arch.
-
-		A door is taller than it is wide and wider than it is thick, and that
-		ordering survives any rotation an exporter cares to leave behind, so the
-		axes are read off the bounding box rather than named. GetBoundingBox, not
-		GetExtentsSize: its size is documented to be in the pivot's own frame,
-		which is the frame the answer has to be expressed in.
-	]]
 	local _, extents = model:GetBoundingBox()
 	local axes = { Vector3.xAxis, Vector3.yAxis, Vector3.zAxis }
 	local spans = { extents.X, extents.Y, extents.Z }
@@ -456,8 +282,6 @@ local function buildStrawberryDoor(opening: { [string]: any })
 	model:ScaleTo(scale)
 	local doorWidth = math.abs(across:Dot(extents)) * scale
 
-	-- Turns the leaf's own axes onto the surface frame's: width along its X,
-	-- height up its Y, thickness out through its Z.
 	local upright = CFrame.fromMatrix(Vector3.zero, across, up, through):Inverse()
 
 	for _, descendant in model:GetDescendants() do
@@ -468,26 +292,12 @@ local function buildStrawberryDoor(opening: { [string]: any })
 		end
 	end
 
-	--[[
-		Hung in the doorway's own frame rather than on a vertical axis: the shell
-		leans back about nine degrees at this height, and a leaf standing plumb in
-		a leaning wall meets the head trim at one edge and floats off it at the
-		other. Swinging about the frame's Y keeps it in the wall's plane the whole
-		way round.
-	]]
 	local centreY = sill + doorHeight / 2
 	local frame = surfaceFrame(math.rad(opening.azimuth), centreY)
 	model:PivotTo(frame * upright)
 	local boxCFrame = model:GetBoundingBox()
 	model:PivotTo(model:GetPivot() + (frame.Position - boxCFrame.Position))
 
-	--[[
-		Hinge and swing are both stated in the DOORWAY's frame, not the leaf's.
-		`upright` is whatever it takes to turn this particular export the right
-		way up, and hanging the swing off that would put the hinge wherever the
-		exporter's pivot happened to point. The doorway's frame is fixed: X runs
-		along the wall, Y up its slope, Z out through it.
-	]]
 	local hinge = frame * CFrame.new(doorWidth / 2, 0, 0)
 	local rel = frame:Inverse() * model:GetPivot()
 
@@ -526,13 +336,7 @@ local function buildStrawberryDoor(opening: { [string]: any })
 	end)
 end
 
---------------------------------------------------------------------------------
--- Interior structure
---------------------------------------------------------------------------------
-
 local function buildFloor()
-	-- The plinth reads as a base course and, more usefully, hides the ragged
-	-- bottom edge where the first ring of segments meets the ground.
 	disc({
 		name = "Plinth",
 		thickness = 1.6,
@@ -551,8 +355,6 @@ local function buildFloor()
 		cframe = toWorld(0, SafeZone.FLOOR_Y - 0.75, 0),
 	})
 
-	-- A round rug under the table, which is what stops the floor reading as a
-	-- disc of planks with furniture standing on it.
 	disc({
 		name = "Rug",
 		thickness = 0.2,
@@ -565,13 +367,6 @@ local function buildFloor()
 	})
 end
 
---[[
-	The loft deck: a half-disc across the back of the room, built as strips.
-
-	Each strip's depth is measured at whichever of its edges is further from the
-	centre, so every strip lands inside the circle. Taking the midpoint instead
-	pokes the corners of each strip through the wall.
-]]
 local function buildLoft(): number
 	local loft = SafeZone.LOFT
 	local radius = SafeZone.interiorRadiusAt(loft.y) - loft.inset
@@ -597,9 +392,6 @@ local function buildLoft(): number
 		})
 	end
 
-	-- Railing along the open edge. Half-width is taken where the deck is still
-	-- at least a stud deep, so the rail stops with the floor rather than
-	-- running on past it into the wall.
 	local railHalf = math.sqrt(math.max(radius * radius - (math.abs(loft.frontZ) + 1) ^ 2, 0))
 
 	piece({
@@ -625,17 +417,6 @@ local function buildLoft(): number
 	return deckY
 end
 
---[[
-	A stair that spirals up the inside of the shell.
-
-	Straight flights were tried first and a straight flight in a round room
-	either cuts across the middle of the only floor you have, or runs into the
-	curve and has to stop early. Following the wall costs nothing and leaves the
-	floor clear.
-
-	Treads are thicker than their own rise so consecutive steps overlap into a
-	continuous ribbon rather than fifteen floating slabs.
-]]
 local function buildStair(deckY: number)
 	local stair = SafeZone.STAIR
 
@@ -656,13 +437,7 @@ local function buildStair(deckY: number)
 	end
 end
 
---------------------------------------------------------------------------------
--- Fixtures
---------------------------------------------------------------------------------
-
 local function buildChimney()
-	-- Set back from the crown so it breaks the silhouette rather than sitting
-	-- on top of it like a handle.
 	local frame = surfaceFrame(math.rad(150), dome.height * 0.82)
 
 	local stack = piece({
@@ -703,14 +478,6 @@ local function buildChimney()
 	smoke.Parent = stack
 end
 
---[[
-	The wall §6's certificates will hang on. Empty for now and labelled as such
-	-- an obviously-reserved space reads as a promise, where a blank wall reads
-	as an unfinished room.
-
-	On the shell rather than free-standing, since there is no flat wall to lean
-	it against.
-]]
 local function buildCertificateBoard()
 	local frame = surfaceFrame(math.rad(-140), 9)
 
@@ -733,27 +500,12 @@ local function buildCertificateBoard()
 	})
 end
 
---[[
-	The bed.
-
-	Sized and placed against the deck's own radius rather than by eye. The deck
-	is a half-disc, so its far corners are much closer to the middle than its
-	waist is -- a bed that fits alongside the stair at x = -7 hangs its back
-	corner into the wall if it is pushed two studs further out. Measured here so
-	changing LOFT.inset or the dome's bulge moves the bed instead of burying it.
-]]
 local function buildFuton(deckY: number)
 	local loft = SafeZone.LOFT
 	local deckRadius = SafeZone.interiorRadiusAt(loft.y) - loft.inset
 
 	local width, depth = 12, 15
 	local x = -7
-	--[[
-		Furthest the bed's centre can sit back with both far corners still on
-		deck. The margin is not slop: the deck is strips, and each strip's depth
-		is taken at its outer edge, so the real floor is a notch inside the
-		circle this is measured against.
-	]]
 	local usable = deckRadius - 1.5
 	local back = -math.sqrt(math.max(usable * usable - (math.abs(x) + width / 2) ^ 2, 0))
 	local z = math.min(back + depth / 2, loft.frontZ - depth / 2)
@@ -783,13 +535,6 @@ local function buildFuton(deckY: number)
 	})
 end
 
---[[
-	Lighting, hung rather than baked.
-
-	Two lamps and a fire's worth of warm light, all low-brightness: the shell is
-	near-white and takes very little to blow out. The point is that the inside
-	is warmer than the daylight outside it, not that it is bright.
-]]
 local function buildLamps(deckY: number)
 	local spots = {
 		{ x = 0, y = dome.height * 0.62, z = 0, range = 34, brightness = 1.1 },
@@ -825,36 +570,6 @@ local function buildLamps(deckY: number)
 	end
 end
 
---------------------------------------------------------------------------------
--- Placing models
---------------------------------------------------------------------------------
-
---[[
-	Put a loaded model down at a target SIZE rather than a target scale.
-
-	Two things here are worth not rediscovering:
-
-	  Sizing is driven by the model's largest dimension. These came from a dozen
-	  toolbox authors working at a dozen scales, and "make it thirteen studs"
-	  is the only instruction that means the same thing to all of them.
-
-	  Placement is done twice. A Model's pivot is wherever its author left it,
-	  which is frequently not the centre of its geometry, so pivoting to the
-	  target and stopping puts the model somewhere near where you asked. The
-	  second pass measures where the bounding box actually landed and corrects
-	  by the difference, which is exact regardless of the pivot.
-
-	  The height is measured AFTER the rotation, and measured against the WORLD
-	  up axis rather than read off the box. Yaw alone cannot change a model's
-	  vertical extent so this never mattered before, but `pitch` and `roll` can:
-	  a can tipped 35 degrees forward is shorter than the can standing up, and
-	  sizing it upright buries the spout in the lawn.
-
-	  Both GetBoundingBox and GetExtentsSize are oriented to the model's PIVOT,
-	  not to the world -- so once the model is tilted, `size.Y` is its own height
-	  and not the height of the hole it needs in the ground. `worldHeight` below
-	  projects the box's three axes onto world up, which is that height.
-]]
 local function worldHeight(cframe: CFrame, size: Vector3): number
 	return math.abs(cframe.XVector.Y) * size.X
 		+ math.abs(cframe.YVector.Y) * size.Y
@@ -891,21 +606,6 @@ local function place(row: SafeZone.Placement, baseY: number): Model?
 		model.Name = row.name
 	end
 
-	--[[
-		Where this ended up, in the model's OWN frame, recorded for anything that
-		has to be positioned against it.
-
-		`extents` is measured before the model is ever rotated, so it is the
-		authored-orientation size -- which is the only frame in which "the long
-		axis of the counter" means anything. Reading it back off the placed model
-		does not work: GetExtentsSize is oriented to the pivot, and a prop yawed
-		twenty degrees reports a box that is a blend of its own two axes.
-
-		This exists because Yoroi-san's position used to be a second set of
-		hand-written coordinates that had to agree with the booth's, and did not:
-		the booth moved and resized twice while the attendant stayed where it
-		was, standing inside the counter.
-	]]
 	model:SetAttribute("PlotSize", extents)
 	model:SetAttribute("PlotCentre", wanted)
 	model:SetAttribute("PlotYaw", row.yaw or 0)
@@ -914,20 +614,6 @@ local function place(row: SafeZone.Placement, baseY: number): Model?
 	return model
 end
 
---[[
-	Give a flat cloth the shape of the table under it.
-
-	TableCloth is a 12.6 x 0.24 x 12.7 sheet with a scalloped frill around its
-	rim and no drape whatsoever, so laid on a table it is a lid: the frill hangs
-	in mid-air off every edge with nothing joining it to the furniture. Nothing
-	in the model can be posed into a skirt either -- the frill pieces are all at
-	the same height as the sheet.
-
-	So the skirt is built. Four panels drop from the cloth's own rim to just
-	above the floor, taking their colour and material from the sheet, sized to
-	the CLOTH rather than to the table so the hem lines up with the frill that is
-	already there. The panels overlap at the corners rather than mitring.
-]]
 local function drape(cloth: Model, table_: Model, groundY: number)
 	local sheet: BasePart? = nil
 	local best = 0
@@ -953,8 +639,6 @@ local function drape(cloth: Model, table_: Model, groundY: number)
 		return
 	end
 
-	-- The cloth's own yaw, kept upright: panels hang plumb whatever the sheet is
-	-- turned to, which they would not if they inherited its full rotation.
 	local look = clothCFrame.LookVector
 	local frame = CFrame.new(clothCFrame.Position.X, hemBottom + drop / 2, clothCFrame.Position.Z)
 		* CFrame.Angles(0, math.atan2(look.X, look.Z), 0)
@@ -985,19 +669,6 @@ local function drape(cloth: Model, table_: Model, groundY: number)
 	end
 end
 
---[[
-	Footprints of what has already been placed, in plot coordinates.
-
-	Only used by the lawn. Scattering 22 clumps at random almost never landed one
-	inside a shop; covering the plot on a grid lands several, and a clump of grass
-	standing up through a shop floor is worse than a bare patch.
-
-	SOLID THINGS ONLY -- the ones Config/Assets marks `collide`, which is the
-	shops, the booth and the picnic table. A sakura is 54 studs of canopy over a
-	trunk you can walk up to, and reserving its bounding box would clear a
-	54-stud circle of lawn to protect a tree that grass is supposed to grow
-	under.
-]]
 export type Footprint = { x: number, z: number, halfX: number, halfZ: number }
 
 local function footprintOf(row: SafeZone.Placement, model: Model): Footprint
@@ -1035,12 +706,6 @@ local function placeAll(rows: { SafeZone.Placement }, groundY: number, deckY: nu
 					warn(`[SafeZoneService] "{row.asset}" drapes over "{row.drapeOver}", which is not placed yet`)
 				end
 			end
-			--[[
-				Solid AND not a canopy. `collide` used to be opt-in and doubled
-				as "is this a building", which stopped working the moment it
-				became the default: reserving lawn under everything solid clears
-				a 54-stud circle for each sakura, which is most of the garden.
-			]]
 			local spec = Assets.get(row.asset)
 			if spec and spec.collide ~= false and not spec.canopy then
 				table.insert(footprints, footprintOf(row, result))
@@ -1051,42 +716,12 @@ local function placeAll(rows: { SafeZone.Placement }, groundY: number, deckY: nu
 	return footprints
 end
 
---------------------------------------------------------------------------------
--- Garden
---------------------------------------------------------------------------------
-
---[[
-	A picket fence marking the safe volume.
-
-	Legibility is the point: the boundary is a real rule, so it has to be
-	something the player can see rather than a line they discover by being hurt
-	on the far side of it. Each side is left open where its street crosses it.
-
-	Solid now, posts and rails both. The plot is the middle of a town rather than
-	a lawn in a field, so the fence has to hold a line between the garden and the
-	high street. It is still only 5.5 tall against a 6.9-stud jump: you can hop
-	it if you insist, and the gates are for everyone who does not.
-
-	Round caps, not points. A pointed picket is a fence; a round-topped one is
-	the same fence drawn by somebody being nice about it, and that is the whole
-	register this plot is supposed to be in.
-]]
 local function buildFence()
 	local garden = SafeZone.garden
 	local halfX = SafeZone.VOLUME.size.X / 2 - garden.fenceInset
 	local frontZ = SafeZone.VOLUME.centreOffset.Z + SafeZone.VOLUME.size.Z / 2 - garden.fenceInset
 	local backZ = SafeZone.VOLUME.centreOffset.Z - SafeZone.VOLUME.size.Z / 2 + garden.fenceInset
 
-	--[[
-		Each run carries the POINT its gate is centred on, not just a flag.
-
-		The plot used to have one opening in the front because there was one thing
-		to walk to. It now sits at the centre of four districts, and the east and
-		west gates have to line up with the streets that run to the library and
-		the kitchen doors -- both at Z 90, neither at the midpoint of the run they
-		pierce. A gate cut at the middle of the side would have put both openings
-		fifty studs from the road that uses them.
-	]]
 	local function post(x: number, z: number, run: { [string]: any })
 		local alongX, alongZ = x - run.gateX, z - run.gateZ
 		if math.sqrt(alongX * alongX + alongZ * alongZ) < garden.gateGap then
@@ -1109,12 +744,6 @@ local function buildFence()
 		})
 	end
 
-	--[[
-		Two rails per height, split at wherever the gate happens to be. Measuring
-		the opening along the run rather than from its centre is what lets the
-		gate sit off-centre; the halves either side come out different lengths and
-		that is the point.
-	]]
 	local function rails(run: { [string]: any })
 		local from = Vector2.new(run.fromX, run.fromZ)
 		local span = Vector2.new(run.toX, run.toZ) - from
@@ -1145,11 +774,6 @@ local function buildFence()
 		end
 	end
 
-	--[[
-		Gate positions, chosen to meet the streets: north and south on the axis of
-		the spokes at X 0, east and west opposite the library and kitchen doors at
-		Z 90. See Config/Streets.
-	]]
 	local runs = {
 		{ fromX = -halfX, fromZ = frontZ, toX = halfX, toZ = frontZ, gateX = 0, gateZ = frontZ },
 		{ fromX = -halfX, fromZ = backZ, toX = halfX, toZ = backZ, gateX = 0, gateZ = backZ },
@@ -1168,20 +792,10 @@ local function buildFence()
 	end
 end
 
---[[
-	Ground that is clear to plant on: not inside the house.
-]]
 local function isClear(x: number, z: number): boolean
 	return Vector2.new(x, z).Magnitude >= dome.radius + 2
 end
 
---[[
-	Lawn, by jittered grid.
-
-	One clump per cell, displaced by up to `grassJitter`, sized to overlap its
-	neighbours. Cells whose centre is on the paving or under the house are
-	skipped, so the grass runs right up to the kerb and stops.
-]]
 local function scatterGrass(rng: Random, occupied: { Footprint })
 	local garden = SafeZone.garden
 
@@ -1230,13 +844,7 @@ local function scatterGrass(rng: Random, occupied: { Footprint })
 	end
 end
 
---------------------------------------------------------------------------------
--- Protection
---------------------------------------------------------------------------------
-
 function SafeZoneService.containsPosition(position: Vector3): boolean
-	-- Asked before the volume is built, or after a failed build: there is no
-	-- ForceField either, so nothing is protected.
 	if not volumeCentre then
 		return false
 	end
@@ -1244,14 +852,6 @@ function SafeZoneService.containsPosition(position: Vector3): boolean
 	return math.abs(delta.X) <= volumeHalf.X and math.abs(delta.Y) <= volumeHalf.Y and math.abs(delta.Z) <= volumeHalf.Z
 end
 
---[[
-	THE predicate. Any system that is about to reduce a player's health, stagger
-	them, or otherwise act on them against their will asks this first.
-
-	It is deliberately a plain query rather than an event: a caller cannot forget
-	to unsubscribe, and it is correct the instant it is called rather than as of
-	the last tick.
-]]
 function SafeZoneService.isProtected(player: Player): boolean
 	return inside[player] == true
 end
@@ -1261,8 +861,6 @@ local function setForceField(character: Model, enabled: boolean)
 	if enabled then
 		if not existing then
 			local field = Instance.new("ForceField")
-			-- The sparkle bubble would sit over the whole interior and read as a
-			-- hazard warning, which is the opposite of the intent.
 			field.Visible = false
 			field.Parent = character
 		end
@@ -1271,11 +869,6 @@ local function setForceField(character: Model, enabled: boolean)
 	end
 end
 
---[[
-	A ForceField stops Humanoid:TakeDamage. It does NOT stop a direct write to
-	Humanoid.Health, which is how a lot of Roblox code actually deals damage. So
-	while a player is inside, any drop in health is put straight back.
-]]
 local function setHealthGuard(player: Player, humanoid: Humanoid?, enabled: boolean)
 	local existing = healthGuards[player]
 	if existing then
@@ -1332,10 +925,6 @@ local function track()
 	end)
 end
 
---------------------------------------------------------------------------------
--- Assembly
---------------------------------------------------------------------------------
-
 local function build(rng: Random)
 	buildShell()
 	buildFloor()
@@ -1362,14 +951,6 @@ local function build(rng: Random)
 	local outdoors = placeAll(SafeZone.exterior, SafeZone.FLOOR_Y, deckY)
 	scatterGrass(rng, outdoors)
 
-	--[[
-		The nameplate over the door.
-
-		§the house was won in a lottery run by a yogurt conglomerate, which is
-		the only fact about this building the source material actually states.
-		It goes on the sign because a plaque explaining how you came to own the
-		place is exactly what somebody who won a house would put up.
-	]]
 	local plate = piece({
 		name = "HomeSign",
 		size = Vector3.new(17, 3.4, 0.6),
@@ -1388,20 +969,12 @@ local function build(rng: Random)
 	})
 end
 
---------------------------------------------------------------------------------
--- Public
---------------------------------------------------------------------------------
-
--- Spawning at the back of the room facing the door means the first frame of the
--- game is the room, the doorway, and the garden framed through it.
 function SafeZoneService.getSpawnCFrame(): CFrame
 	local town = Areas.BY_ID[Areas.STARTING_AREA]
 	local position = town.origin + Vector3.new(0, Constants.WORLD.PLATFORM_TOP, 0) + SafeZone.SPAWN_OFFSET
 	return CFrame.lookAt(position, position + Vector3.new(0, 0, 1))
 end
 
--- Where fast travel to Town lands you: outside your own front door, facing the
--- districts, rather than inside the house looking at a wall.
 function SafeZoneService.getDoorstepCFrame(): CFrame
 	local town = Areas.BY_ID[Areas.STARTING_AREA]
 	local position = town.origin + Vector3.new(0, Constants.WORLD.PLATFORM_TOP, 0) + SafeZone.DOORSTEP_OFFSET
@@ -1428,11 +1001,6 @@ function SafeZoneService.init()
 
 	build(Random.new(20260727))
 
-	--[[
-		The spawn. This replaces the bare SpawnLocation WorldService used to drop
-		on the plaza: the first thing a player sees is the inside of their own
-		house, and the first thing they do is walk out of it.
-	]]
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "HomeSpawn"
 	spawn.Anchored = true
@@ -1444,7 +1012,6 @@ function SafeZoneService.init()
 	spawn.Duration = 0
 	spawn.Parent = houseFolder
 
-	-- Arriving in Town by fast travel puts you on the doorstep, not indoors.
 	WorldService.setSpawnCFrame(Areas.STARTING_AREA, SafeZoneService.getDoorstepCFrame())
 
 	Players.PlayerRemoving:Connect(function(player)
@@ -1458,8 +1025,6 @@ function SafeZoneService.init()
 
 	Players.PlayerAdded:Connect(function(player)
 		player.CharacterAdded:Connect(function(character)
-			-- Force a re-evaluation: the flag survives the respawn, the
-			-- ForceField and the health guard do not.
 			inside[player] = nil
 			task.defer(function()
 				local root = character:FindFirstChild("HumanoidRootPart") :: BasePart?

@@ -1,11 +1,3 @@
---[[
-	Owns skill values. See docs/GAME.md §4.
-
-	Nothing outside this module writes profile.skills. Everything that grants
-	skill goes through award(), so region unlocking has exactly one place to
-	hook.
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -34,7 +26,6 @@ function SkillService.award(_player: Player, profile: any, skillId: string, amou
 	profile.skills[canonical] = BigNumber.add(profile.skills[canonical] or BigNumber.zero(), amount)
 end
 
--- §9.7 New Season: skills reset, everything else survives.
 function SkillService.resetForSeason(profile: any)
 	for _, skillId in Skills.ORDER do
 		profile.skills[skillId] = BigNumber.zero()

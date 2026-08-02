@@ -1,11 +1,5 @@
 --!strict
 
---[[
-	Owns the Peach Study Library's world interaction. The six server-created
-	ProximityPrompts only open presentation; there is deliberately no client
-	request, session state, progression mutation, or reward path in this slice.
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")

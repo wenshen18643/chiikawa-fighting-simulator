@@ -1,38 +1,20 @@
---[[
-	Cooking recipes.
-
-	Each dish is cooked at the kitchen station from foraged ingredients
-	(Config/Ingredients.lua). Cooking costs `baseClicks` stir clicks, which a
-	cook's resilience can reduce (Constants.COOKING), and pays out one dish
-	into profile.dishes. Eating a dish applies its `buff` for `duration`
-	seconds: `skill` scopes it to one skill (nil = all skills), `stat` instead
-	targets a non-skill number ("yen" or "staminaRegen", see
-	Formulas.boostStatMultiplier).
-]]
-
 export type RecipeBuff = {
 	id: string,
 	multiplier: number,
-	skill: string?, -- nil == applies to every skill
-	stat: string?, -- "yen" | "staminaRegen"
-	duration: number, -- seconds
+	skill: string?,
+	stat: string?,
+	duration: number,
 }
 
 export type RecipeDefinition = {
 	id: string,
 	name: string,
-	model: string, -- Assets.lua key for the dish model
+	model: string,
 	ingredients: { { id: string, count: number } },
 	baseClicks: number,
 	buff: RecipeBuff,
 	glyph: string,
 	description: string,
-	--[[
-		Not on the menu until it is earned. Every other recipe in this file is
-		available from the first minute; a locked one is a REWARD, and the
-		server writes profile.recipes[id] when it is granted. Absent means open,
-		so nothing that already existed changes.
-	]]
 	locked: boolean?,
 }
 
@@ -157,10 +139,6 @@ function Recipes.get(id: string): RecipeDefinition?
 	return Recipes.DEFINITIONS[id]
 end
 
---[[
-	Whether a profile may cook this. A recipe with no `locked` flag is open to
-	everybody, so the gate only exists for the things it was added for.
-]]
 function Recipes.isUnlocked(def: RecipeDefinition, profile: any): boolean
 	if not def.locked then
 		return true

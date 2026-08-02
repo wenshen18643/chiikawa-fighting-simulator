@@ -1,8 +1,3 @@
---[[
-	A generation loop calls the returned function between items. It returns
-	immediately until the frame slice is spent, then hands the frame back.
-]]
-
 local RunService = game:GetService("RunService")
 
 local Budget = {}

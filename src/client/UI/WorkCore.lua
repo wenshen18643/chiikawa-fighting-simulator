@@ -1,21 +1,3 @@
---[[
-	The work core: the bottom-centre control, and the thing the player actually
-	looks at while playing.
-
-	It replaces three separate panels that used to live down here — the stamina
-	bar, the worksite prompt, and the guide card — and which could all be visible
-	simultaneously, giving the most important corner of the screen three voices
-	and no hierarchy.
-
-	One control, one state: the stamina ring wraps the skill you are training
-	and what one click is worth.
-
-	The ring is the stamina meter (Primitives.ring — a real dial, drawn from
-	frames, no image assets). Putting the rate limiter AROUND the thing it limits
-	is the whole design: you never have to look somewhere else to know why the
-	clicks stopped counting.
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
@@ -26,7 +8,6 @@ local UI = require(Shared.UI)
 
 local WorkCore = {}
 
--- Fits the shorter card: 108 tall less 12 padding top and bottom.
 local RING_SIZE = 84
 
 local root: Frame
@@ -44,20 +25,9 @@ local currentSkill: string? = nil
 local ringGlyphSkill: string? = nil
 local lastRatio = 0
 
---------------------------------------------------------------------------------
--- Build
---------------------------------------------------------------------------------
-
 function WorkCore.build(parent: Instance): Frame
 	root = UI.card(parent, "WorkCore")
-	--[[
-		Bottom RIGHT, not centre.
 
-		Centred and 392x132 it sat directly over the character and the ground
-		ahead of them — the two things the player is actually looking at. It is
-		a status readout, not the focus, so it belongs in a corner. The skill
-		bar keeps centre because that one IS the focus.
-	]]
 	root.AnchorPoint = Vector2.new(1, 1)
 	root.Position = UDim2.new(1, -18, 1, -18)
 	root.Size = UDim2.fromOffset(320, 108)
@@ -75,7 +45,6 @@ function WorkCore.build(parent: Instance): Frame
 	ring.AnchorPoint = Vector2.new(0, 0.5)
 	ring.Position = UDim2.new(0, 0, 0.5, 0)
 
-	-- Inside the ring: the skill's glyph and the stamina reading.
 	ringGlyph = UI.glyph(ring, "leaf", {
 		color = UI.color.leafDeep,
 		extent = UDim2.fromOffset(24, 24),
@@ -105,7 +74,6 @@ function WorkCore.build(parent: Instance): Frame
 		zIndex = 6,
 	})
 
-	-- Right-hand column: what you are doing.
 	local column = Instance.new("Frame")
 	column.Name = "Detail"
 	column.Position = UDim2.fromOffset(RING_SIZE + 16, 4)
@@ -155,10 +123,6 @@ function WorkCore.build(parent: Instance): Frame
 	return root
 end
 
---------------------------------------------------------------------------------
--- State
---------------------------------------------------------------------------------
-
 local function showTraining(snapshot: any)
 	local selected = snapshot.selectedSkill
 	local definition = selected and Skills.get(selected)
@@ -188,15 +152,9 @@ function WorkCore.update(snapshot: any)
 		return
 	end
 
-	--------------------------------------------------------------------------
-	-- The ring: stamina, always, whichever state the panel is in.
-	--------------------------------------------------------------------------
 	local stamina = snapshot.stamina
 	local ratio = if stamina.max > 0 then math.clamp(stamina.current / stamina.max, 0, 1) else 0
 
-	-- Stepped toward the new value rather than snapped, but without a tween per
-	-- snapshot: at 2.5 snapshots a second, overlapping tweens on the same
-	-- property visibly stutter.
 	lastRatio += (ratio - lastRatio) * 0.5
 	setRing(lastRatio)
 
@@ -204,19 +162,10 @@ function WorkCore.update(snapshot: any)
 	ringCaption.Text = if snapshot.resting then "RESTING" else "STAMINA"
 	ringCaption.TextColor3 = if snapshot.resting then UI.color.rest else UI.color.inkFaint
 
-	--------------------------------------------------------------------------
-	-- The panel body.
-	--------------------------------------------------------------------------
 	showTraining(snapshot)
 
 	actionLabel.TextColor3 = UI.color.white
 
-	-- The glyph inside the ring follows whatever the panel is about, so the
-	-- ring is never a generic meter floating next to unrelated text.
-	--
-	-- Rebuilt only when the skill CHANGES. Snapshots arrive 2.5 times a second
-	-- and a glyph is five instances; tearing it down and rebuilding it on every
-	-- one would churn a few hundred instances a minute to draw the same picture.
 	local glyphSkill = currentSkill
 	if glyphSkill and glyphSkill ~= ringGlyphSkill then
 		ringGlyphSkill = glyphSkill

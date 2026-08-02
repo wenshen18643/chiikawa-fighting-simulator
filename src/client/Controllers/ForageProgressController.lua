@@ -1,12 +1,3 @@
---[[
-	How far along the tree you are pulling is.
-
-	A forage node takes several clicks and the tree gives no sign of it, so a
-	big sausage and a small one look identical mid-pull. This puts the count
-	over the node being worked, in world space rather than on the HUD: the
-	answer to "is this one nearly out" belongs on the tree, not in a corner.
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")

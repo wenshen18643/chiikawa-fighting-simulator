@@ -1,11 +1,3 @@
---[[
-	Shared type definitions. The profile shape is docs/GAME.md §16.
-
-	Fields for slices that have not landed yet are present and initialised, not
-	absent — that way DataService never has to migrate a field into existence
-	for players who were created before the feature shipped.
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local BigNumber = require(ReplicatedStorage:WaitForChild("Shared").Modules.BigNumber)
 
@@ -46,14 +38,14 @@ export type Gear = {
 export type Boost = {
 	id: string,
 	multiplier: number,
-	skill: string?, -- nil == applies to every skill
-	stat: string?, -- "yen" | "staminaRegen": multiplies that number instead of a skill
+	skill: string?,
+	stat: string?,
 	expiresAt: number,
 }
 
 export type FurniturePlacement = {
 	id: string,
-	cf: { number }, -- CFrame components; a CFrame itself is not DataStore-safe
+	cf: { number },
 }
 
 export type Home = {
@@ -87,7 +79,7 @@ export type FarmPlotSnapshot = {
 
 export type PlayerProfile = {
 	skills: SkillMap,
-	certifications: { [string]: number }, -- skillId -> order, see Config/Certifications
+	certifications: { [string]: number },
 	studyProgress: { [string]: number },
 	examAttempts: { [string]: number },
 	currencies: Currencies,
@@ -95,13 +87,13 @@ export type PlayerProfile = {
 	companions: { Companion },
 	gear: Gear,
 	recipes: { string },
-	dishes: { [string]: number }, -- cooked dishes owned, recipeId -> count
+	dishes: { [string]: number },
 	workOrders: {
 		completed: { string },
 		active: { [string]: number },
 		rank: number,
 	},
-	unlockedRegions: { [string]: boolean }, -- string keys: JSON has no integer keys
+	unlockedRegions: { [string]: boolean },
 	home: Home,
 	gamepasses: { [number]: boolean },
 	boosts: { Boost },
@@ -112,7 +104,6 @@ export type PlayerProfile = {
 	meta: { createdAt: number, lastPlayed: number, playtime: number, introShown: boolean },
 }
 
--- What the server pushes to the client each snapshot (§13: display data only).
 export type StateSnapshot = {
 	skills: { [string]: BigNum },
 	yen: BigNum,

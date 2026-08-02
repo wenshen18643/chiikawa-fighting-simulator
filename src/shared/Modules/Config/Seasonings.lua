@@ -1,23 +1,9 @@
---[[
-	Seasonings: what a weed sometimes leaves behind.
-
-	Pulling a weed has a small chance of turning one up. They are NOT a cooking
-	input — a recipe you cannot start because the drop refused to happen is a
-	wall built out of luck. Instead a seasoning is used straight from the
-	inventory for a short, sharp buff, so a lucky pull is a good next two
-	minutes rather than a permission slip.
-
-	Buffs use the same shape as Config/Recipes: one skill, one stat, or neither
-	(everything). Applied through the same upsert, so eating a dish and using a
-	seasoning cannot stack two copies of the same id.
-]]
-
 export type SeasoningDefinition = {
 	id: string,
 	name: string,
 	glyph: string,
 	color: Color3,
-	weight: number, -- relative chance among seasonings, once one drops
+	weight: number,
 	buff: {
 		id: string,
 		multiplier: number,
@@ -29,7 +15,6 @@ export type SeasoningDefinition = {
 
 local Seasonings = {}
 
--- Chance that a weed pull turns one up at all.
 Seasonings.DROP_CHANCE = 0.05
 
 Seasonings.ORDER = { "salt", "pepper", "chilli", "sugar" }
@@ -73,7 +58,6 @@ function Seasonings.get(id: string): SeasoningDefinition?
 	return Seasonings.DEFINITIONS[id]
 end
 
--- Which seasoning a drop turns out to be. Weighted, so sugar stays a treat.
 function Seasonings.roll(rng: Random): SeasoningDefinition?
 	local total = 0
 	for _, id in Seasonings.ORDER do

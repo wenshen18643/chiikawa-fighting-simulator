@@ -26,16 +26,9 @@ export type Set = {
 }
 
 CompanionAnims.SETS = {
-
 	chiikawa = {
 		walkSpeed = 16,
 		runSpeed = 30,
-		--[[
-			Frequency is the whole character of this. Chiikawa's head is its
-			largest part, so anything fast on it reads as a buzzing prop rather
-			than a nervous animal -- the head carries the least of it and the
-			small parts carry the most.
-		]]
 		tremble = {
 			amplitude = 1.7,
 			frequency = 2.4,
@@ -1179,26 +1172,10 @@ CompanionAnims.SETS = {
 			},
 		},
 	},
-	--[[
-		Yoroi-san behind the job booth.
 
-		Not a companion -- it never moves and nothing plays actions on it -- but
-		it goes through the same Machine, so it has to satisfy the same contract:
-		Machine:update reads clips.idle, clips.walk and clips.run unconditionally
-		to compute its blend weights. `walk` and `run` are therefore present and
-		deliberately near-empty rather than absent.
-
-		The performance is the opposite of the companions'. They are small and
-		frightened and move constantly; this one is armoured, twice the player's
-		height, and paid to stand at a desk. Everything is slow, the amplitudes
-		are a third of chiikawa's, and the only fast thing in the set is the
-		occasional turn of the head -- which is the entire characterisation:
-		imposing, immobile, and actually paying attention to you.
-	]]
 	yoroi = {
 		walkSpeed = 12,
 		runSpeed = 20,
-		-- Just enough noise to keep the armour from looking welded to the floor.
 		tremble = {
 			amplitude = 0.35,
 			frequency = 0.8,
@@ -1227,7 +1204,6 @@ CompanionAnims.SETS = {
 						{ t = 0.60, pitch = 3, yaw = 6 },
 						{ t = 0.85, pitch = 1, yaw = 4 },
 					},
-					-- Hands resting on the desk in front of it.
 					armL = {
 						{ t = 0.00, pitch = 26, roll = -9 },
 						{ t = 0.50, pitch = 29, roll = -11 },
@@ -1268,8 +1244,6 @@ CompanionAnims.SETS = {
 					legR = { { t = 0.00, pitch = -30 }, { t = 0.50, pitch = 34 } },
 				},
 			},
-			-- Machine:playAction falls back to "action" for any skill without a
-			-- named clip, so this has to exist even though nothing triggers it.
 			action = {
 				length = 1.4,
 				mask = { legL = 0.2, legR = 0.2 },
@@ -1292,7 +1266,6 @@ CompanionAnims.SETS = {
 					},
 				},
 			},
-			-- Looks up, checks both ends of the path, goes back to the paperwork.
 			survey = {
 				length = 4.2,
 				mask = { legL = 0.15, legR = 0.15, root = 0.5 },
@@ -1320,7 +1293,6 @@ CompanionAnims.SETS = {
 					},
 				},
 			},
-			-- Stamps a form. The one piece of bureaucracy the whole economy runs on.
 			stamp = {
 				length = 2.0,
 				mask = { legL = 0.1, legR = 0.1, root = 0.6 },
@@ -1348,7 +1320,6 @@ CompanionAnims.SETS = {
 					},
 				},
 			},
-			-- Waves you over. The only warm thing it does, which is the joke.
 			beckon = {
 				length = 2.4,
 				mask = { legL = 0.1, legR = 0.1, root = 0.6 },

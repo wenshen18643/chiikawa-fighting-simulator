@@ -1,13 +1,3 @@
---[[
-	Server-authoritative study loop: pages, quick recall, and the readiness bar.
-
-	The client only reports two intentions: a page was completed, or an offered
-	plant was chosen. Question order, progress and the focus buff live here.
-
-	Being certified is NOT here. Studying raises Exam Prep and fills its
-	readiness bar; ExamService decides what that bar is worth.
-]]
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -248,8 +238,6 @@ local function onAnswer(player: Player, optionId: any)
 end
 
 local function onClose(player: Player)
-	-- A closed book cannot retain an invisible prompt. Clearing the session also
-	-- invalidates delayed preview callbacks through their identity check.
 	prompts[player] = nil
 end
 

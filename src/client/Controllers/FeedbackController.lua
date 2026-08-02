@@ -1,7 +1,3 @@
---[[
-	What a click looks like.
-]]
-
 local HapticService = game:GetService("HapticService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -39,10 +35,6 @@ local PUNCH_FOV = 0.9
 local VIGNETTE_ALPHA = 0.94
 local VIGNETTE_GAP = 0.4
 local lastVignette = 0
-
---------------------------------------------------------------------------------
--- Screen effects
---------------------------------------------------------------------------------
 
 local function skillColor(skillId: string?): Color3
 	local skill = skillId and Skills.get(skillId)
@@ -89,7 +81,6 @@ local function showGain(gain: any, skillId: string?, offsetX: number?, offsetY: 
 	end)
 end
 
--- Custom Anime Particle Bursts for Chiikawa Stats: Tobatsu, Resilience, Kusatori, Exam Prep
 local function burst(skillId: string?)
 	if not sparkLayer or activeSparks >= MAX_SPARKS then
 		return
@@ -106,7 +97,6 @@ local function burst(skillId: string?)
 	elseif skillId == "examprep" or skillId == "special" or skillId == "craft" then
 		glyphName = if math.random() > 0.4 then "book" else "lightbulb"
 	elseif skillId == "tobatsu" or skillId == "strength" or skillId == "subjugation" then
-		-- Sweat mixed into the fork sparks: the effort, not just the weapon.
 		glyphName = if math.random() > 0.45 then "sasumata" else "sweat"
 	end
 
@@ -154,10 +144,6 @@ local function burst(skillId: string?)
 	end
 end
 
---[[
-	Rate-limited: clicking at speed re-tinted the edges every frame it landed,
-	which stops reading as a pulse and starts reading as a coloured screen.
-]]
 local function pulseVignette(skillId: string?, force: boolean?)
 	if not vignetteFrames or UI.motion.isReducedMotion() then
 		return
@@ -179,21 +165,6 @@ local function pulseVignette(skillId: string?, force: boolean?)
 	end
 end
 
---------------------------------------------------------------------------------
--- World effects
---------------------------------------------------------------------------------
-
---[[
-	Effects that live ON the character rather than on the screen.
-
-	The screen burst says "that click counted". These say what the character is
-	doing, and they have to be in the world for that: sweat has to come off a
-	head, and a speed trail is meaningless without a hand to trail behind.
-
-	Both are built once per character and then switched on and off, because
-	creating a ParticleEmitter per click at click speed is how you get a hitch
-	every few seconds.
-]]
 local characterEffects: { sweat: ParticleEmitter?, trail: Trail? } = {}
 local trailUntil = 0
 
@@ -221,7 +192,6 @@ local function buildCharacterEffects(character: Model)
 		})
 		sweat.Lifetime = NumberRange.new(0.35, 0.6)
 		sweat.Speed = NumberRange.new(7, 12)
-		-- Flung sideways and up, then pulled down: droplets, not a fog.
 		sweat.SpreadAngle = Vector2.new(70, 70)
 		sweat.Acceleration = Vector3.new(0, -58, 0)
 		sweat.Rate = 0
@@ -262,13 +232,6 @@ local function buildCharacterEffects(character: Model)
 	end
 end
 
---[[
-	Sweat puffs on the strike, not on the click.
-
-	The Tobatsu gesture spends its first third winding up, so emitting on input
-	would put the droplets in the air before the fork has moved. This delays to
-	roughly the strike frame in Config/Feedback.
-]]
 local SWEAT_DELAY = 0.30
 local TRAIL_LINGER = 0.45
 
@@ -291,8 +254,6 @@ local function playCharacterEffect(skillId: string?)
 		if trail then
 			trail.Color = ColorSequence.new(skillColor(skillId))
 			trail.Enabled = true
-			-- Refreshed rather than restarted, so clicking steadily leaves the
-			-- trail continuously on instead of strobing it.
 			trailUntil = os.clock() + TRAIL_LINGER
 		end
 	end
@@ -312,11 +273,6 @@ local function kickCamera(strength: number)
 	punchTarget = math.min(punchTarget + strength, PUNCH_CAP)
 end
 
---[[
-	The kick eases in instead of snapping to full depth on the frame the click
-	lands. Snapping is what made spamming read as a shake: every click was a
-	step discontinuity in the FOV, and steps at click cadence are a vibration.
-]]
 local function driveCamera(delta: number)
 	local camera = Workspace.CurrentCamera
 	if not camera then
@@ -409,19 +365,10 @@ function FeedbackController.init()
 		buildCharacterEffects(player.Character)
 	end
 	player.CharacterAdded:Connect(function(character)
-		-- Wait for the rig: Head and RightHand are not there on the first frame.
 		character:WaitForChild("Head", 10)
 		buildCharacterEffects(character)
 	end)
 
-	--[[
-		Sweat and the trail fire on START, not on completion.
-
-		The rest of the click feedback lands when the action resolves, which is
-		right for "+12" — that is when the number exists. These two are part of
-		the action itself, and a trail that only appears once the yank is over
-		is a trail behind nothing.
-	]]
 	WorkController.onStart(function(skillId, _duration)
 		playCharacterEffect(skillId)
 	end)

@@ -1,17 +1,3 @@
---[[
-	The Field Guide: first-session onboarding and the permanent player manual.
-
-	The old panel put controls and four loop bullets into one fixed 460x500 card.
-	That was enough to start clicking, but not enough to explain how a skill is
-	chosen, the certification ladder, region gates or the first half-hour. This
-	version keeps those ideas in six short chapters and gives the 30-minute
-	route its own timeline.
-
-	H / F1 / Start and the HUD's ? button reopen the guide. Closing it once is
-	the same acknowledgement the server already saves; page navigation remains
-	local because it is presentation state, not player progress.
-]]
-
 local ContextActionService = game:GetService("ContextActionService")
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
@@ -48,10 +34,6 @@ local closedListeners: { (firstSession: boolean) -> () } = {}
 local pages: { TutorialContent.Page } = {}
 local pageViews: { [string]: ScrollingFrame } = {}
 local pageButtons: { [string]: TextButton } = {}
-
---------------------------------------------------------------------------------
--- Content helpers
---------------------------------------------------------------------------------
 
 local function deviceKind(): "keyboard" | "gamepad" | "touch"
 	if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
@@ -162,11 +144,6 @@ local function addStandardRow(parent: Instance, index: number, rowData: Tutorial
 	end
 end
 
---[[
-	The guide's one expressive piece: a literal shift timeline. Time is carried
-	on the left like a punched timecard; the coloured rail follows the activity
-	being introduced, so order and colour both communicate real information.
-]]
 local function addTimelineRow(parent: Instance, index: number, rowData: TutorialContent.Row)
 	local accent = accentFor(rowData.accent)
 	local row = UI.card(parent, `Stop_{index}`, {
@@ -409,10 +386,6 @@ local function buildPage(parent: Frame, pageData: TutorialContent.Page): Scrolli
 	return page
 end
 
---------------------------------------------------------------------------------
--- Navigation and responsive layout
---------------------------------------------------------------------------------
-
 local function selectPage(key: string)
 	if not pageViews[key] then
 		return
@@ -496,10 +469,6 @@ local function applyResponsiveLayout()
 		end
 	end
 end
-
---------------------------------------------------------------------------------
--- Build and behaviour
---------------------------------------------------------------------------------
 
 local function buildPanel(parent: ScreenGui)
 	scrim = Instance.new("TextButton")
@@ -662,9 +631,6 @@ function ControlsPanel.setOpen(shouldOpen: boolean)
 	end
 end
 
--- The hands-on control lesson starts only after the reading panel gets out of
--- the way. `firstSession` is false when a returning player opens the guide with
--- H, so rereading a chapter never restarts onboarding.
 function ControlsPanel.onClosed(callback: (firstSession: boolean) -> ()): () -> ()
 	table.insert(closedListeners, callback)
 	return function()
@@ -714,7 +680,6 @@ function ControlsPanel.init()
 		applyResponsiveLayout()
 	end)
 
-	-- Open once, on a player's first ever saved session.
 	local disconnect
 	disconnect = StateController.onChanged(function(snapshot)
 		if snapshot.showIntro and not acknowledged then

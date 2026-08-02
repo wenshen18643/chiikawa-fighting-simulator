@@ -19,7 +19,6 @@ local CookingMenu = {}
 
 local COOKING = Constants.COOKING
 local ROW_HEIGHT = 112
--- Margin over the server bucket so a legal stir is never lost to jitter.
 local STIR_DEBOUNCE = 1.05 / COOKING.MAX_CLICKS_PER_SECOND
 local STIR_DURATION = 1.2
 local COMPLETE_DURATION = 1.35
@@ -45,10 +44,6 @@ local session: Session? = nil
 local isOpen = false
 local lastStir = 0
 
---------------------------------------------------------------------------------
--- Helpers
---------------------------------------------------------------------------------
-
 local function hex(color: Color3): string
 	return string.format(
 		"#%02X%02X%02X",
@@ -58,7 +53,6 @@ local function hex(color: Color3): string
 	)
 end
 
--- Mirror of CookingService.clicksNeeded; always shown with a "~".
 local function stirsFor(def: Recipes.RecipeDefinition, snapshot: any): number
 	local resilience = snapshot and snapshot.skills and snapshot.skills.resilience
 	local exponents = math.floor(math.max(BigNumber.log10(resilience), 0))
@@ -67,10 +61,6 @@ local function stirsFor(def: Recipes.RecipeDefinition, snapshot: any): number
 		def.baseClicks - COOKING.CLICKS_PER_RESILIENCE_EXPONENT * exponents
 	)
 end
-
---------------------------------------------------------------------------------
--- Recipe rows
---------------------------------------------------------------------------------
 
 local function buildRecipeRow(parent: ScrollingFrame, def: Recipes.RecipeDefinition, index: number): (any) -> ()
 	local tint = Ingredients.RARITY[Recipes.rarity(def)].color
@@ -168,10 +158,6 @@ local function buildRecipeRow(parent: ScrollingFrame, def: Recipes.RecipeDefinit
 	end
 end
 
---------------------------------------------------------------------------------
--- Views
---------------------------------------------------------------------------------
-
 local function setStatus(message: string?)
 	statusLabel.Text = message or ""
 	statusLabel.Visible = message ~= nil
@@ -228,10 +214,6 @@ local function stir()
 	stirButton.BackgroundColor3 = UI.color.leaf
 	UI.motion.to(stirButton, UI.motion.settle, { BackgroundColor3 = UI.color.leafDeep })
 end
-
---------------------------------------------------------------------------------
--- Panel
---------------------------------------------------------------------------------
 
 local function buildRecipesView(parent: Frame)
 	recipesView = Instance.new("Frame")
@@ -402,10 +384,6 @@ local function buildPanel(parent: ScreenGui)
 	buildCookingView(panel)
 end
 
---------------------------------------------------------------------------------
--- Server events
---------------------------------------------------------------------------------
-
 local function onCookEvent(kind: string, recipeId: string, a: any, b: any)
 	if kind == "started" then
 		session = { recipeId = recipeId, current = 0, needed = a }
@@ -428,10 +406,6 @@ local function onCookEvent(kind: string, recipeId: string, a: any, b: any)
 		showRecipes()
 	end
 end
-
---------------------------------------------------------------------------------
--- Public
---------------------------------------------------------------------------------
 
 function CookingMenu.setOpen(open: boolean)
 	if not setPanelOpen then

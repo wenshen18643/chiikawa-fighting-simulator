@@ -1,68 +1,36 @@
---[[
-	Client entry point.
-
-	Waits for the remote tree the server builds, then boots the controllers in
-	dependency order: state mirror first, then anything that reads it.
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared").Modules.Remotes)
 Remotes.get()
 
---[[
-	Ordered by dependency, not by folder.
-
-	StateController first: everything else reads its snapshot. WorkController
-	before FeedbackController, which subscribes to its local click signal. HUD
-	after both, because it builds WorkCore, Minimap and Atlas.
-]]
 local BOOT_ORDER = {
 	{ container = script.Controllers, name = "StateController" },
 	{ container = script.Controllers, name = "MovementController" },
 	{ container = script.Controllers, name = "WorkController" },
-	-- All three subscribe to WorkController's local click signal, so they boot
-	-- after it. Order among themselves does not matter.
 	{ container = script.Controllers, name = "FeedbackController" },
 	{ container = script.Controllers, name = "GestureController" },
 	{ container = script.Controllers, name = "CompanionAnimController" },
 	{ container = script.Controllers, name = "MobAnimController" },
-	-- Independent: they only listen for the Forage and Feast remotes.
 	{ container = script.Controllers, name = "ForageProgressController" },
 	{ container = script.Controllers, name = "FeastProgressController" },
 	{ container = script.Controllers, name = "CompanionShelfController" },
-	-- Independent of the rest: it waits on Workspace.SafeZone and Workspace.Market
-	-- and drives whatever the server tagged as rigged.
 	{ container = script.Controllers, name = "SafeZoneAnimController" },
-	-- Independent: it reads one replicated character attribute and swaps Lighting.
 	{ container = script.Controllers, name = "CaveController" },
 	{ container = script.Controllers, name = "SoundController" },
 	{ container = script.Controllers, name = "WorldController" },
 	{ container = script.Controllers, name = "FarmController" },
 	{ container = script.UI, name = "HUD" },
-	-- HUD's rail button toggles the inventory; the kitchen panel opens itself
-	-- from the pot's prompt.
 	{ container = script.UI, name = "InventoryMenu" },
 	{ container = script.UI, name = "CookingMenu" },
 	{ container = script.UI, name = "FarmMenu" },
 	{ container = script.UI, name = "LibraryMenu" },
-	-- The open-book recall layer subscribes to completed Exam Prep gestures and
-	-- draws above the HUD when a study card or exam question arrives.
 	{ container = script.UI, name = "StudySession" },
-	-- The Exam Hall desk's own prompt opens this; it never polls the world.
 	{ container = script.UI, name = "ExamCounter" },
 	{ container = script.UI, name = "ControlsPanel" },
-	-- Begins after the first-session Field Guide closes and acknowledges the
-	-- intro only after move, sprint, jump and work have actually been performed.
 	{ container = script.UI, name = "ControlTutorial" },
-	-- Independent of the rest: it only listens for the friend stand's remote.
 	{ container = script.UI, name = "CompanionMenu" },
-	-- The booth's own prompt opens the board; the tracker rides the same remote,
-	-- and after HUD so its strip draws over the rail rather than under it.
 	{ container = script.UI, name = "OrderBoard" },
 	{ container = script.UI, name = "OrderTracker" },
-	-- The market counter's prompt opens this; it also rides the HUD snapshot so a
-	-- button that was unaffordable stops being so while the panel is still up.
 	{ container = script.UI, name = "ShopMenu" },
 }
 

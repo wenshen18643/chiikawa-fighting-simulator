@@ -19,8 +19,6 @@ local filled = 0
 
 local MASK_FADE = 70
 
--- The F6 peak went when the library did: a hill is scenery until you have to
--- stand a 62-stud building on it.
 local MOUNTAINS = {
 	{ x = -540, z = 540, h = 42, r = 150 },
 	{ x = -520, z = -545, h = 48, r = 160 },
@@ -38,12 +36,6 @@ local function edgeDistance(zones: { Layout.Zone }, x: number, z: number): numbe
 			local dx, dz = x - zone.x, z - zone.z
 			distance = math.sqrt(dx * dx + dz * dz) - (zone.radius or 0)
 		elseif zone.kind == "strip" then
-			--[[
-				Strips used to fall through to the rect branch, where halfX and
-				halfZ read as nil and the whole oriented box collapsed to its
-				centre point. A 220-stud street then flattened the ground under
-				its midpoint and nowhere else, which is a road on a hill.
-			]]
 			local dx, dz = x - zone.x, z - zone.z
 			local along = math.abs(dx * (zone.dirX or 0) + dz * (zone.dirZ or 0)) - (zone.halfLength or 0)
 			local across = math.abs(dx * (zone.dirZ or 0) - dz * (zone.dirX or 0)) - (zone.halfWidth or 0)

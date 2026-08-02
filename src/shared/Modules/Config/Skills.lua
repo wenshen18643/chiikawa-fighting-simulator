@@ -1,12 +1,3 @@
---[[
-	The 4 Chiikawa training stats. See docs/Things_to_change.md.
-
-	1. Tobatsu (Subduing) — Swinging a Sasumata weapon
-	2. Resilience (Crying / Waterfall) — Enduring pressure & tears
-	3. Kusatori (Weed Pulling) — Ripping weeds out of the ground
-	4. Exam Prep (Studying) — Studying at a tiny desk
-]]
-
 export type SkillId =
 	"tobatsu"
 	| "resilience"
@@ -24,9 +15,9 @@ export type SkillId =
 export type SkillDefinition = {
 	id: string,
 	name: string,
-	verb: string, -- shown on the work prompt
+	verb: string,
 	action: "click" | "hold" | "rhythm",
-	order: number, -- display order in the HUD
+	order: number,
 	color: Color3,
 	description: string,
 }
@@ -74,7 +65,6 @@ Skills.DEFINITIONS = {
 	},
 } :: { [string]: SkillDefinition }
 
--- Aliases for legacy & internal IDs so all references resolve smoothly
 Skills.DEFINITIONS.strength = Skills.DEFINITIONS.tobatsu
 Skills.DEFINITIONS.subjugation = Skills.DEFINITIONS.tobatsu
 Skills.DEFINITIONS.durability = Skills.DEFINITIONS.resilience

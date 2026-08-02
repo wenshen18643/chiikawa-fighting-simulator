@@ -53,11 +53,6 @@ local function bind(model: Model)
 		return
 	end
 
-	--[[
-		The Companions folder also holds the friend stand, which is furniture.
-		Only a rigged companion carries the profile attribute, and it is written
-		before the model is parented, so its absence here is not a race.
-	]]
 	if model:GetAttribute(Skeleton.PROFILE_ATTRIBUTE) == nil then
 		return
 	end

@@ -16,15 +16,6 @@ local Layout = {}
 
 local WORLD = Constants.WORLD
 
---[[
-	The two buildings that face the home plot across the ring road.
-
-	Placed by explicit offset rather than at their cell's centre, and facing an
-	axis rather than the plaza. A cell centre puts the kitchen 106 studs from the
-	road it is supposed to front, and looking at the plaza leaves both buildings
-	skewed a few degrees off every street around them. Both now stand square to
-	the road, on the far side of it from the fence.
-]]
 Layout.KITCHEN_CELL = "C4"
 Layout.KITCHEN_OFFSET = Vector3.new(-150, 0, 90)
 Layout.KITCHEN_FACING = Vector3.new(1, 0, 0)
@@ -167,11 +158,6 @@ end
 function Layout.reservedZones(area: Areas.AreaDefinition): { Zone }
 	local zones: { Zone } = {}
 
-	--[[
-		The plaza's skirt was 60 studs wide, which put the reserve at 145 and ate
-		the ring road plus the inner corner of all four town cells. The square
-		itself still owns its own paving; 20 is the kerb, not a district.
-	]]
 	table.insert(zones, {
 		kind = "circle",
 		x = 0,
@@ -292,13 +278,6 @@ function Layout.reservedZones(area: Areas.AreaDefinition): { Zone }
 		end
 	end
 
-	--[[
-		The streets, and the market square they run past.
-
-		Reserved so scatter never lands in a carriageway. The town cells are
-		dressed like anywhere else; the roads are what keep the dressing off the
-		one surface the player is meant to walk down.
-	]]
 	if area.id == Areas.STARTING_AREA then
 		for _, zone in Streets.reservedZones() do
 			table.insert(zones, zone :: Zone)

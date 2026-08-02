@@ -1,19 +1,3 @@
---[[
-	Drives the rigged residents of the safe zone.
-
-	CompanionAnimController does the same job for Workspace.Companions, and the
-	two are deliberately separate rather than one controller over both folders.
-	A companion is owned by a player, echoes their clicks, and is created and
-	destroyed constantly; a resident is scenery that happens to breathe. Sharing
-	a controller would mean every one of those rules growing an "unless it is
-	furniture" branch.
-
-	What they DO share is everything below the controller: Skeleton resolves the
-	joints, CompanionAnims supplies the clips, Machine plays them. Adding another
-	animated fixture to the safe zone is a profile, a clip set, and a
-	SetAttribute on the server -- no change here.
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
@@ -39,11 +23,6 @@ local function unbind(model: Model)
 end
 
 local function bind(model: Model)
-	--[[
-		The folder is mostly parts, plus a few dozen decor models. Only a rigged
-		resident carries the profile attribute, and the server writes it before
-		parenting, so its absence here is an answer and not a race.
-	]]
 	if machines[model] or model:GetAttribute(Skeleton.PROFILE_ATTRIBUTE) == nil then
 		return
 	end
@@ -52,12 +31,6 @@ local function bind(model: Model)
 		local deadline = os.clock() + BIND_TIMEOUT
 		local joints, profileId
 
-		--[[
-			Retried rather than resolved once. The attribute replicates
-			independently of the parts it describes, so on a slow join the model
-			can be present and correctly tagged several frames before its
-			Motor6Ds have arrived.
-		]]
 		while os.clock() < deadline do
 			if model.Parent == nil then
 				return
@@ -87,18 +60,6 @@ local function bind(model: Model)
 	end)
 end
 
---[[
-	Watched folders, not one folder.
-
-	Yoroi-san moved out to the market square when the town grew around the plot,
-	and is the only rigged resident that was ever in here. Watching both is a
-	smaller change than splitting a second controller off for one model, and the
-	bind rule is unchanged: only something carrying the profile attribute is a
-	resident, wherever it happens to stand.
-
-	Each is awaited on its own thread. Sequential WaitForChild would make a folder
-	that never arrives cost the next one its whole timeout.
-]]
 local WATCHED = { "SafeZone", "Market" }
 
 local function watch(name: string)
@@ -132,12 +93,6 @@ function SafeZoneAnimController.init()
 		task.spawn(watch, name)
 	end
 
-	--[[
-		One step behind Character priority, matching CompanionAnimController.
-		Motor6D.Transform is overwritten by the animation stack each frame, so
-		anything writing it has to run after that pass or it is writing into a
-		value that is about to be thrown away.
-	]]
 	RunService:BindToRenderStep("SafeZoneAnim", Enum.RenderPriority.Character.Value + 1, function(dt)
 		local now = os.clock()
 		for model, machine in machines do

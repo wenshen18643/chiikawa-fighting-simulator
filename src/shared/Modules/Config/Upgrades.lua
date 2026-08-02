@@ -1,22 +1,3 @@
---[[
-	The market's upgrade ladders: the game's first yen sink.
-
-	Yen has been earnable since the wage loop existed and spendable almost
-	nowhere -- two call sites, both on the farm. These are permanent, levelled
-	multipliers bought one step at a time, which is the sink that makes the
-	passive wage mean something.
-
-	Deliberately multiplicative rather than additive, and deliberately plugged
-	into Formulas' existing multiplier chain rather than forking it: a level here
-	behaves exactly like a certification or a comfort bonus, so nothing
-	downstream has to learn about upgrades to respect them.
-
-	Cost is geometric. `baseCost * costGrowth ^ level` at growth 1.55 means the
-	twenty-fifth level of anything is roughly 130,000 times the first, which is
-	the point -- the ladder has to outrun a wage that is itself multiplied by the
-	ladder or it stops being a decision after an hour.
-]]
-
 local Upgrades = {}
 
 export type Definition = {
@@ -75,7 +56,6 @@ function Upgrades.level(profile: any, id: string): number
 	return math.clamp(math.floor(level), 0, if definition then definition.maxLevel else 0)
 end
 
--- The price of the NEXT level, or nil when there is not one.
 function Upgrades.cost(id: string, level: number): number?
 	local definition = Upgrades.DEFS[id]
 	if not definition or level >= definition.maxLevel then

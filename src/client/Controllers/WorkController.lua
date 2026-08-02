@@ -1,25 +1,3 @@
---[[
-	Work input. See docs/GAME.md §4 and §13.
-
-	ONE CLICK IS ONE ACTION.
-
-	SPEC DEVIATION REVERSED. An earlier build made every skill hold-to-work,
-	reasoning that a real click per action at 8/sec is a repetitive-strain
-	problem and that holding is what an autoclicker does anyway. That was the
-	wrong trade. Holding removes the only moment-to-moment decision the core loop
-	has: the number goes up because the button is down, and the player is not
-	doing anything. §4 called these "click" skills for a reason.
-
-	So the Heartbeat loop is gone. `Begin` fires exactly once, and the rate cap
-	moved up to match what a person can actually do (Constants.WORK) rather than
-	what a held button generates. The debounce below is not a rate limit — it is
-	only there to stop one physical click registering twice.
-
-	Sends INTENT ONLY — Work.Perform carries no arguments, because the server
-	already knows where the player is standing. There is nothing here for a
-	client to lie about, which is the point.
-]]
-
 local ContextActionService = game:GetService("ContextActionService")
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -35,14 +13,12 @@ local Skills = require(Shared.Modules.Config.Skills)
 
 local Feedback = require(Shared.Modules.Config.Feedback)
 
--- Still used for the prompt text, just not as a gate on sending.
 local StateController = require(script.Parent.StateController)
 
 local WorkController = {}
 
 local ACTION_NAME = "Work"
 local WEED_RADIUS = 14
--- Mirrors Constants.FORAGE.PULL_RADIUS; the server still decides what was hit.
 local FORAGE_RADIUS = Constants.FORAGE.PULL_RADIUS
 local FORAGE_TAG = "Forage"
 
@@ -51,18 +27,12 @@ local selectRemote: RemoteEvent
 local lastSend = 0
 local inputLocks: { [string]: boolean } = {}
 
--- Floor on a cadence-fitted clip. Below this a gesture is a twitch, and the
--- blend envelope in GestureController is longer than the clip itself.
 local MIN_GESTURE = 0.12
 
--- Fired locally when an action begins (gesture animation starts).
 local startListeners: { (skillId: string?, duration: number) -> () } = {}
--- Fired locally when an action animation finishes (stat reward requested).
 local completeListeners: { (skillId: string?) -> () } = {}
 local selectionListeners: { (skillId: string) -> () } = {}
 
--- Mirrors the server strike cone only so the local gesture uses the sasumata.
--- The server independently resolves the target and owns all combat outcomes.
 local function getMobSkill(): string?
 	local mobs = Workspace:FindFirstChild("Mobs")
 	local root = Players.LocalPlayer.Character
@@ -105,8 +75,6 @@ local function getMobSkill(): string?
 		local params = RaycastParams.new()
 		params.FilterType = Enum.RaycastFilterType.Exclude
 		params.FilterDescendantsInstances = { Players.LocalPlayer.Character :: Model, child }
-		-- Mid-body, matching the server: the rig root sits a stud off the floor,
-		-- and a ray aimed there clips the ground on any slope.
 		local sight = mobRoot.Position + Vector3.new(0, definition.height * 0.5, 0)
 		if Workspace:Raycast(root.Position, sight - root.Position, params) == nil then
 			return "tobatsu"
@@ -128,7 +96,6 @@ function WorkController.onSelected(callback: (skillId: string) -> ())
 	table.insert(selectionListeners, callback)
 end
 
--- Backward compatibility for onClick listeners (subscribes to start by default)
 function WorkController.onClick(callback: (skillId: string?) -> ())
 	WorkController.onStart(function(skillId, _duration)
 		callback(skillId)
@@ -158,17 +125,6 @@ local function nearestTagged(tag: string, radius: number): Model?
 	return best
 end
 
---[[
-	Which clip a Kusatori click should play, guessed locally.
-
-	The server decides what the click actually hits; this only decides what the
-	character looks like while it happens. Waiting for the answer would put a
-	sixth of a second of nothing between the click and the dig, which is the
-	difference between a game that responds and one that lags.
-
-	Returns nil when there is nothing in reach, which is how the caller knows
-	to play no gesture at all rather than swinging at the lawn.
-]]
 local function kusatoriClip(): string?
 	local node = nearestTagged(FORAGE_TAG, FORAGE_RADIUS)
 	if node then
@@ -194,16 +150,9 @@ local function tryPerform()
 
 	local skillId = getMobSkill() or WorkController.getTrainingSkill() or "tobatsu"
 	if Skills.canonicalize(skillId) == "examprep" then
-		-- Study actions live inside the full-screen book. Work opens that book;
-		-- it never sends Work.Perform and therefore cannot grant Exam Prep.
 		WorkController.selectSkill("examprep")
 		return
 	end
-	--[[
-		Kusatori is the one skill whose gesture depends on WHAT is in front of
-		you: a weed is yanked, a carrot is dug, a sausage is hauled off a
-		branch. Every other skill has one clip and plays it.
-	]]
 	local clipId: string? = skillId
 	if Skills.canonicalize(skillId) == "kusatori" then
 		clipId = kusatoriClip()
@@ -212,16 +161,6 @@ local function tryPerform()
 	local feedbackEntry = Feedback.get(clipId or skillId)
 	local authored = if feedbackEntry and feedbackEntry.gesture then feedbackEntry.gesture.duration else 0.38
 
-	--[[
-		The gesture is fitted to how fast the player is ACTUALLY clicking, rather
-		than the click being held back until the gesture is done.
-
-		Locking input for the clip's length capped plucking at ~2 clicks/sec
-		against a server that allows 14, so most of a fast player's clicks hit
-		nothing at all. Now every click sends, and the clip is compressed to the
-		gap between the last two clicks so it still reaches its payoff frame
-		before the next one restarts it.
-	]]
 	local duration = math.min(authored, math.max(interval, MIN_GESTURE))
 	lastSend = now
 
@@ -231,8 +170,6 @@ local function tryPerform()
 		end
 	end
 
-	-- Sent on the impact frame, not on the press, so the "+12" lands with the
-	-- hand. Each click owns its own timer; they overlap rather than queue.
 	task.delay(duration, function()
 		performRemote:FireServer()
 		if clipId then
@@ -243,8 +180,6 @@ local function tryPerform()
 	end)
 end
 
--- Modal gameplay can temporarily own the click without disabling the bound
--- touch button or stealing GUI activation through ContextActionService.
 function WorkController.setInputLocked(owner: string, locked: boolean)
 	if locked then
 		inputLocks[owner] = true
@@ -260,8 +195,6 @@ local function onAction(_actionName: string, inputState: Enum.UserInputState)
 	return Enum.ContextActionResult.Pass
 end
 
--- Mirrors WorkService.freeformSkill so the gesture, sound and HUD agree with
--- what is about to be credited.
 function WorkController.getTrainingSkill(): string?
 	local snapshot = StateController.snapshot
 	return snapshot and snapshot.selectedSkill
@@ -272,10 +205,6 @@ function WorkController.getSelectedSkill(): string?
 	return snapshot and snapshot.selectedSkill
 end
 
--- Asks the server to change which skill free-form training raises. The server
--- validates and owns the value; this is a request, not an assignment.
--- Resilience is trained by cooking and moving, not by clicking; the server
--- refuses it too. One rule, read by the skill bar and by selectSkill.
 function WorkController.isSelectable(skillId: string): boolean
 	return Skills.canonicalize(skillId) ~= "resilience"
 end
@@ -297,13 +226,6 @@ function WorkController.selectSkill(skillId: string)
 	end
 end
 
---[[
-	Number keys pick which skill free-form training raises.
-
-	Bound to the six digits in Skills.ORDER order, which is the same order the
-	HUD stacks them in — so "the third one down" and "3" are the same thing
-	without anyone having to be told.
-]]
 local SELECT_ACTION = "SelectSkill"
 
 local function bindSelection()
@@ -345,15 +267,12 @@ function WorkController.init()
 	ContextActionService:BindAction(
 		ACTION_NAME,
 		onAction,
-		true, -- create a touch button on mobile
+		true,
 		Enum.UserInputType.MouseButton1,
 		Enum.KeyCode.ButtonR2
 	)
 	ContextActionService:SetTitle(ACTION_NAME, "Work")
 
-	-- Nothing to reset on respawn any more — there is no held state to get
-	-- stuck — but the debounce is cleared so the first click after a respawn is
-	-- never swallowed.
 	local player = Players.LocalPlayer
 	player.CharacterAdded:Connect(function()
 		lastSend = 0

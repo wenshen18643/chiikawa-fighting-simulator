@@ -1,13 +1,5 @@
 --!strict
 
---[[
-	Blank Peach Study Library minigame shell.
-
-	The server opens this from one of the library's six cushion prompts. There is
-	deliberately no client -> server library remote: this slice offers no game,
-	reward, Exam Prep mutation, or persistent session to report.
-]]
-
 local ContextActionService = game:GetService("ContextActionService")
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")

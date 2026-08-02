@@ -1,18 +1,5 @@
 --!strict
 
---[[
-	The market's upgrade counter.
-
-	Same trust shape as the work order booth: the client sends an id and nothing
-	else. The level is read off the profile here, the price is computed here, and
-	CurrencyService.spend is the only thing that can move a balance -- so a
-	client that lies about what it can afford gets a false and no upgrade.
-
-	The prompt is found by name in Workspace.Market rather than wired in by
-	MarketService, so this module and the builder do not have to require each
-	other.
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 

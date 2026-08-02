@@ -1,14 +1,5 @@
 --!strict
 
---[[
-	Builds the Peach Study Library as one relocatable model. Layout owns the
-	configured world CFrame; this module owns only geometry relative to it.
-
-	The returned cushion roots are presentation-neutral interaction points.
-	LibraryService decides what their prompts do, so this builder cannot award
-	progress or create client-server gameplay state.
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 

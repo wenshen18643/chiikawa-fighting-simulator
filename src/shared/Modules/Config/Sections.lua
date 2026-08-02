@@ -155,20 +155,7 @@ Sections.THEMES = {
 			{ kind = "grassPatch", count = 3, h = { 1.6, 2.4 } },
 		},
 	},
-	--[[
-		Nothing is scattered in a district that has its own builder.
 
-		Every one of these has a street through it, a building on it, or both, and
-		all three are furnished by something that knows where its own road is:
-		Streets places the lanterns and benches off the verges, MarketService
-		furnishes the square, and the two builders raise the kitchen and the
-		library. What is left for the scatter pass is ground cover -- and even that
-		stays sparse, because a district reads as built rather than grown.
-
-		Benches in particular are gone from here on purpose. The scatter pass gives
-		every prop a random yaw, so a bench placed by it faces nowhere; four of
-		them in a cell is a lawn with furniture dropped on it.
-	]]
 	library = {
 		name = "Library",
 		sub = "quiet, and then an exam",
@@ -210,11 +197,6 @@ Sections.THEMES = {
 			{ kind = "grass", count = 10 },
 		},
 	},
-	--[[
-		D3 is deliberately empty ground. `bare` short-circuits the dressing pass
-		entirely, sign included -- an empty recipe would still get a signpost
-		announcing the nothing.
-	]]
 	bare = {
 		name = "Open Ground",
 		sub = "nothing here yet",

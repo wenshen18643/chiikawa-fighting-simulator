@@ -1,11 +1,3 @@
---[[
-	Client-side mirror of the server snapshot. See docs/GAME.md §13.
-
-	This is display state and nothing else. Nothing in the client may treat it
-	as authoritative — if the HUD and the server disagree, the server is right
-	and the next snapshot corrects the HUD.
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared").Modules.Remotes)

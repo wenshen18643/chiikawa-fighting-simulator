@@ -54,10 +54,6 @@ local function emitter(parent: BasePart, texture: string, color: Color3): Partic
 	return puff
 end
 
---------------------------------------------------------------------------------
--- Plane
---------------------------------------------------------------------------------
-
 local function buildEngine(plane: Model, side: number)
 	local engine = part(
 		plane,
@@ -126,10 +122,6 @@ local function buildPlane(): Model
 	return plane
 end
 
---------------------------------------------------------------------------------
--- Parachute
---------------------------------------------------------------------------------
-
 local function buildChute(diameter: number, cordDrop: number, color: Color3): Model
 	local chute = Instance.new("Model")
 	chute.Name = "Parachute"
@@ -185,10 +177,6 @@ local function buildChute(diameter: number, cordDrop: number, color: Color3): Mo
 
 	return chute
 end
-
---------------------------------------------------------------------------------
--- Effects
---------------------------------------------------------------------------------
 
 local function poof(parent: Instance, at: Vector3, color: Color3, radius: number)
 	local core = part(parent, "Poof", Vector3.new(1, 1, 1), CFrame.new(at), color)
@@ -257,10 +245,6 @@ local function dissolve(chute: Model)
 	end
 	Debris:AddItem(chute, 0.3)
 end
-
---------------------------------------------------------------------------------
--- Delivery
---------------------------------------------------------------------------------
 
 local function descend(
 	payload: Model,

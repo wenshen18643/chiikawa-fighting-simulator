@@ -158,11 +158,6 @@ MobAnims.SETS = {
 			},
 		},
 	},
-	--[[
-		No legs, so travel is a hop: the whole body leaves the ground and leans
-		into the direction it lands. The BIG tree shares the set and never moves,
-		which is why idle has to read on its own.
-	]]
 	sausageGuardian = {
 		walkSpeed = 5,
 		runSpeed = 13,
@@ -310,13 +305,7 @@ MobAnims.SETS = {
 			},
 		},
 	},
-	--[[
-		The cave's four.
 
-		A Sporeling is top-heavy, so everything it does starts at the cap and
-		arrives at the legs a beat later: the wobble IS the character. Its attack
-		is a squash and a puff rather than a swing, because it has no arms.
-	]]
 	caveSporeling = {
 		walkSpeed = 6,
 		runSpeed = 11,
@@ -392,10 +381,6 @@ MobAnims.SETS = {
 			},
 		},
 	},
-	--[[
-		Four legs on a low body, so the gait is diagonal pairs and the whole
-		thing barely leaves the floor. The charge is the jaw arriving first.
-	]]
 	cavePebblejaw = {
 		walkSpeed = 7,
 		runSpeed = 15,
@@ -463,11 +448,6 @@ MobAnims.SETS = {
 			},
 		},
 	},
-	--[[
-		No legs and no ground contact: a wisp bobs and its three motes orbit,
-		which is the whole performance. Fleeing only makes the orbit faster and
-		the bob shallower, so it reads as scared without changing shape.
-	]]
 	caveWisp = {
 		walkSpeed = 7,
 		runSpeed = 16,
@@ -514,11 +494,6 @@ MobAnims.SETS = {
 			},
 		},
 	},
-	--[[
-		Mycelia never travels, so she has no walk and no run: her whole
-		vocabulary is a slow breath and a tendril sweep that covers the room.
-		The breath is deliberately long -- a boss that fidgets is not frightening.
-	]]
 	caveMycelia = {
 		walkSpeed = 0,
 		runSpeed = 0,

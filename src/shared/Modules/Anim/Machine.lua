@@ -63,24 +63,6 @@ function Machine.new(model: Model, joints: { [string]: Motor6D }, set: any)
 	local rootJoint = joints.root
 	self.propAnchor = (rootJoint and rootJoint.Part1) or self.root
 
-	--[[
-		Measured HERE, once, and never again -- because this is the only moment
-		the model holds nothing but the companion.
-
-		propPlacement reads self.model:GetBoundingBox(), and play() used to call
-		it one line after parenting the new prop into that same model. Props are
-		built at the origin (Props.build positions everything relative to a
-		PrimaryPart whose CFrame it never sets), so the box being measured ran
-		from the companion all the way back to (0, 0, 0) and `reach` came out as
-		half the distance to the middle of the map. The prop landed there.
-
-		A live flash burst does the same thing more quietly, since Props.flash
-		parents into the model too and lingers for its Debris window.
-
-		Nothing is lost by taking it early: the offset is returned in the
-		anchor's own space, so it tracks the body wherever the animation puts it,
-		and self.propScale one line above is already measured once this way.
-	]]
 	self.propBase = self:propPlacement()
 
 	for name in joints do
@@ -109,15 +91,6 @@ function Machine:scheduleBreak(now: number)
 	self.nextBreak = now + range[1] + math.random() * math.max(range[2] - range[1], 0)
 end
 
---[[
-	Where a held prop sits, in the anchor part's own space.
-
-	Measured off the model's bounding box rather than off the anchor joint. The
-	joint a companion hangs from is not where its body looks like it is -- on the
-	R6 roster entry the root joint drives an invisible standard torso while the
-	whole visible character is one oversized mesh welded to it, so anchoring the
-	prop at the joint puts it inside the face.
-]]
 function Machine:propPlacement(): CFrame
 	local anchor = self.propAnchor
 	if not anchor then
@@ -164,9 +137,6 @@ function Machine:play(clipName: string, now: number)
 		local model, rotation = Props.build(prop.builder, self.propScale)
 		if model and rotation then
 			local offset = self.propBase * rotation
-			-- Placed before it is parented. Props.build leaves everything at the
-			-- origin and update() does not run until the next render step, which
-			-- is one frame of a camera sitting on the middle of the map.
 			if model.PrimaryPart then
 				model:PivotTo(self.propAnchor.CFrame * offset)
 			end

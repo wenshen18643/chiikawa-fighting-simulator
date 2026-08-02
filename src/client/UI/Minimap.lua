@@ -1,24 +1,3 @@
---[[
-	The minimap: a local view of the area you are in, and a strip showing where
-	that area sits in the world.
-
-	Drawn ENTIRELY from Config/Layout. Not one line of this reads Workspace, and
-	that is a requirement rather than a preference: the world runs with
-	StreamingEnabled, so at any moment most of it does not exist on the client.
-	A minimap built by scanning for parts would show the player standing in a
-	void with a few props in it.
-
-	Because Layout is the same module the server built the world from, the map is
-	correct by construction — there is no second description of where anything is
-	that could drift.
-
-	Two views, because they answer different questions:
-	  - the LOCAL view answers "which way is the plaza" and is what you look at
-	    while playing;
-	  - the WORLD strip answers "how far along am I", and at 27,000 studs across
-	    with six areas in a line, a strip is honestly what the world looks like.
-]]
-
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -53,23 +32,11 @@ local stripMarker: Frame
 local builtArea: number? = nil
 local accumulator = 0
 
---------------------------------------------------------------------------------
--- Local view
---------------------------------------------------------------------------------
-
--- Area-local offset (in studs, from the area origin) -> 0..1 across the view.
 local function toLocalFraction(area: Areas.AreaDefinition, offsetX: number, offsetZ: number): Vector2
 	local span = area.terrain.islandSize
 	return Vector2.new(0.5 + offsetX / span, 0.5 + offsetZ / span)
 end
 
---[[
-	Rebuilds the local view for one area.
-
-	Cached on `builtArea`: this is a few dozen instances and it only changes when
-	the player crosses a border, so rebuilding it on the refresh tick would be
-	pure waste.
-]]
 local function buildLocalView(area: Areas.AreaDefinition)
 	if builtArea == area.id then
 		return
@@ -92,7 +59,6 @@ local function buildLocalView(area: Areas.AreaDefinition)
 	UI.corner(layer, UI.radius.chip)
 	areaLayers[area.id] = layer
 
-	-- The road between land bridges, drawn first so everything sits on top.
 	local road = Instance.new("Frame")
 	road.Name = "Road"
 	road.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -104,7 +70,6 @@ local function buildLocalView(area: Areas.AreaDefinition)
 	road.ZIndex = 4
 	road.Parent = layer
 
-	-- The plaza, and — in Town — the cottage on top of it.
 	local plaza = Instance.new("Frame")
 	plaza.Name = "Plaza"
 	plaza.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -130,23 +95,6 @@ local function buildLocalView(area: Areas.AreaDefinition)
 	localTitle.Text = string.upper(area.name)
 end
 
---------------------------------------------------------------------------------
--- Underground
---------------------------------------------------------------------------------
-
---[[
-	The cave map.
-
-	Drawn from the same Config/Cave grid the server carved from, which is the
-	only reason it can be drawn at all: underground is exactly where scanning
-	Workspace fails hardest, because a maze the player has not walked into has
-	not streamed in.
-
-	Corridors are REVEALED, not given. A labyrinth handed over complete on the
-	first step is a corridor with extra turns; one that fills in behind you is
-	a map you made. What is revealed is deliberately not saved -- a fresh visit
-	is a fresh cave, and the walk out is a different walk from the walk in.
-]]
 local REVEAL_RADIUS = 34
 
 local caveLayers: { [number]: Frame } = {}
@@ -184,10 +132,6 @@ local function buildCaveLayer(level: Cave.LevelDefinition): Frame
 				continue
 			end
 
-			--[[
-				Row 1 is the highest Z, and on this map world +Z runs DOWN the
-				screen, so row 1 belongs at the bottom.
-			]]
 			local cell = Instance.new("Frame")
 			cell.Name = `{row}_{col}`
 			cell.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -198,8 +142,6 @@ local function buildCaveLayer(level: Cave.LevelDefinition): Frame
 			cell.ZIndex = 4
 			cell.Parent = layer
 
-			-- Landmarks carry their own colour, so a revealed map answers "where
-			-- was that glowing bit" without a legend.
 			if char == Cave.BOSS then
 				cell.BackgroundColor3 = UI.color.tobatsu
 			elseif char == Cave.GLOWCAP or char == Cave.MOONCAP then
@@ -222,11 +164,6 @@ local function buildCaveLayer(level: Cave.LevelDefinition): Frame
 	return layer
 end
 
---[[
-	Grid coordinates for a world position inside a level's own section. The
-	inverse of Cave.cellPosition, and it has to stay that way: the map and the
-	carve disagreeing by one cell is a map that points at a wall.
-]]
 local function caveCoords(level: Cave.LevelDefinition, position: Vector3): (number?, number?)
 	local cell = Sections.byCoord(level.coord)
 	if not cell then
@@ -279,10 +216,6 @@ local function hideCave()
 	end
 end
 
---------------------------------------------------------------------------------
--- World strip
---------------------------------------------------------------------------------
-
 local function buildStrip()
 	local bounds = Layout.BOUNDS_SIZE
 
@@ -327,10 +260,6 @@ local function buildStrip()
 	UI.corner(stripMarker, 2)
 end
 
---------------------------------------------------------------------------------
--- Live state
---------------------------------------------------------------------------------
-
 local function refresh()
 	local character = Players.LocalPlayer.Character
 	local rootPart = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
@@ -342,11 +271,6 @@ local function refresh()
 	local area = Layout.areaAt(position)
 	buildLocalView(area)
 
-	--[[
-		Underground the local view is a different map entirely, so it takes over
-		rather than being drawn on top: a cave laid over the district bars is
-		two maps of two places in one square.
-	]]
 	local caveLevel = Cave.levelAt(position)
 	if caveLevel and showCave(caveLevel, position) then
 		local worldFractionBelow = Layout.toMapFraction(position)
@@ -365,9 +289,6 @@ local function refresh()
 	local fraction = toLocalFraction(area, offset.X, offset.Z)
 	playerMarker.Position = UDim2.fromScale(math.clamp(fraction.X, 0, 1), math.clamp(fraction.Y, 0, 1))
 
-	-- Heading, so the map answers "which way am I facing" as well as "where am
-	-- I". Taken from the camera rather than the character: the camera is what
-	-- the player is actually looking along.
 	local camera = Workspace.CurrentCamera
 	if camera then
 		local look = camera.CFrame.LookVector
@@ -385,18 +306,6 @@ local function refresh()
 	end
 end
 
---------------------------------------------------------------------------------
--- Build
---------------------------------------------------------------------------------
-
---[[
-	Hidden by default; `M` shows it.
-
-	It is a big opaque panel in the corner of a first-person-ish view, and most
-	of the time the player is not navigating — they are stood on a pad clicking.
-	Permanent was the wrong default for something consulted occasionally, so it
-	is now summoned rather than endured.
-]]
 local ACTION_NAME = "ToggleMinimap"
 local isOpen = false
 

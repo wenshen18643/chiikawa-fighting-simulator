@@ -1,11 +1,3 @@
---[[
-	How much of the giant food is left.
-
-	The counter is shared, so this is also how you see somebody else eating the
-	bowl you are stood at. It sits higher and lives longer than the forage one:
-	a bowl is tall, and a hundred clicks is a job you look up from.
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")

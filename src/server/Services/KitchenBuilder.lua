@@ -1,13 +1,5 @@
 --!strict
 
---[[
-	Builds the B5 storybook kitchen and returns the one piece of geometry the
-	gameplay service needs: the cooking-pot root and its actual world position.
-
-	Everything else here is presentation. CookingService remains the authority
-	for prompts, recipes, distance, spending, rate limits and rewards.
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
@@ -146,7 +138,6 @@ local function buildSideWall(parent: Instance, frame: CFrame, side: number)
 	local x = side * (SIZE.X / 2 - WALL_THICKNESS / 2)
 	local wallY = FLOOR_HEIGHT + WALL_HEIGHT / 2
 
-	-- True opening from z=-4..6 and y=5..12; glass is not painted over a wall.
 	localPart(parent, frame, {
 		name = "SideWallFront",
 		size = Vector3.new(WALL_THICKNESS, WALL_HEIGHT, 15.5),
@@ -210,7 +201,6 @@ local function buildSideWall(parent: Instance, frame: CFrame, side: number)
 			canQuery = false,
 		})
 	end
-	-- A soft eyebrow gives the rectangular opening the storybook silhouette.
 	localPart(parent, frame, {
 		name = "RoundedWindowTop",
 		size = Vector3.new(0.48, 1.1, 11.2),
@@ -287,7 +277,6 @@ local function buildShell(parent: Instance, frame: CFrame)
 	buildSideWall(parent, frame, -1)
 	buildSideWall(parent, frame, 1)
 
-	-- Peach baseboards and rounded corner posts soften the white shell.
 	for _, z in { -(SIZE.Z / 2 + 0.05), SIZE.Z / 2 + 0.05 } do
 		localPart(parent, frame, {
 			name = "BaseTrim",
@@ -322,8 +311,6 @@ local function buildShell(parent: Instance, frame: CFrame)
 		end
 	end
 
-	-- Static open doors: they sell the cottage without adding moving state or
-	-- narrowing the fourteen-stud entrance.
 	local frontZ = -SIZE.Z / 2 - 0.45
 	for _, spec in {
 		{ hinge = -DOOR_WIDTH / 2, angle = math.rad(-64), extension = 1 },
@@ -361,7 +348,6 @@ local function buildShell(parent: Instance, frame: CFrame)
 		canQuery = false,
 	})
 
-	-- Open gable ceiling: two shallow roof panels peak at twenty-six studs.
 	local roofRun = SIZE.X / 2 + 1.5
 	local roofRise = 7
 	local roofLength = math.sqrt(roofRun * roofRun + roofRise * roofRise)
@@ -390,7 +376,6 @@ local function buildShell(parent: Instance, frame: CFrame)
 		end
 	end
 
-	-- Stepped gable fill is tucked beneath the roof and reads rounded at game scale.
 	for _, z in { -(SIZE.Z / 2 - 0.6), SIZE.Z / 2 - 0.6 } do
 		for index, row in {
 			{ width = 38, y = 20.3 },
@@ -464,7 +449,6 @@ local function buildSign(parent: Instance, frame: CFrame)
 end
 
 local function cabinetDetail(parent: Instance, frame: CFrame)
-	-- Back counter faces -Z toward the open room.
 	for _, x in { -17, -11, -5, 1, 7 } do
 		localPart(parent, frame, {
 			name = "CabinetSeam",
@@ -485,7 +469,6 @@ local function cabinetDetail(parent: Instance, frame: CFrame)
 		})
 	end
 
-	-- Left counter faces +X.
 	for _, z in { -3, 2, 7, 12 } do
 		localPart(parent, frame, {
 			name = "CabinetSeam",
@@ -512,7 +495,6 @@ local function buildNativeFurniture(parent: Instance, frame: CFrame)
 	furniture.Name = "NativeKitchenFurniture"
 	furniture.Parent = parent
 
-	-- Perimeter L only: no island, preserving the broad centre and door-to-pot aisle.
 	localPart(furniture, frame, {
 		name = "BackLowerCabinets",
 		size = Vector3.new(30, 4, 5),
@@ -563,7 +545,6 @@ local function buildNativeFurniture(parent: Instance, frame: CFrame)
 		material = Enum.Material.Metal,
 	})
 
-	-- Refrigerator at the back-right end of the run.
 	localPart(furniture, frame, {
 		name = "Refrigerator",
 		size = Vector3.new(7, 14, 5.5),
@@ -591,7 +572,6 @@ local function buildNativeFurniture(parent: Instance, frame: CFrame)
 		})
 	end
 
-	-- Oven and stove are decorative; the pot in front remains the one station.
 	localPart(furniture, frame, {
 		name = "Oven",
 		size = Vector3.new(6, 4.6, 4.8),
@@ -623,7 +603,6 @@ local function buildNativeFurniture(parent: Instance, frame: CFrame)
 		end
 	end
 
-	-- Sink and faucet on the left run.
 	localPart(furniture, frame, {
 		name = "SinkBasin",
 		size = Vector3.new(3.7, 0.28, 5.2),
@@ -654,7 +633,6 @@ local function buildNativeFurniture(parent: Instance, frame: CFrame)
 		canQuery = false,
 	})
 
-	-- A light shelf and jars finish the room without filling its centre.
 	localPart(furniture, frame, {
 		name = "WallShelf",
 		size = Vector3.new(0.8, 0.5, 10),
@@ -704,7 +682,6 @@ local function buildImportedFurniture(parent: Instance, frame: CFrame): boolean
 	model.Name = "ImportedKitchenFurniture"
 	model.Parent = parent
 
-	-- Stable box proxies replace arbitrary mesh collision.
 	for _, proxy in {
 		{ size = Vector3.new(30, 5, 5), at = Vector3.new(-5, 3.5, 17.4) },
 		{ size = Vector3.new(5, 5, 21), at = Vector3.new(-23, 3.5, 4.5) },
@@ -744,8 +721,6 @@ local function buildStationTable(parent: Instance, frame: CFrame): Vector3
 		})
 		tabletopY = FLOOR_HEIGHT + extents.Y
 	else
-		-- The table is now structural to the station, so keep cooking usable if
-		-- its decorative template is ever missing.
 		local fallbackHeight = 2.5
 		localPart(parent, frame, {
 			name = "LowTableFallback",
@@ -757,7 +732,6 @@ local function buildStationTable(parent: Instance, frame: CFrame): Vector3
 		tabletopY = FLOOR_HEIGHT + fallbackHeight
 	end
 
-	-- Keep the smaller tea set nearby without crowding the pot's tabletop.
 	placeAsset(parent, "kettle", frame, Vector3.new(8, 5.65, 17), nil, false)
 	placeAsset(parent, "floorCushion", frame, Vector3.new(tableOffset.X, FLOOR_HEIGHT, -9), math.pi, false)
 	placeAsset(parent, "floorCushion", frame, Vector3.new(tableOffset.X, FLOOR_HEIGHT, 3), 0, false)

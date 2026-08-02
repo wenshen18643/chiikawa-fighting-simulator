@@ -1,34 +1,3 @@
---[[
-	Builds a mascot out of parts: a round body with a belly, ears, eyes, blush
-	and stubby limbs.
-
-	--------------------------------------------------------------------------
-	WHY THIS IS SHARED AND NOT PART OF NpcService
-	--------------------------------------------------------------------------
-
-	It started inside NpcService, which was right while the cast standing in the
-	world was the only thing made of these shapes. It is not any more:
-	CompanionService offers the same silhouettes as followers, and the companion
-	roster names NPCs by id so that the friend walking behind you is visibly the
-	same character you met in town.
-
-	Two copies of "what a mascot looks like" would drift the first time anyone
-	changed an ear.
-
-	--------------------------------------------------------------------------
-	THE ROOT CFRAME IS AN ARGUMENT, NOT A LATER STEP
-	--------------------------------------------------------------------------
-
-	Pieces are welded to the root with WeldConstraint, and a WeldConstraint only
-	preserves the offset it was created with. Moving an assembled mascot means
-	`Model:PivotTo`, never `root.CFrame = ...`, which moves the root out from
-	under its own ears. Building at the final CFrame keeps callers away from
-	that trap entirely.
-
-	The result is UNANCHORED. NpcService anchors its cast; CompanionService
-	needs them loose for the constraints that carry them around.
-]]
-
 local Mascot = {}
 
 export type Build = {
@@ -43,11 +12,6 @@ export type Build = {
 local EYE_COLOR = Color3.fromRGB(48, 42, 38)
 local BLUSH_COLOR = Color3.fromRGB(246, 176, 176)
 
---[[
-	Distance from the root to the lowest point of the assembled mascot, as a
-	multiple of its height — the foot, not the body. Callers place mascots by
-	their feet; this is what turns a ground position into a root position.
-]]
 Mascot.ROOT_TO_FOOT = 0.53
 
 local function piece(parent: Model, name: string, size: Vector3, color: Color3, shape: Enum.PartType?): Part
@@ -88,8 +52,6 @@ local function buildEars(model: Model, root: BasePart, build: Build, headTop: nu
 			local ear = piece(model, "Ear", Vector3.new(1, 1, 1) * (build.height * 0.34), color)
 			weld(root, ear, CFrame.new(side * spread, headTop * 0.82, 0))
 		elseif build.earStyle == "tall" then
-			-- A Cylinder part runs along its X axis: Size.X is the length and
-			-- Y/Z are the diameter. The Z rotation below stands it upright.
 			local ear = piece(
 				model,
 				"Ear",
@@ -102,7 +64,7 @@ local function buildEars(model: Model, root: BasePart, build: Build, headTop: nu
 				ear,
 				CFrame.new(side * spread * 0.8, headTop * 1.15, 0) * CFrame.Angles(0, 0, math.rad(90 + side * 12))
 			)
-		else -- pointed
+		else
 			local ear = piece(
 				model,
 				"Ear",
@@ -146,10 +108,6 @@ local function buildLimbs(model: Model, root: BasePart, build: Build)
 	end
 end
 
---[[
-	An assembled mascot standing at `rootCFrame`, unanchored, with its body part
-	as PrimaryPart.
-]]
 function Mascot.build(build: Build, rootCFrame: CFrame, name: string?): Model
 	local h = build.height
 
@@ -169,7 +127,6 @@ function Mascot.build(build: Build, rootCFrame: CFrame, name: string?): Model
 	root.Parent = model
 	model.PrimaryPart = root
 
-	-- Belly patch, slightly proud of the body so it does not z-fight.
 	local belly = piece(model, "Belly", Vector3.new(1, 1, 1) * (h * 0.62), build.bellyColor)
 	weld(root, belly, CFrame.new(0, -h * 0.1, -h * 0.16))
 

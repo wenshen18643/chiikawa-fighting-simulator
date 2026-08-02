@@ -1,19 +1,3 @@
---[[
-	The market square: the town's commerce, and the only place yen leaves a
-	profile on purpose.
-
-	Two counters stand here. The upgrade counter carries ShopPrompt, which
-	ShopService finds by name; Yoroi-san's booth carries OrderBoardPrompt, which
-	WorkOrderService finds by name. Neither service is required from this file and
-	this file is required from neither -- the booth used to live in the safe zone
-	precisely because wiring it directly closes a loop through MobService and back
-	into the safe volume, and moving it must not undo that.
-
-	The paving is not built here. Streets lays the square down during the world
-	dressing pass, because the dressing pass is also what reserves it against
-	scatter; this only furnishes it.
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
@@ -43,16 +27,6 @@ local function groundAt(x: number, z: number): number
 	return if hit then hit.Position.Y else origin.Y + Constants.WORLD.PLATFORM_TOP
 end
 
---[[
-	Seat a model on the square by its largest dimension.
-
-	Same contract as the safe zone's placer: `fit` is the only sizing control,
-	because these models came from a dozen authors at a dozen scales and "make it
-	this big" is the only instruction that means the same thing twice. The plot
-	attributes are recorded in the model's AUTHORED orientation, so anything
-	positioned against this -- the attendant beside its counter -- can measure off
-	a frame that a yaw has not blended.
-]]
 local function place(row: Market.Placement): Model?
 	local model = AssetService.clone(row.asset)
 	if not model then
@@ -94,12 +68,6 @@ local function place(row: Market.Placement): Model?
 	return model
 end
 
---[[
-	Where the attendant stands, derived from the booth that is already placed
-	rather than written next to it. The booth is the thing that moves; a second
-	set of coordinates that has to agree with it is a second set of coordinates
-	that eventually does not.
-]]
 local function boothStation(): (Vector3?, number?)
 	local booth = folder:FindFirstChild(Market.YOROI.booth)
 	if not (booth and booth:IsA("Model")) then
@@ -187,12 +155,6 @@ local function buildYoroi()
 	local lift = (groundAt(station.X - origin.X, station.Z - origin.Z) + size.Y / 2) - box.Position.Y
 	model:PivotTo(model:GetPivot() + Vector3.new(0, lift, 0))
 
-	--[[
-		Parented last, and only once it is rigged and standing. The anim
-		controller binds on ChildAdded and reads the profile attribute to decide
-		whether a model is animatable, so parenting first would make that a race
-		against the rig it is waiting for.
-	]]
 	model.Parent = folder
 
 	UI.sign(root, {

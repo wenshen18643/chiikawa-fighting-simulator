@@ -1,24 +1,3 @@
---[[
-	The cast. See docs/GAME.md §9.4 and §0.
-
-	NAMES ARE PLACEHOLDERS. Per §0 the IP path is still undecided, so these are
-	original descriptive names in the right tonal register rather than the canon
-	cast. When §0 is answered, this is the ONLY file that needs renaming —
-	nothing else in the codebase hardcodes a character name.
-
-	`build` describes the mascot silhouette procedurally (NpcService assembles
-	it from parts) so the game has real characters standing in it before any
-	modelling work exists. Swapping in authored models later means adding a
-	`modelId` field and nothing else changes.
-
-	`offset` is from the area origin, and is now measured in HUNDREDS of studs
-	rather than tens: the areas grew from 620 studs across to between 2,600 and
-	6,000, so the old offsets all sat inside the central plaza — which in Town is
-	where the safe-zone cottage now stands. Everyone is placed either just
-	outside the plaza, where you meet them on the way to a district, or beside
-	the landmark they belong to.
-]]
-
 export type NpcBuild = {
 	bodyColor: Color3,
 	bellyColor: Color3,
@@ -33,7 +12,7 @@ export type NpcDefinition = {
 	name: string,
 	role: string,
 	regionId: number,
-	offset: Vector3, -- from the region origin
+	offset: Vector3,
 	build: NpcBuild,
 	lines: { string },
 }
@@ -48,14 +27,11 @@ local BROWN = Color3.fromRGB(196, 156, 116)
 local ARMOUR = Color3.fromRGB(178, 186, 198)
 
 Npcs.DEFINITIONS = {
-	-- Region 1: the starting town.
 	{
 		id = "labour_official",
 		name = "Labour Official",
 		role = "assigns work and pay",
 		regionId = 1,
-		-- Was at (0, -132), which is D3 -- now deliberately empty ground. Moved
-		-- onto the market square, beside the booth that posts the work.
 		offset = Vector3.new(-82, 0, -132),
 		build = { bodyColor = ARMOUR, bellyColor = ARMOUR, earStyle = "none", height = 5.2, blush = false },
 		lines = {
@@ -77,12 +53,6 @@ Npcs.DEFINITIONS = {
 		},
 	},
 
-	--[[
-		Everyone below used to live in one of the five eastern areas. Those are
-		gone and Town is the whole world, so they moved in rather than being
-		deleted: the cast is the reason the place feels inhabited, and a town
-		with four people in it is a diorama.
-	]]
 	{
 		id = "forager",
 		name = "Forager",
@@ -101,7 +71,6 @@ Npcs.DEFINITIONS = {
 		name = "Shopkeep",
 		role = "sells things",
 		regionId = 1,
-		-- On the market square, clear of the corridor the spur enters through.
 		offset = Vector3.new(-110, 0, -132),
 		build = { bodyColor = PINK, bellyColor = WHITE, earStyle = "round", height = 3.6, blush = true },
 		lines = {
@@ -114,7 +83,6 @@ Npcs.DEFINITIONS = {
 		name = "Pochette Official",
 		role = "makes things by hand",
 		regionId = 1,
-		-- Clear of the ring's east verge, which owns X 103 to 109.
 		offset = Vector3.new(124, 0, 20),
 		build = { bodyColor = ARMOUR, bellyColor = PINK, earStyle = "none", height = 5.0, blush = false },
 		lines = {

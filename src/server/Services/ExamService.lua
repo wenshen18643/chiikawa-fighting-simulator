@@ -1,22 +1,3 @@
---[[
-	Certification. See docs/GAME.md §6.
-
-	Every skill has its own grade ladder, and Exam Prep's order is the ceiling on
-	all the others, so the one lever worth pulling is always legible: raise Exam
-	Prep, then everything else can climb again.
-
-	Three shapes of exam:
-	  Tobatsu, Resilience   stat value and the cap. Nothing to answer.
-	  Kusatori              the same, plus the plant-identification deck.
-	  Exam Prep             the same, plus a full readiness bar and one item
-	                        from each pillar, so the ceiling cannot rise
-	                        without a lap of the world.
-
-	Eligibility is computed here and shipped whole. The counter UI renders what
-	it is told and asks for nothing, which is the only way the cap, the item
-	counts and the readiness bar can never disagree with the server.
-]]
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -80,10 +61,6 @@ local function setReview(player: Player, skillId: string, count: number)
 	held[skillId] = if count > 0 then count else nil
 end
 
---------------------------------------------------------------------------------
--- Eligibility
---------------------------------------------------------------------------------
-
 local function itemRows(profile: any, order: number): { { id: string, name: string, need: number, have: number } }
 	local rows = {}
 	for ingredientId, need in Certifications.itemsForOrder(order) do
@@ -101,11 +78,6 @@ local function itemRows(profile: any, order: number): { { id: string, name: stri
 	return rows
 end
 
---[[
-	One row of the counter, and the single source of truth for whether a sit is
-	allowed. `onSit` calls this again rather than trusting whatever the client
-	was last shown.
-]]
 function ExamService.eligibility(profile: any, skillId: string): any
 	local canonical = Skills.canonicalize(skillId)
 	local order = profile.certifications[canonical] or 0
@@ -180,10 +152,6 @@ local function sendCounter(player: Player, profile: any)
 	})
 end
 
---------------------------------------------------------------------------------
--- Awarding
---------------------------------------------------------------------------------
-
 local function spendItems(profile: any, order: number): boolean
 	local cost = Certifications.itemsForOrder(order)
 	local held = profile.currencies.ingredients
@@ -213,10 +181,6 @@ local function certify(player: Player, profile: any, skillId: string, order: num
 		NotifyService.send(player, `Every other grade can now reach {Certifications.describe(order)}.`, "unlock")
 	end
 end
-
---------------------------------------------------------------------------------
--- The plant deck
---------------------------------------------------------------------------------
 
 local function sendQuestion(player: Player)
 	local session = sessions[player]
@@ -311,10 +275,6 @@ local function onAnswer(player: Player, optionId: any)
 	end)
 end
 
---------------------------------------------------------------------------------
--- Sitting
---------------------------------------------------------------------------------
-
 local function onSit(player: Player, skillId: any)
 	if type(skillId) ~= "string" or not Skills.exists(skillId) then
 		return
@@ -353,8 +313,6 @@ local function onSit(player: Player, skillId: any)
 	end
 
 	if canonical == CAP_SKILL then
-		-- Checked twice on purpose: eligibility ran before the yield-free path
-		-- below, but spending is the only step that can fail on a stale count.
 		if not spendItems(profile, row.nextOrder) then
 			sendCounter(player, profile)
 			return
@@ -377,10 +335,6 @@ end
 local function onClose(player: Player)
 	sessions[player] = nil
 end
-
---------------------------------------------------------------------------------
--- The desk
---------------------------------------------------------------------------------
 
 local function attachPrompt(model: Model)
 	local anchor = model.PrimaryPart or model:FindFirstChild("TableTop")

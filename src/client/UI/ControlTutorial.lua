@@ -1,17 +1,3 @@
---[[
-	Hands-on control lesson shown after the first-session Field Guide closes.
-
-	Each step listens for the real game action:
-	  - movement reads Humanoid.MoveDirection, not merely a key event;
-	  - sprint reads MovementController.isSprinting(), which requires movement;
-	  - jump uses the device-independent JumpRequest signal;
-	  - work uses WorkController's action-start signal.
-
-	The Guide acknowledgement is sent only after this lesson finishes (or the
-	player deliberately skips it). Leaving midway therefore offers onboarding
-	again next session instead of permanently saving a half-read introduction.
-]]
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -53,14 +39,8 @@ local finished = false
 local transitioning = false
 local acknowledgeRemote: RemoteEvent
 
---------------------------------------------------------------------------------
--- Device copy
---------------------------------------------------------------------------------
-
 local function stepList(): { Step }
 	if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
-		-- MovementController deliberately has no touch sprint button. Do not ask a
-		-- phone player to perform an action their screen does not offer.
 		return {
 			{
 				id = "move",
@@ -150,10 +130,6 @@ local function stepList(): { Step }
 		},
 	}
 end
-
---------------------------------------------------------------------------------
--- Display
---------------------------------------------------------------------------------
 
 local function drawProgress()
 	for index, pip in pips do
@@ -352,8 +328,6 @@ local function build(parent: ScreenGui)
 	progressLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	progressLayout.Parent = progress
 
-	-- Four is the maximum. Touch hides the unused final pip when its three-step
-	-- lesson starts.
 	for index = 1, 4 do
 		local pip = Instance.new("Frame")
 		pip.Name = `Step_{index}`
@@ -368,10 +342,6 @@ local function build(parent: ScreenGui)
 		pips[index] = pip
 	end
 end
-
---------------------------------------------------------------------------------
--- Action detection
---------------------------------------------------------------------------------
 
 local function isMoving(): boolean
 	local character = Players.LocalPlayer.Character

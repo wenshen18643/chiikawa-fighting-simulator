@@ -1,11 +1,3 @@
---[[
-	Onboarding state. See docs/GAME.md §2 rule 3.
-
-	Tiny on purpose: the only thing the server needs to remember is whether the
-	player has already been shown how to play, so the Field Guide stops
-	opening itself on every join.
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared").Modules.Remotes)
@@ -14,7 +6,7 @@ local DataService = require(script.Parent.DataService)
 local NotifyService = require(script.Parent.NotifyService)
 
 local GuideService = {
-	acknowledge = nil :: RemoteEvent?, -- resolved in init()
+	acknowledge = nil :: RemoteEvent?,
 }
 
 function GuideService.init()
@@ -39,7 +31,6 @@ function GuideService.init()
 		end
 
 		if profile.meta.introShown then
-			-- Returning player: a short reminder rather than the full panel.
 			task.delay(2, function()
 				if player:IsDescendantOf(game:GetService("Players")) then
 					NotifyService.send(player, "Welcome back. Press H to open the Field Guide.", "info")

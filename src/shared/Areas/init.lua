@@ -1,15 +1,3 @@
---[[
-	The area registry. One file per area, loaded and validated here.
-
-		local Areas = require(ReplicatedStorage.Shared.Areas)
-		for _, area in Areas.ALL do ... end
-		local town = Areas.get(1)
-
-	ORDER is explicit rather than derived from the folder listing, because
-	`GetChildren()` order is not guaranteed and area order is player-facing —
-	it is the order of the Travel list.
-]]
-
 local Areas = {}
 
 local Area = require(script.Area)
@@ -17,8 +5,6 @@ local Area = require(script.Area)
 export type AreaDefinition = Area.AreaDefinition
 export type DecorateContext = Area.DecorateContext
 
--- Town is the whole world. The five eastern areas were removed; everything a
--- player can do fits inside this one island.
 local ORDER = { "Town" }
 
 Areas.ALL = {} :: { AreaDefinition }
@@ -40,11 +26,6 @@ end
 
 Areas.STARTING_AREA = 1
 
---[[
-	When multiple areas are active, they form one landmass along +X and are
-	joined by land bridges. `bridgeTo` names the neighbour to the east, and this
-	validates every active connection at load.
-]]
 for _, area in Areas.ALL do
 	if area.bridgeTo == nil then
 		continue
@@ -70,7 +51,6 @@ function Areas.get(id: number): AreaDefinition?
 	return Areas.BY_ID[id]
 end
 
--- The area reached by walking east from this one, if any.
 function Areas.eastOf(area: AreaDefinition): AreaDefinition?
 	return area.bridgeTo and Areas.BY_KEY[area.bridgeTo] or nil
 end

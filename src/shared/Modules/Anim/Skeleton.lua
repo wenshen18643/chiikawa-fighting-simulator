@@ -65,15 +65,7 @@ Skeleton.PROFILES = {
 		nearest = { "Body", "LeftHead", "RightHead" },
 		fallback = "Body",
 	},
-	--[[
-		The job-booth Yoroi-san. A legacy R6 rig -- correct part names, wrong
-		joint classes -- so Modules.YoroiRig rebuilds its `Motor` and
-		`Snap` joints as Motor6D and hangs a RootJoint off an invisible root
-		before this profile can find anything.
 
-		`build` stays false. buildRig() infers limbs from part heights and would
-		reassign a rig that already has the joints named correctly.
-	]]
 	yoroi = {
 		joints = {
 			root = "RootJoint",
@@ -130,15 +122,7 @@ Skeleton.PROFILES = {
 		},
 		fallback = "Torso",
 	},
-	--[[
-		The cave's four. These come out of MobRig.build already jointed with
-		these exact names, so `build` stays false and there is nothing to infer:
-		a built rig is the one case where the skeleton is known before the model
-		exists.
 
-		The wisp has no limbs. Its three motes ride the limb joints instead, so
-		one shared clip can orbit them without a bespoke animator.
-	]]
 	caveSporeling = {
 		joints = {
 			root = "RootJoint",
@@ -284,14 +268,6 @@ function Skeleton.resolveCharacter(character: Model): (Joints?, string)
 	return joints, kind
 end
 
---[[
-	Rotations are authored once in the character's own root frame and mapped
-	onto whatever axes a given rig actually uses.
-
-	Returns basis and its inverse per joint, so a pose P is applied as
-	`inverse * P * basis`. That is what lets one clip drive an R6 shoulder, an
-	R15 shoulder and a hand-built Motor6D without per-rig sign tables.
-]]
 function Skeleton.basisFor(
 	model: Instance,
 	joints: Joints,

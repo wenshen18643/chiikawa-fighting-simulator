@@ -2,15 +2,6 @@
 
 local ModelUtil = {}
 
---[[
-	World-axis bounding box.
-
-	Model:GetExtentsSize and Model:GetBoundingBox are aligned to the model's
-	PrimaryPart, or to its first part when there is none -- so they do not change
-	when the model is rotated, and reading "how tall is this now" off them gives
-	the authored girth of a tree lying on its side. Everything here needs the
-	real world box, so it is measured from the parts.
-]]
 function ModelUtil.worldBox(model: Model): (Vector3, Vector3)
 	local min = Vector3.new(math.huge, math.huge, math.huge)
 	local max = -min
@@ -38,11 +29,6 @@ function ModelUtil.worldBox(model: Model): (Vector3, Vector3)
 	return (min + max) / 2, max - min
 end
 
---[[
-	The sausage assets are authored lying along their X axis: they grow out of
-	the ground sideways, and height scaling measures Y, so a model lying down is
-	scaled by its own girth and comes out enormous.
-]]
 function ModelUtil.standUpright(model: Model)
 	local _, size = ModelUtil.worldBox(model)
 	if size.Y >= size.X and size.Y >= size.Z then
@@ -62,11 +48,6 @@ function ModelUtil.scaleToHeight(model: Model, height: number): boolean
 	return true
 end
 
---[[
-	Scale by the longest world axis, which is the same measurement whichever way
-	the thing is lying: a standing sausage's is its height and a fallen one's is
-	its length, so one call sizes both.
-]]
 function ModelUtil.scaleToLongest(model: Model, longest: number): boolean
 	local _, size = ModelUtil.worldBox(model)
 	local axis = math.max(size.X, size.Y, size.Z)
@@ -77,13 +58,6 @@ function ModelUtil.scaleToLongest(model: Model, longest: number): boolean
 	return true
 end
 
---[[
-	Turn it, then seat its world footprint on `position`. `sink` is the fraction
-	of its own height it settles into the ground.
-
-	AssetService.place cannot do this: it builds a fresh CFrame from a position
-	and a yaw, which throws away the pitch and lays a standing tree back down.
-]]
 function ModelUtil.seat(model: Model, position: Vector3, yaw: number, roll: number?, sink: number?)
 	local pivot = model:GetPivot()
 	model:PivotTo(CFrame.new(pivot.Position) * CFrame.Angles(0, yaw, roll or 0) * pivot.Rotation)

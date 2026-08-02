@@ -1,17 +1,3 @@
---[[
-	Timed multipliers, and the one sentence that describes one.
-
-	Dishes and seasonings both grant these, and the HUD, the kitchen, the
-	inventory and two server services all have to agree on what a boost means.
-	That agreement lives here rather than being written out five times: the
-	upsert rule (same id refreshes rather than stacks) is a game rule, not a
-	detail of whichever service happened to grant it.
-
-	`skill` scopes a boost to one skill, `stat` to a non-skill number ("yen" or
-	"staminaRegen", see Formulas.boostStatMultiplier), and neither means all
-	skills.
-]]
-
 local Skills = require(script.Parent.Config.Skills)
 
 export type Boost = {

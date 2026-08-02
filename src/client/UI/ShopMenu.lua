@@ -1,25 +1,3 @@
---[[
-	The market's upgrade counter, opened by the prompt on the stall.
-
-	--------------------------------------------------------------------------
-	THE SERVER OWNS THE LADDER
-	--------------------------------------------------------------------------
-
-	Every row arrives with the open message: level, both multipliers, and the
-	price of the next step. Buy sends an id back and nothing else. This module
-	cannot invent a level it did not receive and cannot name a price -- which is
-	the same contract OrderBoard has with the work orders, for the same reason.
-
-	Affordability is the one thing computed locally, off the yen already in the
-	HUD snapshot, and only to grey a button. The server re-checks it and is the
-	only thing that can move a balance, so a client that greys nothing still
-	cannot buy anything.
-
-	Rows are built once and updated in place rather than rebuilt per payload. A
-	purchase re-renders the panel while the player is still looking at it, and
-	destroying the button under a cursor mid-click is how a menu feels broken.
-]]
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -67,10 +45,6 @@ local function canAfford(row: Row): boolean
 	return BigNumber.gte(yen, row.cost)
 end
 
---------------------------------------------------------------------------------
--- Rows
---------------------------------------------------------------------------------
-
 local function buildRow(row: Row, index: number)
 	local tint = ROW_TINTS[(index - 1) % #ROW_TINTS + 1]
 
@@ -98,11 +72,6 @@ local function buildRow(row: Row, index: number)
 		extent = UDim2.new(1, -190, 0, 18),
 	})
 
-	--[[
-		The bar is the ladder, not a loading state: it fills once per purchase
-		and its caption carries the two numbers that decide whether the next one
-		is worth it -- what you have now, and what you would have.
-	]]
 	local _, setLevel = UI.meter(card, "Level", {
 		color = tint,
 		caption = "",
@@ -122,13 +91,6 @@ local function buildRow(row: Row, index: number)
 
 	local costLabel = costChip:FindFirstChildWhichIsA("TextLabel", true)
 
-	--[[
-		`states = false` because the stock hover machinery captures the button's
-		colour when it is built and repaints to it on every mouse event -- which
-		would paint an unaffordable button back to its buyable tint the moment the
-		cursor crossed it. The enabled state here changes with the yen balance, so
-		the colour has to be owned by whatever knows the balance.
-	]]
 	local buy = UI.button(card, "Buy", {
 		text = "Buy",
 		color = tint,
@@ -176,14 +138,6 @@ local function buildRow(row: Row, index: number)
 	built[row.id] = parts
 end
 
---[[
-	Repaint one row from the latest server truth.
-
-	Three states, and they are deliberately distinguishable at a glance rather
-	than by reading: affordable is the tinted button, unaffordable is the same
-	button drained of colour, and maxed replaces it with a statement instead of
-	an offer nobody can take.
-]]
 local function paintRow(row: Row)
 	local parts = built[row.id]
 	if not parts then
@@ -237,10 +191,6 @@ local function render(payload: { [string]: any })
 
 	repaint()
 end
-
---------------------------------------------------------------------------------
--- Panel
---------------------------------------------------------------------------------
 
 local function buildPanel(parent: ScreenGui)
 	local _scrim, content, toggle = UI.modal(parent, "ShopMenu", {
@@ -296,10 +246,6 @@ local function buildPanel(parent: ScreenGui)
 	})
 end
 
---------------------------------------------------------------------------------
--- Public
---------------------------------------------------------------------------------
-
 function ShopMenu.init()
 	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 
@@ -322,22 +268,12 @@ function ShopMenu.init()
 		setOpen(true)
 	end)
 
-	--[[
-		A purchase refreshes the ladder without touching whether the panel is
-		open. The player is standing at the counter when this arrives, so the
-		only thing that should change is the numbers in front of them.
-	]]
 	Remotes.event("Shop", "Event").OnClientEvent:Connect(function(payload)
 		if type(payload) == "table" and type(payload.board) == "table" then
 			render(payload.board)
 		end
 	end)
 
-	--[[
-		The wage ticks every five seconds, so a button that was grey when the
-		panel opened has to stop being grey on its own. Cheaper than polling and
-		it is the same snapshot the HUD is already drawing.
-	]]
 	StateController.onChanged(function(snapshot)
 		if snapshot and snapshot.yen then
 			yen = snapshot.yen

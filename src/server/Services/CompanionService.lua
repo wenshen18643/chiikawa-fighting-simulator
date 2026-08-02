@@ -1,51 +1,3 @@
---[[
-	Gives every player a companion that trails them, and a stand where they
-	choose which one.
-
-	--------------------------------------------------------------------------
-	CONSTRAINTS, NOT A HEARTBEAT LOOP
-	--------------------------------------------------------------------------
-
-	The obvious version of "follow me" is a server loop that writes the pet's
-	CFrame every frame. That is one physics-rate loop per player, it replicates
-	as a stream of property writes, and it looks stuttery to everyone else:
-	anchored CFrame changes from the server are batched, so remote players see
-	the pet jumping between positions at the replication rate.
-
-	Instead the pet is UNANCHORED and held by an AlignPosition and an
-	AlignOrientation aimed at an attachment on the player's HumanoidRootPart,
-	with network ownership handed to that player. The simulation then runs on
-	the owner's machine at their frame rate, replicates like any other moving
-	part, and costs this service nothing per frame. The pet also lags and swings
-	around corners for free.
-
-	--------------------------------------------------------------------------
-	IT CANNOT TOUCH YOU
-	--------------------------------------------------------------------------
-
-	A companion is welded to nothing, collides with nothing (its own collision
-	group, non-collidable with every other group), and neither constraint feeds
-	force back into the character it is chasing. This is deliberate and worth
-	keeping: a follower that can shove is a follower that can push you off a
-	path, into a gate, or through a doorway you had not unlocked.
-
-	Every clone also has its scripts stripped again here, on top of the strip
-	AssetService.prepare already does. The uploaded rig this shipped with is a
-	free model that arrived with FIVE scripts, and a companion is the one thing
-	in this game that is guaranteed to be standing next to the player -- the
-	cost of the second sweep is a loop, and the cost of skipping it is somebody
-	else's code running beside your character.
-
-	--------------------------------------------------------------------------
-	THE ROSTER IS FILTERED AT RUNTIME
-	--------------------------------------------------------------------------
-
-	Config/Companions lists mascots (built from parts, always available) and
-	uploaded assets (may fail to load, forever, without warning). The menu is
-	built from what actually exists on this server, so a moderated asset id
-	removes a row rather than producing a button that does nothing.
-]]
-
 local Debris = game:GetService("Debris")
 local PhysicsService = game:GetService("PhysicsService")
 local Players = game:GetService("Players")
@@ -72,60 +24,20 @@ local NotifyService = require(script.Parent.NotifyService)
 
 local CompanionService = {}
 
---[[
-	Where the pet is asked to be, in the player's own space: behind the left
-	shoulder. -Z is the way a HumanoidRootPart faces, so +Z is behind. Y is
-	solved per character rather than set here -- see `targetOffsetY`.
-]]
 local FOLLOW_OFFSET = Vector3.new(-3.5, 0, 4.5)
 
---[[
-	How hard the constraints chase the target.
-
-	Responsiveness is roughly "how sharply it corrects"; lower is floatier. 18
-	keeps the pet visibly trailing a sprinting player rather than glued to their
-	hip, which is the point of a companion.
-]]
 local FOLLOW_RESPONSIVENESS = 18
 local TURN_RESPONSIVENESS = 12
 
---[[
-	Uploaded companions are resized to this height. Mascots are NOT: they are
-	built from Config/Npcs in world scale already, and stretching Little One to
-	a standard size would make her a different character.
-
-	How big an uploaded mesh is depends only on what its author had selected
-	when they exported it. A rig that arrives 0.4 studs tall is invisible from
-	eye level and one that arrives 80 studs tall is a wall you are standing
-	inside -- and both look exactly like "it never spawned".
-]]
 local TARGET_HEIGHT = 4
 
--- Nameplate above the pet. Off makes them anonymous but no less present.
 local SHOW_LABEL = true
 
---[[
-	Beyond this, snap.
-
-	Constraints pull, they do not teleport, so a player who respawns or takes a
-	gate would otherwise be trailed by a pet flying across the map through the
-	terrain.
-]]
 local TELEPORT_DISTANCE = 60
 local WATCHDOG_INTERVAL = 0.5
 
--- Asset loads run off the boot path, so the first player can join before the
--- model has arrived.
 local LOAD_TIMEOUT = 15
 
---[[
-	Its own collision group, collidable with nothing.
-
-	CanCollide = false on every part already covers this. The group is the
-	belt-and-braces version, and it survives something later setting CanCollide
-	back on -- a scaled model, an author's own script, a future gameplay pet
-	that is meant to be solid to the world but never to a player.
-]]
 local COLLISION_GROUP = "Companion"
 
 local ANIM_OWNER_ATTRIBUTE = "AnimOwner"
@@ -149,15 +61,6 @@ local standSlots: { [string]: Model } = {}
 local tossGeneration: { [Player]: number } = {}
 local collisionGroupReady = false
 
---------------------------------------------------------------------------------
--- Physics safety
---------------------------------------------------------------------------------
-
---[[
-	Registering can fail on a Roblox build without the API, and registering
-	twice throws -- Studio re-runs this on every play session. Failure is
-	survivable: CanCollide false is still doing the actual work.
-]]
 local function setupCollisionGroup()
 	local ok = pcall(function()
 		if not PhysicsService:IsCollisionGroupRegistered(COLLISION_GROUP) then
@@ -175,18 +78,6 @@ local function setupCollisionGroup()
 	end
 end
 
---------------------------------------------------------------------------------
--- Rig preparation
---------------------------------------------------------------------------------
-
---[[
-	The part everything else hangs off.
-
-	Uploaded rigs have no reliable convention: PrimaryPart is often unset, and
-	`HumanoidRootPart` only exists if the author built a real character. Falling
-	back to the largest part is what makes this work on a rig that is one
-	MeshPart and nothing else, which is what the shipped asset reports being.
-]]
 local function findRoot(model: Model): BasePart?
 	if model.PrimaryPart then
 		return model.PrimaryPart
@@ -211,16 +102,6 @@ local function findRoot(model: Model): BasePart?
 	return best
 end
 
---[[
-	Make a model safe to carry around next to a player.
-
-	Massless on every part but the root matters: an assembly's mass decides how
-	much force the AlignPosition needs, and a multi-part rig at default density
-	sags behind the target. One part with mass keeps the assembly a valid rigid
-	body while keeping it light.
-
-	Returns the root, or nil if the model has no parts at all.
-]]
 local function rig(model: Model, profileId: string): BasePart?
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("LuaSourceContainer") or descendant:IsA("Humanoid") then
@@ -250,17 +131,6 @@ local function rig(model: Model, profileId: string): BasePart?
 	return root
 end
 
---[[
-	Fit an uploaded model inside a TARGET_HEIGHT box. Returns the factor applied.
-
-	Measured on the LARGEST axis, not on height. Height is the intuitive choice
-	and it is wrong here: an uploaded rig is only upright if its author built it
-	upright, and one modelled lying down -- or exported from a tool whose up
-	axis is Z -- has a small Y extent. Dividing by that scales the thing UP,
-	which is how two of these arrived as buildings. The largest axis cannot be
-	fooled that way: whatever the pose, the companion ends up roughly a
-	four-stud thing.
-]]
 local function normalise(model: Model, factor: number?): number
 	local size = model:GetExtentsSize()
 	local largest = math.max(size.X, size.Y, size.Z)
@@ -298,15 +168,6 @@ local function addLabel(root: BasePart, text: string)
 	label.TextStrokeTransparency = 0.4
 end
 
---[[
-	How far below the HumanoidRootPart the pet's ROOT must sit for the pet to
-	look like it is standing on the same ground the player is.
-
-	Two unknowns meet here and both are runtime facts. The player's root floats
-	at `HipHeight + half its own height` above their feet, which differs between
-	R6 and R15. The pet's root is wherever its author left it inside the model,
-	which is neither the model's centre nor its feet.
-]]
 local function targetOffsetY(model: Model, root: BasePart, humanoid: Humanoid, playerRoot: BasePart): number
 	local boxCFrame, boxSize = model:GetBoundingBox()
 	local rootAboveFeet = root.Position.Y - (boxCFrame.Position.Y - boxSize.Y / 2)
@@ -314,11 +175,6 @@ local function targetOffsetY(model: Model, root: BasePart, humanoid: Humanoid, p
 	return rootAboveFeet - playerRootAboveFeet
 end
 
---------------------------------------------------------------------------------
--- Roster
---------------------------------------------------------------------------------
-
--- An uploaded companion counts as available only once its model is in hand.
 local function isAvailable(spec: Companions.CompanionSpec): boolean
 	if spec.kind ~= "asset" then
 		return true
@@ -326,12 +182,6 @@ local function isAvailable(spec: Companions.CompanionSpec): boolean
 	return spec.assetKey ~= nil and AssetService.isReady(spec.assetKey)
 end
 
---[[
-	Two different questions, deliberately kept apart: `isAvailable` asks whether
-	this SERVER can produce the model at all, and this asks whether this PLAYER
-	has earned it. An unearned companion is hidden; an unavailable one does not
-	exist today for anybody.
-]]
 local function isOwned(spec: Companions.CompanionSpec, profile: any): boolean
 	if not spec.locked then
 		return true
@@ -340,12 +190,6 @@ local function isOwned(spec: Companions.CompanionSpec, profile: any): boolean
 	return type(owned) == "table" and owned[spec.id] == true
 end
 
---[[
-	What this server can actually offer, as plain data for the client.
-
-	Sent over the wire rather than read from the shared config on the client,
-	because "did this free model load today" is not knowable from the config.
-]]
 local function roster(profile: any?): { { id: string, name: string, blurb: string } }
 	local out = {}
 	for _, spec in Companions.LIST do
@@ -357,11 +201,6 @@ local function roster(profile: any?): { { id: string, name: string, blurb: strin
 	return out
 end
 
---[[
-	Waits briefly for the profile rather than reading it optimistically: a
-	player whose data is still loading would otherwise read as walking alone,
-	and their saved friend would never show up at all.
-]]
 local function selectionFor(player: Player): string
 	local profile = DataService.await(player, 5)
 	local saved = profile and profile.companions and profile.companions.selected
@@ -382,14 +221,6 @@ local function remember(player: Player, id: string)
 	profile.companions.selected = id
 end
 
---[[
-	The model for a roster entry, unrigged and at the origin.
-
-	Mascots are built rather than cloned, so they cannot fail. An uploaded
-	companion that is not in the cache returns nil and the caller decides what
-	that means -- which is "fall back to the default mascot", never "no
-	companion".
-]]
 local function buildCompanion(spec: Companions.CompanionSpec): Model?
 	if spec.kind == "asset" then
 		local key = spec.assetKey
@@ -397,12 +228,6 @@ local function buildCompanion(spec: Companions.CompanionSpec): Model?
 			return nil
 		end
 
-		--[[
-			Some uploads are bundles rather than single characters -- one id
-			holding a shelf of plushies. Cloning the container would hand the
-			player all of them welded into one companion, so a pack is asked for
-			one child by name instead.
-		]]
 		local asset = Assets.get(key)
 		if asset and asset.kind == "pack" then
 			return AssetService.clonePackItem(key, nil, spec.assetMatch)
@@ -410,12 +235,6 @@ local function buildCompanion(spec: Companions.CompanionSpec): Model?
 		return AssetService.clone(key)
 	end
 
-	--[[
-		A creature out of the cave, from the same recipe that spawns it down
-		there. MobRig builds it anchored, because a mob is placed and then let
-		go; a companion is CARRIED by its root, so everything below the root is
-		released and the Motor6D chain does the rest.
-	]]
 	if spec.kind == "built" then
 		local mobId = spec.mobId
 		local definition = mobId and Mobs.get(mobId)
@@ -450,10 +269,6 @@ local function buildCompanion(spec: Companions.CompanionSpec): Model?
 	return Mascot.build(definition.build, CFrame.new(), spec.name)
 end
 
---------------------------------------------------------------------------------
--- Spawning
---------------------------------------------------------------------------------
-
 local function sendShelf(player: Player, id: string)
 	Remotes.event("Companion", "Shelf"):FireClient(player, id)
 end
@@ -466,14 +281,6 @@ local function despawn(player: Player)
 	end
 end
 
---[[
-	Every way out of this says so.
-
-	Its first version had four silent early returns, and "no companion and no
-	log line" cannot be told apart from "the file never synced" -- which cost a
-	whole round trip to find out. A missing companion is now always either a
-	spawn line or a reason.
-]]
 local function spawn(player: Player, character: Model, trigger: string)
 	if not resolved then
 		return
@@ -493,11 +300,6 @@ local function spawn(player: Player, character: Model, trigger: string)
 		return
 	end
 
-	--[[
-		The character can be replaced while those waits run -- respawn, or a
-		rejoin -- and a companion aimed at a dead character's root is a
-		companion nobody sees.
-	]]
 	if player.Character ~= character or not character.Parent then
 		return
 	end
@@ -505,12 +307,6 @@ local function spawn(player: Player, character: Model, trigger: string)
 	local spec = Companions.get(wanted)
 	local model = if spec then buildCompanion(spec) else nil
 
-	--[[
-		An uploaded companion that did not load falls back to the default
-		mascot rather than to nothing. Parts always work, and a player who
-		picked a friend should not be left alone because a free model went
-		private overnight.
-	]]
 	if not model then
 		local fallback = Companions.get(Companions.DEFAULT)
 		spec = fallback
@@ -537,12 +333,6 @@ local function spawn(player: Player, character: Model, trigger: string)
 	model.Name = `Companion_{player.Name}`
 	model:SetAttribute(ANIM_OWNER_ATTRIBUTE, player.UserId)
 
-	--[[
-		Scale before measuring the vertical offset: ScaleTo moves every part, so
-		an offset computed from the authored size would be wrong by the scale
-		factor -- for a rig that arrived ten times too big, the difference
-		between standing on the ground and hovering out of frame.
-	]]
 	local scale = if spec.kind == "asset" then normalise(model, spec.scale) else 1
 	addLabel(root, spec.name)
 
@@ -559,18 +349,6 @@ local function spawn(player: Player, character: Model, trigger: string)
 	hold.Name = "CompanionHold"
 	hold.Parent = root
 
-	--[[
-		MaxForce/MaxTorque are unbounded on purpose. The pet weighs whatever its
-		author's mesh density says it weighs, which this repo cannot know, and a
-		bounded force that turns out to be under that weight fails in the worst
-		way available: the pet sinks through the world instead of following.
-		Responsiveness, not force, is what makes the motion soft.
-
-		The reaction flags are the ones that matter for the player: with them
-		off, all of that force lands on the pet and none of it on the character
-		being followed. They default off; they are written out because a pet
-		that can push its owner around is a bug worth being explicit about.
-	]]
 	local position = Instance.new("AlignPosition")
 	position.Attachment0 = hold
 	position.Attachment1 = target
@@ -588,26 +366,14 @@ local function spawn(player: Player, character: Model, trigger: string)
 	orientation.ReactionTorqueEnabled = false
 	orientation.Parent = root
 
-	-- Start where it belongs, so the first thing anybody sees is not the pet
-	-- flying in from the model's authored origin.
 	model:PivotTo(playerRoot.CFrame * CFrame.new(target.Position))
 	model.Parent = folder
 	active[player] = model
 
-	--[[
-		Hand the simulation to the player's own client: their pet then moves at
-		their frame rate against their own character with no round trip.
-		Guarded because ownership cannot be assigned to a player who has left.
-	]]
 	pcall(function()
 		root:SetNetworkOwner(player)
 	end)
 
-	--[[
-		The final extents, not just the scale factor. "x0.05" says nothing on
-		its own; "0.05 -> 4.0 x 2.1 x 1.8" says the companion is a companion and
-		not a building, which is the failure this line exists to catch.
-	]]
 	local final = model:GetExtentsSize()
 	print(
 		string.format(
@@ -630,11 +396,6 @@ local function spawn(player: Player, character: Model, trigger: string)
 		print(`[CompanionService] "{spec.id}" contents: {AssetService.describe(model)}`)
 	end
 
-	--[[
-		Snap-back watchdog. Half a second is far below the time it takes a
-		player to notice a missing pet and far above the cost of a distance
-		check per player.
-	]]
 	task.spawn(function()
 		while active[player] == model and model.Parent and playerRoot.Parent do
 			task.wait(WATCHDOG_INTERVAL)
@@ -659,18 +420,6 @@ local function respawnCompanion(player: Player, trigger: string)
 	end
 end
 
---------------------------------------------------------------------------------
--- The friend stand
---------------------------------------------------------------------------------
-
---[[
-	A table you press E at.
-
-	Deliberately a physical object in the world rather than a HUD button: the
-	menu is a place you go to, which is the same reason the kitchen and the farm
-	are places. It is also self-explaining -- a prompt on a table with friends
-	carved into the sign needs no tutorial line.
-]]
 local function buildStand(base: CFrame): Model?
 	local model = AssetService.clone("friendStand")
 	if not model then
@@ -812,10 +561,6 @@ local function buildStand(base: CFrame): Model?
 
 	return model
 end
-
---------------------------------------------------------------------------------
--- Picking a friend off the shelf
---------------------------------------------------------------------------------
 
 local function burst(at: CFrame, size: number)
 	local anchor = Instance.new("Part")
@@ -995,15 +740,6 @@ local function toss(player: Player, spec: Companions.CompanionSpec)
 	respawnCompanion(player, "selected")
 end
 
---------------------------------------------------------------------------------
--- Public
---------------------------------------------------------------------------------
-
---[[
-	Change who follows `player`. Returns false for an id this server is not
-	offering, which is the whole validation story: the client sends an id, and
-	an id it was never given does nothing.
-]]
 function CompanionService.select(player: Player, id: string): boolean
 	if id == Companions.NONE then
 		remember(player, id)
@@ -1044,11 +780,6 @@ function CompanionService.act(player: Player, skillId: string?)
 	end
 	lastAct[player] = now
 
-	--[[
-		Skill first, timestamp second. The client listens on the timestamp, so
-		writing it last is what guarantees the skill it reads is this click's
-		and not the previous one's.
-	]]
 	if type(skillId) == "string" and Skills.exists(skillId) then
 		model:SetAttribute(ANIM_SKILL_ATTRIBUTE, Skills.canonicalize(skillId))
 	end
@@ -1096,12 +827,6 @@ function CompanionService.init()
 			despawn(player)
 		end)
 
-		--[[
-			A player bound after their character already exists gets no
-			CharacterAdded, which is the normal case in Studio: the world build
-			ahead of this service in the boot order takes seconds, and the local
-			player has spawned long before init runs.
-		]]
 		if player.Character then
 			task.spawn(spawn, player, player.Character, "already spawned")
 		end
@@ -1112,12 +837,6 @@ function CompanionService.init()
 		bind(player)
 	end
 
-	--[[
-		Spawning waits for the uploaded companions to resolve either way. Not
-		because a mascot needs them -- it does not -- but because a player whose
-		saved choice is an asset would otherwise be given the fallback mascot
-		one second before their actual friend finished downloading.
-	]]
 	task.spawn(function()
 		for _, spec in Companions.LIST do
 			if spec.kind == "asset" and spec.assetKey then

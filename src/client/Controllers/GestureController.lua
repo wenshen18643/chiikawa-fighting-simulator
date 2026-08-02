@@ -1,79 +1,3 @@
---[[
-	Makes each skill look like itself.
-
-	Four skills that all resolve to "click, number goes up" are one skill wearing
-	four colours. A weed gets yanked, a fork comes down, a page turns — the
-	gesture is what separates them, and it costs one table row per skill
-	(Config/PlayerAnims) rather than an art budget.
-
-	--------------------------------------------------------------------------
-	NO UPLOADED ASSETS
-	--------------------------------------------------------------------------
-
-	A Roblox animation normally means an uploaded Animation instance and an asset
-	id. This drives the body joints directly from keyframes in config instead,
-	which keeps the same promise the rest of the project makes: icons are
-	geometry (UI/Glyphs), characters are parts (NpcService), and none of it can
-	break because an upload went missing or was moderated.
-
-	It also makes the gestures recolourable, retimeable and diffable, which an
-	uploaded animation is not.
-
-	--------------------------------------------------------------------------
-	HOW THIS COOPERATES WITH THE DEFAULT ANIMATE SCRIPT
-	--------------------------------------------------------------------------
-
-	The Animator writes joint `Transform` every frame. So does this. The trick is
-	ordering and blending, not ownership:
-
-	  * Motor6D rigs are written on BindToRenderStep at Character + 1, which is
-	    after the legacy animation step has posed the frame.
-	  * AnimationConstraint rigs (the Avatar Joint Upgrade default for R15
-	    players) are written on PreSimulation instead. Their Transforms are
-	    collected in a batch job that runs after PreSimulation and before physics,
-	    and the Animator refills them between PreAnimation and PreSimulation --
-	    so a render-step write on those rigs is discarded before it is ever read.
-	  * Either way we read what the Animator just wrote and LERP from it toward
-	    the gesture pose by a weight that ramps 0 -> 1 -> 0.
-
-	At weight 0 the arm is exactly the walk cycle; at weight 1 it is exactly the
-	gesture; in between it is a real blend. When a gesture ends we stop writing
-	and the Animator's pose is already what is on screen, so there is nothing to
-	restore and nothing to pop.
-
-	This replaces an older approach that faded the Animator's tracks out with
-	AdjustWeight(0) on every click and back in afterwards. At click speed that
-	was a cross-fade starting several times a second, which is most of what
-	"the animations are not smooth" was.
-
-	--------------------------------------------------------------------------
-	WHY THE WHOLE BODY
-	--------------------------------------------------------------------------
-
-	An earlier version drove the arms alone, which is why every gesture read as
-	stiff: a swing with no waist behind it and no weight on the legs is a stick
-	on a pivot. Clips now key the waist, neck, hips and knees as well, masked
-	low on the legs so the walk cycle still shows through underneath.
-
-	Clips are authored once in the character's own root frame and mapped onto
-	each rig's real joint axes, so the same data drives R15 and R6. A joint a
-	rig does not have is simply skipped -- R6 loses the elbows, wrists, waist
-	and knees, and keeps the rest.
-
-	--------------------------------------------------------------------------
-	LOCAL vs. REMOTE
-	--------------------------------------------------------------------------
-
-	The local player gets a crisp gesture per click, fired from WorkController
-	before the server has answered, because waiting for a round trip is what
-	makes a click feel dead.
-
-	Other players get a looping version driven by a character attribute the
-	server sets while they are working. That is deliberate: replicating a
-	gesture per click per player would be a remote storm to animate something
-	nobody is looking at closely.
-]]
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -88,33 +12,17 @@ local WorkController = require(script.Parent.WorkController)
 
 local GestureController = {}
 
--- Set by the server on a working character; drives the looping remote version.
 local WORKING_ATTRIBUTE = "WorkingSkill"
--- Set by the server per forage pluck: ForageClipAt (an os.clock stamp) changing
--- fires the clip named in ForageClip once, rather than looping it.
 local FORAGE_CLIP_ATTRIBUTE = "ForageClip"
 local FORAGE_STAMP_ATTRIBUTE = "ForageClipAt"
--- Held true by the server while a character stirs at the kitchen.
 local COOKING_ATTRIBUTE = "Cooking"
 local COOKING_CLIP = "cook_stir"
 
--- Weight envelope, in seconds. Short enough to feel immediate, long enough that
--- neither end of a gesture is a step change.
 local BLEND_IN = 0.07
 local BLEND_OUT = 0.13
 
--- How long to wait for a character's joints before saying so. The watcher stays
--- live past this, so it is a reporting deadline and not a give-up.
 local BIND_TIMEOUT = 15
 
---[[
-	Book prop timing, in seconds and independent of the gesture clock.
-
-	The book used to open and shut once per click, which at click speed is a
-	trapdoor rather than a book. It now opens when studying starts, STAYS open for
-	as long as clicks keep arriving, turns one page per click, and only closes
-	once the player has stopped.
-]]
 local BOOK_OPEN_TIME = 0.28
 local BOOK_CLOSE_TIME = 0.4
 local BOOK_HOLD = 1.1
@@ -188,10 +96,6 @@ local function turnPage(character: Model, now: number)
 	end
 end
 
---------------------------------------------------------------------------------
--- Joints
---------------------------------------------------------------------------------
-
 local function buildRig(character: Model): Rig?
 	local joints = Skeleton.resolveCharacter(character)
 	if not joints then
@@ -213,15 +117,6 @@ local function buildRig(character: Model): Rig?
 	return { joints = joints, basis = basis, inverse = inverse, animator = animator }
 end
 
---[[
-	Bind as soon as the joints exist, whenever that turns out to be.
-
-	Polling for five seconds and then giving up forever was wrong: joints can
-	arrive much later than the character does -- an avatar still downloading, a
-	HumanoidDescription swap rebuilding the rig, a body part streamed in late --
-	and once the poll expired gestures stayed dead for the rest of the session.
-	Watching DescendantAdded is what makes that self-heal.
-]]
 local function bindRig(character: Model, assign: (Rig) -> ())
 	local bound = false
 
@@ -267,12 +162,6 @@ local function bindRig(character: Model, assign: (Rig) -> ())
 			return
 		end
 
-		--[[
-			Say exactly what the rig DOES have. "No animation" with a silent log
-			is indistinguishable from a logic bug, and the usual cause is a rig
-			shape this code does not expect rather than a timing miss -- the
-			watcher above is still live, so a late rig will still bind.
-		]]
 		local found, bones = {}, {}
 		for _, descendant in character:GetDescendants() do
 			if descendant:IsA("Motor6D") then
@@ -295,10 +184,6 @@ local function bindRig(character: Model, assign: (Rig) -> ())
 	end)
 end
 
---------------------------------------------------------------------------------
--- Applying a clip
---------------------------------------------------------------------------------
-
 local function smoothstep(a: number): number
 	a = math.clamp(a, 0, 1)
 	return a * a * (3 - 2 * a)
@@ -306,22 +191,6 @@ end
 
 local scratch: Clip.Pose = {}
 
---[[
-	Blend a clip pose onto whatever the Animator wrote this frame.
-
-	`joint.Transform` is read, not assumed: at this point in the frame it holds
-	the locomotion pose, so lerping from it is what makes weight mean "how much
-	of this is the gesture". At weight 0 the joint is exactly the walk cycle.
-
-	Rotations are authored in the character's own root frame and mapped onto the
-	rig's real joint axes by `inverse * pose * basis`, so one clip drives R6 and
-	R15 without the per-rig sign flips this used to need.
-
-	`constraints` selects which half of a rig this pass owns. AnimationConstraints
-	are only read pre-physics and Motor6Ds are only read post-animation-step, so
-	the two are written from different events and each pass skips the other's
-	joints rather than writing a value that will be thrown away.
-]]
 local function applyRig(rig: Rig, definition: any, t: number, weight: number, constraints: boolean)
 	if rig.animator and rig.animator.EvaluationThrottled then
 		return
@@ -349,16 +218,12 @@ local function applyRig(rig: Rig, definition: any, t: number, weight: number, co
 	end
 end
 
---------------------------------------------------------------------------------
--- Held props
---------------------------------------------------------------------------------
-
 local function findHand(character: Model, side: string): BasePart?
-	local exact = character:FindFirstChild(side .. "Hand") -- R15
+	local exact = character:FindFirstChild(side .. "Hand")
 	if exact and exact:IsA("BasePart") then
 		return exact
 	end
-	local arm = character:FindFirstChild(side .. " Arm") -- R6
+	local arm = character:FindFirstChild(side .. " Arm")
 	if arm and arm:IsA("BasePart") then
 		return arm
 	end
@@ -380,12 +245,6 @@ local function decorate(part: BasePart, parent: Instance)
 	part.Parent = parent
 end
 
---[[
-	The Sasumata, built around a root at the identity CFrame so the whole model
-	can be pivoted into the hand as one piece afterwards. Parts are welded to the
-	shaft, and only then positioned, which is the order that makes the offsets in
-	here mean what they say.
-]]
 local function buildSasumata(scale: number): Model
 	local model = Instance.new("Model")
 	model.Name = "EquippedSasumata"
@@ -468,18 +327,6 @@ local function buildWeedTuft(scale: number): Model
 	return model
 end
 
---[[
-	The open book. Ruled lines are thin parts rather than a texture: the project
-	does not commit guessed asset ids, and a page needs about six of them.
-
-	EVERY MOVING PART IS WELDED, and the animation drives `Weld.C0` rather than
-	`BasePart.CFrame`. That is not a style preference. Setting CFrame on an
-	unanchored, unwelded part inside a Character means physics owns it the
-	moment you stop writing to it every frame — so the covers fell out of the
-	book the instant a gesture ended, and loose dynamic parts inside a character
-	interfere with the Humanoid. Welded, they cannot fall, cannot fight physics,
-	and cost nothing between gestures.
-]]
 local function weldTo(root: BasePart, part: BasePart, offset: CFrame): Weld
 	local weld = Instance.new("Weld")
 	weld.Name = "BookWeld"
@@ -525,19 +372,12 @@ local function buildOpenBook(scale: number): Model
 	middlePage.Material = Enum.Material.SmoothPlastic
 	decorate(middlePage, model)
 
-	-- Welded to the spine at their closed-book offsets. animateBook rewrites
-	-- these C0s; nothing here is ever positioned by CFrame again.
 	weldTo(spine, coverRight, CFrame.new(0.5 * scale, -0.02 * scale, 0))
 	weldTo(spine, coverLeft, CFrame.new(0, 0.04 * scale, 0) * CFrame.new(0.5 * scale, 0.02 * scale, 0))
 	weldTo(spine, rightPage, CFrame.new(0.475 * scale, 0.015 * scale, 0))
 	weldTo(spine, leftPage, CFrame.new(0, 0.04 * scale, 0) * CFrame.new(0.475 * scale, -0.02 * scale, 0))
 	weldTo(spine, middlePage, CFrame.new(0, 0.04 * scale, 0) * CFrame.new(0.5 * scale, 0.03 * scale, 0))
 
-	--[[
-		Ruled lines hang off their page with a WeldConstraint, giving a chain of
-		spine -> page -> rule. Moving the page's Weld.C0 carries them along, so
-		the lines never need touching.
-	]]
 	for _, host in { rightPage, leftPage } do
 		for line = 1, 5 do
 			local rule = Instance.new("Part")
@@ -567,11 +407,6 @@ local function buildOpenBook(scale: number): Model
 	return model
 end
 
---[[
-	Pose the book's covers. Driven every frame rather than welded, because the
-	open/close IS the animation -- there is no rigid transform that reads as
-	"reading a book".
-]]
 local function bookWeld(book: Instance, partName: string): Weld?
 	local part = book:FindFirstChild(partName)
 	return part and part:FindFirstChild("BookWeld") :: Weld? or nil
@@ -595,8 +430,6 @@ local function animateBook(character: Model, openAmount: number, flipAmount: num
 	local scale = book:GetAttribute("Scale") or 1
 	local open = smoothstep(openAmount)
 
-	-- All offsets are relative to the spine, which is the welded root, so these
-	-- compose exactly as the old world-space CFrame chain did.
 	local rightAngle = math.rad(-15 * open)
 	local rightCover = CFrame.Angles(0, 0, rightAngle) * CFrame.new(0.5 * scale, -0.02 * scale, 0)
 	coverRight.C0 = rightCover
@@ -614,11 +447,6 @@ local function animateBook(character: Model, openAmount: number, flipAmount: num
 	end
 end
 
---[[
-	Advance the book toward open-while-studying and run whichever page turn is in
-	flight, then draw it. Returns nothing; the state lives in `books` so a book
-	that has been left alone still closes on its own.
-]]
 local function stepBook(character: Model, dt: number, wanted: boolean)
 	if not character:FindFirstChild("EquippedOpenBook") then
 		return
@@ -642,7 +470,6 @@ local function stepBook(character: Model, dt: number, wanted: boolean)
 
 	animateBook(character, state.open, flip)
 end
-
 
 local function removeProps(character: Model)
 	for _, name in PROP_NAMES do
@@ -728,12 +555,6 @@ local function attachSkillProp(character: Model, skillId: string)
 		end
 	end
 
-	--[[
-		A Weld with an explicit C0, not PivotTo plus a WeldConstraint. The
-		constraint captures whatever offset happens to exist when it is created,
-		which races the physics step that runs between the pivot and the weld.
-		C0 states the grip outright and cannot drift.
-	]]
 	local weld = Instance.new("Weld")
 	weld.Name = "GripWeld"
 	weld.Part0 = hand
@@ -742,19 +563,6 @@ local function attachSkillProp(character: Model, skillId: string)
 	weld.Parent = hand
 end
 
---------------------------------------------------------------------------------
--- Local player
---------------------------------------------------------------------------------
-
---[[
-	`duration` is the gap WorkController measured between the last two clicks,
-	and the clip is fitted to it rather than played at its authored length.
-
-	A clip that outruns the click rate always loses: kusatori's authored rip
-	lands at 0.65s, so a player clicking twice a second restarted it before its
-	one distinctive frame and only ever saw the crouch. Compressing it to the
-	cadence is what makes every gesture reach its payoff between two clicks.
-]]
 function GestureController.play(skillId: string?, duration: number?)
 	if not skillId then
 		return
@@ -774,8 +582,6 @@ function GestureController.play(skillId: string?, duration: number?)
 		end
 	end
 
-	-- Restarting mid-gesture is fine: BLEND_IN ramps from whatever is on screen,
-	-- so there is no snap back to the first keyframe.
 	playing = {
 		skillId = skillId,
 		startedAt = os.clock(),
@@ -823,8 +629,6 @@ local function stepLocal(constraints: boolean)
 	if elapsed < duration then
 		weight = smoothstep(elapsed / BLEND_IN)
 	else
-		-- Hold the final pose and fade our influence out, so the walk cycle
-		-- takes the arm back rather than the arm being dropped into it.
 		local releasing = elapsed - duration
 		if releasing >= BLEND_OUT then
 			playing = nil
@@ -835,10 +639,6 @@ local function stepLocal(constraints: boolean)
 
 	applyRig(rig, definition, t, weight, constraints)
 end
-
---------------------------------------------------------------------------------
--- Other players
---------------------------------------------------------------------------------
 
 local function stepRemoteProps(dt: number)
 	for character in remoteRigs do
@@ -891,7 +691,6 @@ local function stepRemote(constraints: boolean)
 
 		local phase = remotePhase[character] or 0
 
-		-- The looping work gesture the server says this character is doing.
 		local skillId = character:GetAttribute(WORKING_ATTRIBUTE)
 		if type(skillId) == "string" then
 			local definition = PlayerAnims.get(skillId)
@@ -901,8 +700,6 @@ local function stepRemote(constraints: boolean)
 			end
 		end
 
-		-- Stirring cycles while the server holds Cooking = true; releasing the
-		-- attribute simply stops the writes and the walk cycle takes back over.
 		if character:GetAttribute(COOKING_ATTRIBUTE) == true then
 			local definition = PlayerAnims.get(COOKING_CLIP)
 			if definition then
@@ -911,14 +708,6 @@ local function stepRemote(constraints: boolean)
 			end
 		end
 
-		--[[
-			One shot per pluck. ForageClipAt is a stamp the server bumps every
-			time; seeing a new one fires the clip named in ForageClip once, with
-			the same blend envelope as a local gesture. Applied last so the pluck
-			reads over any loop already running. The stamp is only consumed once
-			the clip name is readable, so a stamp that replicates a frame ahead
-			of its clip retries rather than dropping the pluck.
-		]]
 		local stamp = character:GetAttribute(FORAGE_STAMP_ATTRIBUTE)
 		if type(stamp) == "number" and forageStamps[character] ~= stamp then
 			local clipId = character:GetAttribute(FORAGE_CLIP_ATTRIBUTE)
@@ -958,10 +747,6 @@ local function stepRemote(constraints: boolean)
 	end
 end
 
---------------------------------------------------------------------------------
--- Public
---------------------------------------------------------------------------------
-
 function GestureController.init()
 	local localPlayer = Players.LocalPlayer
 
@@ -983,8 +768,6 @@ function GestureController.init()
 	end
 	localPlayer.CharacterAdded:Connect(bindLocal)
 
-	-- clipId overrides the skill when the click is aimed at something specific:
-	-- a carrot is dug, not weeded. See WorkController.kusatoriClip.
 	WorkController.onStart(function(skillId, duration, clipId)
 		GestureController.play(clipId or skillId or WorkController.getTrainingSkill() or "tobatsu", duration)
 	end)
@@ -994,8 +777,6 @@ function GestureController.init()
 			return
 		end
 		local function bindRemote(character: Model)
-			-- Seed the stamp so a pluck from before this client arrived (or
-			-- before the character streamed in) is not replayed as new.
 			local stamp = character:GetAttribute(FORAGE_STAMP_ATTRIBUTE)
 			forageStamps[character] = if type(stamp) == "number" then stamp else nil
 			forageShots[character] = nil
@@ -1015,22 +796,6 @@ function GestureController.init()
 	end
 	Players.PlayerAdded:Connect(watch)
 
-	--[[
-		Two events, because the two joint types are read at different points.
-
-		AnimationConstraints -- what an R15 player rig is made of since the Avatar
-		Joint Upgrade -- are gathered in a batch job that runs after PreSimulation
-		and before physics, and the Animator refills their Transform earlier in
-		the same frame. Writing them from the render step, as this used to, put
-		the pose somewhere nothing would ever read it: the gestures were running
-		correctly and were simply never applied, which is why only the held props
-		appeared to animate.
-
-		Motor6D rigs (R6 players, and any rig on a place with the upgrade turned
-		off) still take their pose from the legacy animation step during render,
-		so those joints keep the Character + 1 binding. Props are welds and are
-		stepped once, on the earlier of the two.
-	]]
 	local lastTrainingSkill: string? = nil
 
 	RunService.PreSimulation:Connect(function(dt)

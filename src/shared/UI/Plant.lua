@@ -1,12 +1,3 @@
---[[
-	The field-guide plant diagram, drawn from Frames.
-
-	Shared because two surfaces show the same specimen: the study book teaches
-	it, and the Exam Hall counter tests it. Drawing rather than uploading keeps
-	every leaf crisp on a phone and keeps the two views identical by
-	construction.
-]]
-
 local Primitives = require(script.Parent.Primitives)
 
 local Plant = {}

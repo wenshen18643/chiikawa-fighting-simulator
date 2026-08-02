@@ -1,16 +1,3 @@
---[[
-	The one line of HUD that says what you are carrying.
-
-	A work order is a single sentence -- a name and two numbers -- so it gets a
-	single strip, and only while one is in hand. A tracker that is always
-	present is a panel the player learns to stop seeing; one that appears when
-	you take a job and leaves when you hand it in is a thing they read.
-
-	It never asks the server for anything. Every state it can be in arrives on
-	Order.Event: the board on open and after each change, progress as it
-	happens, and completion.
-]]
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -36,11 +23,6 @@ local function setVisible(visible: boolean)
 	root.Visible = visible
 end
 
---[[
-	Shown as "3/8" and as a bar, because the two answer different questions:
-	the numbers say how many more, the bar says how close -- and at a glance
-	across a dark cave only the bar registers.
-]]
 local function show(name: string, summary: string, progress: number, count: number)
 	title.Text = name
 	detail.Text = `{summary}  {progress}/{count}`
@@ -145,11 +127,6 @@ function OrderTracker.init()
 		elseif kind == "completed" then
 			setVisible(false)
 		elseif kind == "board" then
-			--[[
-				The board carries the authoritative "what is in hand", which is
-				the only thing that can re-establish the strip after a rejoin or
-				after an order is abandoned somewhere this module never saw.
-			]]
 			local active = payload.active
 			if type(active) ~= "string" then
 				setVisible(false)
@@ -165,11 +142,6 @@ function OrderTracker.init()
 		end
 	end)
 
-	--[[
-		Opening the board can also clear the strip: an order handed in from the
-		panel leaves nothing in hand, and the panel's own payload is the first
-		thing to say so.
-	]]
 	Remotes.event("Order", "Open").OnClientEvent:Connect(function(payload)
 		if type(payload) == "table" and type(payload.active) ~= "string" then
 			setVisible(false)

@@ -21,12 +21,6 @@ end
 
 local BUILDERS = {}
 
---[[
-	`size` is the prop's own largest dimension in studs, already chosen by the
-	caller from the character it belongs to. Builders return a ROTATION only --
-	where the prop sits is the caller's business, because only it knows where
-	the visible body actually is.
-]]
 function BUILDERS.camera(size: number): (Model, CFrame)
 	local model = Instance.new("Model")
 	model.Name = "AnimProp_Camera"
@@ -118,7 +112,6 @@ function BUILDERS.book(size: number): (Model, CFrame)
 		end
 	end
 
-	-- Tilted back so the pages face the reader rather than the sky.
 	return model, CFrame.Angles(math.rad(-52), 0, 0)
 end
 

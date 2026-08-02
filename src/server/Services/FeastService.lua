@@ -34,7 +34,6 @@ type Food = {
 	progress: number,
 	expiresAt: number,
 	landed: boolean,
-	-- Map props only: where to put it back, and when it is edible again.
 	home: Instance?,
 	readyAt: number?,
 }
@@ -45,15 +44,8 @@ local reserved: { Layout.Zone } = {}
 local overlapParams = OverlapParams.new()
 local rng = Random.new()
 local feastEvent: RemoteEvent
--- The same channel a work click reports through, so a bite's Resilience shows
--- up the way a trained point does. Taken from the registry rather than from
--- WorkService, which already requires this module.
 local workFeedback: RemoteEvent
 local folder: Folder
-
---------------------------------------------------------------------------------
--- Placement
---------------------------------------------------------------------------------
 
 local function farFromOtherFood(x: number, z: number): boolean
 	for _, food in alive do
@@ -155,11 +147,6 @@ local function remove(food: Food)
 	food.model:Destroy()
 end
 
---------------------------------------------------------------------------------
--- Map props
---------------------------------------------------------------------------------
-
--- Dressing already placed and sized it, so all this takes is a Food around it.
 local function adopt(model: Model)
 	local def = Feast.get(model:GetAttribute("FeastId") :: string)
 	if not def or not model.Parent then
@@ -177,7 +164,6 @@ local function adopt(model: Model)
 	})
 end
 
--- Parked, not destroyed: the model is the only record of where it stood.
 local function park(food: Food)
 	food.model.Parent = nil
 	food.progress = 0
@@ -192,10 +178,6 @@ local function regrow(now: number)
 		end
 	end
 end
-
---------------------------------------------------------------------------------
--- Eating
---------------------------------------------------------------------------------
 
 local function tell(food: Food, kind: string)
 	for _, player in Players:GetPlayers() do
@@ -223,7 +205,6 @@ local function finish(player: Player, profile: any, food: Food)
 	CurrencyService.award(profile, "yen", yen)
 	Boosts.apply(profile, def.buff)
 
-	-- The bowl over again, twice: clearing it is worth more than the clicks it took.
 	local gain = awardResilience(player, profile, def.clicks * Feast.FINISH_XP_PER_CLICK)
 
 	NotifyService.send(
@@ -261,8 +242,6 @@ local function nearest(position: Vector3): Food?
 	return best
 end
 
--- One click spent on whatever food the player is stood at. The counter belongs
--- to the food, not the player: everybody chips in, the last click is paid.
 function FeastService.bite(player: Player, profile: any): boolean
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -287,10 +266,6 @@ function FeastService.bite(player: Player, profile: any): boolean
 
 	return true
 end
-
---------------------------------------------------------------------------------
--- Boot
---------------------------------------------------------------------------------
 
 local function sweep()
 	while true do
@@ -328,8 +303,6 @@ function FeastService.init()
 	folder.Name = "Feast"
 	folder.Parent = regionFolder
 
-	-- Behind the dressing pass: the overlap check asks the world what already
-	-- stands at a spot, and a half-built world lies.
 	task.spawn(function()
 		ForagingService.awaitReady()
 		WorldService.awaitDressed()

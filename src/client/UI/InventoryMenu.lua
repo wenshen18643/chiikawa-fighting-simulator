@@ -39,10 +39,6 @@ local isOpen = false
 local renderedFrom: string? = nil
 local usingUntil: { [string]: number } = {}
 
---------------------------------------------------------------------------------
--- Snapshot reads
---------------------------------------------------------------------------------
-
 local function ownedIngredients(counts: { [string]: number }): { { [string]: any } }
 	local rows = {}
 	for index, id in Ingredients.ORDER do
@@ -96,10 +92,6 @@ local function signature(snapshot: any): string
 	return table.concat(parts, ",")
 end
 
---------------------------------------------------------------------------------
--- Cards
---------------------------------------------------------------------------------
-
 local function buildIngredientCard(row: { [string]: any }, index: number)
 	local def = Ingredients.get(row.id) :: Ingredients.IngredientDefinition
 	local tint = row.rarity.color
@@ -143,10 +135,6 @@ local function buildIngredientCard(row: { [string]: any }, index: number)
 	chip.AnchorPoint = Vector2.new(0, 0)
 end
 
---[[
-	A dish or a seasoning: same card, since they are the same decision — spend
-	one, get a timed boost.
-]]
 local function buildConsumableCard(config: { [string]: any }, index: number)
 	local id = config.id
 	local card = UI.card(listHolder, id, { radius = UI.radius.chip })
@@ -215,10 +203,6 @@ local function buildConsumableCard(config: { [string]: any }, index: number)
 	})
 end
 
---------------------------------------------------------------------------------
--- Render
---------------------------------------------------------------------------------
-
 local function render()
 	local snapshot = StateController.snapshot
 	if not snapshot then
@@ -268,7 +252,6 @@ local function render()
 		end
 	else
 		grid.CellSize = INGREDIENT_CELL
-		-- Ingredients get their own pass: they sort by rarity, not config order.
 		local sorted = ownedIngredients(counts)
 		count = #sorted
 		for index, row in sorted do
@@ -280,10 +263,6 @@ local function render()
 	emptyLabel.Visible = count == 0
 	listHolder.CanvasPosition = Vector2.zero
 end
-
---------------------------------------------------------------------------------
--- Panel
---------------------------------------------------------------------------------
 
 local function buildPanel(parent: ScreenGui)
 	local scrim, content, toggle = UI.modal(parent, "InventoryMenu", {
@@ -373,10 +352,6 @@ local function buildPanel(parent: ScreenGui)
 		end,
 	})
 end
-
---------------------------------------------------------------------------------
--- Public
---------------------------------------------------------------------------------
 
 function InventoryMenu.setOpen(open: boolean)
 	if not setPanelOpen then

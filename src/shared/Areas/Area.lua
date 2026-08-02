@@ -1,8 +1,3 @@
---[[
-	The shape of an area, plus the building blocks area files use to dress
-	themselves. See docs/GAME.md §7.
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -35,33 +30,13 @@ export type DecorateContext = {
 	parent: Folder,
 	rng: Random,
 	isReserved: (x: number, z: number) -> boolean,
-	-- Where the plaza ends, so area files place things relative to the town
-	-- instead of to a hardcoded island size.
 	plazaRadius: number,
 	helpers: typeof(Area.helpers),
 	UI: typeof(UI),
-	--[[
-		Uploaded decor from Config/Assets, injected by whoever is building.
 
-		A closure for the same reason `isReserved` is one: AssetService is a
-		server service and this module is shared, so requiring it directly
-		would put ServerScriptService in the client's module graph. Handing it
-		in keeps that graph a tree.
-
-		Both are optional and both return nil freely. Every helper that uses
-		them keeps its procedural version as the fallback, so an area file
-		never has to care whether an upload arrived.
-	]]
 	model: ((key: string) -> Model?)?,
-	-- `match` selects by name within the pack: "tree", "bush", "grass".
 	packItem: ((key: string, match: string?) -> Model?)?,
-	-- Real surface height at (x, z), terrain rounding included. Server-only.
 	groundY: ((x: number, z: number) -> number)?,
-	--[[
-		Hands the frame back once the caller's slice is spent. Supplied when an
-		area is dressed on a background pass, nil when it is built inline, so
-		an area file never has to know which of the two it is in.
-	]]
 	step: (() -> ())?,
 }
 
@@ -71,12 +46,6 @@ local function step(ctx: DecorateContext)
 	end
 end
 
---[[
-	Try for an uploaded model, standing on the terrain at (x, z).
-
-	Returns nil when there is no such asset, which is the signal for the caller
-	to build its procedural version instead.
-]]
 local function groundAt(ctx: DecorateContext, x: number, z: number): number
 	if ctx.groundY then
 		return ctx.groundY(x, z)
@@ -99,12 +68,6 @@ local function placeAsset(ctx: DecorateContext, key: string, x: number, z: numbe
 
 	local options = config or {}
 
-	--[[
-		Some models are authored lying along their X or Z axis (the sausage
-		trees most notably). Stand them up BEFORE any height is measured: a
-		lying tree's Y extent is its trunk width, so scaling first sizes by the
-		wrong axis and seating first buries the crown.
-	]]
 	if options.upright then
 		local extents = model:GetExtentsSize()
 		if extents.Y < extents.X or extents.Y < extents.Z then
@@ -120,13 +83,6 @@ local function placeAsset(ctx: DecorateContext, key: string, x: number, z: numbe
 		model:ScaleTo(model:GetScale() * scale)
 	end
 
-	--[[
-		`height` is the honest one. Uploaded models arrive at whatever scale
-		their author worked at, so a per-asset multiplier is a number somebody
-		has to guess and re-guess every time an asset is replaced. Asking for
-		"this should be nine studs tall" is a decision about the scene, and it
-		survives swapping the model underneath it.
-	]]
 	if options.height then
 		local extents = model:GetExtentsSize()
 		if extents.Y > 0.01 then
@@ -148,12 +104,6 @@ local function placeAsset(ctx: DecorateContext, key: string, x: number, z: numbe
 
 	model:PivotTo(pivot)
 
-	--[[
-		Correct the seat by the MEASURED box. Everything above assumed the pivot
-		sits at the model's centre — Roblox's default, but an uploaded pack may
-		put it anywhere, and a low pivot floats the model by exactly the offset.
-		A no-op for well-authored assets; the fix for the rest.
-	]]
 	local centre, box = ModelUtil.worldBox(model)
 	local target = ctx.origin.Y + groundAt(ctx, x, z) + (options.y or 0)
 	model:PivotTo(model:GetPivot() + Vector3.new(0, target - (centre.Y - box.Y / 2), 0))
@@ -175,13 +125,8 @@ export type AreaDefinition = {
 	decorate: ((ctx: DecorateContext) -> ())?,
 }
 
---------------------------------------------------------------------------------
--- Helpers available to every area file
---------------------------------------------------------------------------------
-
 Area.helpers = {}
 
--- Decor smaller than this stops casting shadows.
 local SHADOW_MIN_SIZE = 6
 
 function Area.helpers.block(ctx: DecorateContext, config: { [string]: any }): Part
@@ -191,13 +136,6 @@ function Area.helpers.block(ctx: DecorateContext, config: { [string]: any }): Pa
 	part.Name = config.name or "Decor"
 	part.Anchored = true
 	part.CanCollide = config.collide ~= false
-	--[[
-		Scenery is not a trigger and rarely a raycast target. Touch is the
-		expensive one: every decor part left touchable joins the broadphase the
-		character is tested against on every step, and an area scatters
-		hundreds. Small parts also stop casting shadows -- a pebble's shadow
-		costs a shadow-map draw and is worth nothing.
-	]]
 	part.CanTouch = false
 	part.CanQuery = config.collide ~= false
 	part.Size = config.size
@@ -222,29 +160,13 @@ function Area.helpers.block(ctx: DecorateContext, config: { [string]: any }): Pa
 	return part
 end
 
---[[
-	A tree. The uploaded model when there is one, trunk-and-canopy parts when
-	there is not.
-
-	`height` still means what it meant: the procedural version is built to it,
-	and the asset version is scaled so its own extents match it. Otherwise an
-	area asking for a 12-stud tree and a 30-stud tree would get two identical
-	imported models.
-]]
 function Area.helpers.tree(ctx: DecorateContext, x: number, z: number, height: number, canopySize: number)
-	--[[
-		Two sources before the procedural version: a dedicated `tree` asset if
-		one is ever configured, then a tree out of the nature pack (which is
-		titled "Trees Bush Grass Flower", so asking it for a tree by name is
-		reasonable). Only if both come back empty do we build one from parts.
-	]]
 	local asset = placeAsset(ctx, "tree", x, z, { rotation = ctx.rng:NextNumber() * math.pi * 2 })
 		or Area.helpers.natureProp(ctx, x, z, "tree")
 	if asset then
 		local natural = asset:GetExtentsSize().Y
 		if natural > 0.01 then
 			asset:ScaleTo(asset:GetScale() * (height / natural))
-			-- Re-seat it: scaling about the pivot moves where the base sits.
 			local size = asset:GetExtentsSize()
 			asset:PivotTo(
 				CFrame.new(ctx.origin + Vector3.new(x, groundAt(ctx, x, z) + size.Y / 2, z))
@@ -254,20 +176,6 @@ function Area.helpers.tree(ctx: DecorateContext, x: number, z: number, height: n
 		return asset
 	end
 
-	--[[
-		The procedural tree, and worth some care: the uploaded tree models in
-		docs/ASSETS.md are private to another account and cannot be fetched, so
-		this is not a placeholder anybody will see instead of the real thing —
-		it IS the tree, in every area, forever.
-
-		One cylinder plus one ball reads as a lollipop and, worse, every tree in
-		a forest was identical. Three overlapping canopy blobs at jittered
-		offsets with per-tree colour variation costs three parts more and stops
-		a hillside looking like a repeated stamp.
-
-		All jitter comes from `ctx.rng`, which is seeded per area, so every
-		server still grows the same forest.
-	]]
 	local rng = ctx.rng
 	local lean = if rng then (rng:NextNumber() - 0.5) * 0.14 else 0
 	local gy = groundAt(ctx, x, z)
@@ -278,12 +186,10 @@ function Area.helpers.tree(ctx: DecorateContext, x: number, z: number, height: n
 		size = Vector3.new(height, 1.9, 1.9),
 		color = Color3.fromRGB(122, 96, 74),
 		material = Enum.Material.Wood,
-		-- Cylinders are long on X, so stand it up, then lean it slightly.
 		cframe = CFrame.new(ctx.origin + Vector3.new(x, gy + height / 2 - 1, z))
 			* CFrame.Angles(lean, 0, math.rad(90) + lean),
 	})
 
-	-- Base flare, so the trunk meets the ground instead of ending at it.
 	Area.helpers.block(ctx, {
 		name = "TrunkBase",
 		shape = Enum.PartType.Cylinder,
@@ -294,11 +200,6 @@ function Area.helpers.tree(ctx: DecorateContext, x: number, z: number, height: n
 		collide = false,
 	})
 
-	--[[
-		Three blobs: a big one on the crown and two smaller ones pushed out and
-		down, which is enough to break the silhouette. Each is tinted a little
-		differently so the canopy has some internal shape under flat lighting.
-	]]
 	local leaf = Color3.fromRGB(104, 168, 84)
 	local BLOBS = {
 		{ scale = 1.00, dx = 0.00, dz = 0.00, dy = 0.34, tint = 0.00 },
@@ -332,11 +233,6 @@ function Area.helpers.tree(ctx: DecorateContext, x: number, z: number, height: n
 end
 
 function Area.helpers.stone(ctx: DecorateContext, x: number, z: number, size: number)
-	--[[
-		The nature pack ships Rock 1-5, so stones come out of it before falling
-		back to a grey ball. Five variants beats one shape at five sizes, which
-		is what every scatter of these looked like before.
-	]]
 	local asset = placeAsset(ctx, "stone", x, z, { rotation = ctx.rng:NextNumber() * math.pi * 2 })
 		or Area.helpers.natureProp(ctx, x, z, "rock")
 	if asset then
@@ -355,9 +251,6 @@ function Area.helpers.stone(ctx: DecorateContext, x: number, z: number, size: nu
 	})
 end
 
---[[
-	A bush. Uploaded model, falling back to a squashed green ball.
-]]
 function Area.helpers.bush(ctx: DecorateContext, x: number, z: number, size: number)
 	local asset = placeAsset(ctx, "bush", x, z, { rotation = ctx.rng:NextNumber() * math.pi * 2 })
 		or Area.helpers.natureProp(ctx, x, z, "bush")
@@ -378,9 +271,6 @@ function Area.helpers.bush(ctx: DecorateContext, x: number, z: number, size: num
 	})
 end
 
---[[
-	A fallen log. Uploaded model, falling back to a rotated cylinder.
-]]
 function Area.helpers.log(ctx: DecorateContext, x: number, z: number, length: number)
 	local asset = placeAsset(ctx, "log", x, z, { rotation = ctx.rng:NextNumber() * math.pi * 2 })
 	if asset then
@@ -402,14 +292,6 @@ function Area.helpers.log(ctx: DecorateContext, x: number, z: number, length: nu
 	return part
 end
 
---[[
-	One random item out of the nature pack, if that pack loaded.
-
-	Returns nil rather than falling back, because unlike a tree or a bush there
-	is no procedural equivalent of "whatever happens to be in that pack" — so
-	callers use it to add variety on top of decor that already stands alone.
-]]
--- Above this a pack item is not a prop, it is a scene. See below.
 local NATURE_PROP_MAX_HEIGHT = 34
 
 function Area.helpers.natureProp(ctx: DecorateContext, x: number, z: number, match: string?): Model?
@@ -427,12 +309,6 @@ function Area.helpers.natureProp(ctx: DecorateContext, x: number, z: number, mat
 
 	local size = model:GetExtentsSize()
 
-	--[[
-		A pack is somebody else's file and may hold anything. If a "prop" comes
-		back taller than a tree, it is far more likely to be a whole assembled
-		scene — or the pack's own baseplate — than a bush, and scattering ninety
-		of those across an area would bury it. Skip rather than guess.
-	]]
 	if size.Y > NATURE_PROP_MAX_HEIGHT or size.Y <= 0.01 then
 		model:Destroy()
 		return nil
@@ -443,8 +319,6 @@ function Area.helpers.natureProp(ctx: DecorateContext, x: number, z: number, mat
 		CFrame.new(ctx.origin + Vector3.new(x, groundAt(ctx, x, z) + size.Y / 2, z)) * CFrame.Angles(0, spin, 0)
 	)
 
-	-- Seat by the measured box, bedded in slightly so a pack rock sits IN a
-	-- slope rather than tangent to its high side. See placeAsset.
 	local centre, box = ModelUtil.worldBox(model)
 	local target = ctx.origin.Y + groundAt(ctx, x, z) - box.Y * 0.04
 	model:PivotTo(model:GetPivot() + Vector3.new(0, target - (centre.Y - box.Y / 2), 0))
@@ -453,27 +327,6 @@ function Area.helpers.natureProp(ctx: DecorateContext, x: number, z: number, mat
 	return model
 end
 
---[[
-	A building, and ONLY if there is a model for one.
-
-	--------------------------------------------------------------------------
-	NO PROCEDURAL FALLBACK, DELIBERATELY
-	--------------------------------------------------------------------------
-
-	Every other helper here degrades to parts, because a rough tree still reads
-	as a tree. A building does not: the fallback was a 22x13x18 box of cream
-	WoodPlanks with a pitched slab on top, and seven of them in a row along the
-	south edge of Town read as a wall of brown crates rather than as a lane of
-	houses. Empty ground looks better than that, and the cottage in
-	SafeZoneService already shows what a building here is supposed to look like.
-
-	So this places the uploaded `house` model and otherwise does nothing. The
-	moment a usable id exists in Config/Assets.lua, every hut call site
-	repopulates with no other change. Until then the lanes are open ground.
-
-	The asset keeps collision (Config/Assets marks `house` collide = true) so a
-	building stays a building rather than something to walk through.
-]]
 function Area.helpers.hut(ctx: DecorateContext, config: { [string]: any })
 	placeAsset(ctx, "house", config.x or 0, config.z or 0, {
 		rotation = config.rotation,
@@ -481,18 +334,12 @@ function Area.helpers.hut(ctx: DecorateContext, config: { [string]: any })
 	})
 end
 
---------------------------------------------------------------------------------
--- Chiikawa Procedural 3D Props
---------------------------------------------------------------------------------
-
--- Study Desk: Low round pink desk from image, with booklet, eraser, pencil, cushion & lightbulb emitter
 function Area.helpers.studyDesk(ctx: DecorateContext, config: { [string]: any }): Model
 	local model = Instance.new("Model")
 	model.Name = "StudyDeskProp"
 	local x, z, y = config.x or 0, config.z or 0, config.y or 3.2
 	local gy = groundAt(ctx, x, z)
 
-	-- Round Oval Tabletop in Cute Pastel Pink
 	local top = Area.helpers.block(ctx, {
 		name = "TableTop",
 		shape = Enum.PartType.Cylinder,
@@ -503,7 +350,6 @@ function Area.helpers.studyDesk(ctx: DecorateContext, config: { [string]: any })
 		parent = model,
 	})
 
-	-- 4 Curved/Curly Dark Legs
 	local legOffsets = {
 		Vector3.new(-3.6, -1.2, -1.8),
 		Vector3.new(3.6, -1.2, -1.8),
@@ -522,7 +368,6 @@ function Area.helpers.studyDesk(ctx: DecorateContext, config: { [string]: any })
 		})
 	end
 
-	-- Open Booklet / Notebook on top with squiggly pencil details
 	local bookLeft = Area.helpers.block(ctx, {
 		name = "BookLeftPage",
 		size = Vector3.new(2.4, 0.15, 3.2),
@@ -540,7 +385,6 @@ function Area.helpers.studyDesk(ctx: DecorateContext, config: { [string]: any })
 		parent = model,
 	})
 
-	-- Squiggly line markings on pages
 	Area.helpers.block(ctx, {
 		name = "PencilLine1",
 		size = Vector3.new(1.6, 0.05, 0.3),
@@ -556,7 +400,6 @@ function Area.helpers.studyDesk(ctx: DecorateContext, config: { [string]: any })
 		parent = model,
 	})
 
-	-- Eraser (Blue/White cover)
 	Area.helpers.block(ctx, {
 		name = "Eraser",
 		size = Vector3.new(0.8, 0.3, 1.2),
@@ -566,7 +409,6 @@ function Area.helpers.studyDesk(ctx: DecorateContext, config: { [string]: any })
 		parent = model,
 	})
 
-	-- Small notebook / booklet beside it
 	Area.helpers.block(ctx, {
 		name = "SideBook",
 		size = Vector3.new(2.0, 0.4, 2.4),
@@ -576,7 +418,6 @@ function Area.helpers.studyDesk(ctx: DecorateContext, config: { [string]: any })
 		parent = model,
 	})
 
-	-- Zabuton floor cushion
 	Area.helpers.block(ctx, {
 		name = "Cushion",
 		size = Vector3.new(4.5, 0.6, 4.5),
@@ -586,7 +427,6 @@ function Area.helpers.studyDesk(ctx: DecorateContext, config: { [string]: any })
 		parent = model,
 	})
 
-	-- Anime Lightbulb / Study Spark Particle Emitter
 	local emitterAttachment = Instance.new("Attachment")
 	emitterAttachment.Name = "StudyEmitterAttachment"
 	emitterAttachment.Position = Vector3.new(0, 2, 0)
@@ -606,14 +446,6 @@ function Area.helpers.studyDesk(ctx: DecorateContext, config: { [string]: any })
 	emitter.SpreadAngle = Vector2.new(30, 30)
 	emitter.Parent = emitterAttachment
 
-	--[[
-		Book stacks that pile up with tier.
-
-		The other three props read their tier as scale alone — a bigger fork, a
-		bigger weed. Studying does not work that way: a huge booklet says
-		nothing, whereas the pile of books you have got through says exactly
-		what a tier is. So this one grows in COUNT as well as size.
-	]]
 	local tier = math.clamp(config.tier or 1, 1, 7)
 	local BOOK_COLORS = {
 		Color3.fromRGB(226, 108, 130),
@@ -624,7 +456,6 @@ function Area.helpers.studyDesk(ctx: DecorateContext, config: { [string]: any })
 	}
 
 	for index = 1, tier - 1 do
-		-- Two short columns beside the desk rather than one tall improbable one.
 		local column = if index % 2 == 0 then 1 else -1
 		local level = math.floor((index - 1) / 2)
 
@@ -643,7 +474,6 @@ function Area.helpers.studyDesk(ctx: DecorateContext, config: { [string]: any })
 	return model
 end
 
--- Weeding Patch: Raised dirt mound with grass blades, flowers & flying leaf emitter
 function Area.helpers.weedingPatch(ctx: DecorateContext, config: { [string]: any }): Model
 	local model = Instance.new("Model")
 	model.Name = "WeedingPatchProp"
@@ -660,7 +490,6 @@ function Area.helpers.weedingPatch(ctx: DecorateContext, config: { [string]: any
 		parent = model,
 	})
 
-	-- Grass clumps & flowers
 	for i = 1, 8 do
 		local angle = (i / 8) * math.pi * 2
 		local dist = 3.2
@@ -676,7 +505,6 @@ function Area.helpers.weedingPatch(ctx: DecorateContext, config: { [string]: any
 		})
 	end
 
-	-- Flying Leaf Particle Emitter
 	local attachment = Instance.new("Attachment")
 	attachment.Position = Vector3.new(0, 1.5, 0)
 	attachment.Parent = soil
@@ -698,13 +526,11 @@ function Area.helpers.weedingPatch(ctx: DecorateContext, config: { [string]: any
 	return model
 end
 
--- Sasumata & Training Dummy for Strength/Tobatsu
 function Area.helpers.sasumataDummy(ctx: DecorateContext, config: { [string]: any }): Model
 	local model = Instance.new("Model")
 	model.Name = "SasumataDummyProp"
 	local x, z, y = config.x or 0, config.z or 0, config.y or 4.5
 
-	-- Dummy Post
 	local dummy = Area.helpers.block(ctx, {
 		name = "DummyPost",
 		size = Vector3.new(2.2, 9.0, 2.2),
@@ -716,7 +542,6 @@ function Area.helpers.sasumataDummy(ctx: DecorateContext, config: { [string]: an
 		parent = model,
 	})
 
-	-- Target wrapping
 	Area.helpers.block(ctx, {
 		name = "DummyTarget",
 		size = Vector3.new(2.8, 3.2, 2.8),
@@ -726,7 +551,6 @@ function Area.helpers.sasumataDummy(ctx: DecorateContext, config: { [string]: an
 		parent = model,
 	})
 
-	-- Sasumata Weapon standing beside dummy
 	local sasumataShaft = Area.helpers.block(ctx, {
 		name = "SasumataShaft",
 		size = Vector3.new(0.5, 10.0, 0.5),
@@ -735,7 +559,6 @@ function Area.helpers.sasumataDummy(ctx: DecorateContext, config: { [string]: an
 		cframe = dummy.CFrame * CFrame.new(3.5, 0.5, 0) * CFrame.Angles(0, 0, math.rad(-15)),
 		parent = model,
 	})
-	-- Sasumata Fork Head
 	Area.helpers.block(ctx, {
 		name = "SasumataFork",
 		size = Vector3.new(3.2, 0.5, 0.5),
@@ -745,7 +568,6 @@ function Area.helpers.sasumataDummy(ctx: DecorateContext, config: { [string]: an
 		parent = model,
 	})
 
-	-- Sweat Particle Emitter
 	local attachment = Instance.new("Attachment")
 	attachment.Position = Vector3.new(0, 2.5, 0)
 	attachment.Parent = dummy
@@ -763,13 +585,11 @@ function Area.helpers.sasumataDummy(ctx: DecorateContext, config: { [string]: an
 	return model
 end
 
--- Waterfall & Tear Zone for Durability / Crying
 function Area.helpers.waterfallZone(ctx: DecorateContext, config: { [string]: any }): Model
 	local model = Instance.new("Model")
 	model.Name = "WaterfallZoneProp"
 	local x, z, y = config.x or 0, config.z or 0, config.y or 8.0
 
-	-- Cliff Rock
 	local cliff = Area.helpers.block(ctx, {
 		name = "Cliff",
 		size = Vector3.new(12.0, 16.0, 8.0),
@@ -781,7 +601,6 @@ function Area.helpers.waterfallZone(ctx: DecorateContext, config: { [string]: an
 		parent = model,
 	})
 
-	-- Neon Waterfall Stream
 	local stream = Area.helpers.block(ctx, {
 		name = "WaterfallStream",
 		size = Vector3.new(6.0, 15.0, 0.8),
@@ -792,7 +611,6 @@ function Area.helpers.waterfallZone(ctx: DecorateContext, config: { [string]: an
 		parent = model,
 	})
 
-	-- Tear / Water Spray Emitter shooting out left & right
 	local attachment = Instance.new("Attachment")
 	attachment.Position = Vector3.new(0, -5, 0.5)
 	attachment.Parent = stream
@@ -811,11 +629,6 @@ function Area.helpers.waterfallZone(ctx: DecorateContext, config: { [string]: an
 	return model
 end
 
---[[
-	One uploaded prop, sized against the player rather than against whatever
-	scale it was authored at. Returns nil if the asset did not load, so callers
-	can fall back to parts.
-]]
 function Area.helpers.prop(ctx: DecorateContext, key: string, x: number, z: number, config: { [string]: any }?): Model?
 	local options = config or {}
 	return placeAsset(ctx, key, x, z, {
@@ -829,17 +642,6 @@ function Area.helpers.prop(ctx: DecorateContext, key: string, x: number, z: numb
 	})
 end
 
---[[
-	A path, as round stepping stones.
-
-	Stones rather than a paved strip: a strip is a road, and this is a town
-	where everything is soft and slightly too round. They are also cheap and
-	forgiving — laid on a hillside a continuous strip would either float or
-	sink, while separate discs just follow the ground one at a time.
-
-	Non-collidable and set just above the terrain: the path is a suggestion,
-	never a kerb to trip on.
-]]
 function Area.helpers.path(ctx: DecorateContext, config: { [string]: any })
 	local from = Vector2.new(config.fromX, config.fromZ)
 	local to = Vector2.new(config.toX, config.toZ)
@@ -858,7 +660,6 @@ function Area.helpers.path(ctx: DecorateContext, config: { [string]: any })
 		step(ctx)
 
 		local along = from + direction * (index * spacing)
-		-- Sideways wobble, so the line reads as walked rather than surveyed.
 		local drift = ctx.rng:NextNumber(-1.4, 1.4)
 		local size = width * ctx.rng:NextNumber(0.82, 1.1)
 		local stoneX = along.X - direction.Y * drift
@@ -883,21 +684,6 @@ function Area.helpers.path(ctx: DecorateContext, config: { [string]: any })
 	end
 end
 
---[[
-	A paved rectangle: one street, or the market square.
-
-	One slab per rectangle rather than a run of tiles. Paving is always inside a
-	reserved zone and TerrainBuilder flattens reserved ground to zero, so there is
-	no slope here for a tiled road to follow — and an 800-stud ring laid in 12-stud
-	tiles is 200 parts spent solving a problem the terrain does not have.
-
-	Seated on the HIGHEST ground it covers, so a surface that is not quite flat
-	gets a road buried into it rather than a road floating over it. Collidable,
-	because unlike the stepping stones this is what the player walks on.
-
-	The rectangles are authored not to overlap (see Config/Streets), so nothing
-	here has to arbitrate between two slabs claiming the same ground.
-]]
 function Area.helpers.paving(
 	ctx: DecorateContext,
 	area: { [string]: any },
@@ -924,21 +710,6 @@ function Area.helpers.paving(
 	return part
 end
 
---[[
-	A hedge along a verge, and the street furniture that lines up with it.
-
-	A strip of paving on open grass is a strip of paving. What makes it read as a
-	STREET is having an edge — something at eye level saying the road stops here
-	and somebody's garden starts. So the hedge is the enclosure, and it is also
-	the datum: lanterns and benches are placed off it at fixed intervals rather
-	than scattered, which is why none of them can end up standing in the road.
-
-	Built in segments so a long run is a row of bushes rather than one 200-stud
-	box, with a lighter crown on top so it reads as clipped rather than as a green
-	wall. The body reaches well below the pavement it stands against: the street
-	is three studs proud of the terrain beside it, and the hedge is what hides
-	that drop instead of standing on the bottom of it.
-]]
 function Area.helpers.hedge(ctx: DecorateContext, verge: { [string]: any }, style: { [string]: any })
 	local from = Vector2.new(verge.fromX, verge.fromZ)
 	local span = Vector2.new(verge.toX, verge.toZ) - from
@@ -986,19 +757,6 @@ function Area.helpers.hedge(ctx: DecorateContext, verge: { [string]: any }, styl
 		crown.Parent = ctx.parent
 	end
 
-	--[[
-		Furniture, standing ON the pavement against the hedge.
-
-		`facing` is the yaw that looks at the carriageway, so stepping in along
-		that direction from the hedge line lands on the road surface, and turning
-		to it gives a bench somebody would actually sit on to watch the street.
-		Both come off the same line, which is why neither can end up in the
-		middle of the road or out in a field.
-
-		Seated by `y` rather than by the ground under them: the pavement is a part
-		three studs above the terrain the raycast would find, and street furniture
-		belongs on the street.
-	]]
 	local inward = Vector2.new(math.sin(math.rad(verge.facing)), math.cos(math.rad(verge.facing)))
 
 	local function alongRun(spacing: number, inset: number, place: (x: number, z: number, y: number) -> ())
@@ -1097,10 +855,6 @@ function Area.helpers.signpost(ctx: DecorateContext, config: { [string]: any })
 
 	return post
 end
-
---------------------------------------------------------------------------------
--- Definition
---------------------------------------------------------------------------------
 
 local REQUIRED = { "id", "key", "name", "flavour", "gate", "origin", "terrain", "palette" }
 

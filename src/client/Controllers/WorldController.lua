@@ -1,22 +1,3 @@
---[[
-	Client-side reactions to where the player is standing.
-
-	Two jobs, both consequences of the world becoming one continuous landmass:
-
-	  TITLE CARDS. When areas were separate islands reached from a menu, arriving
-	  somewhere was an explicit act and the menu was the announcement. Now you
-	  walk, and a border is invisible ground. So crossing one — including walking
-	  out of your own front door into Town — plays a card with the area's name.
-	  It is the only thing that marks the moment, and it is what makes the world
-	  feel authored rather than merely large.
-
-	  GATE VEILS. A gate barrier is solid only for players who have not unlocked
-	  what is behind it (WorldService's collision groups), but the part itself is
-	  visible to everyone. Transparency is a purely local concern, so this clears
-	  it for areas the player has already earned: having walked through, they
-	  should stop seeing a door.
-]]
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -40,15 +21,6 @@ local cardRule: Frame
 
 local cardToken = 0
 
---------------------------------------------------------------------------------
--- Title card
---------------------------------------------------------------------------------
-
---[[
-	Type in, hold, fade out. Deliberately non-blocking and non-interactive: the
-	player keeps walking through the whole thing, because a cutscene for crossing
-	a field would be insufferable by the fourth time.
-]]
 local function showCard(title: string, subtitle: string)
 	cardToken += 1
 	local token = cardToken
@@ -88,17 +60,6 @@ local function showCard(title: string, subtitle: string)
 	end)
 end
 
---------------------------------------------------------------------------------
--- Gate veils
---------------------------------------------------------------------------------
-
---[[
-	Clears the veil on every gate the player has unlocked.
-
-	Re-run on each snapshot rather than only on unlock, because gates stream in
-	and out as the player moves: a barrier that was not loaded when the area
-	opened would otherwise still be showing a veil the next time it appears.
-]]
 local function refreshGates(snapshot: any)
 	local world = Workspace:FindFirstChild("World")
 	local bridges = world and world:FindFirstChild("Bridges")
@@ -124,10 +85,6 @@ local function refreshGates(snapshot: any)
 		end
 	end
 end
-
---------------------------------------------------------------------------------
--- Build
---------------------------------------------------------------------------------
 
 function WorldController.init()
 	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
@@ -184,10 +141,6 @@ function WorldController.init()
 	})
 	cardSubtitle.TextStrokeTransparency = 0.7
 
-	--------------------------------------------------------------------------
-	-- Signals
-	--------------------------------------------------------------------------
-
 	Remotes.event("Region", "Entered").OnClientEvent:Connect(function(regionId)
 		local area = Areas.get(regionId)
 		if area then
@@ -195,12 +148,6 @@ function WorldController.init()
 		end
 	end)
 
-	--[[
-		Leaving the safe zone gets its own card rather than reusing the area one.
-		Walking out of your front door is the first thing anyone does, and "TOWN
-		& GRASS FIELD" is a less useful thing to say at that moment than telling
-		them what just changed about their safety.
-	]]
 	Remotes.event("SafeZone", "Changed").OnClientEvent:Connect(function(isInside)
 		if isInside then
 			showCard("Home", "Nothing can reach you here.")

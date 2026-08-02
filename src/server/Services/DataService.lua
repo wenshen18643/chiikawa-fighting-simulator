@@ -1,22 +1,3 @@
---[[
-	Profile persistence. See docs/GAME.md §16.
-
-	Backend is pluggable:
-	  - If Packages/ProfileService is present (wally install), it is used, and
-	    profiles are session-locked as the spec requires.
-	  - Otherwise this falls back to a plain DataStore with retries and a
-	    BindToClose flush, so the place runs in Studio before dependencies are
-	    installed.
-
-	The fallback is NOT session-locked. It is fine for solo testing and NOT fine
-	for production — two servers holding the same player can duplicate currency.
-	Run `wally install` before any public test.
-
-	BigNums are plain {m, e} tables (see BigNumber), so profiles serialise with
-	no conversion pass. The only values needing care are CFrames, which are
-	stored as component arrays.
-]]
-
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -34,19 +15,12 @@ local profiles: { [Player]: any } = {}
 local releaseCallbacks: { (player: Player, profile: any) -> () } = {}
 local loadedCallbacks: { (player: Player, profile: any) -> () } = {}
 
--- ProfileService handles, kept beside the plain data so the rest of the
--- codebase only ever sees `profile` and never has to know which backend won.
 DataService._handles = {} :: { [Player]: any }
 
 local ProfileService = nil
 local profileStore = nil
 local dataStore = nil
--- "profileservice" | "datastore" | "memory"
 local backend = "memory"
-
---------------------------------------------------------------------------------
--- Template
---------------------------------------------------------------------------------
 
 local function buildTemplate(): any
 	local skills = {}
@@ -73,34 +47,16 @@ local function buildTemplate(): any
 			materials = {},
 		},
 		seasons = 0,
-		--[[
-			Which skill training raises (§5). Server-owned so a client cannot
-			switch skill per-click to launder gains; changed through
-			Work.SelectSkill, which validates it.
 
-			Existing profiles pick this up through reconcile without a migration,
-			since it is a new scalar with a default.
-		]]
 		selectedSkill = Skills.ORDER[1],
 		companions = {},
 		gear = {},
 		recipes = {},
-		-- Cooked dishes owned, {recipeId = count}.
 		dishes = {},
-		--[[
-			Yoroi-san's work orders. `active` is orderId -> progress and holds at
-			most one; `completed` is the chain you have finished for good; `done`
-			is which of `day`'s standing orders you have already claimed, and is
-			cleared the first time you take one on a new day.
-		]]
 		workOrders = { completed = {}, active = {}, rank = 0 },
-		-- String keys throughout: DataStore serialises through JSON, which has
-		-- no integer keys, so {[1] = true} would come back as {["1"] = true}.
 		unlockedRegions = { [tostring(Areas.STARTING_AREA)] = true },
 		home = { furniture = {}, comfort = Constants.HOME.BASE_COMFORT },
 		gamepasses = {},
-		-- Market upgrade ladders, {upgradeId = level}. Bought with yen, never
-		-- reset by a season: they are the sink that makes the wage matter.
 		upgrades = {},
 		boosts = {},
 		stamina = { current = Constants.STAMINA.BASE_MAX, max = Constants.STAMINA.BASE_MAX },
@@ -124,18 +80,6 @@ local function deepCopy(value: any): any
 	return copy
 end
 
---------------------------------------------------------------------------------
--- Repair & migration
---------------------------------------------------------------------------------
-
---[[
-	Fills in anything a stored profile is missing and replaces anything that is
-	not a valid BigNum. A corrupted skill value must never reach the gain
-	formula — a single NaN there would propagate into every future save.
-]]
--- Player-populated collections. Reconcile must NOT walk into these: their keys
--- are data, not schema, and merging template keys in would resurrect items a
--- player spent or unlocks they lost to a season reset.
 local OPEN_MAPS = {
 	ingredients = true,
 	seasonings = true,
@@ -169,8 +113,6 @@ local function reconcile(profile: any): any
 
 	profile.unlockedWorksites = nil
 
-	-- Readiness used to belong to the single Kusatori exam; it is Exam Prep's
-	-- now. Move it across so a returning player does not lose a filled bar.
 	if type(profile.studyProgress) == "table" and (profile.studyProgress.examprep or 0) == 0 then
 		local carried = profile.studyProgress.kusatori
 		if type(carried) == "number" and carried > 0 then
@@ -226,7 +168,6 @@ local function reconcile(profile: any): any
 		profile.seasons = 0
 	end
 
-	-- Reap expired boosts rather than carrying dead rows forever.
 	local now = os.time()
 	for index = #profile.boosts, 1, -1 do
 		if (profile.boosts[index].expiresAt or 0) <= now then
@@ -239,10 +180,6 @@ local function reconcile(profile: any): any
 end
 
 DataService.reconcile = reconcile
-
---------------------------------------------------------------------------------
--- Backends
---------------------------------------------------------------------------------
 
 local function tryLoadProfileService()
 	local packages = ReplicatedStorage:FindFirstChild("Packages")
@@ -261,20 +198,6 @@ local function tryLoadProfileService()
 	return result
 end
 
---[[
-	Which persistence backend can actually be used here.
-
-	DataStoreService:GetDataStore() THROWS in an unpublished place ("You must
-	publish this place to the web to access DataStore"), and GetAsync throws
-	separately when Studio API access is switched off. Either one used to abort
-	DataService.init() outright, which meant PlayerAdded was never connected, no
-	profile ever loaded, and every gameplay action was silently refused because
-	DataService.get() returned nil.
-
-	So the probe is explicit and the failure is a DEGRADE, not a crash: an
-	in-memory backend keeps the game fully playable in Studio, and says loudly
-	that nothing will be saved.
-]]
 local function probeDataStore(): (any?, string?)
 	if game.PlaceId == 0 then
 		return nil, "place is not published"
@@ -287,8 +210,6 @@ local function probeDataStore(): (any?, string?)
 		return nil, tostring(store)
 	end
 
-	-- GetDataStore can succeed while requests still fail, so make one cheap
-	-- read before trusting it with a player's save.
 	local reachable, err = pcall(function()
 		return store:GetAsync("__probe")
 	end)
@@ -324,7 +245,7 @@ end
 
 local function fallbackSave(player: Player, profile: any): boolean
 	if backend == "memory" then
-		return true -- nothing to write to; the warning was issued at startup
+		return true
 	end
 
 	local ok, err = pcall(function()
@@ -336,19 +257,10 @@ local function fallbackSave(player: Player, profile: any): boolean
 	return ok
 end
 
---------------------------------------------------------------------------------
--- Lifecycle
---------------------------------------------------------------------------------
-
 function DataService.get(player: Player): any?
 	return profiles[player]
 end
 
---[[
-	Yields until the player's profile is available, or returns nil if they left
-	first. Every service that touches a profile on join goes through this rather
-	than racing PlayerAdded ordering.
-]]
 function DataService.await(player: Player, timeout: number?): any?
 	local deadline = os.clock() + (timeout or 20)
 	while not profiles[player] do
@@ -450,7 +362,6 @@ end
 
 function DataService.saveAll()
 	if backend ~= "datastore" then
-		-- ProfileService owns its own cadence; memory has nothing to flush.
 		return
 	end
 	for player, profile in profiles do
@@ -511,7 +422,6 @@ function DataService.init()
 	end)
 end
 
--- Lets other services tell the player the truth about their session.
 function DataService.getBackend(): string
 	return backend
 end

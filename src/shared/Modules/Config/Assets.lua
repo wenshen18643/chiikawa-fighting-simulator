@@ -16,7 +16,6 @@ export type AssetSpec = {
 }
 
 Assets.MODELS = {
-
 	tree = { id = 0, kind = "model", scale = 1, collide = false, canopy = true },
 	grass = { id = 0, kind = "model", scale = 1, collide = false },
 	stone = { id = 0, kind = "model", scale = 1, collide = false },

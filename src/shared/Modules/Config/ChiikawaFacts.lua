@@ -1,17 +1,3 @@
---[[
-	AI QUICK REFERENCE — SKIP THE FACTS TABLE UNLESS EDITING FACT COPY.
-
-	Purpose: 30 short Chiikawa-world facts used as flavour text on Study preview pages.
-	Public API: COUNT, get(factId), and pickId(rng, previousId). StudyService sends only
-	a server-selected factId; StudySession resolves and displays it. pickId avoids an
-	immediate repeat. Keep exactly 30 entries, plain English, and short enough for a
-	book page. Integration work should rely on this header/API without reading FACTS.
-
-	Copy is paraphrased from the official Chiikawa character and anime pages:
-	https://www.chiikawaofficial.com/characters/
-	https://www.anime-chiikawa.jp/index.html
-]]
-
 local FACTS = {
 	"Chiikawa is gentle, sweet, and kind.",
 	"Chiikawa is shy and sometimes cries when feeling nervous.",

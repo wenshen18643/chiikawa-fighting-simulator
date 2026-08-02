@@ -65,7 +65,6 @@ Cave.CLUMP_CHARS = ({
 }) :: { [string]: string }
 
 Cave.SHAFT = {
-
 	bore = 50,
 
 	radius = 30,
@@ -85,7 +84,6 @@ Cave.SHAFT = {
 }
 
 Cave.MOUTH_DRESSING = {
-
 	ringRadius = 64,
 	stones = 14,
 	stoneHeight = { 9, 21 },
@@ -272,11 +270,6 @@ function Cave.check(): { string }
 	return problems
 end
 
---[[
-	The section the sinkhole opens in: whichever one the first level is in.
-	Derived rather than configured, so the entrance cannot be left behind in an
-	empty field when the cave moves.
-]]
 function Cave.mouthCell(): Sections.Cell?
 	local first = Cave.LEVELS[1]
 	return if first then Sections.byCoord(first.coord) else nil
@@ -293,10 +286,6 @@ function Cave.isOpen(level: LevelDefinition, row: number, col: number): boolean
 	return Cave.OPEN[Cave.charAt(level, row, col)] == true
 end
 
---[[
-	Grid cell to world position. Row 1 is the HIGHEST Z, so rows count down in
-	Z the same way Sections.themeAt counts its own map down.
-]]
 function Cave.cellPosition(level: LevelDefinition, row: number, col: number): Vector3?
 	local cell = Sections.byCoord(level.coord)
 	if not cell then
@@ -323,11 +312,6 @@ function Cave.first(level: LevelDefinition, char: string): { row: number, col: n
 	return Cave.find(level, char)[1]
 end
 
---[[
-	The boss room is a block of B rather than one cell, so its centre is the
-	mean of the block: Mycelia is rooted at the middle of the floor it defends,
-	not at whichever B the scan happened to reach first.
-]]
 function Cave.bossCentre(level: LevelDefinition): Vector3?
 	local cells = Cave.find(level, Cave.BOSS)
 	if #cells == 0 then
@@ -359,11 +343,6 @@ function Cave.levelAt(position: Vector3): LevelDefinition?
 	return nil
 end
 
---[[
-	Every carved cell reachable from the level's own way in, walking only the
-	four compass directions. A grid typo that seals the boss behind rock is a
-	bug you find here at startup, not one a player finds forty minutes in.
-]]
 function Cave.reachable(level: LevelDefinition): ({ [number]: boolean }, number)
 	local start = Cave.first(level, Cave.ENTRANCE) or Cave.first(level, Cave.LANDING)
 	local seen: { [number]: boolean } = {}

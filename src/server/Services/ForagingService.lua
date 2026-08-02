@@ -1,28 +1,3 @@
---[[
-	The things that grow in Town, and pulling them out of the ground.
-
-	--------------------------------------------------------------------------------
-	IT IS THE WEED MECHANIC
-	--------------------------------------------------------------------------------
-
-	A forage node is pulled with the Work click, not a prompt: stand near it
-	with Kusatori selected and click, exactly as you would a weed. WorkService
-	owns that click and asks this module for the nearest node, so there is one
-	rule for "what does clicking do here" instead of two competing ones.
-
-	Where things grow is Config/Ingredients ZONES. Nodes come in clumps of one
-	ingredient so a grove reads as a carrot patch rather than a salad, and a
-	clump is pulled node by node — each one is its own small commitment.
-
-	Ground crops (carrot, potato) leave their dug soil behind when taken. The
-	dirt patch is the memory of the plant: it says something grew here and will
-	again, which an empty lawn does not.
-
-	Home Fields is the dynamic exception to ordinary node regrowth: its six
-	clumps stay depleted node by node, then the cleared clump moves and rerolls as
-	one crop after that crop's delay. The other forage zones still regrow in place.
-]]
-
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -61,31 +36,24 @@ export type Node = {
 	transparency: { [BasePart]: number },
 	solid: { [BasePart]: boolean },
 	pulled: boolean,
-	--[[
-		Gone for good, as opposed to `pulled`, which grows back. Nodes are never
-		removed from the list or their bucket -- pulling flags them instead -- so
-		a node whose model has been destroyed needs its own flag, or the pending
-		regrow timer flips `pulled` back and hands out ingredients from a clump
-		that is not there any more.
-	]]
 	retired: boolean?,
 	progress: { [Player]: number },
-	clicks: number, -- base clicks for THIS node: a bigger tree costs more
-	yield: number, -- how many ingredients one pull pays
+	clicks: number,
+	yield: number,
 }
 
 export type PlantOptions = {
 	parent: Instance,
-	height: number?, -- longest dimension once placed: height standing, length lying
+	height: number?,
 	clicks: number?,
 	yield: number?,
 	yaw: number?,
 	dirt: boolean?,
-	upright: boolean?, -- false leaves it lying where the asset was authored
+	upright: boolean?,
 	roll: number?,
-	sink: number?, -- fraction of its own height settled into the ground
-	collide: boolean?, -- true/false forces every part; nil keeps the asset's own
-	glow: boolean?, -- caps go Neon and carry a light: the cave's only wayfinding
+	sink: number?,
+	collide: boolean?,
+	glow: boolean?,
 }
 
 type DynamicClump = {
@@ -110,17 +78,8 @@ type DynamicZoneRuntime = {
 
 local nodes: { [Node]: boolean } = {}
 
---[[
-	Nodes bucketed on a flat grid as well as listed.
-
-	Every Work click asks for the nearest node, and the forest alone is ~900 of
-	them, so a scan of the whole list runs on every click of every player. The
-	pull radius is smaller than one bucket, so the answer is always inside four
-	of them. Fixed nodes stay in place, but dynamic Home Fields clumps are removed
-	and rebuilt. Set-shaped buckets prevent stale nodes after repeated rerolls.
-]]
 local BUCKET = 32
-local BUCKET_STRIDE = 100000 -- > any grid index the island can reach
+local BUCKET_STRIDE = 100000
 local buckets: { [number]: { [Node]: boolean } } = {}
 local nodeBucketKeys: { [Node]: number } = {}
 local nodeClumps: { [Node]: DynamicClump } = {}
@@ -178,8 +137,6 @@ local onClumpNodeHarvested: ((Node) -> boolean)? = nil
 
 ForagingService.ready = false
 
--- Yields until the ground is measurable and the zones are planted. Anything
--- that plants its own nodes waits on this rather than racing the terrain pass.
 function ForagingService.awaitReady()
 	if ForagingService.ready then
 		return
@@ -187,17 +144,6 @@ function ForagingService.awaitReady()
 	readySignal.Event:Wait()
 end
 
---------------------------------------------------------------------------------
--- Pulling
---------------------------------------------------------------------------------
-
---[[
-	Who wants telling that something was pulled.
-
-	A callback list rather than a require: work orders care about foraging, but
-	foraging must not care about work orders, or the two cannot be reasoned
-	about separately -- and MobService already publishes its kills this way.
-]]
 local pulledCallbacks: { (Player, Ingredients.IngredientDefinition, number) -> () } = {}
 
 function ForagingService.onPulled(callback: (Player, Ingredients.IngredientDefinition, number) -> ())
@@ -221,7 +167,6 @@ local function harvest(player: Player, profile: any, node: Node)
 	local def = node.ingredient
 	local yield = node.yield
 
-	-- A finished node resets for everyone, not just whoever landed the last click.
 	node.progress = {}
 	node.pulled = true
 
@@ -246,8 +191,6 @@ local function harvest(player: Player, profile: any, node: Node)
 		NotifyService.send(player, `Foraged {def.name}{suffix}!`, "reward")
 	end
 
-	-- Collision goes with the picture. A pulled tree that is still solid is an
-	-- invisible wall in the middle of a forest you are trying to walk through.
 	for part in node.transparency do
 		if part.Parent then
 			part.Transparency = 1
@@ -256,8 +199,6 @@ local function harvest(player: Player, profile: any, node: Node)
 	end
 	CollectionService:RemoveTag(node.model, ForagingService.TAG)
 
-	-- A glowcap that keeps shining after it is picked is a lamp floating in the
-	-- dark, and underground it is also a landmark that lies.
 	setGlow(node.model, false)
 
 	if onClumpNodeHarvested and onClumpNodeHarvested(node) then
@@ -265,7 +206,6 @@ local function harvest(player: Player, profile: any, node: Node)
 	end
 
 	task.delay(def.regrowSeconds, function()
-		-- Retired while it was regrowing: the ground it stood on is a shaft now.
 		if node.retired then
 			return
 		end
@@ -283,22 +223,6 @@ local function harvest(player: Player, profile: any, node: Node)
 	end)
 end
 
---------------------------------------------------------------------------------
--- Public
---------------------------------------------------------------------------------
-
---[[
-	Removes every node standing in a disc, permanently.
-
-	Lives here rather than in the caller because destroying the MODEL is only
-	half the job: a bucket entry whose model is gone is a clump a player can
-	still walk up to and pull ingredients out of thin air from. Unregistering it
-	drops it from the list and its bucket; the retired flag is what stops the
-	regrow timer already in flight from bringing it back.
-
-	The caller is CaveService, which carves the ground out from under scenery
-	that was seated before the cave existed.
-]]
 function ForagingService.clearArea(centre: Vector3, radius: number)
 	for node in nodes do
 		if node.retired then
@@ -349,13 +273,6 @@ function ForagingService.nearestPullable(position: Vector3, maxDist: number): No
 	return best
 end
 
---[[
-	One click on `node`. Returns true when the click was spent on it.
-
-	The caller still credits the click as ordinary Kusatori work — every click
-	pays, and finishing the node pays again on top. Being close to done is not
-	worth less than standing on a lawn.
-]]
 function ForagingService.pull(player: Player, profile: any, node: Node): boolean
 	if node.pulled then
 		return false
@@ -370,8 +287,6 @@ function ForagingService.pull(player: Player, profile: any, node: Node): boolean
 	local current = (node.progress[player] or 0) + 1
 	node.progress[player] = current
 
-	-- Spectators watch the gesture through the character; the local player's
-	-- own clip is started client-side so it does not wait for the round trip.
 	character:SetAttribute("ForageClip", def.clip)
 	character:SetAttribute("ForageClipAt", os.clock())
 
@@ -385,27 +300,15 @@ function ForagingService.pull(player: Player, profile: any, node: Node): boolean
 	return true
 end
 
---------------------------------------------------------------------------------
--- Building the zones
---------------------------------------------------------------------------------
-
 local function groundAt(x: number, z: number, top: number, params: RaycastParams): number
 	local hit = Workspace:Raycast(Vector3.new(x, top + 80, z), Vector3.new(0, -260, 0), params)
 	return if hit then hit.Position.Y else top
 end
 
--- Terrain height, ignoring everything already placed in the region.
 function ForagingService.groundAt(x: number, z: number): number
 	return groundAt(x, z, groundTop, groundParams)
 end
 
---[[
-	The dug soil a ground crop sits in.
-
-	Built as a flat disc rather than terrain: terrain edits are permanent, and a
-	crop that regrows would have to fill its own hole back in. A dark disc under
-	the leaves reads as turned earth and costs one part.
-]]
 local function buildDirt(parent: Instance, position: Vector3, rng: Random)
 	local size = FORAGE.DIRT_PATCH_SIZE * rng:NextNumber(0.85, 1.2)
 
@@ -424,23 +327,6 @@ local function buildDirt(parent: Instance, position: Vector3, rng: Random)
 	dirt.Parent = parent
 end
 
---[[
-	Grow one pullable node.
-
-	Public because the sausage forest lays its trees out by board section rather
-	than by zone: it picks size, clicks and yield per tree, and this stays the
-	one place that knows how a node is built and registered.
-]]
---[[
-	Makes a node its own lamp.
-
-	The cave has no sky, and a maze lit only by the player's own light is a
-	maze nobody can read. Glowing clumps ARE the wayfinding: the thing worth
-	walking to is the thing you can see from the junction.
-
-	One light per clump, on the widest part only. A PointLight on every cap of
-	every mushroom is a lighting bill for a decoration nobody looks at twice.
-]]
 local GLOW_COLOR = Color3.fromRGB(178, 226, 208)
 
 local function lightUp(model: Model)
@@ -487,8 +373,6 @@ function ForagingService.plant(
 		ModelUtil.standUpright(model)
 	end
 
-	-- Sized against the player rather than against whatever the author uploaded:
-	-- a two-storey carrot and a thumbnail sausage tree both break the scene.
 	local height = options.height or def.height
 	if height then
 		ModelUtil.scaleToLongest(model, height)
@@ -508,8 +392,6 @@ function ForagingService.plant(
 	ModelUtil.seat(model, position, options.yaw or 0, options.roll, options.sink)
 	model.Parent = options.parent
 
-	-- The client finds the nearest of these to start the right dig animation
-	-- before the server has answered.
 	CollectionService:AddTag(model, ForagingService.TAG)
 
 	if options.glow then
@@ -565,9 +447,6 @@ local function nearestClumpDistance(runtime: DynamicZoneRuntime, candidate: Vect
 	return nearest
 end
 
--- Pick inside the field after subtracting the node spread, so every crop in a
--- clump stays inside the configured radius. If the requested spacing cannot be
--- met in bounded attempts, the best-separated candidate still fills the slot.
 local function chooseClumpCentre(runtime: DynamicZoneRuntime, clump: DynamicClump): Vector3
 	local zone = runtime.definition
 	local radius = math.max(zone.radius - FORAGE.CLUMP_SPREAD, 0)
@@ -720,7 +599,6 @@ onClumpNodeHarvested = function(node: Node): boolean
 
 	clump.remaining -= 1
 	if clump.remaining > 0 then
-		-- Deliberate scarcity: dynamic clumps do not refill individual nodes.
 		return true
 	end
 
@@ -808,8 +686,6 @@ local function buildZone(
 		return
 	end
 
-	-- Seeded per zone: the same grove on every server, and moving one zone in
-	-- config does not reshuffle the others.
 	local rng = Random.new(seedOf(zone.id))
 	local centre = Layout.forageZoneCentre(area, zone)
 
@@ -823,8 +699,6 @@ local function buildZone(
 			continue
 		end
 
-		-- Clumps ring the zone centre; the ring is what keeps two clumps from
-		-- landing on top of each other while a plain random scatter would.
 		local angle = (index / zone.clumps) * math.pi * 2 + rng:NextNumber(-0.35, 0.35)
 		local reach = zone.radius * rng:NextNumber(0.35, 1)
 		local clumpX = centre.X + math.cos(angle) * reach
@@ -857,20 +731,12 @@ function ForagingService.init()
 	groves.Name = "Forage"
 	groves.Parent = regionFolder
 
-	-- Exclude the whole region folder so a node stands on terrain rather than
-	-- on a pad, a hut roof or an already-placed bush.
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = { regionFolder }
 	groundParams = params
 	groundTop = Layout.plazaCFrame(area).Position.Y
 
-	--[[
-		Off the boot path and behind the terrain pass. Section relief is built on
-		a background task, and a node seated before the hills arrive is a node
-		buried in one -- every plant here is placed by a raycast against ground
-		that has to exist first.
-	]]
 	task.spawn(function()
 		TerrainBuilder.awaitReady()
 		local step = Budget.stepper()

@@ -11,7 +11,6 @@ local LEGS_LIGHT = {
 }
 
 PlayerAnims.CLIPS = {
-
 	tobatsu = {
 		length = 0.82,
 		mask = LEGS_LIGHT,

@@ -1,15 +1,3 @@
---[[
-	Stamina. See docs/GAME.md §4 and §2 rule 3.
-
-	Stamina is the cozy version of a rate limit. Running out does not stop the
-	player earning and does not take anything away — the character sits down for
-	a few seconds and keeps earning at the AFK rate, then gets up. There is no
-	failure state here and there must never be one.
-
-	Deliberately NOT monetised: §14 rules out selling stamina refills, because
-	charging for rest inverts the tone the whole game is built on.
-]]
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -28,11 +16,6 @@ function StaminaService.isResting(player: Player): boolean
 	return (restingUntil[player] or 0) > os.clock()
 end
 
---[[
-	Tries to pay the stamina cost of one work action.
-	Returns false when the player is resting or too tired — the caller then
-	credits nothing for this action, but the AFK tick keeps paying out.
-]]
 function StaminaService.tryConsume(player: Player, profile: any): boolean
 	if StaminaService.isResting(player) then
 		return false
@@ -67,8 +50,6 @@ function StaminaService.init()
 				continue
 			end
 
-			-- Max stamina tracks Grit, which changes constantly, so it is
-			-- recomputed rather than stored as a source of truth.
 			profile.stamina.max = Formulas.maxStamina(profile)
 
 			if profile.stamina.current < profile.stamina.max then

@@ -2,9 +2,10 @@
 # Rebuild game-3 and reopen it in Roblox Studio.
 # Run from Git Bash in this repo: ./reload.sh
 #
-#   ./reload.sh            build, regenerate sourcemap, restart Studio
-#   ./reload.sh --no-open  build only, leave Studio alone (use in a check loop)
-#   ./reload.sh --check    build + analyze, never touches Studio
+#   ./reload.sh            strip comments, build, sourcemap, lint, type-check,
+#                          restart Studio. This is the only command you need.
+#   ./reload.sh --no-open  same, but leave Studio alone (use in a check loop)
+#   ./reload.sh --check    same, and FAIL on type errors, never touches Studio
 
 set -e
 
@@ -43,6 +44,12 @@ if [ ! -d "$PROJECT_ROOT/Packages" ]; then
     echo "         Run 'wally install' before any public test."
 fi
 
+# Runs BEFORE the build, or the place would be built from unstripped source.
+# selene has no lint for comments (its rules are all semantic), so the
+# no-comments rule from CLAUDE.md is enforced by tools/comments.ps1.
+echo "Stripping comments..."
+powershell -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/tools/comments.ps1" -Path "$PROJECT_ROOT/src" -Fix
+
 echo "Building project with $ROJO..."
 "$ROJO" build default.project.json -o "$BUILD_OUTPUT"
 
@@ -55,15 +62,20 @@ if command -v selene >/dev/null 2>&1; then
     selene src
 fi
 
-if [ "$RUN_CHECK" -eq 1 ]; then
-    if command -v luau-lsp >/dev/null 2>&1; then
-        echo "Type-checking with luau-lsp..."
+# Runs on every reload, but only blocks under --check: src carries
+# pre-existing type errors and a plain reload should still reach Studio.
+if command -v luau-lsp >/dev/null 2>&1; then
+    echo "Type-checking with luau-lsp..."
+    if [ "$RUN_CHECK" -eq 1 ]; then
         luau-lsp analyze --platform=roblox --sourcemap=sourcemap.json --no-strict-dm-types \
             $(find src -name '*.lua')
     else
-        echo "luau-lsp not on PATH - skipping type check."
-        echo "Get it from https://github.com/JohnnyMorganz/luau-lsp/releases"
+        luau-lsp analyze --platform=roblox --sourcemap=sourcemap.json --no-strict-dm-types \
+            $(find src -name '*.lua') || echo "Type check reported issues (not blocking)."
     fi
+else
+    echo "luau-lsp not on PATH - skipping type check."
+    echo "Get it from https://github.com/JohnnyMorganz/luau-lsp/releases"
 fi
 
 if [ "$OPEN_STUDIO" -eq 0 ]; then

@@ -246,11 +246,6 @@ local function rigWolf(model: Model): (BasePart?, BasePart?)
 	return root, head
 end
 
---[[
-	The guardian is the plain sausage asset with a temper: three primitives, no
-	joints and no face. Everything that makes it a creature is added here, so
-	the same capsule serves as scenery, as a guardian and as the BIG tree.
-]]
 local function blackPart(model: Model, name: string, size: Vector3, cframe: CFrame): Part
 	local part = Instance.new("Part")
 	part.Name = name
@@ -266,8 +261,6 @@ local function blackPart(model: Model, name: string, size: Vector3, cframe: CFra
 	return part
 end
 
--- Features sit just proud of the skin so they read from any angle without the
--- z-fighting of a decal on a curved surface.
 local function buildAngryFace(model: Model, at: CFrame, radius: number)
 	local skin = radius * 0.94
 	local eye = radius * 0.34
@@ -275,7 +268,6 @@ local function buildAngryFace(model: Model, at: CFrame, radius: number)
 		local across = side * radius * 0.38
 		local sphere = blackPart(model, "Eye", Vector3.new(eye, eye, eye), at * CFrame.new(across, 0, -skin))
 		sphere.Shape = Enum.PartType.Ball
-		-- Brows tilted in towards the nose: the whole expression is these two.
 		blackPart(
 			model,
 			"Brow",
@@ -291,10 +283,6 @@ local function buildAngryFace(model: Model, at: CFrame, radius: number)
 	)
 end
 
---[[
-	One stubby arm, its inner cap buried in the body so the shoulder never shows
-	a gap. Returns the arm and the world point the shoulder pivots on.
-]]
 local function buildArm(model: Model, body: BasePart, at: CFrame, radius: number, side: number): (BasePart, Vector3)
 	local length = radius * 1.4
 	local arm = Instance.new("Part")
@@ -332,8 +320,6 @@ local function rigSausageGuardian(model: Model): (BasePart?, BasePart?)
 	local centre, size = ModelUtil.worldBox(model)
 	local radius = math.max(math.min(size.X, size.Z) / 2, 0.1)
 
-	-- Identity rotation, so the face is always on the root's LookVector side and
-	-- turning to face a player turns the face with it.
 	local root = Instance.new("Part")
 	root.Name = "HumanoidRootPart"
 	root.Size = Vector3.new(math.max(radius * 2, 2), 2, math.max(radius * 2, 2))
@@ -358,25 +344,6 @@ local function rigSausageGuardian(model: Model): (BasePart?, BasePart?)
 	weldLoose(model, { [root] = true, [body] = true, [armL] = true, [armR] = true }, body)
 	return root, body
 end
-
---------------------------------------------------------------------------------
--- The cave
---------------------------------------------------------------------------------
-
---[[
-	The cave's four are BUILT, not cloned.
-
-	Nothing underground is a reskin of something on the surface: a cave frog
-	with a darker hat is still the surface frog, and the point of walking down
-	three levels is meeting things you have not met. So these are assembled from
-	primitives here, the same way NpcService assembles the cast and
-	rigSausageGuardian grows a face onto a capsule.
-
-	Colours live in the definition's `palette` rather than in this file, so
-	retinting one is a config edit. Proportions are all fractions of the
-	definition's `height`, so a bigger Sporeling is the same creature bigger
-	rather than a stretched one.
-]]
 
 local CAVE_DEFAULT_PALETTE: { [string]: Color3 } = {
 	body = Color3.fromRGB(226, 214, 198),
@@ -443,11 +410,6 @@ local function buildRoot(model: Model, name: string, width: number, groundY: num
 	return root
 end
 
---[[
-	Eyes sit just proud of the surface they belong to, for the same reason the
-	guardian's do: a decal on a curve z-fights, and two spheres read from every
-	angle including behind.
-]]
 local function addEyes(model: Model, face: CFrame, spread: number, size: number, color: Color3)
 	for _, side in { -1, 1 } do
 		piece(
@@ -461,11 +423,6 @@ local function addEyes(model: Model, face: CFrame, spread: number, size: number,
 	end
 end
 
---[[
-	A cap is a BALL sunk into its own stalk rather than a hemisphere mesh. The
-	buried half never renders, the visible half is a perfect dome, and it costs
-	one part.
-]]
 local function buildSporeling(model: Model, definition: Mobs.MobDefinition): (BasePart, BasePart)
 	local palette = paletteOf(definition)
 	local h = definition.height
@@ -545,11 +502,6 @@ local function buildSporeling(model: Model, definition: Mobs.MobDefinition): (Ba
 	return root, cap
 end
 
---[[
-	Low and wide, because it is the thing that hits you and a player has to read
-	"do not stand in front of this" from across a corridor. Its silhouette is
-	the plates, so they are the only parts allowed to be big.
-]]
 local function buildPebblejaw(model: Model, definition: Mobs.MobDefinition): (BasePart, BasePart)
 	local palette = paletteOf(definition)
 	local h = definition.height
@@ -637,12 +589,6 @@ local function buildPebblejaw(model: Model, definition: Mobs.MobDefinition): (Ba
 	return root, body
 end
 
---[[
-	The wisp is the cave's light source with legs taken off: it is why level two
-	is navigable and why catching one is worth a work order. Its motes ride the
-	limb joints so the shared clip machinery can spin them without a bespoke
-	animator.
-]]
 local function buildWisp(model: Model, definition: Mobs.MobDefinition): (BasePart, BasePart)
 	local palette = paletteOf(definition)
 	local h = definition.height
@@ -658,8 +604,6 @@ local function buildWisp(model: Model, definition: Mobs.MobDefinition): (BasePar
 		{ shape = Enum.PartType.Ball, material = Enum.Material.Neon }
 	)
 
-	-- Welded by name in weldLoose below rather than held here: the halo is
-	-- decoration and nothing else ever addresses it.
 	piece(
 		model,
 		"Shell",
@@ -707,11 +651,6 @@ local function buildWisp(model: Model, definition: Mobs.MobDefinition): (BasePar
 	return root, core
 end
 
---[[
-	The Cap Mother is rooted: she never takes a step, so every stud of her is
-	spent on reach and on being visible from the door. The skirt is what makes
-	her read as grown out of the floor rather than parked on it.
-]]
 local function buildMycelia(model: Model, definition: Mobs.MobDefinition): (BasePart, BasePart)
 	local palette = paletteOf(definition)
 	local h = definition.height
@@ -809,11 +748,6 @@ local BUILDERS: { [string]: (Model, Mobs.MobDefinition) -> (BasePart, BasePart) 
 	mycelia = buildMycelia,
 }
 
---[[
-	Stands a built creature up in ReplicatedStorage-free space. The caller is
-	MobService, in place of AssetService.clone: a built mob has no asset id to
-	fail to download, which is the other reason the cave uses them.
-]]
 function MobRig.build(definition: Mobs.MobDefinition): Model?
 	local builderId = (definition :: any).build
 	local builder = if type(builderId) == "string" then BUILDERS[builderId] else nil
@@ -892,11 +826,6 @@ local function configurePhysics(model: Model, root: BasePart, collisionGroup: st
 	end
 end
 
---[[
-	Everything a rigged mob needs that is the same whether it was cloned or
-	built: a humanoid sized off the definition, the anim profile attribute the
-	client resolves its skeleton from, and a health bar over the display part.
-]]
 local function finishRig(
 	model: Model,
 	root: BasePart,
@@ -931,11 +860,6 @@ function MobRig.rig(
 	local root: BasePart?
 	local displayPart: BasePart?
 
-	--[[
-		A built creature arrives already jointed and already the right height,
-		so it skips both the cleanup pass and the rescale: clearInheritedBehavior
-		destroys every JointInstance it finds, and a Motor6D is one.
-	]]
 	local builtDisplay = model:GetAttribute("BuiltDisplay")
 	if type(builtDisplay) == "string" then
 		local found = model:FindFirstChild("HumanoidRootPart")
@@ -952,8 +876,6 @@ function MobRig.rig(
 	if definition.rigProfile == "mushroomFrog" then
 		flattenFrog(model)
 	elseif definition.rigProfile == "sausageGuardian" then
-		-- Authored lying down, and height scaling measures Y: stand it first or
-		-- the guardian is scaled by its own girth.
 		ModelUtil.standUpright(model)
 	end
 	if not ModelUtil.scaleToHeight(model, definition.height) then

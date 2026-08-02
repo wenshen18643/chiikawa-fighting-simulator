@@ -1,29 +1,3 @@
---[[
-	The HUD. Built in code so it lives in version control rather than in a
-	.rbxlx nobody can diff. Visual tokens live in Theme.lua.
-
-	Reads StateController only — every number shown here came from the server
-	(docs/GAME.md §13). Nothing is computed locally and then trusted.
-
-	    ┌ identity ─────┐                        ┌ minimap ──┐
-	    │ bust · purse  │                        │ local     │
-	    └───────────────┘                        │ world     │
-	    (o) atlas                                └───────────┘
-	    (o) help
-	                  ┌ work core ─────────┐
-	                  │ ring · what · how  │          (UI/WorkCore)
-	                  └────────────────────┘
-	              ( 1 )  ( 2 )  ( 3 )  ( 4 )          (UI/SkillBar)
-
-	This file owns the identity block, the side rail and the toasts, and hosts
-	the panels that own themselves: SkillBar, WorkCore, Minimap and Atlas.
-
-	The skills moved out of a card down the left and into the round bottom-centre
-	bar — see UI/SkillBar for why. What is left here is the wiring: this file
-	still decides what ACTIVE and SELECTED mean and tells the bar, because that
-	distinction is a rule about the game rather than about a button.
-]]
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
@@ -35,7 +9,6 @@ local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
 local UI = require(Shared.UI)
 
--- Skill selection moved to UI/SkillBar, which talks to WorkController itself.
 local StateController = require(script.Parent.Parent.Controllers.StateController)
 local Atlas = require(script.Parent.Atlas)
 local ControlsPanel = require(script.Parent.ControlsPanel)
@@ -46,9 +19,6 @@ local WorkCore = require(script.Parent.WorkCore)
 
 local HUD = {}
 
--- Below this the side panels come off. A phone cannot carry three of them, and
--- shrinking everything into illegibility is worse than showing less. The skill
--- bar is NOT one of them: it is the primary control and stays at every width.
 local COMPACT_WIDTH = 760
 
 local skillEntries: { [string]: SkillBar.SkillEntry } = {}
@@ -68,18 +38,6 @@ local selectedSkill: string? = nil
 local buffChips: { TextLabel } = {}
 local buffKey = ""
 
---------------------------------------------------------------------------------
--- Identity
---------------------------------------------------------------------------------
-
---[[
-	A live portrait of the player's own character, rendered in a ViewportFrame
-	from a clone of their model.
-
-	No asset, no thumbnail API, no upload: the character already exists on the
-	client, so a copy of it in a little box costs one clone and a camera. It is
-	the cheapest way to make a HUD feel like it belongs to a person.
-]]
 local function buildBust(parent: Frame)
 	local viewport = Instance.new("ViewportFrame")
 	viewport.Name = "Bust"
@@ -103,8 +61,6 @@ local function buildBust(parent: Frame)
 			end
 		end
 
-		-- Archivable is false on live characters, so a straight Clone returns
-		-- nil. Flip it for the duration of the copy and put it back.
 		local wasArchivable = character.Archivable
 		character.Archivable = true
 		local clone = character:Clone()
@@ -114,8 +70,6 @@ local function buildBust(parent: Frame)
 		end
 
 		for _, descendant in clone:GetDescendants() do
-			-- A cloned Humanoid in a viewport will try to simulate and will
-			-- spam state-change errors; scripts would run for real.
 			if descendant:IsA("Humanoid") or descendant:IsA("BaseScript") then
 				descendant:Destroy()
 			elseif descendant:IsA("BasePart") then
@@ -217,10 +171,6 @@ local function buildIdentity(parent: Instance)
 	})
 end
 
---------------------------------------------------------------------------------
--- Active buffs
---------------------------------------------------------------------------------
-
 local function buffLabel(boost: any): string
 	if boost.skill then
 		local skill = Skills.get(boost.skill)
@@ -265,7 +215,6 @@ local function updateBuffs(boosts: { any }?)
 		end
 	end
 
-	-- Chips are rebuilt only when the set changes; the countdown is text.
 	if key ~= buffKey then
 		buffKey = key
 		buffChips = {}
@@ -289,7 +238,6 @@ local function updateBuffs(boosts: { any }?)
 		end
 	end
 
-	-- Same key means the same boosts in the same order, so index matches.
 	for index, label in buffChips do
 		local boost = active[index]
 		label.Text = `x{boost.multiplier} {buffLabel(boost)} {boost.expiresAt - now}s`
@@ -298,17 +246,6 @@ local function updateBuffs(boosts: { any }?)
 	buffHolder.Visible = #active > 0
 end
 
---------------------------------------------------------------------------------
--- Side rail
---------------------------------------------------------------------------------
-
---[[
-	Round buttons down the left edge, under the identity card.
-
-	One shape, stacked, rather than a labelled pill in whichever corner each
-	panel's author picked — the Atlas button used to sit alone in the bottom
-	right, which is now where the skill bar's fourth button lives.
-]]
 local function buildSideRail(parent: Instance, buttons: { { glyph: string, hint: string, activated: () -> () } })
 	local rail = Instance.new("Frame")
 	rail.Name = "SideRail"
@@ -344,7 +281,6 @@ local function buildSideRail(parent: Instance, buttons: { { glyph: string, hint:
 			zIndex = 6,
 		})
 
-		-- The keyboard shortcut on the button, same trick as the skill badges.
 		local hint = Instance.new("Frame")
 		hint.Name = "Hint"
 		hint.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -370,10 +306,6 @@ local function buildSideRail(parent: Instance, buttons: { { glyph: string, hint:
 		button.Activated:Connect(spec.activated)
 	end
 end
-
---------------------------------------------------------------------------------
--- Toasts
---------------------------------------------------------------------------------
 
 local TOAST_GLYPH = {
 	unlock = "home",
@@ -448,17 +380,6 @@ local function showToast(message: string, kind: string)
 	end)
 end
 
---------------------------------------------------------------------------------
--- Behaviour
---------------------------------------------------------------------------------
-
---[[
-	Fraction of the way from the grade this value already reaches to the next
-	one. Computed in log space because the ladder is geometric — a linear bar
-	over 1e2..1e4 would sit pinned at zero for most of the climb.
-
-	Also returns how many grades the value covers, which is what the pips show.
-]]
 local function gradeProgress(value: any): (number, number)
 	local current = math.max(BigNumber.log10(value), 0)
 
@@ -478,7 +399,7 @@ local function gradeProgress(value: any): (number, number)
 		lower = requirement
 	end
 
-	return 1, met -- past the top canon grade
+	return 1, met
 end
 
 local function update(snapshot: any)
@@ -504,9 +425,6 @@ local function update(snapshot: any)
 		local text = if value then BigNumber.toString(value) else "0"
 		entry.setValue(text, if value then BigNumber.toNumber(value) else nil)
 
-		-- Written long rather than as a conditional expression: `if ... then f()
-		-- else 0, 0` only ever binds one value, so `met` would silently be nil
-		-- and every pip strip would read empty.
 		local progress, met = 0, 0
 		if value then
 			progress, met = gradeProgress(value)
@@ -525,30 +443,13 @@ local function update(snapshot: any)
 	WorkCore.update(snapshot)
 end
 
---------------------------------------------------------------------------------
--- Layout
---------------------------------------------------------------------------------
-
---[[
-	Phone screens cannot carry three side panels. Drop the secondary ones rather
-	than shrinking everything into illegibility — the work core stays, because it
-	is the only one you cannot play without.
-]]
 local function applyResponsiveLayout()
 	local compact = screen.AbsoluteSize.X < COMPACT_WIDTH
 
-	-- The minimap is NOT touched here any more. It is hidden by default and
-	-- owned by its own M toggle, so forcing Visible from the layout pass would
-	-- reopen it every time the window resized.
-
-	-- The skill bar stays at every width — it is the primary control, not a
-	-- side panel. It only shrinks, so four buttons still fit on a phone.
 	if skillBarHolder then
 		skillBarHolder.Size = UDim2.fromOffset(if compact then 300 else 4 * 82 + 3 * 10, if compact then 92 else 106)
 	end
 
-	-- On a narrow screen the identity card sheds its lower half rather than
-	-- disappearing: the purse is the one number a player checks constantly.
 	identityCard.Size = if compact then UDim2.fromOffset(212, 78) else UDim2.fromOffset(268, 116)
 end
 
@@ -572,8 +473,6 @@ function HUD.init()
 	Minimap.build(screen)
 	WorkCore.build(screen)
 
-	-- The Atlas gets its own ScreenGui at a higher DisplayOrder: it is a modal
-	-- and must cover the HUD rather than fight it for ZIndex.
 	local atlasScreen = Instance.new("ScreenGui")
 	atlasScreen.Name = "Atlas"
 	atlasScreen.ResetOnSpawn = false
@@ -582,8 +481,6 @@ function HUD.init()
 	atlasScreen.Parent = playerGui
 	Atlas.build(atlasScreen)
 
-	-- A permanent way in, since not every player will try the M key. The bottom
-	-- right is the skill bar's now, so these live on the left rail instead.
 	buildSideRail(screen, {
 		{
 			glyph = "pin",
@@ -621,8 +518,6 @@ function HUD.init()
 
 	StateController.onChanged(update)
 
-	-- Work.Feedback is NOT wired here any more — FeedbackController owns the
-	-- "+N" and everything else that happens when a click lands.
 	Remotes.event("Notify", "Message").OnClientEvent:Connect(showToast)
 end
 

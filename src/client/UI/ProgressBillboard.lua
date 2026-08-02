@@ -1,11 +1,3 @@
---[[
-	A world-space "x of y" counter that follows whatever it was last pointed at.
-
-	One reusable board per caller rather than one per thing being worked: the
-	counter belongs over the tree or the bowl you are hitting, and moving it is
-	cheaper — and reads better — than stacking a second card.
-]]
-
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -148,7 +140,6 @@ function ProgressBillboard.show(
 	self.hideAt = os.clock() + self.lifetime
 end
 
--- Start the fade now: whatever this was describing is gone.
 function ProgressBillboard.dismiss(self: Board)
 	self.hideAt = math.min(self.hideAt, os.clock())
 end

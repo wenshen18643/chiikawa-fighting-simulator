@@ -1,11 +1,3 @@
---[[
-	Owns Yen and Stamps. See docs/GAME.md §8 and §13.
-
-	There is no client-writable currency remote by design. Purchases go through
-	spend(), which validates the balance server-side and returns false rather
-	than trusting anything the client claims to be able to afford.
-]]
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -37,11 +29,6 @@ function CurrencyService.award(profile: any, currency: string, amount: BigNum)
 	profile.currencies[currency] = BigNumber.add(profile.currencies[currency], amount)
 end
 
---[[
-	Returns false and changes nothing when the player cannot afford it. Callers
-	must check the return value before granting anything — this is the only
-	guard between a spoofed purchase request and a free item.
-]]
 function CurrencyService.spend(profile: any, currency: string, amount: BigNum): boolean
 	if not VALID[currency] then
 		return false
@@ -58,8 +45,6 @@ function CurrencyService.canAfford(profile: any, currency: string, amount: BigNu
 	return BigNumber.gte(CurrencyService.get(profile, currency), amount)
 end
 
--- §8: the passive wage. Paid in slices so the HUD number visibly moves rather
--- than jumping once a minute.
 function CurrencyService.init()
 	task.spawn(function()
 		local interval = Constants.CURRENCY.WAGE_TICK_INTERVAL

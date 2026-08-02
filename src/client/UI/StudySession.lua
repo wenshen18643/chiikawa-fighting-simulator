@@ -1,12 +1,3 @@
---[[
-	The open-book Study & Recall interface.
-
-	Most of the game uses dark arcade panels. This one deliberate exception is a
-	bright paper booklet inside the same heavy outline: the UI becomes the prop
-	the character is holding. All plants are drawn from Frames, so there are no
-	image uploads and every option remains crisp on phone screens.
-]]
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -851,8 +842,6 @@ local function onStudyEvent(payload: any)
 		setModalOpen(true)
 		renderQuestion(payload, nil, nil, false)
 	elseif payload.kind == "feedback" and currentQuestionPayload then
-		-- The feedback packet has no option list, so keep the last issued
-		-- question payload and layer the authoritative result over it.
 		local previous = currentQuestionPayload
 		renderQuestion(previous, payload.selectedId, payload.correctId, true)
 		if latestStudy and type(payload.focusExpiresAt) == "number" then

@@ -1,14 +1,3 @@
---[[
-	The Exam Hall counter, opened by the desk prompt in Town.
-
-	One row per skill, and every row states its own verdict: what grade you hold,
-	what the next one gives you, and — when it is out of reach — the single
-	sentence saying why. There is never a button that does nothing, because a
-	dead button is a question the player has to take somewhere else to answer.
-
-	Nothing is decided here. Rows arrive whole from ExamService; this draws them.
-]]
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -68,18 +57,6 @@ local function setPanelMode(showQuiz: boolean)
 	capLabel.Visible = not showQuiz
 end
 
---------------------------------------------------------------------------------
--- Rows
---------------------------------------------------------------------------------
-
---[[
-	Progress toward the next grade, measured in exponents.
-
-	Linear on the raw value would sit pinned at zero for all but the last
-	fraction of a grade, because each grade is ten times the last. In log space
-	the bar moves the whole way up, which is what the player's effort is
-	actually doing.
-]]
 local function progressOf(row: any): number
 	local current = math.max(BigNumber.log10(row.current), 0)
 	local target = BigNumber.log10(row.requirement)
@@ -224,10 +201,6 @@ local function renderRows(payload: any)
 
 	list.CanvasSize = UDim2.fromOffset(0, canvasHeight(payload.rows, 0))
 end
-
---------------------------------------------------------------------------------
--- The plant quiz
---------------------------------------------------------------------------------
 
 local function renderQuiz(payload: any, selectedId: string?, correctId: string?, locked: boolean)
 	setPanelMode(true)
@@ -378,21 +351,11 @@ local function renderResult(payload: any)
 	list.CanvasSize = UDim2.fromOffset(0, canvasHeight(payload.rows, 96 + GAP))
 end
 
---------------------------------------------------------------------------------
--- Build
---------------------------------------------------------------------------------
-
 function ExamCounter.setOpen(open: boolean)
 	setOpen(open)
 end
 
 function ExamCounter.build(parent: Instance)
-	--[[
-		Closing runs through onToggled rather than setOpen, because the scrim
-		closes the panel without going through this module at all. An abandoned
-		exam has to reach the server either way, or the next sit is refused by a
-		session nobody is looking at.
-	]]
 	scrim, panel, setOpen = UI.modal(parent, "ExamCounter", {
 		extent = UDim2.fromScale(0.62, 0.82),
 		zIndex = 32,
@@ -492,8 +455,6 @@ function ExamCounter.init()
 			currentQuestion = payload
 			renderQuiz(payload, nil, nil, false)
 		elseif payload.kind == "feedback" and currentQuestion then
-			-- The feedback packet carries no option list, so the last issued
-			-- question stays on screen with the authoritative result layered on.
 			renderQuiz(currentQuestion, payload.selectedId, payload.correctId, true)
 		elseif payload.kind == "result" then
 			currentQuestion = nil

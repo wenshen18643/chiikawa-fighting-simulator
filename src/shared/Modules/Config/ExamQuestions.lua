@@ -1,11 +1,3 @@
---[[
-	Visual field-guide cards. Studied in the book, tested by the Kusatori exam.
-
-	The names are original to this game rather than copied exam questions. Each
-	plant has a silhouette, colour and marking that the UI can draw from Frames,
-	so the exercise remains readable on every device without image assets.
-]]
-
 export type PlantDefinition = {
 	id: string,
 	name: string,

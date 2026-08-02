@@ -1,12 +1,3 @@
---[[
-	Player-facing copy for the Field Guide.
-
-	Kept as data so the renderer in ControlsPanel can concentrate on layout,
-	input and responsive behaviour. The guide describes the playable build, not
-	future design documents: systems without a player-facing loop are called out
-	as unavailable rather than presented as promises.
-]]
-
 local TutorialContent = {}
 
 export type Row = {

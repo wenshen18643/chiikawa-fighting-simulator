@@ -29,13 +29,9 @@ type MobState = "roam" | "chase" | "flee" | "return"
 
 local folder: Folder
 local spawnCFrames: { [string]: { CFrame } } = {}
--- Species whose roam and leash circles are centred somewhere other than their
--- own spawn point: the guardians orbit their BIG tree, not the spot they stood.
 local spawnHomes: { [string]: Vector3? } = {}
 local collisionGroupReady = false
 
--- A locked species is scenery: it cannot be attacked and does not fight back.
--- The forest uses it to keep the BIG tree inert until its guardians are down.
 local lockedSpecies: { [string]: boolean } = {}
 local killedCallbacks: { (Mobs.MobDefinition, number, Player?) -> () } = {}
 
@@ -112,8 +108,6 @@ local function placeOnGround(model: Model, groundCFrame: CFrame)
 	model:PivotTo(model:GetPivot() + Vector3.new(0, groundCFrame.Position.Y - bottom, 0))
 end
 
--- The rig root is centred a stud above the mob's feet, so a ray aimed at it
--- clips the ground on any slope. Sight lines use mid-body height instead.
 local function sightPosition(actor: MobActor): Vector3
 	return actor._root.Position + Vector3.new(0, actor._definition.height * 0.5, 0)
 end
@@ -235,9 +229,6 @@ function Mob._validTarget(self: MobActor): (Model?, BasePart?, Humanoid?)
 	if not player or player.Parent ~= Players then
 		return nil, nil, nil
 	end
-	-- Home prevents hostile mobs from pursuing or damaging a player. A passive
-	-- Duck may still regard that player as a threat so a hit inside the garden
-	-- actually makes it flee instead of immediately cancelling the flee state.
 	if self._definition.behavior ~= "flee" and SafeZoneService.isProtected(player) then
 		return nil, nil, nil
 	end
@@ -298,10 +289,6 @@ function Mob._thinkChase(self: MobActor, now: number)
 	end
 end
 
---[[
-	Planted mobs. No path, no roam: whoever walks into reach becomes the target,
-	the trunk turns to face them and it swings on its cooldown.
-]]
 function Mob._thinkRoot(self: MobActor, now: number)
 	local definition = self._definition
 	if definition.behavior ~= "root" or lockedSpecies[definition.id] then
@@ -557,24 +544,12 @@ function Mob.new(
 	return self
 end
 
---[[
-	A hostile mob inside the safe volume is scenery: findAttackTarget skips it
-	for a protected player, and _validTarget stops it hitting back. The whole
-	roam circle has to be clear, not just the spawn point, or the mob is only
-	fightable on the swings it happens to wander out on.
-
-	This once cost the mushroom frog: its ring sat at radius 72 around a plaza
-	whose safe box reaches 146 studs, so two of the six were permanently inert.
-	Cheaper to hear about it at boot than to notice it in playtest.
-]]
 local function warnIfUnreachable(definition: Mobs.MobDefinition, cframes: { CFrame }, home: Vector3?)
 	if definition.behavior == "flee" then
 		return
 	end
 	local reach = definition.roamRadius
 	for slot, cframe in cframes do
-		-- Roam is measured from the given home when there is one, and from where
-		-- the mob stood otherwise: the same centre _setDestination uses.
 		local centre = if home then Vector3.new(home.X, cframe.Position.Y, home.Z) else cframe.Position
 		if
 			SafeZoneService.containsPosition(centre)
@@ -601,11 +576,6 @@ spawnSlot = function(definition: Mobs.MobDefinition, slot: number)
 	if actors[key] or not folder.Parent then
 		return
 	end
-	--[[
-		Built mobs have no asset id to clone and no download to fail. The cave's
-		four are built rather than uploaded, so this is the only fork between a
-		creature that came from Studio and one that came from primitives.
-	]]
 	local model = if (definition :: any).build
 		then MobRig.build(definition)
 		else AssetService.clone(definition.assetKey)
@@ -637,7 +607,6 @@ spawnSlot = function(definition: Mobs.MobDefinition, slot: number)
 	placeOnGround(model, spawnCFrame)
 	model.Parent = folder
 	if definition.behavior == "root" then
-		-- Planted: anchored so nothing can shove a tree out of its clearing.
 		root.Anchored = true
 	else
 		local ok, err = pcall(function()
@@ -700,8 +669,6 @@ local function findAttackTarget(player: Player): MobActor?
 		if lockedSpecies[definition.id] then
 			continue
 		end
-		-- Players may scare passive mobs from Home, but cannot safely farm hostile
-		-- mobs which would be forbidden from retaliating across the boundary.
 		if playerProtected and definition.behavior ~= "flee" then
 			continue
 		end
@@ -722,13 +689,6 @@ local function findAttackTarget(player: Player): MobActor?
 	return best
 end
 
---[[
-	Put a species on the map at exactly these points.
-
-	The ring spawner in init() only knows "N of them, R studs from the plaza",
-	which cannot express "one per board section, ringed by its guardians". A
-	caller that owns a layout owns its spawn points too.
-]]
 function MobService.deploy(mobId: string, cframes: { CFrame }, home: Vector3?)
 	local definition = Mobs.get(mobId)
 	if not definition then
@@ -750,12 +710,6 @@ function MobService.deploy(mobId: string, cframes: { CFrame }, home: Vector3?)
 	end)
 end
 
---[[
-	Wake a whole species onto one player at once.
-
-	Guardians are a ring, not four separate animals: walking up to the BIG tree
-	should turn every one of them, not just whichever noticed first.
-]]
 function MobService.alert(mobId: string, player: Player)
 	for _, actor in actors do
 		local definition = actor._definition

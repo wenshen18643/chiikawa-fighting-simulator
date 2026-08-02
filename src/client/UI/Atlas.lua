@@ -1,17 +1,3 @@
---[[
-	The Atlas: the full-screen panel behind M / Tab.
-
-	Two tabs, each answering a question the HUD is too small to answer:
-
-	  WORLD   where everything is, what is open, and fast travel. The map is the
-	          real landmass at real proportions, drawn from Config/Layout.
-	  GUIDE   controls, and what the game expects of you.
-
-	Nothing here is authoritative. Every value is read from the last snapshot or
-	from shared config; the panel cannot change anything except by asking the
-	server to move you (docs/GAME.md §13).
-]]
-
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -37,10 +23,6 @@ local isOpen = false
 local travelRemote: RemoteEvent
 local areaCells: { [number]: { cell: Frame, status: TextLabel, button: TextButton } } = {}
 local playerPin: Frame
-
---------------------------------------------------------------------------------
--- World page
---------------------------------------------------------------------------------
 
 local function buildWorldPage(parent: Frame)
 	local page = Instance.new("Frame")
@@ -68,9 +50,6 @@ local function buildWorldPage(parent: Frame)
 		position = UDim2.fromOffset(0, 18),
 	})
 
-	--------------------------------------------------------------------------
-	-- The map itself: areas at their true relative size and position.
-	--------------------------------------------------------------------------
 	local map = Instance.new("Frame")
 	map.Name = "Map"
 	map.Position = UDim2.fromOffset(0, 48)
@@ -124,9 +103,6 @@ local function buildWorldPage(parent: Frame)
 			zIndex = cell.ZIndex + 1,
 		})
 
-		-- The whole area cell is the travel button: a separate row of buttons
-		-- would mean reading the map and then finding the matching name in a
-		-- list, which is two steps to do one thing.
 		local button = Instance.new("TextButton")
 		button.Name = "Travel"
 		button.Size = UDim2.fromScale(1, 1)
@@ -162,10 +138,6 @@ local function buildWorldPage(parent: Frame)
 
 	return page
 end
-
---------------------------------------------------------------------------------
--- Guide page
---------------------------------------------------------------------------------
 
 local CONTROLS = {
 	{ key = "W A S D", what = "Walk" },
@@ -239,10 +211,6 @@ local function buildGuidePage(parent: Frame)
 	return page
 end
 
---------------------------------------------------------------------------------
--- Live state
---------------------------------------------------------------------------------
-
 local function refresh()
 	local snapshot = StateController.snapshot
 	if not snapshot then
@@ -269,19 +237,13 @@ local function refresh()
 		end
 	end
 
-	-- Where the player is, on the real map.
 	local character = Players.LocalPlayer.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if root and playerPin then
 		local fraction = Layout.toMapFraction(root.Position)
 		playerPin.Position = UDim2.fromScale(fraction.X, 0.5)
 	end
-
 end
-
---------------------------------------------------------------------------------
--- Build
---------------------------------------------------------------------------------
 
 function Atlas.toggle()
 	Atlas.setOpen(not isOpen)
@@ -367,9 +329,6 @@ function Atlas.build(parent: Instance)
 			Atlas.toggle()
 		end
 		return Enum.ContextActionResult.Sink
-		-- N, not M: M now toggles the minimap, which is the thing players reach for
-		-- constantly. The Atlas is the occasional full-screen one and keeps its
-		-- side-rail button.
 	end, false, Enum.KeyCode.N, Enum.KeyCode.ButtonSelect)
 
 	return scrim

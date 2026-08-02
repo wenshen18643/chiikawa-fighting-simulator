@@ -5,13 +5,7 @@ export type BaseMobDefinition = {
 	name: string,
 	modelName: string,
 	assetKey: string,
-	--[[
-		Names a MobRig builder instead of an uploaded model. A built mob is
-		assembled from primitives at spawn, so `assetKey` is unused and there is
-		no download that can fail, be moderated, or be taken private.
-	]]
 	build: string?,
-	-- Builder colours. Retinting a built creature is a config edit, not a code one.
 	palette: { [string]: Color3 }?,
 	rigProfile: string,
 	animProfile: string,
@@ -20,7 +14,6 @@ export type BaseMobDefinition = {
 	height: number,
 	spawnRadius: number,
 	spawnAngleOffset: number?,
-	-- Ring centre, relative to the area origin. Defaults to the origin itself.
 	spawnCentreOffset: Vector3?,
 	roamRadius: number,
 	leashRadius: number,
@@ -30,7 +23,7 @@ export type BaseMobDefinition = {
 	maxHealth: number,
 	hitGainMultiplier: number,
 	damageStatScale: number,
-	respawn: boolean?, -- nil is yes; the forest respawns its own on its own clock
+	respawn: boolean?,
 }
 
 export type FightMobDefinition = BaseMobDefinition & {
@@ -49,11 +42,6 @@ export type FleeMobDefinition = BaseMobDefinition & {
 	fleeDuration: number,
 }
 
---[[
-	A mob that is planted. It never paths anywhere: it turns to face whoever
-	walked into reach and hits them. Its reach is longer than a player's so
-	standing at the edge of your own swing is not a free kill.
-]]
 export type RootMobDefinition = BaseMobDefinition & {
 	behavior: "root",
 	attackRange: number,
@@ -79,10 +67,6 @@ Mobs.DEFINITIONS = {
 		regionId = 1,
 		population = 6,
 		height = 5.5,
-		-- South of the cottage, not around it: a ring on the plaza sits inside the
-		-- safe volume, where a protected player cannot attack it. Keeps all six
-		-- homes and their roam circles in the Z -212..-66 band between the safe
-		-- volume and the C2 sausage forest.
 		spawnCentreOffset = Vector3.new(0, 0, -139),
 		spawnRadius = 44,
 		roamRadius = 22,
@@ -135,7 +119,6 @@ Mobs.DEFINITIONS = {
 		population = 3,
 		height = 4.5,
 		spawnRadius = 320,
-		-- Keeps all three homes and their roam circles clear of the C5 farm.
 		spawnAngleOffset = 60,
 		roamRadius = 110,
 		leashRadius = 190,
@@ -152,17 +135,6 @@ Mobs.DEFINITIONS = {
 	},
 } :: { [string]: MobDefinition }
 
---[[
-	The cave, one entry per creature, shallowest first.
-
-	Spawn points come from CaveService, which reads them out of the maze grid in
-	Config/Cave -- the ring spawner cannot express "wherever the letter s is
-	written on level one", so these are absent from Mobs.ORDER for the same
-	reason the forest's guardians are.
-
-	All four are BUILT (see MobRig.build). Their `assetKey` is deliberately the
-	empty string: nothing should ever try to download one.
-]]
 local CAVE_CREAM = Color3.fromRGB(228, 217, 200)
 local CAVE_VIOLET = Color3.fromRGB(146, 112, 156)
 local CAVE_SLATE = Color3.fromRGB(112, 116, 126)
@@ -234,10 +206,6 @@ Mobs.DEFINITIONS.cave_pebblejaw = {
 	damageStatScale = 0.01,
 } :: any
 
---[[
-	The wisp runs. It is the level's light, so chasing one is how a player is
-	taught the shape of the maze without a single arrow being drawn on the floor.
-]]
 Mobs.DEFINITIONS.cave_wisp = {
 	id = "cave_wisp",
 	name = "Lantern Wisp",
@@ -271,7 +239,6 @@ Mobs.DEFINITIONS.cave_wisp = {
 	damageStatScale = 0.01,
 } :: any
 
--- Rooted, like the BIG tree: she is the floor, and only her reach defends it.
 Mobs.DEFINITIONS.cave_mycelia = {
 	id = "cave_mycelia",
 	name = "Mycelia, the Cap Mother",
@@ -305,14 +272,6 @@ Mobs.DEFINITIONS.cave_mycelia = {
 	respawn = false,
 } :: any
 
---[[
-	The sausage forest, one entry per board section, shallowest first. The
-	guardians ring the BIG tree of their section and the BIG tree cannot be cut
-	until they are down, so a tier's real difficulty is its whole row.
-
-	Populations and spawn points come from SausageForestService, not from the
-	ring spawner, which is why these are absent from Mobs.ORDER.
-]]
 local FOREST_TIERS = {
 	{ guardians = 4, guardianHealth = 45, guardianDamage = 4, guardianHeight = 7, bossHealth = 320, bossDamage = 7, bossHeight = 24 },
 	{ guardians = 5, guardianHealth = 80, guardianDamage = 6, guardianHeight = 8, bossHealth = 620, bossDamage = 10, bossHeight = 27 },
@@ -340,11 +299,6 @@ local function forestMob(fields: { [string]: any }): MobDefinition
 end
 
 for tier, spec in FOREST_TIERS do
-	--[[
-		Guardians walk, but their home is the BIG tree rather than their own
-		spawn point (SausageForestService passes it), so `leashRadius` is the
-		edge of the clearing: they patrol it and will not be baited out of it.
-	]]
 	Mobs.DEFINITIONS[`sausage_guardian_{tier}`] = forestMob({
 		id = `sausage_guardian_{tier}`,
 		name = "Sausage Guardian",
@@ -361,7 +315,6 @@ for tier, spec in FOREST_TIERS do
 		roamRadius = 20,
 		leashRadius = 55,
 	})
-	-- The BIG tree is a tree: it is rooted, and only its reach defends it.
 	Mobs.DEFINITIONS[`sausage_boss_{tier}`] = forestMob({
 		id = `sausage_boss_{tier}`,
 		name = "Great Sausage",

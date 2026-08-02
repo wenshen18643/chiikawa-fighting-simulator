@@ -1,40 +1,3 @@
---[[
-	Loads the uploaded decor models in Config/Assets and hands out clones.
-
-	--------------------------------------------------------------------------
-	LOAD ONCE, CLONE MANY
-	--------------------------------------------------------------------------
-
-	InsertService:LoadAsset is a web call. The world scatters hundreds of props
-	across six areas, so calling it per prop would turn world generation into a
-	few hundred round trips. Everything is fetched once into ServerStorage at
-	startup and every prop after that is a local clone.
-
-	--------------------------------------------------------------------------
-	FAILURE IS A FIRST-CLASS OUTCOME
-	--------------------------------------------------------------------------
-
-	`clone` returns nil rather than throwing when an asset is blank, still
-	loading, or failed to load, and every caller in Areas/Area.lua falls back to
-	the procedural version it used before. A private or moderated id therefore
-	costs the nicer model and nothing else.
-
-	This matters more than usual here: the ids come from docs/ASSETS.md and
-	LoadAsset only succeeds for public assets or assets owned by the place
-	owner. Whether a given id works is not knowable from this repo, so the code
-	is written to be correct either way.
-
-	--------------------------------------------------------------------------
-	PREPARATION
-	--------------------------------------------------------------------------
-
-	Uploaded models arrive with whatever the author left on them, which for
-	scenery is usually wrong for us: unanchored parts fall through the terrain,
-	scripts run, and collision on every leaf makes a forest a wall. `prepare`
-	normalises all of that once, on the cached copy, so clones are already
-	correct and per-prop cost stays at "clone and pivot".
-]]
-
 local InsertService = game:GetService("InsertService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
@@ -45,31 +8,10 @@ local Assets = require(Shared.Modules.Config.Assets)
 local AssetService = {}
 
 local cache: { [string]: Model } = {}
--- Pack key -> its props, flattened once at load rather than re-walked per pick.
 local packItems: { [string]: { Instance } } = {}
--- key -> the reason it failed, kept for the single consolidated report.
 local failed: { [string]: string } = {}
 local library: Folder
 
---[[
-	Things a decor model is never allowed to bring with it.
-
-	  LuaSourceContainer  Free models are a well known way to import somebody
-	                      else's code. LuaSourceContainer, not BaseScript:
-	                      BaseScript covers Script and LocalScript but NOT
-	                      ModuleScript, and the require-backdoors found in this
-	                      project's own models kept their payload id on a
-	                      ModuleScript. A module cannot start itself, so one left
-	                      behind is inert -- but only for as long as nothing
-	                      requires it, which is a property of the OTHER instances
-	                      present rather than of the module. Take both and the
-	                      question does not arise.
-	  Sound               The shop fronts ship eight between them. Ambient audio
-	                      nobody asked for, over the top of SoundController.
-	  Camera              Every Studio export carries a ThumbnailCamera.
-	  PostEffect          One of these arrived with a SunRaysEffect attached. A
-	                      prop has no business grading the whole screen.
-]]
 local function isContraband(descendant: Instance): boolean
 	return descendant:IsA("LuaSourceContainer")
 		or descendant:IsA("Sound")
@@ -77,28 +19,10 @@ local function isContraband(descendant: Instance): boolean
 		or descendant:IsA("PostEffect")
 end
 
--- Props smaller than this stop casting shadows.
 local SHADOW_MIN_SIZE = 6
 
---[[
-	Make an uploaded model safe to scatter.
-
-	Anchoring is the load-bearing one. The world is built at a fixed terrain
-	height and never simulated; a single unanchored part in a downloaded model
-	falls forever and takes its welded neighbours with it.
-]]
 local function prepare(model: Model, spec: Assets.AssetSpec)
-	--[[
-		Unwrap Tools first.
 
-		The ramen bowl is published as a Tool, and a Tool dropped into Workspace
-		is inventory rather than scenery: walk into it and it goes in your
-		backpack, taking the lunch off the table with it. Its parts are perfectly
-		good props, so the wrapper is removed and the contents promoted.
-
-		Done in its own pass so anything promoted out of a Tool is still caught
-		by the anchoring pass below.
-	]]
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("Tool") then
 			local parent = descendant.Parent
@@ -109,28 +33,6 @@ local function prepare(model: Model, spec: Assets.AssetSpec)
 		end
 	end
 
-	--[[
-		Unwrap Accessories, and strip the avatar-scaling machinery off what comes
-		out.
-
-		This is what made Hachiware immune to resizing. Its entire visible body is
-		one MeshPart called Handle sitting inside an Accessory, and that Handle
-		carries a WrapLayer -- it was authored as layered clothing. Two things
-		follow, and both of them beat ScaleTo:
-
-		  - A WrapLayer'd MeshPart is rendered from its cage, not from its Size.
-		    ScaleTo sets Size, so GetExtentsSize afterwards reports the number
-		    that was asked for while the pixels do not move. The service's own
-		    "now followed by" line was reporting a 3.4-stud companion next to a
-		    7.4-stud one on screen.
-		  - OriginalSize is the hook Roblox's own accessory fitting uses to put a
-		    Handle back the way its author left it.
-
-		Nothing here is ever worn by a character, so none of that has a job to do.
-		Flattened and stripped, the Handle is an ordinary rigid MeshPart and
-		scales like every other asset in the library -- which is the whole reason
-		Chiikawa and Usagi never showed this.
-	]]
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("Accessory") then
 			local parent = descendant.Parent
@@ -155,32 +57,12 @@ local function prepare(model: Model, spec: Assets.AssetSpec)
 
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
-			--[[
-				Solid unless the spec opts out. See Config/Assets `collide`: the
-				default used to be the other way and it made the whole world a
-				painting -- you walked through the shops, the tables and the food.
-
-				CanQuery follows CanCollide rather than being pinned off. A prop
-				you can stand on is a prop the mouse and any future raycast
-				should be able to see; leaving it unqueryable means a solid table
-				that nothing can target and nothing can trace against.
-			]]
 			local solid = spec.collide ~= false
 			descendant.Anchored = true
 			descendant.CanCollide = solid
 			descendant.CanQuery = solid
 			descendant.CanTouch = false
 
-			--[[
-				Streaming cost, not looks.
-
-				Uploaded props arrive with per-triangle collision meshes and cast
-				shadows from every leaf. Both are paid per streamed-in instance,
-				which is exactly the moment the player is running and the frame
-				budget is already gone. A box hull around a bush is invisible;
-				the hitch it removes is not. Anything under SHADOW_MIN_SIZE stops
-				casting: a flower's shadow is two pixels.
-			]]
 			if descendant:IsA("MeshPart") or descendant:IsA("UnionOperation") then
 				pcall(function()
 					(descendant :: any).CollisionFidelity = Enum.CollisionFidelity.Box
@@ -200,21 +82,6 @@ local function prepare(model: Model, spec: Assets.AssetSpec)
 	end
 end
 
---[[
-	Every prop inside a pack, at any depth.
-
-	Packs are not laid out to a convention. This one arrives as
-	LoadAsset container -> Folder "Nature Asset Pack - Studs Style" -> ...,
-	and the next one may sort its contents into Trees/Bushes/Grass subfolders.
-	Two earlier attempts at this both failed on the real file: taking the
-	container's direct children handed out the entire pack as one prop, and
-	descending a fixed number of wrapper levels stopped at a Folder and was
-	then discarded for not being a Model.
-
-	So: recurse through FOLDERS, and stop at the first Model or BasePart. That
-	is the prop. Not descending into Models is the important half — otherwise a
-	tree would be collected as a trunk, a canopy and four branches.
-]]
 local function isExcluded(name: string, exclude: { string }?): boolean
 	if not exclude then
 		return false
@@ -243,12 +110,6 @@ local function collectItems(root: Instance, out: { Instance }, depth: number, ex
 	end
 end
 
---[[
-	LoadAsset returns a container Model holding the actual asset. For a single
-	model that is one level of indirection worth removing. For a pack the
-	container is kept as-is and `collectItems` finds the props inside it,
-	whatever shape the author left them in.
-]]
 local function unwrap(container: Model, spec: Assets.AssetSpec): Model?
 	if spec.kind == "pack" then
 		return container
@@ -261,14 +122,6 @@ local function unwrap(container: Model, spec: Assets.AssetSpec): Model?
 	return container
 end
 
---[[
-	Resolve a template out of ReplicatedStorage.Assets.Models.
-
-	Returns a CLONE wrapped to look like what LoadAsset hands back -- a
-	container holding the thing -- so the unwrap/prepare path below stays
-	identical for local and fetched assets. The alternative was branching every
-	step after this, for no gain.
-]]
 local function loadTemplate(key: string, spec: Assets.AssetSpec): Model?
 	local assets = ReplicatedStorage:FindFirstChild("Assets")
 	local models = assets and assets:FindFirstChild("Models")
@@ -324,21 +177,7 @@ local function load(key: string, spec: Assets.AssetSpec)
 	model.Parent = library
 	cache[key] = model
 
-	--[[
-		For a pack, say what arrived. What is inside a downloaded pack is not
-		knowable from this repo, and "the nature props look wrong" is impossible
-		to act on without knowing whether it holds 40 rocks or one 600-stud
-		diorama. Printed once, at load.
-	]]
 	if spec.kind == "pack" then
-		--[[
-			Flatten once, then report every prop with its class and size. The
-			names drive the substring filters in Areas/Area.lua ("tree", "bush",
-			"grass"), and the sizes say whether anything will trip the size
-			guard there. Neither is answerable from outside the running game,
-			and getting this listing wrong is what hid two separate unwrapping
-			bugs.
-		]]
 		local items = {}
 		collectItems(model, items, 0, spec.exclude)
 		packItems[key] = items
@@ -373,12 +212,6 @@ local function load(key: string, spec: Assets.AssetSpec)
 	end
 end
 
---[[
-	A clone of `key`, or nil if it is blank, failed, or has not arrived yet.
-
-	Nil is a normal answer. Callers are expected to have a fallback, not to
-	treat this as an error path.
-]]
 function AssetService.clone(key: string): Model?
 	local model = cache[key]
 	if not model then
@@ -387,20 +220,6 @@ function AssetService.clone(key: string): Model?
 	return model:Clone()
 end
 
---[[
-	A clone of one child of a pack, or nil.
-
-	`match` is a case-insensitive substring of the child's name — "tree",
-	"bush", "grass". The nature pack is titled "Trees Bush Grass Flower", so
-	asking for the right kind of thing beats picking at random: a tree helper
-	that returned a random flower would be worse than the procedural tree.
-
-	Matching is deliberately loose and degrades in two steps: no child matches
-	the filter -> any child; no children at all -> nil, and the caller's
-	procedural fallback takes over. Exact child names are not known to this
-	repo, so nothing here depends on guessing one (the startup print reports
-	what actually arrived).
-]]
 function AssetService.clonePackItem(key: string, rng: Random?, match: string?): Model?
 	local usable = packItems[key]
 	if not usable or #usable == 0 then
@@ -421,14 +240,6 @@ function AssetService.clonePackItem(key: string, rng: Random?, match: string?): 
 	local index = if rng then rng:NextInteger(1, #pool) else math.random(1, #pool)
 	local clone = pool[index]:Clone()
 
-	--[[
-		Always hand back a Model.
-
-		A pack may store a prop as a bare BasePart, but every caller places what
-		it gets with GetExtentsSize/ScaleTo/PivotTo — Model methods that a Part
-		does not have. Wrapping the odd loose part here means callers get one
-		contract instead of two, and none of them need a type check.
-	]]
 	if clone:IsA("BasePart") then
 		local wrapper = Instance.new("Model")
 		wrapper.Name = clone.Name
@@ -444,18 +255,6 @@ function AssetService.isReady(key: string): boolean
 	return cache[key] ~= nil
 end
 
---[[
-	Block briefly for one asset.
-
-	Loads are deliberately off the boot path, which is right for scenery
-	scattered across six areas nobody has reached yet — but wrong for the
-	cottage garden, which is built synchronously during boot and is the first
-	thing every player looks at. Without this it would always lose the race and
-	always draw its fallback.
-
-	Bounded, and returns false rather than throwing on timeout, so a slow or
-	failed load costs the nicer garden and not the boot.
-]]
 function AssetService.waitFor(key: string, timeout: number?): boolean
 	if cache[key] then
 		return true
@@ -477,13 +276,6 @@ function AssetService.waitFor(key: string, timeout: number?): boolean
 	return cache[key] ~= nil
 end
 
---[[
-	Place a loaded model in the world.
-
-	Uploaded models have no shared convention for where their origin sits, so
-	this pivots by the model's own bounding box and lifts it to stand ON the
-	given Y rather than centred through it, which is what every caller means.
-]]
 function AssetService.place(model: Model, position: Vector3, rotationY: number?)
 	local size = model:GetExtentsSize()
 	local pivot = CFrame.new(position + Vector3.new(0, size.Y / 2, 0))
@@ -493,15 +285,6 @@ function AssetService.place(model: Model, position: Vector3, rotationY: number?)
 	model:PivotTo(pivot)
 end
 
---[[
-	One line describing what a loaded model actually is.
-
-	"It loads" and "it is usable" are different questions, and the second one is
-	only answerable inside a running server: a rig with a Humanoid needs
-	different handling from a prop, extents decide whether `scale` is wrong by a
-	factor of ten, and a non-zero script count would mean `prepare` had missed
-	something and somebody else's code is in the place.
-]]
 function AssetService.describe(model: Model): string
 	local parts, meshes, scripts, animations = 0, 0, 0, 0
 	local humanoid = false
@@ -540,13 +323,6 @@ function AssetService.init()
 	library.Name = "AssetLibrary"
 	library.Parent = ServerStorage
 
-	--[[
-		Loaded in parallel and off the boot path. World generation is already
-		progressive (Town synchronously, the rest on a background task), so
-		blocking boot on a handful of web calls would delay the one area the
-		player can actually reach. Anything that arrives late simply starts
-		being used by the props built after it.
-	]]
 	local configured = Assets.configured()
 	local pending = 0
 
@@ -556,16 +332,6 @@ function AssetService.init()
 			continue
 		end
 
-		--[[
-			A template is a clone out of ReplicatedStorage. It cannot fail, it
-			cannot be slow, and there is nothing to overlap it with -- so it is
-			loaded here and now.
-
-			This is what retires the waitFor() races. The safe zone is built
-			synchronously during boot out of about thirty templates; spawning
-			those meant it either blocked on each one or drew its fallback,
-			and which of the two you got varied per boot.
-		]]
 		if spec.template then
 			load(key, spec)
 			continue
@@ -578,14 +344,6 @@ function AssetService.init()
 		end)
 	end
 
-	--[[
-		ONE report, once, after the loads settle.
-
-		Per-asset warnings meant a boot with four unauthorized ids printed four
-		near-identical paragraphs, which buries the lines around them — and the
-		lines around them are the world-generation timings somebody is usually
-		reading the log for. The information is the same; it is one line now.
-	]]
 	task.spawn(function()
 		local deadline = os.clock() + 15
 		while pending > 0 and os.clock() < deadline do
@@ -607,9 +365,6 @@ function AssetService.init()
 			`[AssetService] decor models: {#loaded} loaded`
 				.. (if #loaded > 0 then ` ({table.concat(loaded, ", ")})` else "")
 				.. `, {#broken} failed, {#blank} with no id set`
-				-- Called out separately because these cannot fail the way the
-				-- fetched ones can, so a reader chasing a load failure can rule
-				-- them out without cross-referencing Config/Assets.lua.
 				.. (
 					if #fromRepo > 0 then `. Served locally from assets/Models/: {table.concat(fromRepo, ", ")}` else ""
 				)
@@ -618,7 +373,7 @@ function AssetService.init()
 		if #broken > 0 then
 			warn(
 				`[AssetService] using the procedural fallback for {#broken} model(s): {table.concat(broken, "; ")}. `
-					.. `"not authorized" means the id is a PRIVATE model owned by another account -- `
+					.. `"not authorized" means the id is a PRIVATE model owned by another account. `
 					.. `InsertService cannot fetch those no matter what is in Config/Assets.lua. `
 					.. `Re-upload it to this place's owner, or use a genuinely free model, then swap the id.`
 			)

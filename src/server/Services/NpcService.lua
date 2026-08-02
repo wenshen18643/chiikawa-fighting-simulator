@@ -1,19 +1,3 @@
---[[
-	Spawns the cast. See docs/GAME.md §9.4 and Config/Npcs.lua.
-
-	Characters are ASSEMBLED FROM PARTS rather than loaded from asset ids, so
-	the world has people standing in it before any modelling work exists — and,
-	given §0 is still open, without shipping anyone else's character designs.
-
-	Each mascot is a round body with a belly, ears, eyes, blush and stubby limbs.
-	Only the root is anchored; everything else is welded to it, so tweening the
-	root moves the whole character and the idle bob costs one tween per NPC
-	rather than one per part.
-
-	Replacing these with authored models later means adding a `modelId` to the
-	config and branching in build() — nothing else changes.
-]]
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
@@ -29,25 +13,11 @@ local WorldService = require(script.Parent.WorldService)
 
 local NpcService = {}
 
--- player -> npc id -> which line they heard last, so talking walks the script.
 local spoken: { [Player]: { [string]: number } } = {}
 
---------------------------------------------------------------------------------
--- Part assembly
---------------------------------------------------------------------------------
-
---[[
-	The cast stands still, so its mascots are anchored where they are placed.
-
-	Shape and proportions live in Shared/Modules/Mascot, which CompanionService
-	builds the same silhouettes from: the friend following you home is the same
-	character you met in town, from one definition.
-]]
 local function buildMascot(definition: Npcs.NpcDefinition, position: Vector3): Model
 	local h = definition.build.height
 
-	-- Lowest point of the assembled mascot is the foot. Place the root so that
-	-- lands just above PLATFORM_TOP, otherwise the legs end up inside the ground.
 	local footToRoot = Constants.WORLD.PLATFORM_TOP + Constants.WORLD.NPC_FOOT_CLEARANCE + h * Mascot.ROOT_TO_FOOT
 	local model = Mascot.build(definition.build, CFrame.new(position + Vector3.new(0, footToRoot, 0)), definition.id)
 
@@ -56,10 +26,6 @@ local function buildMascot(definition: Npcs.NpcDefinition, position: Vector3): M
 
 	return model
 end
-
---------------------------------------------------------------------------------
--- Presentation
---------------------------------------------------------------------------------
 
 local function addNameplate(model: Model, definition: Npcs.NpcDefinition)
 	local gui = Instance.new("BillboardGui")
@@ -92,7 +58,6 @@ local function addNameplate(model: Model, definition: Npcs.NpcDefinition)
 	role.Parent = gui
 end
 
--- Idle bob. Each NPC gets a different phase so a group does not pulse in unison.
 local function startIdle(model: Model, definition: Npcs.NpcDefinition, phase: number)
 	local root = model.PrimaryPart :: BasePart
 	local base = root.CFrame
@@ -127,18 +92,12 @@ local function addPrompt(model: Model, definition: Npcs.NpcDefinition)
 			spoken[player] = perPlayer
 		end
 
-		-- Walk the lines in order rather than picking at random, so repeated
-		-- talking reads as a conversation instead of a slot machine.
 		local index = (perPlayer[definition.id] or 0) % #definition.lines + 1
 		perPlayer[definition.id] = index
 
 		NotifyService.send(player, `{definition.name}: {definition.lines[index]}`, "info")
 	end)
 end
-
---------------------------------------------------------------------------------
--- Public
---------------------------------------------------------------------------------
 
 function NpcService.init()
 	local existing = Workspace:FindFirstChild("Npcs")
@@ -170,7 +129,6 @@ function NpcService.init()
 	end)
 end
 
--- Kept so the world builder and NPC placement cannot silently drift apart.
 function NpcService.validatePlacement()
 	for _, definition in Npcs.DEFINITIONS do
 		local region = Areas.get(definition.regionId)
