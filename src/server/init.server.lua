@@ -29,7 +29,6 @@ local BOOT_ORDER = {
 
 	"CaveService",
 
-	"FishingService",
 	"QuarryService",
 	"CookingService",
 	"InventoryService",

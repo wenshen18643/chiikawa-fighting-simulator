@@ -108,18 +108,6 @@ WorkOrders.CHAIN = {
 		},
 	},
 	{
-		id = "still_water",
-		name = "Still Water",
-		blurb = "Nobody eats rock. There is a lake east of here. Bring the cook something out of it.",
-		objective = { kind = "collect", target = "crucian", count = 12 },
-		reward = {
-			yen = 11000,
-			skill = "resilience",
-			skillAmount = 2600,
-			unlock = { kind = "tool", id = "rod2", label = "Braided Rod" },
-		},
-	},
-	{
 		id = "second_step",
 		name = "The Second Step",
 		blurb = "Copper sits under the chalk, one terrace down. Mind the drop on your way back up.",
@@ -129,18 +117,6 @@ WorkOrders.CHAIN = {
 			skill = "tobatsu",
 			skillAmount = 5200,
 			unlock = { kind = "tool", id = "pickaxe3", label = "Quarryman's Pick" },
-		},
-	},
-	{
-		id = "lakekeeper",
-		name = "Lakekeeper",
-		blurb = "The big orange ones only rise at the end of the pier, and only for somebody patient.",
-		objective = { kind = "collect", target = "koi", count = 3 },
-		reward = {
-			yen = 24000,
-			skill = "resilience",
-			skillAmount = 9000,
-			unlock = { kind = "tool", id = "rod3", label = "Lakekeeper's Rod" },
 		},
 	},
 	{

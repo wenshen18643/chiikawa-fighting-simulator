@@ -148,12 +148,4 @@ function Formulas.oreSwings(profile: any, baseSwings: number): number
 	return Formulas.harvestClicks(profile, "pickaxe", baseSwings)
 end
 
-function Formulas.fishYield(profile: any): number
-	return Formulas.harvestYield(profile, "rod")
-end
-
-function Formulas.fishClicks(profile: any, baseClicks: number): number
-	return Formulas.harvestClicks(profile, "rod", baseClicks)
-end
-
 return Formulas

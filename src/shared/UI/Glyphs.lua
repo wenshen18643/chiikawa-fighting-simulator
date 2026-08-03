@@ -47,12 +47,6 @@ end
 
 local shapes: { [string]: (Ctx) -> () } = {}
 
-function shapes.fish(ctx)
-	dot(ctx, 0.46, 0.5, 0.62, { h = 0.44 })
-	shape(ctx, { name = "Tail", x = 0.86, y = 0.5, w = 0.26, h = 0.34, rot = 45, round = 0.1 })
-	dot(ctx, 0.3, 0.44, 0.11, { color = Theme.color.paper, layer = 2 })
-end
-
 function shapes.ore(ctx)
 	shape(ctx, { name = "Rock", x = 0.5, y = 0.6, w = 0.72, h = 0.5, round = 0.28 })
 	shape(ctx, { name = "Facet", x = 0.4, y = 0.4, w = 0.4, h = 0.36, rot = 32, round = 0.14 })
@@ -63,12 +57,6 @@ end
 function shapes.pickaxe(ctx)
 	bar(ctx, { x = 0.5, y = 0.62, w = 0.1, h = 0.62, rot = 12 })
 	shape(ctx, { name = "Head", x = 0.5, y = 0.26, w = 0.74, h = 0.16, rot = -16, round = 0.4 })
-end
-
-function shapes.rod(ctx)
-	bar(ctx, { x = 0.44, y = 0.54, w = 0.09, h = 0.78, rot = 24 })
-	bar(ctx, { x = 0.72, y = 0.62, w = 0.05, h = 0.44 })
-	dot(ctx, 0.72, 0.86, 0.2)
 end
 
 function shapes.leaf(ctx)

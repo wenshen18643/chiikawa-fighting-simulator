@@ -9,10 +9,10 @@ Certifications.WAGE_BONUS_PER_ORDER = 0.5
 Certifications.CAP_SKILL = "examprep"
 
 local ITEM_TIERS = {
-	{ "ironOre", "crucian", "carrot" },
-	{ "copperOre", "sweetfish", "blueBerry" },
-	{ "quartzOre", "koi", "brownMushroom" },
-	{ "moonOre", "moonScale", "moonlightCap" },
+	{ "ironOre", "carrot", "potato" },
+	{ "copperOre", "blueBerry", "purpleBerry" },
+	{ "quartzOre", "brownMushroom", "blackBerry" },
+	{ "moonOre", "moonlightCap", "goldSausage" },
 }
 
 local ITEMS_PER_TIER = 3

@@ -12,7 +12,7 @@ export type GearDefinition = {
 
 local Gear = {}
 
-Gear.SLOTS = { "pickaxe", "rod" }
+Gear.SLOTS = { "pickaxe" }
 
 Gear.DEFINITIONS = {
 	pickaxe2 = {
@@ -42,8 +42,6 @@ Gear.DEFINITIONS = {
 		effort = 0.48,
 		glyph = "pickaxe",
 	},
-	rod2 = { id = "rod2", name = "Braided Rod", slot = "rod", tier = 2, yield = 2, effort = 0.72, glyph = "rod" },
-	rod3 = { id = "rod3", name = "Lakekeeper's Rod", slot = "rod", tier = 3, yield = 6, effort = 0.55, glyph = "rod" },
 } :: { [string]: GearDefinition }
 
 local BARE = {
@@ -56,7 +54,6 @@ local BARE = {
 		effort = 1,
 		glyph = "pickaxe",
 	},
-	rod = { id = "rod1", name = "Cane Rod", slot = "rod", tier = 1, yield = 1, effort = 1, glyph = "rod" },
 } :: { [string]: GearDefinition }
 
 function Gear.get(id: string): GearDefinition?

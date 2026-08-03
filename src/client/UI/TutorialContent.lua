@@ -195,7 +195,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 						"Exams happen at the Exam Hall desk in Town, not in the book.",
 						"Tobatsu and Resilience need only the stat and the Exam Prep cap.",
 						"Kusatori adds a five-question plant exam. Four correct answers pass.",
-						"Exam Prep adds a full Readiness bar and one item from each pillar: ore, fish and forage.",
+						"Exam Prep adds a full Readiness bar plus ore and harvested ingredients.",
 						"Press 4 and flip pages to raise Exam Prep and fill Readiness. Recalling a plant has a 15% chance of Focus: ×2 for 30 seconds.",
 					},
 				},
@@ -295,7 +295,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 						{
 							label = "23–27 min",
 							value = "Certify at the Exam Hall",
-							note = "Bring 1 Iron Ore, 1 Crucian and 1 Carrot to the desk in Town. Exam Prep Grade 5 lifts the cap on every skill.",
+							note = "Bring 1 Iron Ore, 1 Carrot and 1 Potato to the desk in Town. Exam Prep Grade 5 lifts the cap on every skill.",
 							accent = "gold",
 						},
 						{

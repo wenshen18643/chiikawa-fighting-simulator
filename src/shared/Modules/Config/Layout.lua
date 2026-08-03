@@ -2,7 +2,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
-local Fishing = require(Shared.Modules.Config.Fishing)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
 local Market = require(Shared.Modules.Config.Market)
 local Quarry = require(Shared.Modules.Config.Quarry)
@@ -255,16 +254,6 @@ function Layout.reservedZones(area: Areas.AreaDefinition): { Zone }
 	end
 
 	if area.id == Areas.STARTING_AREA then
-		local lake = Fishing.centre()
-		if lake then
-			table.insert(zones, {
-				kind = "circle",
-				x = lake.X,
-				z = lake.Y,
-				radius = Fishing.LAKE.reserveRadius,
-			})
-		end
-
 		local pit = Quarry.centre()
 		if pit then
 			table.insert(zones, {

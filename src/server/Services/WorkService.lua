@@ -12,7 +12,6 @@ local Skills = require(Shared.Modules.Config.Skills)
 local CurrencyService = require(script.Parent.CurrencyService)
 local DataService = require(script.Parent.DataService)
 local FeastService = require(script.Parent.FeastService)
-local FishingService = require(script.Parent.FishingService)
 local ForagingService = require(script.Parent.ForagingService)
 local MobService = require(script.Parent.MobService)
 local NotifyService = require(script.Parent.NotifyService)
@@ -235,13 +234,11 @@ local function onPerform(player: Player)
 	local selfAwarded = false
 
 	if skillId == "resilience" then
-		if not FishingService.reel(player, profile) then
-			if not FeastService.bite(player, profile) then
-				explain(player, "Nothing here — cast at the lake or bite into giant food.")
-				return
-			end
-			selfAwarded = true
+		if not FeastService.bite(player, profile) then
+			explain(player, "Nothing here — bite into giant food to train Resilience.")
+			return
 		end
+		selfAwarded = true
 	elseif skillId == "tobatsu" then
 		QuarryService.swing(player, profile)
 	elseif skillId == "kusatori" then

@@ -41,7 +41,6 @@ Assets.MODELS = {
 
 	grassPatch = { id = 0, kind = "model", template = "GrassPatch", scale = 1, collide = false },
 	friendStand = { id = 0, kind = "model", template = "FriendStand", scale = 1 },
-	fish = { id = 0, kind = "model", template = "Fish", scale = 1, collide = false },
 	oreChunk = { id = 0, kind = "model", template = "OreChunk", scale = 1, collide = false },
 	strawberryDoor = { id = 0, kind = "model", template = "StrawberryDoor", scale = 1 },
 	lantern = { id = 0, kind = "model", template = "Lantern", scale = 1 },
