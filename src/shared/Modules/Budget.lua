@@ -1,7 +1,7 @@
 local RunService = game:GetService("RunService")
 local Budget = {}
 
-Budget.SLICE = 1 / 400
+Budget.SLICE = 1 / 100
 
 function Budget.stepper(slice: number?): () -> ()
 	local window = slice or Budget.SLICE

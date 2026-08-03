@@ -4,9 +4,12 @@ local PathfindingService = game:GetService("PathfindingService")
 local PhysicsService = game:GetService("PhysicsService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Areas = require(Shared.Areas)
+local Budget = require(Shared.Modules.Budget)
+local Constants = require(Shared.Modules.Constants)
 local Layout = require(Shared.Modules.Config.Layout)
 local Mobs = require(Shared.Modules.Config.Mobs)
 local AssetService = require(script.Parent.AssetService)
@@ -20,6 +23,8 @@ local COLLISION_GROUP = "Mobs"
 local REPATH_INTERVAL = 0.8
 local TARGET_REPATH_DISTANCE = 6
 local THINK_INTERVAL = 0.2
+local ACTIVATION_RADIUS = 240
+local MAX_PATHS_PER_TICK = 6
 
 type MobState = "roam" | "chase" | "flee" | "return"
 
@@ -55,6 +60,8 @@ type MobActor = {
 	_waypoints: { PathWaypoint }?,
 	_waypointIndex: number,
 	_pathDone: boolean,
+	_dormant: boolean,
+	_setDormant: (MobActor, boolean) -> (),
 	_rng: Random,
 	_connections: { RBXScriptConnection },
 	_playAction: (MobActor, string) -> (),
@@ -70,7 +77,7 @@ type MobActor = {
 	_thinkFlee: (MobActor, number) -> (),
 	_thinkReturn: (MobActor, number) -> (),
 	_thinkRoam: (MobActor, number) -> (),
-	_run: (MobActor) -> (),
+	_think: (MobActor, number) -> (),
 	TakeHit: (MobActor, Player, number) -> boolean,
 	Destroy: (MobActor) -> (),
 }
@@ -86,12 +93,12 @@ local function setupCollisionGroup()
 		PhysicsService:CollisionGroupSetCollidable(COLLISION_GROUP, COLLISION_GROUP, true)
 
 		for regionIndex = 1, #Areas.ALL do
-			PhysicsService:CollisionGroupSetCollidable(COLLISION_GROUP, WorldService.accessGroupFor(regionIndex), false)
+			PhysicsService:CollisionGroupSetCollidable(COLLISION_GROUP, WorldService.accessGroupFor(regionIndex), true)
 		end
 	end)
 	collisionGroupReady = ok
 	if not ok then
-		warn(`[MobService] collision group setup failed; mobs may push characters: {err}`)
+		warn(`[MobService] collision group setup failed; mobs may pass through characters: {err}`)
 	end
 end
 
@@ -115,6 +122,30 @@ local function characterParts(player: Player): (Model?, BasePart?, Humanoid?)
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	return character, if root and root:IsA("BasePart") then root else nil, humanoid
+end
+
+local livePlayerPositions: { Vector3 } = {}
+local pathBudget = 0
+
+local function refreshLivePlayerPositions()
+	table.clear(livePlayerPositions)
+	for _, player in Players:GetPlayers() do
+		local _, root, humanoid = characterParts(player)
+		if root and humanoid and humanoid.Health > 0 then
+			table.insert(livePlayerPositions, root.Position)
+		end
+	end
+end
+
+local function anyPlayerWithin(position: Vector3, radius: number): boolean
+	local limit = radius * radius
+	for _, other in livePlayerPositions do
+		local dx, dz = position.X - other.X, position.Z - other.Z
+		if dx * dx + dz * dz <= limit then
+			return true
+		end
+	end
+	return false
 end
 
 local function definitionSeed(id: string): number
@@ -165,6 +196,11 @@ function Mob._setDestination(self: MobActor, destination: Vector3): boolean
 	if area and Layout.isFarmPosition(area, destination, 8) then
 		return false
 	end
+	if pathBudget <= 0 then
+		self._nextPathAt = os.clock() + REPATH_INTERVAL
+		return false
+	end
+	pathBudget -= 1
 
 	self:_disconnectPath()
 	self._pathDone = false
@@ -237,6 +273,23 @@ function Mob._validTarget(self: MobActor): (Model?, BasePart?, Humanoid?)
 		return nil, nil, nil
 	end
 	return character, root, humanoid
+end
+
+function Mob._setDormant(self: MobActor, dormant: boolean)
+	if self._dormant == dormant or self._destroyed then
+		return
+	end
+	self._dormant = dormant
+	self._humanoid.EvaluateStateMachine = not dormant
+
+	if dormant then
+		self:_disconnectPath()
+		self._pathDone = true
+		self._humanoid:Move(Vector3.zero)
+	else
+		self._nextPathAt = 0
+		self._nextRoamAt = 0
+	end
 end
 
 function Mob._disengage(self: MobActor)
@@ -393,21 +446,23 @@ function Mob._thinkRoam(self: MobActor, now: number)
 	end
 end
 
-function Mob._run(self: MobActor)
-	while not self._destroyed do
-		local now = os.clock()
-		if self._definition.behavior == "root" then
-			self:_thinkRoot(now)
-		elseif self._state == "chase" then
-			self:_thinkChase(now)
-		elseif self._state == "flee" then
-			self:_thinkFlee(now)
-		elseif self._state == "return" then
-			self:_thinkReturn(now)
-		else
-			self:_thinkRoam(now)
-		end
-		task.wait(THINK_INTERVAL)
+function Mob._think(self: MobActor, now: number)
+	if not self._target and not anyPlayerWithin(self._root.Position, ACTIVATION_RADIUS) then
+		self:_setDormant(true)
+		return
+	end
+	self:_setDormant(false)
+
+	if self._definition.behavior == "root" then
+		self:_thinkRoot(now)
+	elseif self._state == "chase" then
+		self:_thinkChase(now)
+	elseif self._state == "flee" then
+		self:_thinkFlee(now)
+	elseif self._state == "return" then
+		self:_thinkReturn(now)
+	else
+		self:_thinkRoam(now)
 	end
 end
 
@@ -422,6 +477,7 @@ function Mob.TakeHit(self: MobActor, player: Player, damage: number): boolean
 		return false
 	end
 
+	self:_setDormant(false)
 	self:_playAction("hit")
 	self._lastHitBy = player
 	self._humanoid.Health = math.max(0, self._humanoid.Health - math.min(damage, self._humanoid.Health))
@@ -495,6 +551,7 @@ function Mob.new(
 		_waypoints = nil :: { PathWaypoint }?,
 		_waypointIndex = 0,
 		_pathDone = true,
+		_dormant = false,
 		_rng = Random.new(20260728 + seed),
 		_connections = {} :: { RBXScriptConnection },
 		_lastHitBy = nil :: Player?,
@@ -532,9 +589,6 @@ function Mob.new(
 		end)
 	)
 
-	task.spawn(function()
-		self:_run()
-	end)
 	return self
 end
 
@@ -625,7 +679,12 @@ spawnSlot = function(definition: Mobs.MobDefinition, slot: number)
 			task.spawn(callback, definition, slot, killer)
 		end
 		if definition.respawn ~= false then
-			task.defer(spawnSlot, definition, slot)
+			task.delay(
+				definition.respawnSeconds or Constants.MOB.DEFAULT_RESPAWN_SECONDS,
+				spawnSlot,
+				definition,
+				slot
+			)
 		end
 	end)
 	if home then
@@ -699,8 +758,10 @@ function MobService.deploy(mobId: string, cframes: { CFrame }, home: Vector3?)
 			warn(`[MobService] asset "{definition.assetKey}" did not become ready`)
 			return
 		end
+		local step = Budget.stepper()
 		for slot = 1, #cframes do
 			spawnSlot(definition, slot)
+			step()
 		end
 	end)
 end
@@ -784,26 +845,74 @@ function MobService.init()
 			warn(`[MobService] mob "{definition.id}" references missing region {definition.regionId}`)
 			continue
 		end
-		local ring = Layout.mobSpawnCFrames(
-			area,
-			definition.population,
-			definition.spawnRadius,
-			definition.spawnAngleOffset,
-			definition.spawnCentreOffset
-		)
-		spawnCFrames[definition.id] = ring
-		warnIfUnreachable(definition, ring)
-
 		task.spawn(function()
 			if not AssetService.waitFor(definition.assetKey, 10) then
 				warn(`[MobService] asset "{definition.assetKey}" did not become ready`)
 				return
 			end
-			for slot = 1, definition.population do
-				spawnSlot(definition, slot)
+			WorldService.awaitDressed()
+
+			local cells = definition.spawnCells
+			local ring: { CFrame } = if cells
+				then Layout.mobSpawnCFramesInCells(
+					area,
+					definition.population,
+					cells,
+					definitionSeed(definition.id),
+					definition.roamRadius
+				)
+				else Layout.mobSpawnCFrames(
+					area,
+					definition.population,
+					definition.spawnRadius,
+					definition.spawnAngleOffset,
+					definition.spawnCentreOffset
+				)
+			spawnCFrames[definition.id] = ring
+			warnIfUnreachable(definition, ring)
+
+			if #ring < definition.population then
+				warn(
+					`[MobService] {definition.id}: only {#ring} of {definition.population} spawn points were placed; `
+						.. `reserved zones rejected the rest.`
+				)
 			end
+
+			local step = Budget.stepper()
+			for slot = 1, #ring do
+				spawnSlot(definition, slot)
+				step()
+			end
+
+			local nearest = math.huge
+			for _, cframe in ring do
+				nearest = math.min(nearest, planarDistance(cframe.Position, area.origin))
+			end
+			print(
+				`[MobService] {definition.id}: {MobService.countAlive(definition.id)}/{definition.population} alive, `
+					.. `nearest {math.floor(nearest)} studs from spawn`
+			)
 		end)
 	end
+
+	local accumulator = 0
+	RunService.Heartbeat:Connect(function(delta)
+		accumulator += delta
+		if accumulator < THINK_INTERVAL then
+			return
+		end
+		accumulator = 0
+
+		refreshLivePlayerPositions()
+		pathBudget = MAX_PATHS_PER_TICK
+		local now = os.clock()
+
+		for _, actor in actors do
+			if not actor._destroyed then
+				actor:_think(now)
+			end
+		end
+	end)
 
 	Players.PlayerRemoving:Connect(function(player)
 		for _, actor in actors do

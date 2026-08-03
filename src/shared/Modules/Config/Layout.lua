@@ -136,6 +136,88 @@ function Layout.mobSpawnCFrames(
 	return result
 end
 
+function Layout.mobSpawnCFramesInCells(
+	area: Areas.AreaDefinition,
+	population: number,
+	cells: { string },
+	seed: number,
+	roamRadius: number?
+): { CFrame }
+	local MOB = Constants.MOB
+	local reserved = Layout.reservedZones(area)
+	local rng = Random.new(seed)
+	local y = area.origin.Y + WORLD.PLATFORM_TOP
+	local clearance = math.min(roamRadius or 0, MOB.SPAWN_MAX_CLEARANCE)
+	local chosen: { Vector2 } = {}
+	local result = {}
+
+	local function farEnough(x: number, z: number): boolean
+		for _, taken in chosen do
+			if (Vector2.new(x, z) - taken).Magnitude < MOB.SPAWN_MIN_SPACING then
+				return false
+			end
+		end
+		return true
+	end
+
+	local function standsClear(x: number, z: number): boolean
+		if Layout.isReserved(reserved, x, z) then
+			return false
+		end
+		return clearance <= 0
+			or (
+				not Layout.isReserved(reserved, x + clearance, z)
+				and not Layout.isReserved(reserved, x - clearance, z)
+				and not Layout.isReserved(reserved, x, z + clearance)
+				and not Layout.isReserved(reserved, x, z - clearance)
+			)
+	end
+
+	local function sampleCell(coord: string): (number?, number?)
+		local cell = Sections.byCoord(coord)
+		if not cell then
+			warn(`[Layout] mob spawn cell "{coord}" is invalid`)
+			return nil, nil
+		end
+
+		for _ = 1, MOB.SPAWN_PLACEMENT_ATTEMPTS do
+			local x = rng:NextNumber(cell.minX + MOB.SPAWN_CELL_MARGIN, cell.maxX - MOB.SPAWN_CELL_MARGIN)
+			local z = rng:NextNumber(cell.minZ + MOB.SPAWN_CELL_MARGIN, cell.maxZ - MOB.SPAWN_CELL_MARGIN)
+			if standsClear(x, z) and farEnough(x, z) then
+				return x, z
+			end
+		end
+
+		return nil, nil
+	end
+
+	for index = 1, population do
+		local start = math.floor((index - 1) * #cells / population)
+		local x: number?, z: number? = nil, nil
+
+		for step = 0, #cells - 1 do
+			x, z = sampleCell(cells[(start + step) % #cells + 1])
+			if x then
+				break
+			end
+		end
+
+		if not x or not z then
+			warn(
+				`[Layout] no free mob spawn point in any of the {#cells} configured cells; `
+					.. `slot {index} was dropped. Reserved zones have swallowed the whole set.`
+			)
+			continue
+		end
+
+		table.insert(chosen, Vector2.new(x, z))
+		local position = Vector3.new(area.origin.X + x, y, area.origin.Z + z)
+		table.insert(result, CFrame.lookAt(position, Vector3.new(area.origin.X, y, area.origin.Z)))
+	end
+
+	return result
+end
+
 function Layout.isFarmPosition(area: Areas.AreaDefinition, position: Vector3, padding: number?): boolean
 	if area.id ~= Areas.STARTING_AREA then
 		return false
@@ -152,7 +234,14 @@ function Layout.isFarmPosition(area: Areas.AreaDefinition, position: Vector3, pa
 		and localPosition.Z <= farmCell.maxZ + margin
 end
 
+local reservedCache: { [number]: { Zone } } = {}
+
 function Layout.reservedZones(area: Areas.AreaDefinition): { Zone }
+	local cached = reservedCache[area.id]
+	if cached then
+		return cached
+	end
+
 	local zones: { Zone } = {}
 
 	table.insert(zones, {
@@ -279,11 +368,60 @@ function Layout.reservedZones(area: Areas.AreaDefinition): { Zone }
 		})
 	end
 
+	reservedCache[area.id] = zones
 	return zones
 end
 
-function Layout.isReserved(zones: { Zone }, x: number, z: number): boolean
+local RESERVED_GRID = 64
+local reservedIndexCache = (setmetatable({}, { __mode = "k" }) :: any) :: { [any]: { [number]: { Zone } } }
+
+local function zoneHalfExtents(zone: Zone): (number, number)
+	if zone.kind == "circle" then
+		local radius = zone.radius or 0
+		return radius, radius
+	elseif zone.kind == "rect" then
+		return zone.halfX or 0, zone.halfZ or 0
+	end
+	local reach = (zone.halfLength or 0) + (zone.halfWidth or 0)
+	return reach, reach
+end
+
+local function gridKey(gx: number, gz: number): number
+	return gx * 8192 + gz
+end
+
+local function buildReservedIndex(zones: { Zone }): { [number]: { Zone } }
+	local grid: { [number]: { Zone } } = {}
 	for _, zone in zones do
+		local halfX, halfZ = zoneHalfExtents(zone)
+		for gx = math.floor((zone.x - halfX) / RESERVED_GRID), math.floor((zone.x + halfX) / RESERVED_GRID) do
+			for gz = math.floor((zone.z - halfZ) / RESERVED_GRID), math.floor((zone.z + halfZ) / RESERVED_GRID) do
+				local key = gridKey(gx, gz)
+				local bucket = grid[key]
+				if not bucket then
+					bucket = {}
+					grid[key] = bucket
+				end
+				table.insert(bucket, zone)
+			end
+		end
+	end
+	return grid
+end
+
+function Layout.isReserved(zones: { Zone }, x: number, z: number): boolean
+	local grid = reservedIndexCache[zones]
+	if not grid then
+		grid = buildReservedIndex(zones)
+		reservedIndexCache[zones] = grid
+	end
+
+	local bucket = grid[gridKey(math.floor(x / RESERVED_GRID), math.floor(z / RESERVED_GRID))]
+	if not bucket then
+		return false
+	end
+
+	for _, zone in bucket do
 		if zone.kind == "circle" then
 			local dx, dz = x - zone.x, z - zone.z
 			if dx * dx + dz * dz <= (zone.radius or 0) ^ 2 then

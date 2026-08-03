@@ -68,18 +68,23 @@ function Formulas.maxActionsPerSecond(profile: any): number
 	return Constants.WORK.MAX_ACTIONS_PER_SECOND
 end
 
-function Formulas.maxStamina(profile: any): number
+function Formulas.resilienceLog(profile: any): number
 	local resilienceVal = profile.skills.resilience or profile.skills.grit or profile.skills.durability
-	local gritLog = if BigNumber.isValid(resilienceVal) then math.max(BigNumber.log10(resilienceVal), 0) else 0
-	return (Constants.STAMINA.BASE_MAX + gritLog * Constants.STAMINA.MAX_PER_GRIT_LOG)
+	return if BigNumber.isValid(resilienceVal) then math.max(BigNumber.log10(resilienceVal), 0) else 0
+end
+
+function Formulas.maxStamina(profile: any): number
+	return (Constants.STAMINA.BASE_MAX + Formulas.resilienceLog(profile) * Constants.STAMINA.MAX_PER_GRIT_LOG)
 		* Upgrades.multiplier(profile, "stamina")
 end
 
 function Formulas.staminaRegenPerSecond(profile: any): number
-	local resilienceVal = profile.skills.resilience or profile.skills.grit or profile.skills.durability
-	local gritLog = if BigNumber.isValid(resilienceVal) then math.max(BigNumber.log10(resilienceVal), 0) else 0
-	return (Constants.STAMINA.REGEN_PER_SECOND + gritLog * Constants.STAMINA.REGEN_PER_GRIT_LOG)
+	return (Constants.STAMINA.REGEN_PER_SECOND + Formulas.resilienceLog(profile) * Constants.STAMINA.REGEN_PER_GRIT_LOG)
 		* Formulas.boostStatMultiplier(profile, "staminaRegen")
+end
+
+function Formulas.maxHealth(profile: any): number
+	return Constants.HEALTH.BASE_MAX + Formulas.resilienceLog(profile) * Constants.HEALTH.MAX_PER_RESILIENCE_LOG
 end
 
 function Formulas.yenPerMinute(profile: any): BigNum

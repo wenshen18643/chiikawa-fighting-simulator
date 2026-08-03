@@ -158,7 +158,7 @@ function TerrainBuilder.paintSections(area: Areas.AreaDefinition, step: Step)
 	end
 
 	local zones = Layout.reservedZones(area)
-	for _, cell in Sections.cells() do
+	for _, cell in Sections.cellsNearestFirst() do
 		TerrainBuilder.paintCell(area, cell, zones, step)
 	end
 end

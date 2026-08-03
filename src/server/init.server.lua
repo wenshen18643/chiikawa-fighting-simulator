@@ -32,7 +32,9 @@ local BOOT_ORDER = {
 	"QuarryService",
 	"CookingService",
 	"InventoryService",
+	"MobLootService",
 	"StaminaService",
+	"HealthService",
 	"CurrencyService",
 
 	"FarmMailboxService",
@@ -45,7 +47,6 @@ local BOOT_ORDER = {
 	"StudyService",
 	"ExamService",
 
-	"TrainingService",
 	"GuideService",
 
 	"WorkOrderService",
@@ -56,6 +57,8 @@ local BOOT_ORDER = {
 }
 
 local failures: { string } = {}
+local timings: { { name: string, seconds: number } } = {}
+local bootStart = os.clock()
 
 for _, name in BOOT_ORDER do
 	local module = Services:FindFirstChild(name)
@@ -66,13 +69,29 @@ for _, name in BOOT_ORDER do
 
 	local service = require(module)
 	if type(service) == "table" and type(service.init) == "function" then
+		local started = os.clock()
 		local ok, err = pcall(service.init)
+		table.insert(timings, { name = name, seconds = os.clock() - started })
 		if not ok then
 			table.insert(failures, `{name}: {err}`)
 			warn(`[Server] {name}.init() FAILED: {err}`)
 		end
 	end
 end
+
+table.sort(timings, function(a, b)
+	return a.seconds > b.seconds
+end)
+
+local slowest = {}
+for index = 1, math.min(5, #timings) do
+	local entry = timings[index]
+	table.insert(slowest, `{entry.name} {string.format("%.2f", entry.seconds)}s`)
+end
+print(
+	`[Server] boot blocked for {string.format("%.2f", os.clock() - bootStart)}s. `
+		.. `Slowest: {table.concat(slowest, ", ")}`
+)
 
 if #failures > 0 then
 	warn("========================================================================")
