@@ -182,7 +182,7 @@ local function buildGuidePage(parent: Frame)
 	end
 
 	local notes = {
-		"Pick a skill on the bar and click anywhere. Running and jumping raise Resilience on their own.",
+		"Pick a skill on the bar and click anywhere. Cooking and giant food raise Resilience.",
 		"Out of stamina is a sit-down, not a penalty. You keep earning through it.",
 		"Nothing in this game can hurt you. Your cottage is safe by rule, not by luck.",
 		"An area opens by itself the moment you have earned it. The gate east unlocks with it.",

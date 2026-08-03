@@ -28,7 +28,7 @@ local function controlsFor(device: "keyboard" | "gamepad" | "touch"): { Row }
 	if device == "touch" then
 		return {
 			{ label = "Stick", value = "Walk around" },
-			{ label = "Jump", value = "Jump and gain a little Resilience" },
+			{ label = "Jump", value = "Hop over anything in your way" },
 			{ label = "WORK", value = "One tap starts one work action" },
 			{ label = "1–4", value = "Tap a round skill button to select it" },
 			{ label = "Prompt", value = "Tap to talk, forage or use the kitchen" },
@@ -41,7 +41,7 @@ local function controlsFor(device: "keyboard" | "gamepad" | "touch"): { Row }
 		return {
 			{ label = "L-Stick", value = "Walk around" },
 			{ label = "L3", value = "Sprint; it costs no stamina" },
-			{ label = "A", value = "Jump and gain a little Resilience" },
+			{ label = "A", value = "Hop over anything in your way" },
 			{ label = "R2", value = "One press starts one work action" },
 			{ label = "Skill bar", value = "Choose which skill open-ground work trains" },
 			{ label = "X", value = "Talk, forage or cook when a prompt appears" },
@@ -54,7 +54,7 @@ local function controlsFor(device: "keyboard" | "gamepad" | "touch"): { Row }
 	return {
 		{ label = "W A S D", value = "Walk around" },
 		{ label = "Shift", value = "Sprint; it costs no stamina" },
-		{ label = "Space", value = "Jump and gain a little Resilience" },
+		{ label = "Space", value = "Hop over anything in your way" },
 		{ label = "Left click", value = "One click starts one work action" },
 		{ label = "1  2  3  4", value = "Select Tobatsu, Resilience, Kusatori or Exam Prep" },
 		{ label = "E", value = "Talk, forage or cook when a prompt appears" },
@@ -80,7 +80,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 					bullets = {
 						"One press is one action. Holding Work does not repeat it.",
 						"You can train anywhere. There is nowhere you have to stand.",
-						"Running and jumping add small Resilience gains, so travel is productive.",
+						"Cook at the kitchen or eat giant food to raise Resilience, which raises your health.",
 					},
 				},
 				{
@@ -139,7 +139,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 						{
 							label = "2 · Resilience",
 							value = "Endurance under pressure",
-							note = "Also gained in small amounts by running and jumping; improves stamina over time.",
+							note = "Earned by cooking, fishing and eating giant food; raises your maximum health and stamina.",
 							accent = "resilience",
 						},
 						{
@@ -162,6 +162,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 					bullets = {
 						"You start with 100 stamina. An accepted active action costs 1.",
 						"Stamina begins at 6 regeneration per second; Resilience improves the maximum and regeneration.",
+							"Resilience also raises your maximum health, so tougher mobs stay survivable.",
 						"At zero, you rest for about 5 seconds and then continue.",
 						"Every skill is earned by doing something. Standing still earns nothing, and there is no offline progress.",
 					},
@@ -265,7 +266,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 						{
 							label = "2–5 min",
 							value = "Leave the cottage",
-							note = "Sprint, jump, watch Resilience tick upward, and talk to one Town character.",
+							note = "Sprint out, take a swing at a Mushroom Frog, and talk to one Town character.",
 							accent = "resilience",
 						},
 						{

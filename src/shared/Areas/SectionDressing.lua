@@ -233,7 +233,7 @@ local function dressBorder(ctx, i, j, vertical)
 end
 
 function SectionDressing.dress(ctx)
-	for _, cell in Sections.cells() do
+	for _, cell in Sections.cellsNearestFirst() do
 		local ok, err = pcall(dressCell, ctx, cell)
 		if not ok then
 			warn(`[SectionDressing] cell {cell.i},{cell.j} ({cell.theme}) failed: {err}`)

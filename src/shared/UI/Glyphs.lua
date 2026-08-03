@@ -60,6 +60,13 @@ function shapes.ore(ctx)
 	dot(ctx, 0.4, 0.68, 0.1, { color = Theme.color.paper, layer = 2 })
 end
 
+function shapes.meat(ctx)
+	dot(ctx, 0.42, 0.42, 0.56, { h = 0.5, rot = -20 })
+	bar(ctx, { x = 0.72, y = 0.72, w = 0.36, h = 0.13, rot = -38, color = Theme.color.paper })
+	dot(ctx, 0.86, 0.83, 0.17, { color = Theme.color.paper, layer = 2 })
+	dot(ctx, 0.34, 0.36, 0.13, { color = Theme.color.paper, layer = 2 })
+end
+
 function shapes.pickaxe(ctx)
 	bar(ctx, { x = 0.5, y = 0.62, w = 0.1, h = 0.62, rot = 12 })
 	shape(ctx, { name = "Head", x = 0.5, y = 0.26, w = 0.74, h = 0.16, rot = -16, round = 0.4 })

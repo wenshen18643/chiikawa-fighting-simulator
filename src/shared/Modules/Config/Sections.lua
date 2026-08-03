@@ -107,6 +107,14 @@ function Sections.cells(): { Cell }
 	return result
 end
 
+function Sections.cellsNearestFirst(): { Cell }
+	local result = Sections.cells()
+	table.sort(result, function(a, b)
+		return a.cx * a.cx + a.cz * a.cz < b.cx * b.cx + b.cz * b.cz
+	end)
+	return result
+end
+
 Sections.THEMES = {
 	meadow = {
 		name = "Wild Meadow",

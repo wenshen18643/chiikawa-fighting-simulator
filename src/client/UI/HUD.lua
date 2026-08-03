@@ -458,7 +458,7 @@ function HUD.init()
 	buildToasts(screen)
 
 	skillEntries, skillBarHolder = SkillBar.build(screen, function()
-		showToast("Fish or eat giant food to train Resilience.", "info")
+		showToast("Cook, fish or eat giant food to train Resilience.", "info")
 	end)
 	Minimap.build(screen)
 	WorkCore.build(screen)

@@ -6,13 +6,18 @@ local Skills = require(Shared.Modules.Config.Skills)
 type BigNum = BigNumber.BigNum
 
 local SkillService = {}
+local awardListeners: { (Player, any, string) -> () } = {}
 
 function SkillService.get(profile: any, skillId: string): BigNum
 	local canonical = Skills.canonicalize(skillId)
 	return profile.skills[canonical] or BigNumber.zero()
 end
 
-function SkillService.award(_player: Player, profile: any, skillId: string, amount: BigNum)
+function SkillService.onAward(callback: (Player, any, string) -> ())
+	table.insert(awardListeners, callback)
+end
+
+function SkillService.award(player: Player, profile: any, skillId: string, amount: BigNum)
 	local canonical = Skills.canonicalize(skillId)
 	if not Skills.exists(canonical) then
 		warn(`[SkillService] award for unknown skill "{skillId}"`)
@@ -23,6 +28,10 @@ function SkillService.award(_player: Player, profile: any, skillId: string, amou
 	end
 
 	profile.skills[canonical] = BigNumber.add(profile.skills[canonical] or BigNumber.zero(), amount)
+
+	for _, callback in awardListeners do
+		callback(player, profile, canonical)
+	end
 end
 
 function SkillService.resetForSeason(profile: any)

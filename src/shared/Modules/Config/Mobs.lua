@@ -1,5 +1,11 @@
 --!strict
 
+export type MobDrop = {
+	id: string,
+	min: number,
+	max: number,
+}
+
 export type BaseMobDefinition = {
 	id: string,
 	name: string,
@@ -15,6 +21,7 @@ export type BaseMobDefinition = {
 	spawnRadius: number,
 	spawnAngleOffset: number?,
 	spawnCentreOffset: Vector3?,
+	spawnCells: { string }?,
 	roamRadius: number,
 	leashRadius: number,
 	roamSpeed: number,
@@ -24,6 +31,8 @@ export type BaseMobDefinition = {
 	hitGainMultiplier: number,
 	damageStatScale: number,
 	respawn: boolean?,
+	respawnSeconds: number?,
+	drop: MobDrop?,
 }
 
 export type FightMobDefinition = BaseMobDefinition & {
@@ -55,6 +64,17 @@ local Mobs = {}
 
 Mobs.ORDER = { "mushroom_frog", "duck", "wolf" }
 
+Mobs.RING_INNER = { "C3", "C2", "D3", "D2", "D4", "E3", "E4", "C4", "D5", "B4", "B3" }
+
+Mobs.RING_MID = { "B2", "B5", "E5", "E2" }
+
+Mobs.RING_OUTER = {
+	"A1", "B1", "C1", "D1", "E1", "F1",
+	"F2", "F3", "F4", "F5",
+	"F6", "E6", "D6", "C6", "B6", "A6",
+	"A5", "A4", "A3", "A2",
+}
+
 local DEFINITIONS: { [string]: MobDefinition } = {
 	mushroom_frog = {
 		id = "mushroom_frog",
@@ -65,22 +85,24 @@ local DEFINITIONS: { [string]: MobDefinition } = {
 		animProfile = "mushroomFrog",
 		behavior = "fight" :: "fight",
 		regionId = 1,
-		population = 6,
+		population = 16,
 		height = 5.5,
-		spawnCentreOffset = Vector3.new(0, 0, -139),
 		spawnRadius = 44,
+		spawnCells = Mobs.RING_INNER,
 		roamRadius = 22,
 		leashRadius = 90,
 		roamSpeed = 6,
 		chaseSpeed = 12,
-		playerAttackRange = 14,
+		playerAttackRange = 16,
 		playerFacingMinimum = 0.35,
-		attackRange = 7.5,
-		attackDamage = 2,
+		attackRange = 13,
+		attackDamage = 14,
 		attackCooldown = 2,
-		maxHealth = 10,
+		maxHealth = 110,
 		hitGainMultiplier = 2,
 		damageStatScale = 0.01,
+		respawnSeconds = 20,
+		drop = { id = "frogMeat", min = 1, max = 2 },
 	},
 	duck = {
 		id = "duck",
@@ -91,9 +113,10 @@ local DEFINITIONS: { [string]: MobDefinition } = {
 		animProfile = "duck",
 		behavior = "flee" :: "flee",
 		regionId = 1,
-		population = 4,
+		population = 10,
 		height = 4.5,
 		spawnRadius = 95,
+		spawnCells = Mobs.RING_MID,
 		roamRadius = 35,
 		leashRadius = 100,
 		roamSpeed = 6,
@@ -101,11 +124,13 @@ local DEFINITIONS: { [string]: MobDefinition } = {
 		fleeDistance = 48,
 		fleeSafeDistance = 38,
 		fleeDuration = 4,
-		playerAttackRange = 14,
+		playerAttackRange = 16,
 		playerFacingMinimum = 0.35,
-		maxHealth = 8,
+		maxHealth = 85,
 		hitGainMultiplier = 1.5,
 		damageStatScale = 0.01,
+		respawnSeconds = 30,
+		drop = { id = "duckMeat", min = 1, max = 2 },
 	},
 	wolf = {
 		id = "wolf",
@@ -116,22 +141,25 @@ local DEFINITIONS: { [string]: MobDefinition } = {
 		animProfile = "wolf",
 		behavior = "fight" :: "fight",
 		regionId = 1,
-		population = 3,
+		population = 18,
 		height = 4.5,
 		spawnRadius = 320,
 		spawnAngleOffset = 60,
+		spawnCells = Mobs.RING_OUTER,
 		roamRadius = 110,
 		leashRadius = 190,
 		roamSpeed = 9,
 		chaseSpeed = 17,
-		playerAttackRange = 14,
+		playerAttackRange = 18,
 		playerFacingMinimum = 0.35,
-		attackRange = 7.5,
-		attackDamage = 4,
+		attackRange = 15,
+		attackDamage = 45,
 		attackCooldown = 1.6,
-		maxHealth = 30,
+		maxHealth = 550,
 		hitGainMultiplier = 3,
 		damageStatScale = 0.01,
+		respawnSeconds = 45,
+		drop = { id = "wolfMeat", min = 1, max = 2 },
 	},
 }
 
@@ -165,14 +193,15 @@ Mobs.DEFINITIONS.cave_sporeling = {
 	leashRadius = 52,
 	roamSpeed = 6,
 	chaseSpeed = 11,
-	playerAttackRange = 14,
+	playerAttackRange = 16,
 	playerFacingMinimum = 0.35,
-	attackRange = 7.5,
-	attackDamage = 3,
+	attackRange = 13,
+	attackDamage = 32,
 	attackCooldown = 2,
-	maxHealth = 26,
+	maxHealth = 420,
 	hitGainMultiplier = 3,
 	damageStatScale = 0.01,
+	respawnSeconds = 45,
 } :: any
 
 Mobs.DEFINITIONS.cave_pebblejaw = {
@@ -198,14 +227,15 @@ Mobs.DEFINITIONS.cave_pebblejaw = {
 	leashRadius = 62,
 	roamSpeed = 7,
 	chaseSpeed = 15,
-	playerAttackRange = 14,
+	playerAttackRange = 18,
 	playerFacingMinimum = 0.35,
-	attackRange = 8.5,
-	attackDamage = 7,
+	attackRange = 15,
+	attackDamage = 76,
 	attackCooldown = 1.8,
-	maxHealth = 85,
+	maxHealth = 1400,
 	hitGainMultiplier = 5,
 	damageStatScale = 0.01,
+	respawnSeconds = 60,
 } :: any
 
 Mobs.DEFINITIONS.cave_wisp = {
@@ -234,11 +264,12 @@ Mobs.DEFINITIONS.cave_wisp = {
 	fleeDistance = 40,
 	fleeSafeDistance = 30,
 	fleeDuration = 3.5,
-	playerAttackRange = 14,
+	playerAttackRange = 16,
 	playerFacingMinimum = 0.35,
-	maxHealth = 30,
+	maxHealth = 500,
 	hitGainMultiplier = 4,
 	damageStatScale = 0.01,
+	respawnSeconds = 40,
 } :: any
 
 Mobs.DEFINITIONS.cave_mycelia = {
@@ -263,22 +294,22 @@ Mobs.DEFINITIONS.cave_mycelia = {
 	roamRadius = 0,
 	leashRadius = 60,
 	roamSpeed = 0,
-	playerAttackRange = 16,
+	playerAttackRange = 26,
 	playerFacingMinimum = 0.3,
-	attackRange = 24,
-	attackDamage = 16,
+	attackRange = 34,
+	attackDamage = 220,
 	attackCooldown = 2.4,
-	maxHealth = 1800,
+	maxHealth = 37000,
 	hitGainMultiplier = 14,
 	damageStatScale = 0.01,
 	respawn = false,
 } :: any
 
 local FOREST_TIERS = {
-	{ guardians = 4, guardianHealth = 45, guardianDamage = 4, guardianHeight = 7, bossHealth = 320, bossDamage = 7, bossHeight = 24 },
-	{ guardians = 5, guardianHealth = 80, guardianDamage = 6, guardianHeight = 8, bossHealth = 620, bossDamage = 10, bossHeight = 27 },
-	{ guardians = 6, guardianHealth = 140, guardianDamage = 8, guardianHeight = 9, bossHealth = 1200, bossDamage = 14, bossHeight = 30 },
-	{ guardians = 7, guardianHealth = 240, guardianDamage = 11, guardianHeight = 10, bossHealth = 2400, bossDamage = 19, bossHeight = 34 },
+	{ guardians = 5, guardianHealth = 750, guardianDamage = 44, guardianHeight = 7, bossHealth = 7000, bossDamage = 100, bossHeight = 24 },
+	{ guardians = 6, guardianHealth = 1325, guardianDamage = 64, guardianHeight = 8, bossHealth = 13600, bossDamage = 144, bossHeight = 27 },
+	{ guardians = 7, guardianHealth = 2300, guardianDamage = 86, guardianHeight = 9, bossHealth = 26400, bossDamage = 202, bossHeight = 30 },
+	{ guardians = 8, guardianHealth = 3950, guardianDamage = 118, guardianHeight = 10, bossHealth = 52800, bossDamage = 274, bossHeight = 34 },
 }
 
 local function forestMob(fields: { [string]: any }): MobDefinition
@@ -287,7 +318,7 @@ local function forestMob(fields: { [string]: any }): MobDefinition
 		animProfile = "sausageGuardian",
 		regionId = 1,
 		spawnRadius = 0,
-		playerAttackRange = 14,
+		playerAttackRange = 18,
 		playerFacingMinimum = 0.35,
 		attackCooldown = 2,
 		hitGainMultiplier = 4,
@@ -311,7 +342,7 @@ for tier, spec in FOREST_TIERS do
 		height = spec.guardianHeight,
 		maxHealth = spec.guardianHealth,
 		attackDamage = spec.guardianDamage,
-		attackRange = 8,
+		attackRange = 14,
 		roamSpeed = 5,
 		chaseSpeed = 13,
 		roamRadius = 20,
@@ -327,7 +358,7 @@ for tier, spec in FOREST_TIERS do
 		height = spec.bossHeight,
 		maxHealth = spec.bossHealth,
 		attackDamage = spec.bossDamage,
-		attackRange = 22,
+		attackRange = 32,
 		attackCooldown = 2.6,
 		hitGainMultiplier = 12,
 		roamSpeed = 0,

@@ -48,7 +48,7 @@ local function stepList(): { Step }
 			{
 				id = "jump",
 				title = "Jump",
-				instruction = "Tap Jump. Jumping also adds a little Resilience.",
+				instruction = "Tap Jump to hop over anything in your way.",
 				key = "JUMP",
 				accent = UI.color.examprep,
 			},
@@ -81,7 +81,7 @@ local function stepList(): { Step }
 			{
 				id = "jump",
 				title = "Jump",
-				instruction = "Press A. Jumping also adds a little Resilience.",
+				instruction = "Press A to hop over anything in your way.",
 				key = "A",
 				accent = UI.color.examprep,
 			},
@@ -113,7 +113,7 @@ local function stepList(): { Step }
 		{
 			id = "jump",
 			title = "Jump",
-			instruction = "Press Space. Jumping also adds a little Resilience.",
+			instruction = "Press Space to hop over anything in your way.",
 			key = "SPACE",
 			accent = UI.color.examprep,
 		},
