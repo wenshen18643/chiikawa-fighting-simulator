@@ -340,7 +340,8 @@ local function buildPage(parent: Frame, pageData: TutorialContent.Page): Scrolli
 		radius = UI.radius.card,
 		zIndex = 23,
 	})
-	hero.Size = UDim2.new(1, -8, 0, 96)
+	hero.Size = UDim2.new(1, -8, 0, 0)
+	hero.AutomaticSize = Enum.AutomaticSize.Y
 	hero.LayoutOrder = 1
 	UI.padding(hero, 18)
 
@@ -362,16 +363,13 @@ local function buildPage(parent: Frame, pageData: TutorialContent.Page): Scrolli
 		zIndex = 24,
 	})
 
-	UI.label(hero, "Title", {
-		text = pageData.title,
+	local title = autoLabel(hero, "Title", pageData.title, {
 		font = UI.font.display,
 		size = 26,
 		color = UI.color.ink,
-		position = UDim2.fromOffset(0, 24),
-		extent = UDim2.new(1, 0, 0, 38),
-		wrapped = true,
 		zIndex = 24,
 	})
+	title.Position = UDim2.fromOffset(0, 24)
 
 	for index, block in pageData.blocks do
 		buildBlock(page, index, block, accent)
@@ -547,6 +545,7 @@ local function buildPanel(parent: ScreenGui)
 	navigation.ScrollBarThickness = 0
 	navigation.ZIndex = 22
 	navigation.Parent = panel
+	UI.padding(navigation, 2)
 
 	navigationLayout = Instance.new("UIListLayout")
 	navigationLayout.SortOrder = Enum.SortOrder.LayoutOrder
