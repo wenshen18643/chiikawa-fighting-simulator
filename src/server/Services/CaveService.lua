@@ -22,6 +22,7 @@ local WORLD = Constants.WORLD
 local LEVEL_ATTRIBUTE = "CaveLevel"
 local STONE = Color3.fromRGB(104, 100, 112)
 local STONE_DARK = Color3.fromRGB(66, 63, 74)
+local BARRIER_COLOR = Color3.fromRGB(131, 91, 62)
 local GLOW_COLOR = Color3.fromRGB(178, 226, 208)
 local folder: Folder
 local mouthPosition: Vector3? = nil
@@ -226,6 +227,56 @@ local function buildShaft(
 	return topPosition, topAngle
 end
 
+local function buildSurfaceSeal(
+	parent: Instance,
+	shaftCentre: Vector3,
+	entrance: Vector3,
+	area: Areas.AreaDefinition
+)
+	local seal = Cave.SURFACE_SEAL
+	local direction = Vector3.new(entrance.X - shaftCentre.X, 0, entrance.Z - shaftCentre.Z)
+	if direction.Magnitude < 0.01 then
+		warn("[CaveService] cannot seal the surface shaft because its entrance has no direction")
+		return
+	end
+
+	local halfSpan = Cave.SHAFT.bore * math.sqrt(2) + seal.overlap
+	local openingStart = Cave.SHAFT.radius - seal.doorwayInset
+	local openingDepth = halfSpan - openingStart
+	local sideWidth = (halfSpan * 2 - seal.doorwayWidth) / 2
+	local surfaceY = shaftCentre.Y - seal.thickness / 2
+	local base = CFrame.lookAt(
+		Vector3.new(shaftCentre.X, surfaceY, shaftCentre.Z),
+		Vector3.new(shaftCentre.X, surfaceY, shaftCentre.Z) + direction.Unit
+	)
+	local material = (Enum.Material :: any)[area.terrain.material] or Enum.Material.Grass
+	local sealFolder = Instance.new("Folder")
+	sealFolder.Name = "SurfaceSeal"
+	sealFolder.Parent = parent
+
+	local function slab(name: string, width: number, depth: number, across: number, outward: number)
+		local surface = Instance.new("Part")
+		surface.Name = name
+		surface.Size = Vector3.new(width, seal.thickness, depth)
+		surface.CFrame = base * CFrame.new(across, 0, -outward)
+		surface.Color = area.palette.ground
+		surface.Material = material
+		surface.Anchored = true
+		surface.CanCollide = true
+		surface.TopSurface = Enum.SurfaceType.Smooth
+		surface.BottomSurface = Enum.SurfaceType.Smooth
+		surface.Parent = sealFolder
+	end
+
+	local rearDepth = halfSpan + openingStart
+	slab("Rear", halfSpan * 2, rearDepth, 0, (openingStart - halfSpan) / 2)
+
+	local sideOffset = seal.doorwayWidth / 2 + sideWidth / 2
+	local openingCentre = (openingStart + halfSpan) / 2
+	slab("Left", sideWidth, openingDepth, -sideOffset, openingCentre)
+	slab("Right", sideWidth, openingDepth, sideOffset, openingCentre)
+end
+
 local function carveLevel(level: Cave.LevelDefinition, step: Step)
 	for row = 1, Cave.GRID do
 		for col = 1, Cave.GRID do
@@ -340,6 +391,29 @@ local function decorateMouth(parent: Instance, centre: Vector3, entryAngle: numb
 		STONE_DARK
 	)
 
+	local outward = Vector3.new(math.cos(entryAngle), 0, math.sin(entryAngle))
+	local barrierAt = centre
+		+ outward * Cave.SHAFT.radius
+		+ Vector3.new(0, dressing.barrierSize.Y / 2, 0)
+	local barrier = rock(
+		mouthFolder,
+		"ComingSoonBarrier",
+		dressing.barrierSize,
+		CFrame.lookAt(barrierAt, centre),
+		BARRIER_COLOR
+	)
+	barrier.Material = Enum.Material.WoodPlanks
+
+	UI.sign(barrier, {
+		name = "ComingSoonSign",
+		title = "COMING SOON",
+		subtitle = "Cave closed for now",
+		offset = Vector3.new(0, 1, 0),
+		extent = UDim2.fromScale(12, 4),
+		maxDistance = 250,
+		alwaysOnTop = true,
+	})
+
 	for index = 0, dressing.lanterns - 1 do
 		local angle = entryAngle + (index - (dressing.lanterns - 1) / 2) * math.rad(26)
 		local reach = dressing.ringRadius * 1.16
@@ -450,6 +524,7 @@ local function carve(area: Areas.AreaDefinition, step: Step)
 	clearSurface(mouth, Cave.MOUTH.clearRadius)
 
 	local rampTop, entryAngle = buildShaft(folder, mouth.X, mouth.Z, groundY, first.floorY, step)
+	buildSurfaceSeal(folder, mouth, rampTop, area)
 	decorateMouth(folder, Vector3.new(mouth.X, rampTop.Y, mouth.Z), entryAngle)
 
 	local entrance = Cave.first(first, Cave.ENTRANCE)

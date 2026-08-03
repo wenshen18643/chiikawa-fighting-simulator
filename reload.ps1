@@ -228,15 +228,40 @@ function Start-Tool([string]$Exe, [string[]]$ToolArgs) {
     $info.RedirectStandardOutput = $true
     $info.RedirectStandardError = $true
 
-    $proc = [System.Diagnostics.Process]::Start($info)
+    try {
+        $proc = [System.Diagnostics.Process]::Start($info)
+    }
+    catch {
+        return [pscustomobject]@{
+            Proc       = $null
+            Out        = $null
+            Err        = $null
+            StartError = "Unable to start '$Exe': $($_.Exception.Message)"
+        }
+    }
+
+    if ($null -eq $proc) {
+        return [pscustomobject]@{
+            Proc       = $null
+            Out        = $null
+            Err        = $null
+            StartError = "Unable to start '$Exe': the process API returned no process."
+        }
+    }
+
     return [pscustomobject]@{
-        Proc = $proc
-        Out  = $proc.StandardOutput.ReadToEndAsync()
-        Err  = $proc.StandardError.ReadToEndAsync()
+        Proc       = $proc
+        Out        = $proc.StandardOutput.ReadToEndAsync()
+        Err        = $proc.StandardError.ReadToEndAsync()
+        StartError = $null
     }
 }
 
 function Wait-Tool($Job) {
+    if ($Job.StartError) {
+        return [pscustomobject]@{ Code = 1; Lines = @($Job.StartError) }
+    }
+
     $Job.Proc.WaitForExit()
     $text = $Job.Out.Result + "`n" + $Job.Err.Result
     $lines = @($text -split "`r?`n" | Where-Object { $_ -ne "" })
@@ -266,6 +291,7 @@ $LspPath = Resolve-Tool "luau-lsp"
 $Definitions = Join-Path $ProjectRoot "tools\globalTypes.d.luau"
 $LspJob = $null
 $LspSkipped = $DirtyLua.Count -eq 0 -and -not $DirtyTooling -and -not $Check -and (Test-Path $TypeCacheFile)
+$SourcemapResult = $null
 
 if ($LspPath -and -not (Test-Path $Definitions)) {
     Write-Host "tools/globalTypes.d.luau is missing - type check would be noise." -ForegroundColor Yellow
@@ -276,7 +302,14 @@ elseif (-not $LspPath) {
     Write-Host "Get it from https://github.com/JohnnyMorganz/luau-lsp/releases" -ForegroundColor Yellow
 }
 elseif (-not $LspSkipped) {
-    if ($SourcemapJob) { $SourcemapJob.Proc.WaitForExit() }
+    if ($SourcemapJob) {
+        $SourcemapResult = Wait-Tool $SourcemapJob
+        if ($SourcemapResult.Code -ne 0) {
+            Write-Host "Sourcemap generation failed." -ForegroundColor Red
+            $SourcemapResult.Lines | ForEach-Object { Write-Host "  $_" }
+            exit 1
+        }
+    }
     $LspJob = Start-Tool $LspPath @(
         "analyze", "--platform=roblox", "--definitions=$Definitions",
         "--sourcemap=$SourcemapOutput", "--no-strict-dm-types", "src"
@@ -284,7 +317,7 @@ elseif (-not $LspSkipped) {
 }
 
 if ($SourcemapJob) {
-    $sourcemap = Wait-Tool $SourcemapJob
+    $sourcemap = if ($SourcemapResult) { $SourcemapResult } else { Wait-Tool $SourcemapJob }
     if ($sourcemap.Code -ne 0) {
         Write-Host "Sourcemap generation failed." -ForegroundColor Red
         $sourcemap.Lines | ForEach-Object { Write-Host "  $_" }

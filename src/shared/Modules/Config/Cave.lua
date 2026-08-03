@@ -89,6 +89,7 @@ Cave.MOUTH_DRESSING = {
 	stoneWidth = { 7, 15 },
 	gateHeight = 34,
 	gateWidth = 8,
+	barrierSize = Vector3.new(22, 12, 2),
 
 	gapDegrees = 30,
 	lanterns = 6,
@@ -105,6 +106,13 @@ Cave.MOUTH = {
 	clearRadius = 100,
 
 	lip = 6,
+}
+
+Cave.SURFACE_SEAL = {
+	thickness = 2,
+	overlap = 4,
+	doorwayWidth = 22,
+	doorwayInset = 8,
 }
 
 export type LevelDefinition = {
