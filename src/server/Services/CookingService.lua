@@ -6,6 +6,7 @@ local Constants = require(Shared.Modules.Constants)
 local Formulas = require(Shared.Modules.Formulas)
 local RateLimiter = require(Shared.Modules.RateLimiter)
 local Remotes = require(Shared.Modules.Remotes)
+local Ingredients = require(Shared.Modules.Config.Ingredients)
 local Recipes = require(Shared.Modules.Config.Recipes)
 local Areas = require(Shared.Areas)
 local Layout = require(Shared.Modules.Config.Layout)
@@ -91,17 +92,39 @@ local function onSelect(player: Player, recipeId: any)
 	end
 
 	local ingredients = profile.currencies.ingredients
+	local spend: { { id: string, count: number } } = {}
+	local wildUsed = false
+
 	for _, ingredient in def.ingredients do
-		if (ingredients[ingredient.id] or 0) < ingredient.count then
+		local fromFarmed = math.min(ingredients[ingredient.id] or 0, ingredient.count)
+		local short = ingredient.count - fromFarmed
+		local wildId = Ingredients.wildOf(ingredient.id)
+		local fromWild = if wildId then math.min(ingredients[wildId] or 0, short) else 0
+
+		if short - fromWild > 0 then
 			NotifyService.send(player, "Missing ingredients!", "locked")
 			return
 		end
-	end
-	for _, ingredient in def.ingredients do
-		ingredients[ingredient.id] -= ingredient.count
+
+		if fromFarmed > 0 then
+			table.insert(spend, { id = ingredient.id, count = fromFarmed })
+		end
+		if wildId and fromWild > 0 then
+			table.insert(spend, { id = wildId, count = fromWild })
+			wildUsed = true
+		end
 	end
 
-	local needed = Formulas.cookClicks(profile, def.baseClicks)
+	for _, entry in spend do
+		ingredients[entry.id] -= entry.count
+	end
+
+	local baseClicks = def.baseClicks
+	if wildUsed then
+		baseClicks = math.ceil(baseClicks * (1 + COOKING.WILD_CLICK_SURCHARGE))
+	end
+
+	local needed = Formulas.cookClicks(profile, baseClicks)
 	sessions[player] = { recipeId = recipeId, needed = needed, progress = 0 }
 	eventRemote:FireClient(player, "started", recipeId, needed)
 	character:SetAttribute("Cooking", true)

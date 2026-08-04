@@ -51,39 +51,11 @@ export type PlantOptions = {
 	glow: boolean?,
 }
 
-type DynamicClump = {
-	slot: number,
-	folder: Folder?,
-	nodes: { [Node]: boolean },
-	remaining: number,
-	centre: Vector3?,
-	ingredient: Ingredients.IngredientDefinition?,
-	refreshScheduled: boolean,
-	generation: number,
-}
-
-type DynamicZoneRuntime = {
-	definition: Ingredients.ZoneDefinition,
-	folder: Folder,
-	centre: Vector3,
-	params: RaycastParams,
-	top: number,
-	rng: Random,
-	clumps: { DynamicClump },
-}
-
 local nodes: { [Node]: boolean } = {}
 local BUCKET = 32
 local BUCKET_STRIDE = 100000
 local buckets: { [number]: { [Node]: boolean } } = {}
 local nodeBucketKeys: { [Node]: number } = {}
-local nodeClumps: { [Node]: DynamicClump } = {}
-local clumpRuntimes: { [DynamicClump]: DynamicZoneRuntime } = {}
-local CLUMP_PLACEMENT_ATTEMPTS = 32
-local NODE_PLACEMENT_ATTEMPTS = 24
-local NODE_MIN_SPACING = 3
-local CLUMP_RESPAWN_ATTEMPTS = 3
-local CLUMP_RESPAWN_RETRY_SECONDS = 5
 
 local function bucketKey(gx: number, gz: number): number
 	return gx * BUCKET_STRIDE + gz
@@ -104,7 +76,6 @@ end
 
 local function unregisterNode(node: Node)
 	nodes[node] = nil
-	nodeClumps[node] = nil
 	node.progress = {}
 
 	local key = nodeBucketKeys[node]
@@ -127,7 +98,6 @@ local forageEvent: RemoteEvent
 local groundParams: RaycastParams
 local groundTop = 0
 local readySignal = Instance.new("BindableEvent")
-local onClumpNodeHarvested: ((Node) -> boolean)? = nil
 
 ForagingService.ready = false
 
@@ -194,10 +164,6 @@ local function harvest(player: Player, profile: any, node: Node)
 	CollectionService:RemoveTag(node.model, ForagingService.TAG)
 
 	setGlow(node.model, false)
-
-	if onClumpNodeHarvested and onClumpNodeHarvested(node) then
-		return
-	end
 
 	task.delay(def.regrowSeconds, function()
 		if node.retired then
@@ -418,254 +384,79 @@ function ForagingService.plant(
 	return node
 end
 
-local function flatDistance(a: Vector3, b: Vector3): number
-	local delta = a - b
-	return Vector3.new(delta.X, 0, delta.Z).Magnitude
+local JITTER_SCALE = 19
+
+local function drift(x: number, z: number, seed: number, reach: number): (number, number)
+	return math.noise(x / JITTER_SCALE, z / JITTER_SCALE, seed) * reach,
+		math.noise(z / JITTER_SCALE, x / JITTER_SCALE, seed + 41) * reach
 end
 
-local function randomDiskOffset(rng: Random, radius: number): Vector3
-	local angle = rng:NextNumber(0, math.pi * 2)
-	local reach = math.sqrt(rng:NextNumber()) * radius
-	return Vector3.new(math.cos(angle) * reach, 0, math.sin(angle) * reach)
-end
-
-local function nearestClumpDistance(runtime: DynamicZoneRuntime, candidate: Vector3, ignore: DynamicClump): number
-	local nearest = math.huge
-	for _, other in runtime.clumps do
-		if other ~= ignore and other.centre then
-			nearest = math.min(nearest, flatDistance(candidate, other.centre))
-		end
-	end
-	return nearest
-end
-
-local function chooseClumpCentre(runtime: DynamicZoneRuntime, clump: DynamicClump): Vector3
-	local zone = runtime.definition
-	local radius = math.max(zone.radius - FORAGE.CLUMP_SPREAD, 0)
-	local spacing = zone.minClumpSpacing or 0
-	local best = runtime.centre
-	local bestDistance = -math.huge
-
-	for _ = 1, CLUMP_PLACEMENT_ATTEMPTS do
-		local candidate = runtime.centre + randomDiskOffset(runtime.rng, radius)
-		local distance = nearestClumpDistance(runtime, candidate, clump)
-		if distance > bestDistance then
-			best = candidate
-			bestDistance = distance
-		end
-		if distance >= spacing then
-			return candidate
-		end
-	end
-
-	return best
-end
-
-local function nearestOffsetDistance(candidate: Vector3, offsets: { Vector3 }): number
-	local nearest = math.huge
-	for _, offset in offsets do
-		nearest = math.min(nearest, flatDistance(candidate, offset))
-	end
-	return nearest
-end
-
-local function chooseNodeOffset(rng: Random, offsets: { Vector3 }): Vector3
-	local best = Vector3.zero
-	local bestDistance = -math.huge
-
-	for _ = 1, NODE_PLACEMENT_ATTEMPTS do
-		local candidate = randomDiskOffset(rng, FORAGE.CLUMP_SPREAD)
-		local distance = nearestOffsetDistance(candidate, offsets)
-		if distance > bestDistance then
-			best = candidate
-			bestDistance = distance
-		end
-		if distance >= NODE_MIN_SPACING then
-			return candidate
-		end
-	end
-
-	return best
-end
-
-local function clearDynamicClump(clump: DynamicClump)
-	local folder = clump.folder
-	for node in clump.nodes do
-		unregisterNode(node)
-	end
-
-	clump.folder = nil
-	clump.nodes = {}
-	clump.remaining = 0
-	clump.centre = nil
-	clump.ingredient = nil
-	clump.refreshScheduled = false
-
-	if folder then
-		folder:Destroy()
-	end
-end
-
-local function populateDynamicClump(
-	runtime: DynamicZoneRuntime,
-	clump: DynamicClump,
-	initialIngredientId: string?
-): boolean
-	local ingredientId = initialIngredientId or Ingredients.rollIngredient(runtime.definition, runtime.rng)
-	local def = ingredientId and Ingredients.get(ingredientId)
-	if not def then
-		warn(`[ForagingService] zone "{runtime.definition.id}" rolled an unknown ingredient - clump omitted`)
-		return false
-	end
-
-	local centre = chooseClumpCentre(runtime, clump)
-	local folder = Instance.new("Folder")
-	folder.Name = string.format("Clump_%02d_%s", clump.slot, def.id)
-	folder:SetAttribute("ForageZoneId", runtime.definition.id)
-	folder:SetAttribute("ClumpSlot", clump.slot)
-	folder:SetAttribute("IngredientId", def.id)
-	folder:SetAttribute("NodeCount", runtime.definition.perClump)
-
-	local offsets: { Vector3 } = {}
-	local planted: { [Node]: boolean } = {}
-	for _ = 1, runtime.definition.perClump do
-		local offset = chooseNodeOffset(runtime.rng, offsets)
-		table.insert(offsets, offset)
-
-		local x, z = centre.X + offset.X, centre.Z + offset.Z
-		local node = ForagingService.plant(def, Vector3.new(x, groundAt(x, z, runtime.top, runtime.params), z), {
-			parent = folder,
-			yaw = runtime.rng:NextNumber(0, math.pi * 2),
-			dirt = def.ground,
-		})
-		if not node then
-			for previous in planted do
-				unregisterNode(previous)
-			end
-			folder:Destroy()
-			return false
-		end
-
-		planted[node] = true
-		nodeClumps[node] = clump
-	end
-
-	clump.folder = folder
-	clump.nodes = planted
-	clump.remaining = runtime.definition.perClump
-	clump.centre = centre
-	clump.ingredient = def
-	folder.Parent = runtime.folder
-	return true
-end
-
-local function attemptPopulateDynamicClump(
-	runtime: DynamicZoneRuntime,
-	clump: DynamicClump,
-	attempt: number,
-	generation: number,
-	initialIngredientId: string?
-)
-	if clump.generation ~= generation then
-		return
-	end
-	if populateDynamicClump(runtime, clump, initialIngredientId) then
-		return
-	end
-
-	if attempt >= CLUMP_RESPAWN_ATTEMPTS then
-		warn(
-			`[ForagingService] gave up filling {runtime.definition.id} clump {clump.slot} `
-				.. `after {CLUMP_RESPAWN_ATTEMPTS} attempts`
-		)
-		return
-	end
-
-	task.delay(CLUMP_RESPAWN_RETRY_SECONDS, function()
-		attemptPopulateDynamicClump(runtime, clump, attempt + 1, generation, initialIngredientId)
-	end)
-end
-
-local function scheduleDynamicClumpRefresh(runtime: DynamicZoneRuntime, clump: DynamicClump, delaySeconds: number)
-	if clump.refreshScheduled then
-		return
-	end
-
-	clump.refreshScheduled = true
-	clump.generation += 1
-	local generation = clump.generation
-	task.delay(delaySeconds, function()
-		if clump.generation ~= generation then
-			return
-		end
-		clearDynamicClump(clump)
-		attemptPopulateDynamicClump(runtime, clump, 1, generation, nil)
-	end)
-end
-
-onClumpNodeHarvested = function(node: Node): boolean
-	local clump = nodeClumps[node]
-	if not clump then
-		return false
-	end
-	if clump.remaining <= 0 then
-		return true
-	end
-
-	clump.remaining -= 1
-	local runtime = clumpRuntimes[clump]
-	local def = clump.ingredient or node.ingredient
-	if not runtime then
-		warn(`[ForagingService] dynamic clump {clump.slot} lost its zone runtime and cannot respawn`)
-		return true
-	end
-
-	scheduleDynamicClumpRefresh(runtime, clump, def.regrowSeconds)
-	return true
-end
-
-local function buildDynamicZone(
-	zone: Ingredients.ZoneDefinition,
+local function buildPlot(
+	plot: Ingredients.PlotDefinition,
 	parent: Instance,
 	params: RaycastParams,
 	top: number,
 	step: () -> ()
 )
 	local area = Areas.get(1)
-	if not area then
+	local centre = area and Layout.plotCentre(area, plot)
+	if not area or not centre then
+		warn(`[ForagingService] plot "{plot.id}" names section "{plot.cell}" which does not exist - skipped`)
+		return
+	end
+
+	local def = Ingredients.get(plot.ingredient)
+	if not def then
+		warn(`[ForagingService] plot "{plot.id}" names unknown ingredient "{plot.ingredient}" - skipped`)
 		return
 	end
 
 	local folder = Instance.new("Folder")
-	folder.Name = zone.id
+	folder.Name = plot.id
+	folder:SetAttribute("PlotName", plot.name)
+	folder:SetAttribute("IngredientId", def.id)
+
+	local yaw = math.rad(plot.yaw)
+	local cosYaw, sinYaw = math.cos(yaw), math.sin(yaw)
+	local halfDepth = (plot.rows - 1) * plot.rowSpacing / 2
+	local halfWidth = (plot.columns - 1) * plot.columnSpacing / 2
+	local seed = 0
+	for index = 1, #plot.id do
+		seed += string.byte(plot.id, index) * index
+	end
+	seed %= 512
+
+	local planted = 0
+	for row = 1, plot.rows do
+		local alongRow = (row - 1) * plot.rowSpacing - halfDepth
+		local half = plot.stagger * plot.columnSpacing / 2
+		local lean = if row % 2 == 0 then half else -half
+
+		for column = 1, plot.columns do
+			step()
+			local acrossRow = (column - 1) * plot.columnSpacing - halfWidth + lean
+			local localX = acrossRow * cosYaw - alongRow * sinYaw
+			local localZ = acrossRow * sinYaw + alongRow * cosYaw
+			local driftX, driftZ = drift(localX, localZ, seed, plot.jitter)
+			local x = centre.X + localX + driftX
+			local z = centre.Z + localZ + driftZ
+
+			local node = ForagingService.plant(def, Vector3.new(x, groundAt(x, z, top, params), z), {
+				parent = folder,
+				dirt = def.ground,
+				yaw = yaw + math.noise(x / JITTER_SCALE, z / JITTER_SCALE, seed + 97) * 0.5,
+			})
+			if node then
+				planted += 1
+			end
+		end
+	end
+
+	folder:SetAttribute("NodeCount", planted)
 	folder.Parent = parent
 
-	local runtime: DynamicZoneRuntime = {
-		definition = zone,
-		folder = folder,
-		centre = Layout.forageZoneCentre(area, zone),
-		params = params,
-		top = top,
-		rng = Random.new(),
-		clumps = {},
-	}
-	local initialPlan = Ingredients.clumpPlan(zone)
-
-	for slot = 1, zone.clumps do
-		step()
-		local clump: DynamicClump = {
-			slot = slot,
-			folder = nil,
-			nodes = {},
-			remaining = 0,
-			centre = nil,
-			ingredient = nil,
-			refreshScheduled = false,
-			generation = 1,
-		}
-		table.insert(runtime.clumps, clump)
-		clumpRuntimes[clump] = runtime
-		attemptPopulateDynamicClump(runtime, clump, 1, clump.generation, initialPlan[slot])
+	if planted == 0 then
+		warn(`[ForagingService] plot "{plot.id}" planted nothing - is the "{def.asset}" model missing?`)
 	end
 end
 
@@ -686,10 +477,6 @@ local function buildZone(
 )
 	local area = Areas.get(1)
 	if not area then
-		return
-	end
-	if zone.lifecycle == "clump-reroll" then
-		buildDynamicZone(zone, parent, params, top, step)
 		return
 	end
 
@@ -746,9 +533,21 @@ function ForagingService.init()
 	task.spawn(function()
 		TerrainBuilder.awaitReady()
 		local step = Budget.stepper()
-		for _, zone in Ingredients.ZONES do
-			buildZone(zone, groves, params, groundTop, step)
+
+		for _, plot in Ingredients.PLOTS do
+			local ok, err = pcall(buildPlot, plot, groves, params, groundTop, step)
+			if not ok then
+				warn(`[ForagingService] plot "{plot.id}" failed: {err}`)
+			end
 		end
+
+		for _, zone in Ingredients.ZONES do
+			local ok, err = pcall(buildZone, zone, groves, params, groundTop, step)
+			if not ok then
+				warn(`[ForagingService] zone "{zone.id}" failed: {err}`)
+			end
+		end
+
 		ForagingService.ready = true
 		readySignal:Fire()
 	end)

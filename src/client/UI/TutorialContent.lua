@@ -216,10 +216,10 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 					title = "Where things grow",
 					body = "Town is the whole map. Ingredients grow in fixed patches, and the further out a patch is, the more Kusatori it takes to pull anything from it.",
 					rows = {
-						{ label = "Home Fields", value = "Carrot, potato, rice", note = "north, close in" },
-						{ label = "Berry Grove", value = "Blue and purple berries", note = "west" },
+						{ label = "Wild Carrot Field", value = "Wild carrot", note = "west, close in" },
+						{ label = "Wild Potato Patch", value = "Wild potato", note = "west, one south" },
+						{ label = "Wild Rice Paddy", value = "Wild rice", note = "west, one north" },
 						{ label = "Mushroom Hollow", value = "Brown and white mushrooms", note = "south-east" },
-						{ label = "Bramble Hollow", value = "Black berries", note = "south-west, far" },
 						{ label = "Sausage Forest", value = "Pink and gold sausage", note = "south-west, guarded" },
 						{ label = "Snow Berry Thicket", value = "White berries", note = "south-east, furthest" },
 					},

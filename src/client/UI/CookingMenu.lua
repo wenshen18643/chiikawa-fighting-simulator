@@ -50,8 +50,21 @@ end
 
 local UNTRAINED = { skills = {} }
 
-local function stirsFor(def: Recipes.RecipeDefinition, snapshot: any): number
-	return Formulas.cookClicks(if snapshot and snapshot.skills then snapshot else UNTRAINED, def.baseClicks)
+local function wildNeeded(def: Recipes.RecipeDefinition, owned: { [string]: number }): boolean
+	for _, entry in def.ingredients do
+		if (owned[entry.id] or 0) < entry.count and Ingredients.wildOf(entry.id) then
+			return true
+		end
+	end
+	return false
+end
+
+local function stirsFor(def: Recipes.RecipeDefinition, snapshot: any, usesWild: boolean): number
+	local baseClicks = def.baseClicks
+	if usesWild then
+		baseClicks = math.ceil(baseClicks * (1 + Constants.COOKING.WILD_CLICK_SURCHARGE))
+	end
+	return Formulas.cookClicks(if snapshot and snapshot.skills then snapshot else UNTRAINED, baseClicks)
 end
 
 local function buildRecipeRow(parent: ScrollingFrame, def: Recipes.RecipeDefinition, index: number): (any) -> ()
@@ -151,7 +164,8 @@ local function buildRecipeRow(parent: ScrollingFrame, def: Recipes.RecipeDefinit
 
 		for _, entry in def.ingredients do
 			local ingredient = Ingredients.get(entry.id)
-			local have = owned[entry.id] or 0
+			local wildId = Ingredients.wildOf(entry.id)
+			local have = (owned[entry.id] or 0) + (if wildId then owned[wildId] or 0 else 0)
 			local enough = have >= entry.count
 			affordable = affordable and enough
 			local color = hex(if enough then UI.color.leaf else UI.color.tobatsu)
@@ -159,8 +173,9 @@ local function buildRecipeRow(parent: ScrollingFrame, def: Recipes.RecipeDefinit
 			table.insert(parts, `<font color="{color}">{entry.count}× {name} ({have})</font>`)
 		end
 
+		local usesWild = wildNeeded(def, owned)
 		costLabel.Text = table.concat(parts, "   ")
-		stirsText.Text = `~{stirsFor(def, snapshot)} stirs`
+		stirsText.Text = `~{stirsFor(def, snapshot, usesWild)} stirs`
 
 		cook.BackgroundColor3 = if affordable then UI.color.leafDeep else UI.color.paperDeep
 		cook.TextColor3 = if affordable then UI.color.white else UI.color.inkFaint

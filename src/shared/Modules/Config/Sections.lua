@@ -39,9 +39,9 @@ end
 
 local MAP = {
 	{ "sakura", "sakura", "sakura", "sakura", "flower", "meadow" },
-	{ "flower", "ramen", "farm", "sakura", "meadow", "flower" },
-	{ "meadow", "berry", "kitchen", "library", "tea", "grove" },
-	{ "meadow", "bramble", "market", "bare", "picnic", "grove" },
+	{ "flower", "bare", "farm", "sakura", "meadow", "flower" },
+	{ "meadow", "bare", "kitchen", "library", "bare", "grove" },
+	{ "meadow", "bare", "market", "bare", "picnic", "grove" },
 	{ "meadow", "sausage", "sausage", "mushroom", "snow", "lake" },
 	{ "meadow", "sausage", "sausage", "grove", "quarry", "meadowQuiet" },
 }

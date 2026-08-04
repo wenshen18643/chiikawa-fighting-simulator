@@ -58,6 +58,14 @@ function Layout.forageZoneCentre(area: Areas.AreaDefinition, zone: Ingredients.Z
 	return area.origin + directionOf(zone.angle) * zone.distance
 end
 
+function Layout.plotCentre(area: Areas.AreaDefinition, plot: Ingredients.PlotDefinition): Vector3?
+	local cell = Sections.byCoord(plot.cell)
+	if not cell then
+		return nil
+	end
+	return area.origin + Vector3.new(cell.cx, 0, cell.cz)
+end
+
 function Layout.plazaDiameter(area: Areas.AreaDefinition): number
 	return math.max(area.terrain.islandSize * WORLD.PLAZA_DIAMETER_FRACTION, WORLD.PLAZA_MIN_DIAMETER)
 end
@@ -263,14 +271,14 @@ function Layout.reservedZones(area: Areas.AreaDefinition): { Zone }
 	end
 
 	if area.id == Areas.STARTING_AREA then
-		for _, forageZone in Ingredients.ZONES do
-			if forageZone.reserveDecor then
-				local centre = Layout.forageZoneCentre(area, forageZone) - area.origin
+		for _, plot in Ingredients.PLOTS do
+			local cell = Sections.byCoord(plot.cell)
+			if cell then
 				table.insert(zones, {
 					kind = "circle",
-					x = centre.X,
-					z = centre.Z,
-					radius = forageZone.radius + Constants.FORAGE.CLUMP_SPREAD,
+					x = cell.cx,
+					z = cell.cz,
+					radius = Ingredients.plotHalfSpan(plot) + Constants.FORAGE.CLUMP_SPREAD,
 				})
 			end
 		end

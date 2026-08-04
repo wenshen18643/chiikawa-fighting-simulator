@@ -17,7 +17,7 @@ local CONSUMABLE_CELL = UDim2.fromOffset(246, 122)
 local USE_COOLDOWN = 0.5
 
 local EMPTY_TEXT = {
-	ingredients = "Nothing foraged yet.\nCarrots, potatoes and rice grow in the Home Fields.",
+	ingredients = "Nothing foraged yet.\nWild carrots, potatoes and rice grow west of Town.",
 	dishes = "No dishes yet.\nTake ingredients to the kitchen pot in Town.",
 	seasonings = "No seasonings yet.\nThey turn up in the weeds, now and then.",
 }

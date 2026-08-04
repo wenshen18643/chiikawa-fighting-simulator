@@ -10,8 +10,8 @@ Certifications.CAP_SKILL = "examprep"
 
 local ITEM_TIERS = {
 	{ "ironOre", "carrot", "potato" },
-	{ "copperOre", "blueBerry", "purpleBerry" },
-	{ "quartzOre", "brownMushroom", "blackBerry" },
+	{ "copperOre", "rice", "brownMushroom" },
+	{ "quartzOre", "whiteMushroom", "pinkSausage" },
 	{ "moonOre", "moonlightCap", "goldSausage" },
 }
 
