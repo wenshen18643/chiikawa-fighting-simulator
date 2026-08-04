@@ -111,8 +111,15 @@ local function makeSign(parent: Instance, baseCFrame: CFrame, plotId: number): B
 		return item
 	end
 
-	label("Title", 0, 0.34, `Plot {string.format("%02d", plotId)}`, Enum.Font.FredokaOne)
-	label("Status", 0.34, 0.34, "Vacant · Rent ¥20", Enum.Font.GothamBold)
+	label("Title", 0, 0.34, string.format("%02d", plotId), Enum.Font.FredokaOne)
+	local status = label(
+		"Status",
+		0.34,
+		0.34,
+		'<font transparency="0.5">Vacant</font> · Rent ¥20',
+		Enum.Font.GothamBold
+	)
+	status.RichText = true
 	label("Auction", 0.68, 0.32, "", Enum.Font.Gotham)
 	return post
 end
