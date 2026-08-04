@@ -164,7 +164,7 @@ WorkOrders.GRADES = {
 	{
 		label = "4級",
 		span = 8,
-		collect = { "blueBerry", "purpleBerry", "rice" },
+		collect = { "brownMushroom", "carrot", "rice" },
 		defeat = { "duck", "wolf" },
 		reach = {},
 		collectCount = { 12, 28 },
@@ -173,7 +173,7 @@ WorkOrders.GRADES = {
 	{
 		label = "3級",
 		span = 10,
-		collect = { "brownMushroom", "blackBerry", "purpleBerry" },
+		collect = { "brownMushroom", "whiteMushroom", "potato" },
 		defeat = { "wolf", "cave_sporeling" },
 		reach = { "1" },
 		collectCount = { 15, 34 },
@@ -182,7 +182,7 @@ WorkOrders.GRADES = {
 	{
 		label = "2級",
 		span = 12,
-		collect = { "whiteMushroom", "blackBerry", "brownMushroom" },
+		collect = { "whiteMushroom", "pinkSausage", "brownMushroom" },
 		defeat = { "cave_sporeling", "cave_pebblejaw" },
 		reach = { "2" },
 		collectCount = { 18, 40 },

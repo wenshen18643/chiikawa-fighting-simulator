@@ -17,8 +17,6 @@ export type IngredientDefinition = {
 	meat: boolean?,
 }
 
-export type ZoneLifecycle = "node-regrow" | "clump-reroll"
-
 export type ZoneDefinition = {
 	id: string,
 	name: string,
@@ -27,10 +25,21 @@ export type ZoneDefinition = {
 	radius: number,
 	clumps: number,
 	perClump: number,
-	lifecycle: ZoneLifecycle,
-	minClumpSpacing: number?,
-	reserveDecor: boolean?,
 	ingredients: { { id: string, weight: number } },
+}
+
+export type PlotDefinition = {
+	id: string,
+	name: string,
+	ingredient: string,
+	cell: string,
+	rows: number,
+	columns: number,
+	rowSpacing: number,
+	columnSpacing: number,
+	yaw: number,
+	jitter: number,
+	stagger: number,
 }
 
 export type ClumpDefinition = {
@@ -56,6 +65,9 @@ Ingredients.ORDER = {
 	"carrot",
 	"potato",
 	"rice",
+	"wildCarrot",
+	"wildPotato",
+	"wildRice",
 	"blueBerry",
 	"purpleBerry",
 	"brownMushroom",
@@ -128,6 +140,47 @@ Ingredients.DEFINITIONS = {
 		clip = "farm_rice",
 		glyph = "rice",
 		height = 3.2,
+	},
+	wildCarrot = {
+		id = "wildCarrot",
+		name = "Wild Carrot",
+		asset = "carrot",
+		rarity = "common",
+		gateExponent = 0,
+		minClicks = 3,
+		xpMultiplier = 4,
+		regrowSeconds = 45,
+		clip = "farm_carrot",
+		glyph = "carrot",
+		ground = true,
+		height = 1.7,
+	},
+	wildPotato = {
+		id = "wildPotato",
+		name = "Wild Potato",
+		asset = "potato",
+		rarity = "common",
+		gateExponent = 0,
+		minClicks = 3,
+		xpMultiplier = 4,
+		regrowSeconds = 45,
+		clip = "farm_potato",
+		glyph = "potato",
+		ground = true,
+		height = 1.5,
+	},
+	wildRice = {
+		id = "wildRice",
+		name = "Wild Rice",
+		asset = "rice",
+		rarity = "common",
+		gateExponent = 0,
+		minClicks = 4,
+		xpMultiplier = 5,
+		regrowSeconds = 60,
+		clip = "farm_rice",
+		glyph = "rice",
+		height = 3.0,
 	},
 	blueBerry = {
 		id = "blueBerry",
@@ -376,39 +429,6 @@ Ingredients.DEFINITIONS = {
 
 Ingredients.ZONES = {
 	{
-		id = "home_fields",
-		name = "Home Fields",
-
-		angle = 102,
-		distance = 511,
-		radius = 45,
-		clumps = 6,
-		perClump = 5,
-		lifecycle = "clump-reroll",
-		minClumpSpacing = 20,
-		reserveDecor = true,
-		ingredients = {
-			{ id = "carrot", weight = 3 },
-			{ id = "potato", weight = 3 },
-			{ id = "rice", weight = 2 },
-		},
-	},
-	{
-		id = "berry_grove",
-		name = "Berry Grove",
-		angle = 180,
-		distance = 300,
-		radius = 78,
-		clumps = 8,
-		perClump = 4,
-		lifecycle = "node-regrow",
-		ingredients = {
-			{ id = "blueBerry", weight = 3 },
-			{ id = "purpleBerry", weight = 3 },
-			{ id = "blackBerry", weight = 1 },
-		},
-	},
-	{
 		id = "mushroom_hollow",
 		name = "Mushroom Hollow",
 		angle = 300,
@@ -416,27 +436,11 @@ Ingredients.ZONES = {
 		radius = 74,
 		clumps = 7,
 		perClump = 4,
-		lifecycle = "node-regrow",
 		ingredients = {
 			{ id = "brownMushroom", weight = 3 },
 			{ id = "whiteMushroom", weight = 2 },
 		},
 	},
-	{
-		id = "bramble_hollow",
-		name = "Bramble Hollow",
-		angle = 205,
-		distance = 450,
-		radius = 68,
-		clumps = 5,
-		perClump = 4,
-		lifecycle = "node-regrow",
-		ingredients = {
-			{ id = "blackBerry", weight = 3 },
-			{ id = "purpleBerry", weight = 1 },
-		},
-	},
-
 	{
 		id = "snow_thicket",
 		name = "Snow Berry Thicket",
@@ -445,13 +449,83 @@ Ingredients.ZONES = {
 		radius = 66,
 		clumps = 4,
 		perClump = 4,
-		lifecycle = "node-regrow",
 		ingredients = {
 			{ id = "whiteBerry", weight = 3 },
 			{ id = "whiteMushroom", weight = 1 },
 		},
 	},
 } :: { ZoneDefinition }
+
+Ingredients.PLOTS = {
+	{
+		id = "wild_carrot_field",
+		name = "Wild Carrot Field",
+		ingredient = "wildCarrot",
+		cell = "B4",
+		rows = 5,
+		columns = 7,
+		rowSpacing = 13,
+		columnSpacing = 9,
+		yaw = 12,
+		jitter = 1.6,
+		stagger = 0.35,
+	},
+	{
+		id = "wild_potato_patch",
+		name = "Wild Potato Patch",
+		ingredient = "wildPotato",
+		cell = "B3",
+		rows = 4,
+		columns = 6,
+		rowSpacing = 15,
+		columnSpacing = 12,
+		yaw = -18,
+		jitter = 2.1,
+		stagger = 0.5,
+	},
+	{
+		id = "wild_rice_paddy",
+		name = "Wild Rice Paddy",
+		ingredient = "wildRice",
+		cell = "B5",
+		rows = 5,
+		columns = 7,
+		rowSpacing = 11,
+		columnSpacing = 8,
+		yaw = 5,
+		jitter = 1.1,
+		stagger = 0,
+	},
+} :: { PlotDefinition }
+
+function Ingredients.plotHalfSpan(plot: PlotDefinition): number
+	local halfDepth = (plot.rows - 1) * plot.rowSpacing / 2
+	local halfWidth = (plot.columns - 1 + plot.stagger) * plot.columnSpacing / 2
+	return math.sqrt(halfDepth * halfDepth + halfWidth * halfWidth) + plot.jitter
+end
+
+Ingredients.WILD_OF = {
+	carrot = "wildCarrot",
+	potato = "wildPotato",
+	rice = "wildRice",
+} :: { [string]: string }
+
+local FARMED_OF: { [string]: string } = {}
+for farmed, wild in Ingredients.WILD_OF do
+	FARMED_OF[wild] = farmed
+end
+
+function Ingredients.wildOf(id: string): string?
+	return Ingredients.WILD_OF[id]
+end
+
+function Ingredients.farmedOf(id: string): string?
+	return FARMED_OF[id]
+end
+
+function Ingredients.isWild(id: string): boolean
+	return FARMED_OF[id] ~= nil
+end
 
 Ingredients.CLUMPS = {
 	cave_glowcap = {
