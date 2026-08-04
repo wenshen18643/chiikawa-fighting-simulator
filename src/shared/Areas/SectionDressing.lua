@@ -102,10 +102,7 @@ local function dressRecipe(ctx, cell, entry, placed)
 			elseif entry.kind == "log" then
 				made = ctx.helpers.log(ctx, x, z, range(ctx, entry.l, 8))
 			elseif entry.kind == "grass" then
-				local match = if ctx.rng:NextNumber() > 0.45 then "grass" else "flower"
-				if not ctx.helpers.natureProp(ctx, x, z, match) then
-					ctx.helpers.bush(ctx, x, z, ctx.rng:NextNumber(3, 6))
-				end
+				ctx.helpers.bush(ctx, x, z, ctx.rng:NextNumber(3, 6))
 			elseif entry.kind == "flower" then
 				if not ctx.helpers.prop(ctx, `flowerBed{ctx.rng:NextInteger(1, 3)}`, x, z, { height = 2.1 }) then
 					ctx.helpers.bush(ctx, x, z, ctx.rng:NextNumber(3, 5))

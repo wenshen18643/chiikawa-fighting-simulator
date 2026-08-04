@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
+local Boosts = require(Shared.Modules.Boosts)
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
 local Skills = require(Shared.Modules.Config.Skills)
@@ -57,6 +58,7 @@ local function buildTemplate(): any
 		gamepasses = {},
 		upgrades = {},
 		boosts = {},
+		foodBuffs = {},
 		stamina = { current = Constants.STAMINA.BASE_MAX, max = Constants.STAMINA.BASE_MAX },
 		settings = { autoWork = false, vfxQuality = "high", musicVolume = 1 },
 		farm = { claimedCredits = {}, claimedCreditOrder = {} },
@@ -86,6 +88,7 @@ local OPEN_MAPS = {
 	gamepasses = true,
 	companions = true,
 	boosts = true,
+	foodBuffs = true,
 	recipes = true,
 	dishes = true,
 	furniture = true,
@@ -181,10 +184,23 @@ local function reconcile(profile: any): any
 
 	local now = os.time()
 	for index = #profile.boosts, 1, -1 do
-		if (profile.boosts[index].expiresAt or 0) <= now then
+		local id = profile.boosts[index].id or ""
+		if (profile.boosts[index].expiresAt or 0) <= now or string.sub(id, 1, 5) == "dish_" or string.sub(id, 1, 6) == "feast_" then
 			table.remove(profile.boosts, index)
 		end
 	end
+
+	if type(profile.foodBuffs) ~= "table" then
+		profile.foodBuffs = {}
+	else
+		for index = #profile.foodBuffs, 1, -1 do
+			local entry = profile.foodBuffs[index]
+			if type(entry) ~= "table" or type(entry.expiries) ~= "table" or type(entry.bonus) ~= "number" then
+				table.remove(profile.foodBuffs, index)
+			end
+		end
+	end
+	Boosts.pruneFood(profile, now)
 
 	profile.version = Constants.DATA.SCHEMA_VERSION
 	return profile

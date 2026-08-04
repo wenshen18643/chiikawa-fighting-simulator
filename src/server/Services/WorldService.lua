@@ -429,7 +429,6 @@ local function decorateArea(area: Areas.AreaDefinition, parent: Folder, step: ((
 	scenery.Parent = parent
 
 	local zones = Layout.reservedZones(area)
-	local packRng = Random.new(area.id * 104729)
 	local groundParams = RaycastParams.new()
 	groundParams.FilterType = Enum.RaycastFilterType.Exclude
 	local ignored: { Instance } = { scenery }
@@ -485,10 +484,6 @@ local function decorateArea(area: Areas.AreaDefinition, parent: Folder, step: ((
 
 		model = function(key: string): Model?
 			return AssetService.clone(key)
-		end,
-
-		packItem = function(key: string, match: string?): Model?
-			return AssetService.clonePackItem(key, packRng, match)
 		end,
 	}
 

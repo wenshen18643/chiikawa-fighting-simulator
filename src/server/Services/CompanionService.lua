@@ -6,7 +6,6 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Assets = require(Shared.Modules.Config.Assets)
 local Companions = require(Shared.Modules.Config.Companions)
 local Mascot = require(Shared.Modules.Mascot)
 local Mobs = require(Shared.Modules.Config.Mobs)
@@ -215,10 +214,6 @@ local function buildCompanion(spec: Companions.CompanionSpec): Model?
 			return nil
 		end
 
-		local asset = Assets.get(key)
-		if asset and asset.kind == "pack" then
-			return AssetService.clonePackItem(key, nil, spec.assetMatch)
-		end
 		return AssetService.clone(key)
 	end
 

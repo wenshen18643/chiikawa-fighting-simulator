@@ -77,7 +77,7 @@ src/
 │       ├── SafeZoneService    the cottage; the spawn; what "safe" MEANS
 │       ├── NpcService         procedural mascot characters, dialogue prompts
 │       ├── CompanionService   the follower that trails you + the friend stand (E)
-│       ├── AssetProbeService  measures an unknown asset id in-world (off by default)
+│       ├── AssetProbeService  measures a model template in-world (off by default)
 │       ├── WorksiteService    lays six skill districts per area; occupancy + validation
 │       ├── SkillService       the only writer of profile.skills
 │       ├── CurrencyService    the only writer of Yen/Stamps
@@ -187,7 +187,7 @@ area three services later. `decorate` runs inside a `pcall` — one broken area 
 whole world down.
 
 **`ctx` gives you:** `origin`, `parent`, a per-area seeded `rng` (so every server looks identical),
-`helpers` (`block`, `tree`, `bush`, `log`, `stone`, `natureProp`, `hut`, `signpost`, `scatter`,
+`helpers` (`block`, `tree`, `bush`, `log`, `stone`, `hut`, `signpost`, `scatter`,
 `cluster`, `ring`),
 `isReserved(x, z)`, and **`UI`** — the shared component library, so area signage is built from the
 same components as the HUD:
@@ -208,30 +208,26 @@ An area does **not** own which worksite tiers live in it — that stays in `Conf
 the skill ladder is defined once and cannot drift across six files. Nor does it own *where* they
 sit; that is `Config/Layout.lua`.
 
-## Adding uploaded models
+## Adding models
 
-`src/shared/Modules/Config/Assets.lua` holds the model ids transcribed from
-`docs/ASSETS.md`. `AssetService` fetches each one once at boot, strips scripts,
-anchors every part and keeps it in `ServerStorage`; area decor then clones from
-there instead of hitting the web per prop.
+Every model is served from this repo. Nothing is fetched from the marketplace at
+runtime — there is no `InsertService` call anywhere in the codebase.
 
-**Every one of them is optional.** `tree`, `grass` and `stone` currently have
-`id = 0` and build from parts exactly as before. To wire one up, fill in the id:
+`src/shared/Modules/Config/Assets.lua` maps an asset key to a `.rbxmx` under
+`assets/Models/`. `AssetService` clones each template once at boot, strips
+scripts, anchors every part and keeps it in `ServerStorage`; area decor then
+clones from there.
 
 ```lua
-tree = { id = 1234567890, kind = "model", scale = 1 },
+sakuraTree = { template = "SakuraTree", scale = 1, canopy = true },
 ```
 
-`kind = "pack"` means a container of many models; `Area.helpers.natureProp`
-clones a random child of one, chosen by index rather than by name because what
-is inside a downloaded pack is not knowable from this repo.
+`template` is the file name under `assets/Models/` without the extension. A key
+with no matching file warns at boot and the procedural version takes over.
 
-A load can fail at runtime for a reason the build cannot see: `InsertService`
-only serves assets that are **public, or owned by the account that owns the
-place**. A private id belonging to somebody else fails on a live server no
-matter what is typed here. So every load is `pcall`ed, every failure warns with
-the id, and the procedural version takes over — a bad id costs the nicer model
-and nothing else.
+`tree`, `grass`, `stone`, `log`, `bush` and `house` have no entry at all, so
+those helpers always build from parts. Drop a `.rbxmx` in and add the key to
+switch them over.
 
 ## Adding sounds
 

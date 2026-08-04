@@ -4,12 +4,10 @@ local BigNumber = require(ReplicatedStorage:WaitForChild("Shared").Modules.BigNu
 export type BigNum = BigNumber.BigNum
 
 export type SkillMap = {
-	weeding: BigNum,
-	subjugation: BigNum,
-	grit: BigNum,
-	craft: BigNum,
-	cooking: BigNum,
-	charm: BigNum,
+	tobatsu: BigNum,
+	resilience: BigNum,
+	kusatori: BigNum,
+	examprep: BigNum,
 }
 
 export type Currencies = {
@@ -86,7 +84,7 @@ export type PlayerProfile = {
 	seasons: number,
 	companions: { Companion },
 	gear: Gear,
-	recipes: { string },
+	recipes: { [string]: boolean },
 	dishes: { [string]: number },
 	workOrders: {
 		completed: { string },
@@ -97,6 +95,7 @@ export type PlayerProfile = {
 	home: Home,
 	gamepasses: { [number]: boolean },
 	boosts: { Boost },
+	foodBuffs: { any },
 	stamina: Stamina,
 	settings: { autoWork: boolean, vfxQuality: string, musicVolume: number },
 	farm: { claimedCredits: { [string]: boolean }, claimedCreditOrder: { string } },
@@ -129,6 +128,7 @@ export type StateSnapshot = {
 	seasonings: { [string]: number },
 	dishes: { [string]: number },
 	boosts: { Boost },
+	foodBuffs: { any },
 	showIntro: boolean,
 }
 

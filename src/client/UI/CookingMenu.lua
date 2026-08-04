@@ -97,14 +97,33 @@ local function buildRecipeRow(parent: ScrollingFrame, def: Recipes.RecipeDefinit
 		position = UDim2.fromOffset(14, 62),
 	})
 
+	local effectText = ""
+	if Recipes.isAmplifier(def) then
+		effectText = `Food buffs last x1.5 longer · {Constants.FOOD.AMPLIFIER_DURATION}s`
+	else
+		effectText = `{Boosts.describeFood(def.buff)} · {Recipes.duration(def)}s`
+	end
+
 	UI.label(row, "Effect", {
-		text = `{Boosts.describe(def.buff)} · {def.buff.duration}s`,
+		text = effectText,
 		font = UI.font.light,
 		size = UI.text.small,
 		color = UI.color.inkSoft,
 		extent = UDim2.new(1, -130, 0, 18),
 		position = UDim2.fromOffset(14, 84),
 	})
+
+	if Recipes.hasMeat(def) then
+		UI.chip(row, "MeatBadge", {
+			text = "MEAT",
+			textSize = 10,
+			color = UI.color.tobatsu,
+			textColor = UI.color.white,
+			extent = UDim2.fromOffset(42, 20),
+			position = UDim2.new(1, -166, 0, 18),
+			zIndex = row.ZIndex + 1,
+		})
+	end
 
 	local stirsChip = UI.chip(row, "Stirs", {
 		text = "",
