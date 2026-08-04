@@ -4,12 +4,10 @@ local BigNumber = require(ReplicatedStorage:WaitForChild("Shared").Modules.BigNu
 export type BigNum = BigNumber.BigNum
 
 export type SkillMap = {
-	weeding: BigNum,
-	subjugation: BigNum,
-	grit: BigNum,
-	craft: BigNum,
-	cooking: BigNum,
-	charm: BigNum,
+	tobatsu: BigNum,
+	resilience: BigNum,
+	kusatori: BigNum,
+	examprep: BigNum,
 }
 
 export type Currencies = {
@@ -53,11 +51,6 @@ export type Home = {
 	comfort: number,
 }
 
-export type Stamina = {
-	current: number,
-	max: number,
-}
-
 export type FarmCropState = {
 	id: string,
 	plantedAt: number,
@@ -86,7 +79,7 @@ export type PlayerProfile = {
 	seasons: number,
 	companions: { Companion },
 	gear: Gear,
-	recipes: { string },
+	recipes: { [string]: boolean },
 	dishes: { [string]: number },
 	workOrders: {
 		completed: { string },
@@ -97,7 +90,7 @@ export type PlayerProfile = {
 	home: Home,
 	gamepasses: { [number]: boolean },
 	boosts: { Boost },
-	stamina: Stamina,
+	foodBuffs: { any },
 	settings: { autoWork: boolean, vfxQuality: string, musicVolume: number },
 	farm: { claimedCredits: { [string]: boolean }, claimedCreditOrder: { string } },
 	version: number,
@@ -108,8 +101,6 @@ export type StateSnapshot = {
 	skills: { [string]: BigNum },
 	yen: BigNum,
 	stamps: BigNum,
-	stamina: Stamina,
-	resting: boolean,
 	seasons: number,
 	certifications: { [string]: number },
 	certificationCap: number,
@@ -129,6 +120,7 @@ export type StateSnapshot = {
 	seasonings: { [string]: number },
 	dishes: { [string]: number },
 	boosts: { Boost },
+	foodBuffs: { any },
 	showIntro: boolean,
 }
 

@@ -1,9 +1,9 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local BigNumber = require(Shared.Modules.BigNumber)
 local Boosts = require(Shared.Modules.Boosts)
 local Constants = require(Shared.Modules.Constants)
+local Formulas = require(Shared.Modules.Formulas)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
 local Recipes = require(Shared.Modules.Config.Recipes)
 local Remotes = require(Shared.Modules.Remotes)
@@ -48,13 +48,10 @@ local function hex(color: Color3): string
 	)
 end
 
+local UNTRAINED = { skills = {} }
+
 local function stirsFor(def: Recipes.RecipeDefinition, snapshot: any): number
-	local resilience = snapshot and snapshot.skills and snapshot.skills.resilience
-	local exponents = math.floor(math.max(BigNumber.log10(resilience), 0))
-	return math.max(
-		math.ceil(def.baseClicks * COOKING.MIN_CLICKS_FRACTION),
-		def.baseClicks - COOKING.CLICKS_PER_RESILIENCE_EXPONENT * exponents
-	)
+	return Formulas.cookClicks(if snapshot and snapshot.skills then snapshot else UNTRAINED, def.baseClicks)
 end
 
 local function buildRecipeRow(parent: ScrollingFrame, def: Recipes.RecipeDefinition, index: number): (any) -> ()
@@ -97,14 +94,33 @@ local function buildRecipeRow(parent: ScrollingFrame, def: Recipes.RecipeDefinit
 		position = UDim2.fromOffset(14, 62),
 	})
 
+	local effectText = ""
+	if Recipes.isAmplifier(def) then
+		effectText = `Food buffs last x1.5 longer · {Constants.FOOD.AMPLIFIER_DURATION}s`
+	else
+		effectText = `{Boosts.describeFood(def.buff)} · {Recipes.duration(def)}s`
+	end
+
 	UI.label(row, "Effect", {
-		text = `{Boosts.describe(def.buff)} · {def.buff.duration}s`,
+		text = effectText,
 		font = UI.font.light,
 		size = UI.text.small,
 		color = UI.color.inkSoft,
 		extent = UDim2.new(1, -130, 0, 18),
 		position = UDim2.fromOffset(14, 84),
 	})
+
+	if Recipes.hasMeat(def) then
+		UI.chip(row, "MeatBadge", {
+			text = "MEAT",
+			textSize = 10,
+			color = UI.color.tobatsu,
+			textColor = UI.color.white,
+			extent = UDim2.fromOffset(42, 20),
+			position = UDim2.new(1, -166, 0, 18),
+			zIndex = row.ZIndex + 1,
+		})
+	end
 
 	local stirsChip = UI.chip(row, "Stirs", {
 		text = "",

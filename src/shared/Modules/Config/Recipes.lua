@@ -1,9 +1,8 @@
 export type RecipeBuff = {
 	id: string,
-	multiplier: number,
 	skill: string?,
 	stat: string?,
-	duration: number,
+	bonus: number,
 }
 
 export type RecipeDefinition = {
@@ -16,8 +15,10 @@ export type RecipeDefinition = {
 	glyph: string,
 	description: string,
 	locked: boolean?,
+	amplifier: boolean?,
 }
 
+local Constants = require(script.Parent.Parent.Constants)
 local Ingredients = require(script.Parent.Ingredients)
 local Recipes = {}
 
@@ -31,6 +32,8 @@ Recipes.ORDER = {
 	"yogurtVanilla",
 	"meatSkewer",
 	"huntersStew",
+	"duckGreens",
+	"scholarsJerky",
 	"championPlatter",
 	"glowcapStew",
 }
@@ -42,9 +45,9 @@ Recipes.DEFINITIONS = {
 		model = "onigiri",
 		ingredients = { { id = "rice", count = 2 } },
 		baseClicks = 8,
-		buff = { id = "dish_onigiri", multiplier = 2, stat = "staminaRegen", duration = 60 },
+		buff = { id = "dish_onigiri", skill = "resilience", bonus = Constants.FOOD.BONUS_PLAIN },
 		glyph = "onigiri",
-		description = "Rice balls that put a spring back in your step.",
+		description = "Rice balls that put a spring back in your step. You last longer for it.",
 	},
 	dango = {
 		id = "dango",
@@ -52,7 +55,7 @@ Recipes.DEFINITIONS = {
 		model = "dango",
 		ingredients = { { id = "blueBerry", count = 1 }, { id = "purpleBerry", count = 1 } },
 		baseClicks = 10,
-		buff = { id = "dish_dango", multiplier = 2, skill = "kusatori", duration = 60 },
+		buff = { id = "dish_dango", skill = "kusatori", bonus = Constants.FOOD.BONUS_PLAIN },
 		glyph = "dango",
 		description = "Sweet skewers that make weeds fear you.",
 	},
@@ -62,7 +65,7 @@ Recipes.DEFINITIONS = {
 		model = "yogurtBerry",
 		ingredients = { { id = "blackBerry", count = 2 } },
 		baseClicks = 12,
-		buff = { id = "dish_yogurt_berry", multiplier = 2, skill = "examprep", duration = 90 },
+		buff = { id = "dish_yogurt_berry", skill = "examprep", bonus = Constants.FOOD.BONUS_PLAIN },
 		glyph = "yogurt",
 		description = "The lottery company approves of this study snack.",
 	},
@@ -72,7 +75,7 @@ Recipes.DEFINITIONS = {
 		model = "teaCup",
 		ingredients = { { id = "brownMushroom", count = 1 }, { id = "carrot", count = 1 } },
 		baseClicks = 12,
-		buff = { id = "dish_forest_tea", multiplier = 2, skill = "resilience", duration = 90 },
+		buff = { id = "dish_forest_tea", skill = "resilience", bonus = Constants.FOOD.BONUS_PLAIN },
 		glyph = "tea",
 		description = "Warmth that teaches you to endure. Cooks make tougher cooks.",
 	},
@@ -82,7 +85,7 @@ Recipes.DEFINITIONS = {
 		model = "ramen",
 		ingredients = { { id = "pinkSausage", count = 1 }, { id = "rice", count = 1 }, { id = "potato", count = 1 } },
 		baseClicks = 14,
-		buff = { id = "dish_ramen", multiplier = 2, skill = "tobatsu", duration = 90 },
+		buff = { id = "dish_ramen", skill = "tobatsu", bonus = Constants.FOOD.BONUS_PLAIN },
 		glyph = "ramen",
 		description = "The bowl. Sausage tree sausage, obviously.",
 	},
@@ -92,7 +95,7 @@ Recipes.DEFINITIONS = {
 		model = "pancakes",
 		ingredients = { { id = "whiteBerry", count = 2 }, { id = "rice", count = 1 } },
 		baseClicks = 16,
-		buff = { id = "dish_pancakes", multiplier = 2, stat = "yen", duration = 120 },
+		buff = { id = "dish_pancakes", stat = "yen", bonus = Constants.FOOD.BONUS_PLAIN },
 		glyph = "pancakes",
 		description = "Stacked high enough to attract paying customers.",
 	},
@@ -102,7 +105,7 @@ Recipes.DEFINITIONS = {
 		model = "yogurtVanilla",
 		ingredients = { { id = "whiteMushroom", count = 1 }, { id = "whiteBerry", count = 1 } },
 		baseClicks = 16,
-		buff = { id = "dish_yogurt_vanilla", multiplier = 1.5, duration = 120 },
+		buff = { id = "dish_yogurt_vanilla", skill = "kusatori", bonus = Constants.FOOD.BONUS_PLAIN },
 		glyph = "yogurt",
 		description = "Plain, perfect, and quietly improves everything.",
 	},
@@ -112,7 +115,7 @@ Recipes.DEFINITIONS = {
 		model = "dango",
 		ingredients = { { id = "frogMeat", count = 2 }, { id = "potato", count = 1 } },
 		baseClicks = 12,
-		buff = { id = "dish_meat_skewer", multiplier = 2, skill = "tobatsu", duration = 90 },
+		buff = { id = "dish_meat_skewer", skill = "tobatsu", bonus = Constants.FOOD.BONUS_MEAT },
 		glyph = "meat",
 		description = "Whatever you caught, over the fire. Sharpens the hunt.",
 	},
@@ -126,9 +129,29 @@ Recipes.DEFINITIONS = {
 			{ id = "carrot", count = 1 },
 		},
 		baseClicks = 20,
-		buff = { id = "dish_hunters_stew", multiplier = 3, skill = "resilience", duration = 120 },
+		buff = { id = "dish_hunters_stew", skill = "resilience", bonus = Constants.FOOD.BONUS_MEAT },
 		glyph = "meat",
 		description = "Everything you outlasted, in one pot. It makes you harder to kill.",
+	},
+	duckGreens = {
+		id = "duckGreens",
+		name = "Duck & Greens",
+		model = "ramen",
+		ingredients = { { id = "duckMeat", count = 1 }, { id = "carrot", count = 1 }, { id = "brownMushroom", count = 1 } },
+		baseClicks = 18,
+		buff = { id = "dish_duck_greens", skill = "kusatori", bonus = Constants.FOOD.BONUS_MEAT },
+		glyph = "meat",
+		description = "Duck over field greens. The weeds never see you coming.",
+	},
+	scholarsJerky = {
+		id = "scholarsJerky",
+		name = "Scholar's Jerky",
+		model = "dango",
+		ingredients = { { id = "frogMeat", count = 2 }, { id = "blackBerry", count = 1 } },
+		baseClicks = 16,
+		buff = { id = "dish_scholars_jerky", skill = "examprep", bonus = Constants.FOOD.BONUS_MEAT },
+		glyph = "meat",
+		description = "Chewy enough to keep you awake through the whole textbook.",
 	},
 	championPlatter = {
 		id = "championPlatter",
@@ -140,9 +163,10 @@ Recipes.DEFINITIONS = {
 			{ id = "whiteBerry", count = 1 },
 		},
 		baseClicks = 20,
-		buff = { id = "dish_champion", multiplier = 2, duration = 180 },
+		buff = { id = Constants.FOOD.AMPLIFIER_ID, stat = Constants.FOOD.AMPLIFIER_STAT, bonus = 0 },
 		glyph = "platter",
-		description = "A legendary feast. Everything you do shines for a while.",
+		description = "Eat before a cook-off. Every food buff you are running lasts half again as long.",
+		amplifier = true,
 	},
 	glowcapStew = {
 		id = "glowcapStew",
@@ -153,12 +177,36 @@ Recipes.DEFINITIONS = {
 			{ id = "brownMushroom", count = 2 },
 		},
 		baseClicks = 16,
-		buff = { id = "dish_glowcap", multiplier = 3, skill = "tobatsu", duration = 120 },
+		buff = { id = "dish_glowcap", skill = "tobatsu", bonus = Constants.FOOD.BONUS_PLAIN },
 		glyph = "mushroom",
 		description = "Faintly luminous. The cook swears that part is fine.",
 		locked = true,
 	},
 } :: { [string]: RecipeDefinition }
+
+function Recipes.hasMeat(def: RecipeDefinition): boolean
+	for _, entry in def.ingredients do
+		if Ingredients.isMeat(entry.id) then
+			return true
+		end
+	end
+	return false
+end
+
+function Recipes.isAmplifier(def: RecipeDefinition): boolean
+	return def.amplifier == true
+end
+
+function Recipes.duration(def: RecipeDefinition): number
+	if Recipes.hasMeat(def) then
+		return Constants.FOOD.DURATION_TIER
+	end
+	local tier = Ingredients.RARITY[Recipes.rarity(def)]
+	if tier and tier.order >= Constants.FOOD.TIER_RARITY_ORDER then
+		return Constants.FOOD.DURATION_TIER
+	end
+	return Constants.FOOD.DURATION_BASE
+end
 
 function Recipes.get(id: string): RecipeDefinition?
 	return Recipes.DEFINITIONS[id]

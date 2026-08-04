@@ -1,6 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
+local Boosts = require(Shared.Modules.Boosts)
 local Constants = require(Shared.Modules.Constants)
 local Certifications = require(Shared.Modules.Config.Certifications)
 local Gear = require(Shared.Modules.Config.Gear)
@@ -25,6 +26,8 @@ function Formulas.gainMultiplier(profile: any, skillId: string): BigNum
 	multiplier = BigNumber.mulNumber(multiplier, Formulas.boostMultiplier(profile, canonical))
 	multiplier = BigNumber.mulNumber(multiplier, Upgrades.gainMultiplier(profile, canonical))
 
+	multiplier = BigNumber.mulNumber(multiplier, 1 + Boosts.foodBonus(profile, canonical, false))
+
 	return multiplier
 end
 
@@ -42,7 +45,11 @@ function Formulas.boostMultiplier(profile: any, skillId: string): number
 	local multiplier = 1
 	local canonical = Skills.canonicalize(skillId)
 	for _, boost in profile.boosts do
-		if boost.expiresAt > now and (boost.skill == nil or Skills.canonicalize(boost.skill) == canonical) then
+		if
+			boost.expiresAt > now
+			and boost.stat == nil
+			and (boost.skill == nil or Skills.canonicalize(boost.skill) == canonical)
+		then
 			multiplier *= boost.multiplier
 		end
 	end
@@ -73,14 +80,18 @@ function Formulas.resilienceLog(profile: any): number
 	return if BigNumber.isValid(resilienceVal) then math.max(BigNumber.log10(resilienceVal), 0) else 0
 end
 
-function Formulas.maxStamina(profile: any): number
-	return (Constants.STAMINA.BASE_MAX + Formulas.resilienceLog(profile) * Constants.STAMINA.MAX_PER_GRIT_LOG)
-		* Upgrades.multiplier(profile, "stamina")
-end
+function Formulas.cookClicks(profile: any, baseClicks: number): number
+	local exponents = Formulas.resilienceLog(profile)
+	local penalty = 1
+		+ (Constants.COOKING.UNTRAINED_CLICK_PENALTY - 1)
+			* math.clamp(1 - exponents / Constants.COOKING.PENALTY_EXPONENTS, 0, 1)
+	local trained = Constants.COOKING.CLICKS_PER_RESILIENCE_EXPONENT
+		* math.max(math.floor(exponents - Constants.COOKING.PENALTY_EXPONENTS), 0)
 
-function Formulas.staminaRegenPerSecond(profile: any): number
-	return (Constants.STAMINA.REGEN_PER_SECOND + Formulas.resilienceLog(profile) * Constants.STAMINA.REGEN_PER_GRIT_LOG)
-		* Formulas.boostStatMultiplier(profile, "staminaRegen")
+	return math.max(
+		math.ceil(baseClicks * Constants.COOKING.MIN_CLICKS_FRACTION),
+		math.ceil(baseClicks * penalty - trained)
+	)
 end
 
 function Formulas.maxHealth(profile: any): number
@@ -93,17 +104,15 @@ function Formulas.yenPerMinute(profile: any): BigNum
 		certificationBonus += order * Certifications.WAGE_BONUS_PER_ORDER
 	end
 
-	local wage = BigNumber.fromNumber(Constants.CURRENCY.BASE_YEN_PER_MINUTE)
-	wage = BigNumber.mulNumber(wage, certificationBonus)
-
 	local kusatoriVal = profile.skills.kusatori or profile.skills.weeding or profile.skills.agility
 	local weedingLog = if BigNumber.isValid(kusatoriVal) then math.max(BigNumber.log10(kusatoriVal), 0) else 0
-	wage = BigNumber.mulNumber(wage, 1 + weedingLog)
+	local multiplier = certificationBonus
+		* (1 + weedingLog)
+		* Formulas.boostStatMultiplier(profile, "yen")
+		* Upgrades.multiplier(profile, "yen")
+		* (1 + Boosts.foodBonus(profile, "yen", true))
 
-	wage = BigNumber.mulNumber(wage, Formulas.boostStatMultiplier(profile, "yen"))
-	wage = BigNumber.mulNumber(wage, Upgrades.multiplier(profile, "yen"))
-
-	return wage
+	return BigNumber.mulNumber(BigNumber.fromNumber(Constants.CURRENCY.BASE_YEN_PER_MINUTE), multiplier)
 end
 
 function Formulas.yenForGain(skillId: string, gain: BigNum): BigNum

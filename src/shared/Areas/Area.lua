@@ -33,7 +33,6 @@ export type DecorateContext = {
 	UI: typeof(UI),
 
 	model: ((key: string) -> Model?)?,
-	packItem: ((key: string, match: string?) -> Model?)?,
 	groundY: ((x: number, z: number) -> number)?,
 	step: (() -> ())?,
 }
@@ -159,7 +158,6 @@ end
 
 function Area.helpers.tree(ctx: DecorateContext, x: number, z: number, height: number, canopySize: number)
 	local asset = placeAsset(ctx, "tree", x, z, { rotation = ctx.rng:NextNumber() * math.pi * 2 })
-		or Area.helpers.natureProp(ctx, x, z, "tree")
 	if asset then
 		local natural = asset:GetExtentsSize().Y
 		if natural > 0.01 then
@@ -230,7 +228,6 @@ end
 
 function Area.helpers.stone(ctx: DecorateContext, x: number, z: number, size: number)
 	local asset = placeAsset(ctx, "stone", x, z, { rotation = ctx.rng:NextNumber() * math.pi * 2 })
-		or Area.helpers.natureProp(ctx, x, z, "rock")
 	if asset then
 		return asset
 	end
@@ -249,7 +246,6 @@ end
 
 function Area.helpers.bush(ctx: DecorateContext, x: number, z: number, size: number)
 	local asset = placeAsset(ctx, "bush", x, z, { rotation = ctx.rng:NextNumber() * math.pi * 2 })
-		or Area.helpers.natureProp(ctx, x, z, "bush")
 	if asset then
 		return asset
 	end
@@ -286,41 +282,6 @@ function Area.helpers.log(ctx: DecorateContext, x: number, z: number, length: nu
 	})
 	part.CFrame = part.CFrame * CFrame.Angles(0, ctx.rng:NextNumber() * math.pi * 2, 0)
 	return part
-end
-
-local NATURE_PROP_MAX_HEIGHT = 34
-
-function Area.helpers.natureProp(ctx: DecorateContext, x: number, z: number, match: string?): Model?
-	local get = ctx.packItem
-	if not get then
-		return nil
-	end
-
-	local model = get("naturePack", match)
-	if not model then
-		return nil
-	end
-
-	step(ctx)
-
-	local size = model:GetExtentsSize()
-
-	if size.Y > NATURE_PROP_MAX_HEIGHT or size.Y <= 0.01 then
-		model:Destroy()
-		return nil
-	end
-
-	local spin = if ctx.rng then ctx.rng:NextNumber() * math.pi * 2 else 0
-	model:PivotTo(
-		CFrame.new(ctx.origin + Vector3.new(x, groundAt(ctx, x, z) + size.Y / 2, z)) * CFrame.Angles(0, spin, 0)
-	)
-
-	local centre, box = ModelUtil.worldBox(model)
-	local target = ctx.origin.Y + groundAt(ctx, x, z) - box.Y * 0.04
-	model:PivotTo(model:GetPivot() + Vector3.new(0, target - (centre.Y - box.Y / 2), 0))
-
-	model.Parent = ctx.parent
-	return model
 end
 
 function Area.helpers.hut(ctx: DecorateContext, config: { [string]: any })

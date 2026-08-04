@@ -26,7 +26,7 @@ Seasonings.DEFINITIONS = {
 		glyph = "spark",
 		color = Color3.fromRGB(238, 242, 250),
 		weight = 4,
-		buff = { id = "season_salt", multiplier = 1.5, stat = "staminaRegen", duration = 45 },
+		buff = { id = "season_salt", multiplier = 1.5, skill = "resilience", duration = 45 },
 	},
 	pepper = {
 		id = "pepper",

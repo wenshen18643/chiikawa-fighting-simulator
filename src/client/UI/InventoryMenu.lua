@@ -3,6 +3,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Boosts = require(Shared.Modules.Boosts)
+local Constants = require(Shared.Modules.Constants)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
 local Recipes = require(Shared.Modules.Config.Recipes)
 local Remotes = require(Shared.Modules.Remotes)
@@ -158,8 +159,18 @@ local function buildConsumableCard(config: { [string]: any }, index: number)
 		zIndex = card.ZIndex + 1,
 	})
 
+	local effectText = ""
+	local recipeDef = Recipes.get(config.id)
+	if recipeDef and Recipes.isAmplifier(recipeDef) then
+		effectText = `Food buffs last x1.5 longer · {Constants.FOOD.AMPLIFIER_DURATION}s`
+	elseif recipeDef then
+		effectText = `{Boosts.describeFood(config.buff)} · {Recipes.duration(recipeDef)}s`
+	else
+		effectText = `{Boosts.describe(config.buff)} · {config.buff.duration}s`
+	end
+
 	UI.label(card, "Effect", {
-		text = `{Boosts.describe(config.buff)} · {config.buff.duration}s`,
+		text = effectText,
 		font = UI.font.light,
 		size = UI.text.small,
 		color = UI.color.inkSoft,

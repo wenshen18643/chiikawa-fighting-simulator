@@ -1,6 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Boosts = require(Shared.Modules.Boosts)
+local Constants = require(Shared.Modules.Constants)
 local Recipes = require(Shared.Modules.Config.Recipes)
 local Remotes = require(Shared.Modules.Remotes)
 local Seasonings = require(Shared.Modules.Config.Seasonings)
@@ -30,8 +31,26 @@ local function onEat(player: Player, dishId: any)
 		return
 	end
 
-	Boosts.apply(profile, def.buff)
-	NotifyService.send(player, `You eat {def.name}. {Boosts.describe(def.buff)} for {def.buff.duration}s.`, "reward")
+	local durationStr
+	local desc
+	if Recipes.isAmplifier(def) then
+		local ampBuff = {
+			id = Constants.FOOD.AMPLIFIER_ID,
+			multiplier = Constants.FOOD.AMPLIFIER_FACTOR,
+			stat = Constants.FOOD.AMPLIFIER_STAT,
+			duration = Constants.FOOD.AMPLIFIER_DURATION,
+		}
+		Boosts.apply(profile, ampBuff)
+		Boosts.extendFood(profile, Constants.FOOD.AMPLIFIER_FACTOR)
+		durationStr = tostring(math.floor(Constants.FOOD.AMPLIFIER_DURATION))
+		desc = Boosts.describe(ampBuff)
+	else
+		local duration = Boosts.applyFood(profile, def.buff, Recipes.duration(def))
+		durationStr = tostring(math.floor(duration))
+		desc = Boosts.describeFood(def.buff)
+	end
+
+	NotifyService.send(player, `You eat {def.name}. {desc} for {durationStr}s.`, "reward")
 end
 
 local function onUseSeasoning(player: Player, seasoningId: any)

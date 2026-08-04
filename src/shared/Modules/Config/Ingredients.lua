@@ -14,6 +14,7 @@ export type IngredientDefinition = {
 	skill: string?,
 	material: boolean?,
 	yen: number?,
+	meat: boolean?,
 }
 
 export type ZoneLifecycle = "node-regrow" | "clump-reroll"
@@ -339,6 +340,7 @@ Ingredients.DEFINITIONS = {
 		glyph = "meat",
 		skill = "tobatsu",
 		height = 1.4,
+		meat = true,
 	},
 	duckMeat = {
 		id = "duckMeat",
@@ -353,6 +355,7 @@ Ingredients.DEFINITIONS = {
 		glyph = "meat",
 		skill = "tobatsu",
 		height = 1.6,
+		meat = true,
 	},
 	wolfMeat = {
 		id = "wolfMeat",
@@ -367,6 +370,7 @@ Ingredients.DEFINITIONS = {
 		glyph = "meat",
 		skill = "tobatsu",
 		height = 1.8,
+		meat = true,
 	},
 } :: { [string]: IngredientDefinition }
 
@@ -471,6 +475,11 @@ Ingredients.CLUMPS = {
 
 function Ingredients.get(id: string): IngredientDefinition?
 	return Ingredients.DEFINITIONS[id]
+end
+
+function Ingredients.isMeat(id: string): boolean
+	local def = Ingredients.DEFINITIONS[id]
+	return def ~= nil and def.meat == true
 end
 
 function Ingredients.rollIngredient(zone: ZoneDefinition, rng: Random): string?

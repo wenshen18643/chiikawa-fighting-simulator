@@ -18,7 +18,6 @@ local MobService = require(script.Parent.MobService)
 local NotifyService = require(script.Parent.NotifyService)
 local QuarryService = require(script.Parent.QuarryService)
 local SkillService = require(script.Parent.SkillService)
-local StaminaService = require(script.Parent.StaminaService)
 local WeedService = require(script.Parent.WeedService)
 
 local WorkService = {
@@ -205,10 +204,6 @@ local function onPerform(player: Player)
 		if not limiterFor(player, profile):consume() then
 			return
 		end
-		if not StaminaService.tryConsume(player, profile) then
-			explain(player, "Catching your breath for a moment. You are still earning.")
-			return
-		end
 
 		local currentTobatsu = SkillService.get(profile, "tobatsu")
 		local hitDefinition = MobService.tryAttack(player, BigNumber.toNumber(currentTobatsu))
@@ -248,11 +243,6 @@ local function onPerform(player: Player)
 			explain(player, "Nothing to pull here — find weeds or something growing.")
 			return
 		end
-	end
-
-	if not StaminaService.tryConsume(player, profile) then
-		explain(player, "Catching your breath for a moment. You are still earning.")
-		return
 	end
 
 	markWorking(player, skillId)

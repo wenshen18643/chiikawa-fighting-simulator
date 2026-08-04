@@ -6,6 +6,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Areas = require(Shared.Areas)
 local BigNumber = require(Shared.Modules.BigNumber)
 local Boosts = require(Shared.Modules.Boosts)
+local Constants = require(Shared.Modules.Constants)
 local Formulas = require(Shared.Modules.Formulas)
 local ModelUtil = require(Shared.Modules.ModelUtil)
 local Remotes = require(Shared.Modules.Remotes)
@@ -198,13 +199,13 @@ local function finish(player: Player, profile: any, food: Food)
 	local def = food.def
 	local yen = BigNumber.mulNumber(Formulas.yenPerMinute(profile), def.wageMinutes)
 	CurrencyService.award(profile, "yen", yen)
-	Boosts.apply(profile, def.buff)
+	Boosts.applyFood(profile, def.buff, Constants.FOOD.DURATION_TIER)
 
 	local gain = awardResilience(player, profile, def.clicks * Feast.FINISH_XP_PER_CLICK)
 
 	NotifyService.send(
 		player,
-		`You finished the {def.name}! +{BigNumber.toString(yen)} yen, +{BigNumber.toString(gain)} Resilience, and {Boosts.describe(
+		`You finished the {def.name}! +{BigNumber.toString(yen)} yen, +{BigNumber.toString(gain)} Resilience, and {Boosts.describeFood(
 			def.buff
 		)}.`,
 		"reward"

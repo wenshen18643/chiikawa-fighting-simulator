@@ -1,3 +1,4 @@
+local Constants = require(script.Parent.Parent.Constants)
 local Boosts = require(script.Parent.Parent.Boosts)
 
 export type FoodDefinition = {
@@ -8,7 +9,7 @@ export type FoodDefinition = {
 	clicks: number,
 	wageMinutes: number,
 	weight: number,
-	buff: Boosts.Boost,
+	buff: Boosts.FoodBuff,
 }
 
 local Feast = {}
@@ -40,7 +41,7 @@ Feast.DEFINITIONS = {
 		clicks = 40,
 		wageMinutes = 8,
 		weight = 5,
-		buff = { id = "feast_onigiri", multiplier = 3, stat = "staminaRegen", duration = 120 },
+		buff = { id = "feast_onigiri", skill = "resilience", bonus = Constants.FOOD.BONUS_MEAT },
 	},
 	dango = {
 		id = "dango",
@@ -50,7 +51,7 @@ Feast.DEFINITIONS = {
 		clicks = 55,
 		wageMinutes = 12,
 		weight = 5,
-		buff = { id = "feast_dango", multiplier = 3, skill = "kusatori", duration = 120 },
+		buff = { id = "feast_dango", skill = "kusatori", bonus = Constants.FOOD.BONUS_MEAT },
 	},
 	pancakes = {
 		id = "pancakes",
@@ -60,7 +61,7 @@ Feast.DEFINITIONS = {
 		clicks = 70,
 		wageMinutes = 18,
 		weight = 4,
-		buff = { id = "feast_pancakes", multiplier = 3, skill = "tobatsu", duration = 180 },
+		buff = { id = "feast_pancakes", skill = "tobatsu", bonus = Constants.FOOD.BONUS_MEAT },
 	},
 	yogurtBerry = {
 		id = "yogurtBerry",
@@ -70,7 +71,7 @@ Feast.DEFINITIONS = {
 		clicks = 70,
 		wageMinutes = 18,
 		weight = 4,
-		buff = { id = "feast_yogurt_berry", multiplier = 3, skill = "examprep", duration = 180 },
+		buff = { id = "feast_yogurt_berry", skill = "examprep", bonus = Constants.FOOD.BONUS_MEAT },
 	},
 	yogurtVanilla = {
 		id = "yogurtVanilla",
@@ -80,7 +81,7 @@ Feast.DEFINITIONS = {
 		clicks = 85,
 		wageMinutes = 25,
 		weight = 3,
-		buff = { id = "feast_yogurt_vanilla", multiplier = 2, duration = 180 },
+		buff = { id = "feast_yogurt_vanilla", skill = "resilience", bonus = Constants.FOOD.BONUS_MEAT },
 	},
 	dangoPlatter = {
 		id = "dangoPlatter",
@@ -90,7 +91,7 @@ Feast.DEFINITIONS = {
 		clicks = 110,
 		wageMinutes = 40,
 		weight = 2,
-		buff = { id = "feast_dango_platter", multiplier = 3, duration = 240 },
+		buff = { id = "feast_dango_platter", skill = "tobatsu", bonus = Constants.FOOD.BONUS_MEAT },
 	},
 	ramen = {
 		id = "ramen",
@@ -100,7 +101,7 @@ Feast.DEFINITIONS = {
 		clicks = 140,
 		wageMinutes = 60,
 		weight = 1,
-		buff = { id = "feast_ramen", multiplier = 3, stat = "yen", duration = 300 },
+		buff = { id = "feast_ramen", stat = "yen", bonus = Constants.FOOD.BONUS_MEAT },
 	},
 } :: { [string]: FoodDefinition }
 

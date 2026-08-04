@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
+local Boosts = require(Shared.Modules.Boosts)
 local Certifications = require(Shared.Modules.Config.Certifications)
 local Constants = require(Shared.Modules.Constants)
 local Formulas = require(Shared.Modules.Formulas)
@@ -9,7 +10,6 @@ local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
 local DataService = require(script.Parent.DataService)
 local RegionService = require(script.Parent.RegionService)
-local StaminaService = require(script.Parent.StaminaService)
 local StudyService = require(script.Parent.StudyService)
 
 local ReplicationService = {
@@ -28,6 +28,8 @@ local function buildSnapshot(player: Player, profile: any)
 		if type(selected) == "string" and Skills.exists(selected) then selected else Skills.ORDER[1]
 	)
 
+	Boosts.pruneFood(profile)
+
 	return {
 		skills = skills,
 		yen = profile.currencies.yen,
@@ -36,9 +38,8 @@ local function buildSnapshot(player: Player, profile: any)
 		seasonings = profile.currencies.seasonings,
 		dishes = profile.dishes,
 		boosts = profile.boosts,
+		foodBuffs = profile.foodBuffs,
 		upgrades = profile.upgrades,
-		stamina = { current = profile.stamina.current, max = profile.stamina.max },
-		resting = StaminaService.isResting(player),
 		seasons = profile.seasons,
 		certifications = profile.certifications,
 		certificationCap = Certifications.capFor(profile),

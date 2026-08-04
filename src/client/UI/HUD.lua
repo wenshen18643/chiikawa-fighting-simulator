@@ -3,7 +3,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
+local Boosts = require(Shared.Modules.Boosts)
 local Certifications = require(Shared.Modules.Config.Certifications)
+local Constants = require(Shared.Modules.Constants)
 local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
 local UI = require(Shared.UI)
@@ -173,8 +175,8 @@ local function buffLabel(boost: any): string
 	if boost.stat == "yen" then
 		return "YEN"
 	end
-	if boost.stat == "staminaRegen" then
-		return "STA"
+	if boost.stat == Constants.FOOD.AMPLIFIER_STAT then
+		return "FOOD"
 	end
 	return "ALL"
 end
@@ -196,15 +198,25 @@ local function buildBuffs(parent: Instance)
 	UI.list(buffHolder, UI.space.tight).FillDirection = Enum.FillDirection.Horizontal
 end
 
-local function updateBuffs(boosts: { any }?)
+local function updateBuffs(boosts: { any }?, foodBuffs: { any }?)
 	local now = os.time()
 	local active = {}
 	local key = ""
-	local all: { any } = boosts or {}
-	for _, boost in all do
+	local allBoosts: { any } = boosts or {}
+	local allFood: { any } = foodBuffs or {}
+
+	for _, boost in allBoosts do
 		if (boost.expiresAt or 0) - now > 0 then
-			table.insert(active, boost)
-			key ..= `{boost.id};`
+			table.insert(active, { kind = "boost", data = boost })
+			key ..= `b_{boost.id};`
+		end
+	end
+
+	for _, food in allFood do
+		local stacks = Boosts.foodStacks(food, now)
+		if stacks > 0 then
+			table.insert(active, { kind = "food", data = food, stacks = stacks })
+			key ..= `f_{food.id}_{stacks};`
 		end
 	end
 
@@ -217,13 +229,14 @@ local function updateBuffs(boosts: { any }?)
 			end
 		end
 
-		for index, boost in active do
-			local chip = UI.chip(buffHolder, boost.id, {
+		for index, item in active do
+			local isFood = item.kind == "food"
+			local chip = UI.chip(buffHolder, item.data.id, {
 				text = "",
 				textSize = 11,
-				color = buffColor(boost),
+				color = isFood and UI.color.leafDeep or buffColor(item.data),
 				textColor = UI.color.paperDeep,
-				extent = UDim2.fromOffset(96, 24),
+				extent = UDim2.fromOffset(if isFood then 122 else 96, 24),
 				zIndex = 5,
 			})
 			chip.LayoutOrder = index
@@ -232,8 +245,22 @@ local function updateBuffs(boosts: { any }?)
 	end
 
 	for index, label in buffChips do
-		local boost = active[index]
-		label.Text = `x{boost.multiplier} {buffLabel(boost)} {boost.expiresAt - now}s`
+		local item = active[index]
+		if item.kind == "boost" then
+			local boost = item.data
+			label.Text = `x{boost.multiplier} {buffLabel(boost)} {boost.expiresAt - now}s`
+		else
+			local food = item.data
+			local stacks = item.stacks
+			local soonest = 0
+			for i = #food.expiries, 1, -1 do
+				if food.expiries[i] > now then
+					soonest = food.expiries[i]
+					break
+				end
+			end
+			label.Text = `+{food.bonus} {buffLabel(food)} x{stacks} · {soonest - now}s`
+		end
 	end
 
 	buffHolder.Visible = #active > 0
@@ -417,7 +444,7 @@ local function update(snapshot: any)
 	wageLabel.Text = `{BigNumber.toString(snapshot.yenPerMinute)} / min`
 	stampLabel.Text = `{BigNumber.toString(snapshot.stamps)} stamps`
 
-	updateBuffs(snapshot.boosts)
+	updateBuffs(snapshot.boosts, snapshot.foodBuffs)
 
 	local season = (snapshot.seasons or 0) + 1
 	local seasonText = seasonChip:FindFirstChild("Text") :: TextLabel?

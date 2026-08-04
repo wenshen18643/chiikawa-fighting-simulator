@@ -32,6 +32,7 @@ Theme.color = {
 	special = rgb(238, 160, 208),
 
 	rest = rgb(250, 190, 130),
+	health = rgb(244, 146, 152),
 	gold = rgb(248, 202, 106),
 	sky = rgb(150, 202, 244),
 	white = rgb(255, 255, 255),

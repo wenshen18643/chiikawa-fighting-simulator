@@ -1,3 +1,4 @@
+local BigNumber = require(script.Parent.Parent.BigNumber)
 local Skills = require(script.Parent.Skills)
 local Upgrades = {}
 
@@ -5,19 +6,21 @@ export type Definition = {
 	id: string,
 	name: string,
 	sub: string,
-	maxLevel: number,
 	baseCost: number,
-	costGrowth: number,
+	tierGrowth: number,
+	stepGrowth: number,
 	perLevel: number,
 	skill: string?,
 }
 
 Upgrades.LEGACY_GAIN = "gain"
 
+Upgrades.TIER_SIZE = 10
+
 Upgrades.GAIN = {
-	maxLevel = 25,
-	baseCost = 500,
-	costGrowth = 1.55,
+	baseCost = 1000,
+	tierGrowth = 12,
+	stepGrowth = 0.22,
 	perLevel = 0.15,
 }
 
@@ -37,9 +40,9 @@ for _, skillId in Skills.ORDER do
 		id = id,
 		name = if definition then definition.name else skillId,
 		sub = "every gain in this stat, multiplied",
-		maxLevel = Upgrades.GAIN.maxLevel,
 		baseCost = Upgrades.GAIN.baseCost,
-		costGrowth = Upgrades.GAIN.costGrowth,
+		tierGrowth = Upgrades.GAIN.tierGrowth,
+		stepGrowth = Upgrades.GAIN.stepGrowth,
 		perLevel = Upgrades.GAIN.perLevel,
 		skill = Skills.canonicalize(skillId),
 	}
@@ -51,24 +54,13 @@ Upgrades.DEFS.yen = {
 	id = "yen",
 	name = "Wages",
 	sub = "more yen a minute, forever",
-	maxLevel = 25,
-	baseCost = 750,
-	costGrowth = 1.6,
+	baseCost = 1500,
+	tierGrowth = 12,
+	stepGrowth = 0.22,
 	perLevel = 0.12,
 }
 
-Upgrades.DEFS.stamina = {
-	id = "stamina",
-	name = "Stamina",
-	sub = "work longer before you stop",
-	maxLevel = 15,
-	baseCost = 1200,
-	costGrowth = 1.7,
-	perLevel = 0.1,
-}
-
 table.insert(Upgrades.ORDER, "yen")
-table.insert(Upgrades.ORDER, "stamina")
 
 function Upgrades.get(id: string): Definition?
 	return Upgrades.DEFS[id]
@@ -76,20 +68,30 @@ end
 
 function Upgrades.level(profile: any, id: string): number
 	local levels = profile.upgrades
-	if type(levels) ~= "table" then
+	if type(levels) ~= "table" or not Upgrades.DEFS[id] then
 		return 0
 	end
-	local level = tonumber(levels[id]) or 0
-	local definition = Upgrades.DEFS[id]
-	return math.clamp(math.floor(level), 0, if definition then definition.maxLevel else 0)
+	return math.max(math.floor(tonumber(levels[id]) or 0), 0)
 end
 
-function Upgrades.cost(id: string, level: number): number?
+function Upgrades.tierProgress(level: number): number
+	return (level % Upgrades.TIER_SIZE) / Upgrades.TIER_SIZE
+end
+
+function Upgrades.cost(id: string, level: number): BigNumber.BigNum?
 	local definition = Upgrades.DEFS[id]
-	if not definition or level >= definition.maxLevel then
+	if not definition then
 		return nil
 	end
-	return math.floor(definition.baseCost * definition.costGrowth ^ level)
+
+	local tier = math.floor(level / Upgrades.TIER_SIZE)
+	local step = level % Upgrades.TIER_SIZE
+	local base = BigNumber.mulNumber(
+		BigNumber.fromNumber(definition.baseCost),
+		1 + definition.stepGrowth * step
+	)
+
+	return BigNumber.mul(base, BigNumber.pow(BigNumber.fromNumber(definition.tierGrowth), tier))
 end
 
 function Upgrades.multiplierAt(id: string, level: number): number
@@ -97,7 +99,7 @@ function Upgrades.multiplierAt(id: string, level: number): number
 	if not definition then
 		return 1
 	end
-	return 1 + definition.perLevel * math.clamp(level, 0, definition.maxLevel)
+	return (1 + definition.perLevel) ^ math.max(level, 0)
 end
 
 function Upgrades.multiplier(profile: any, id: string): number

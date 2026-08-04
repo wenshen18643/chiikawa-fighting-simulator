@@ -33,7 +33,6 @@ local BOOT_ORDER = {
 	"CookingService",
 	"InventoryService",
 	"MobLootService",
-	"StaminaService",
 	"HealthService",
 	"CurrencyService",
 

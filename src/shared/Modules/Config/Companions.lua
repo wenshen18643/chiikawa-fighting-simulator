@@ -7,7 +7,6 @@ export type CompanionSpec = {
 	kind: "mascot" | "asset" | "built",
 	npcId: string?,
 	assetKey: string?,
-	assetMatch: string?,
 
 	scale: number?,
 	skill: string?,
