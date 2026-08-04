@@ -1,9 +1,9 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local BigNumber = require(Shared.Modules.BigNumber)
 local Boosts = require(Shared.Modules.Boosts)
 local Constants = require(Shared.Modules.Constants)
+local Formulas = require(Shared.Modules.Formulas)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
 local Recipes = require(Shared.Modules.Config.Recipes)
 local Remotes = require(Shared.Modules.Remotes)
@@ -48,13 +48,10 @@ local function hex(color: Color3): string
 	)
 end
 
+local UNTRAINED = { skills = {} }
+
 local function stirsFor(def: Recipes.RecipeDefinition, snapshot: any): number
-	local resilience = snapshot and snapshot.skills and snapshot.skills.resilience
-	local exponents = math.floor(math.max(BigNumber.log10(resilience), 0))
-	return math.max(
-		math.ceil(def.baseClicks * COOKING.MIN_CLICKS_FRACTION),
-		def.baseClicks - COOKING.CLICKS_PER_RESILIENCE_EXPONENT * exponents
-	)
+	return Formulas.cookClicks(if snapshot and snapshot.skills then snapshot else UNTRAINED, def.baseClicks)
 end
 
 local function buildRecipeRow(parent: ScrollingFrame, def: Recipes.RecipeDefinition, index: number): (any) -> ()

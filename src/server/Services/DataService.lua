@@ -59,8 +59,7 @@ local function buildTemplate(): any
 		upgrades = {},
 		boosts = {},
 		foodBuffs = {},
-		stamina = { current = Constants.STAMINA.BASE_MAX, max = Constants.STAMINA.BASE_MAX },
-		settings = { autoWork = false, vfxQuality = "high", musicVolume = 1 },
+		settings ={ autoWork = false, vfxQuality = "high", musicVolume = 1 },
 		farm = { claimedCredits = {}, claimedCreditOrder = {} },
 		version = Constants.DATA.SCHEMA_VERSION,
 		meta = { createdAt = 0, lastPlayed = 0, playtime = 0, introShown = false },
@@ -113,6 +112,7 @@ local function reconcile(profile: any): any
 	walk(profile, template)
 
 	profile.unlockedWorksites = nil
+	profile.stamina = nil
 
 	if type(profile.studyProgress) == "table" and (profile.studyProgress.examprep or 0) == 0 then
 		local carried = profile.studyProgress.kusatori
@@ -161,6 +161,7 @@ local function reconcile(profile: any): any
 	if type(profile.upgrades) ~= "table" then
 		profile.upgrades = {}
 	end
+	profile.upgrades.stamina = nil
 
 	local legacyGain = tonumber(profile.upgrades[Upgrades.LEGACY_GAIN])
 	if legacyGain and legacyGain > 0 then

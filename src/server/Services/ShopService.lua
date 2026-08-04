@@ -51,7 +51,7 @@ type Row = {
 	sub: string,
 	skill: string?,
 	level: number,
-	maxLevel: number,
+	tierProgress: number,
 	multiplier: number,
 	nextMultiplier: number,
 	cost: BigNumber.BigNum?,
@@ -64,7 +64,6 @@ local function rowFor(profile: any, id: string): Row?
 	end
 
 	local level = Upgrades.level(profile, id)
-	local cost = Upgrades.cost(id, level)
 
 	return {
 		id = id,
@@ -72,10 +71,10 @@ local function rowFor(profile: any, id: string): Row?
 		sub = definition.sub,
 		skill = definition.skill,
 		level = level,
-		maxLevel = definition.maxLevel,
+		tierProgress = Upgrades.tierProgress(level),
 		multiplier = Upgrades.multiplierAt(id, level),
 		nextMultiplier = Upgrades.multiplierAt(id, level + 1),
-		cost = if cost then BigNumber.fromNumber(cost) else nil,
+		cost = Upgrades.cost(id, level),
 	}
 end
 
@@ -121,11 +120,10 @@ function ShopService.buy(player: Player, id: any): boolean
 	local level = Upgrades.level(profile, id)
 	local cost = Upgrades.cost(id, level)
 	if not cost then
-		NotifyService.send(player, `{definition.name} is fully upgraded.`, "info")
 		return false
 	end
 
-	if not CurrencyService.spend(profile, "yen", BigNumber.fromNumber(cost)) then
+	if not CurrencyService.spend(profile, "yen", cost) then
 		NotifyService.send(player, `Not enough yen for {definition.name}.`, "locked")
 		eventRemote:FireClient(player, { kind = "denied", id = id, board = board(profile) })
 		return false

@@ -51,11 +51,6 @@ export type Home = {
 	comfort: number,
 }
 
-export type Stamina = {
-	current: number,
-	max: number,
-}
-
 export type FarmCropState = {
 	id: string,
 	plantedAt: number,
@@ -96,7 +91,6 @@ export type PlayerProfile = {
 	gamepasses: { [number]: boolean },
 	boosts: { Boost },
 	foodBuffs: { any },
-	stamina: Stamina,
 	settings: { autoWork: boolean, vfxQuality: string, musicVolume: number },
 	farm: { claimedCredits: { [string]: boolean }, claimedCreditOrder: { string } },
 	version: number,
@@ -107,8 +101,6 @@ export type StateSnapshot = {
 	skills: { [string]: BigNum },
 	yen: BigNum,
 	stamps: BigNum,
-	stamina: Stamina,
-	resting: boolean,
 	seasons: number,
 	certifications: { [string]: number },
 	certificationCap: number,

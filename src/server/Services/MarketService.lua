@@ -119,7 +119,7 @@ local function buildCounter()
 	UI.sign(anchor, {
 		name = "UpgradeSign",
 		title = "Upgrades",
-		subtitle = "per-stat training, wages, stamina",
+		subtitle = "per-stat training and wages",
 		offset = Vector3.new(0, 10, 0),
 		extent = UDim2.fromScale(16, 4.5),
 		maxDistance = 140,

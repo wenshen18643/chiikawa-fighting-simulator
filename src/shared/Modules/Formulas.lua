@@ -80,15 +80,18 @@ function Formulas.resilienceLog(profile: any): number
 	return if BigNumber.isValid(resilienceVal) then math.max(BigNumber.log10(resilienceVal), 0) else 0
 end
 
-function Formulas.maxStamina(profile: any): number
-	return (Constants.STAMINA.BASE_MAX + Formulas.resilienceLog(profile) * Constants.STAMINA.MAX_PER_GRIT_LOG)
-		* Upgrades.multiplier(profile, "stamina")
-end
+function Formulas.cookClicks(profile: any, baseClicks: number): number
+	local exponents = Formulas.resilienceLog(profile)
+	local penalty = 1
+		+ (Constants.COOKING.UNTRAINED_CLICK_PENALTY - 1)
+			* math.clamp(1 - exponents / Constants.COOKING.PENALTY_EXPONENTS, 0, 1)
+	local trained = Constants.COOKING.CLICKS_PER_RESILIENCE_EXPONENT
+		* math.max(math.floor(exponents - Constants.COOKING.PENALTY_EXPONENTS), 0)
 
-function Formulas.staminaRegenPerSecond(profile: any): number
-	return (Constants.STAMINA.REGEN_PER_SECOND + Formulas.resilienceLog(profile) * Constants.STAMINA.REGEN_PER_GRIT_LOG)
-		* Formulas.boostStatMultiplier(profile, "staminaRegen")
-		* (1 + Boosts.foodBonus(profile, "staminaRegen", true))
+	return math.max(
+		math.ceil(baseClicks * Constants.COOKING.MIN_CLICKS_FRACTION),
+		math.ceil(baseClicks * penalty - trained)
+	)
 end
 
 function Formulas.maxHealth(profile: any): number

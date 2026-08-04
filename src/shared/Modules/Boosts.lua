@@ -192,9 +192,6 @@ local function statLabel(stat: string?): string?
 	if stat == "yen" then
 		return "Yen gain"
 	end
-	if stat == "staminaRegen" then
-		return "Stamina regen"
-	end
 	if stat == Constants.FOOD.AMPLIFIER_STAT then
 		return "Food buff duration"
 	end

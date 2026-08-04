@@ -174,9 +174,6 @@ local function buffLabel(boost: any): string
 	if boost.stat == "yen" then
 		return "YEN"
 	end
-	if boost.stat == "staminaRegen" then
-		return "STA"
-	end
 	if boost.stat == Constants.FOOD.AMPLIFIER_STAT then
 		return "FOOD"
 	end

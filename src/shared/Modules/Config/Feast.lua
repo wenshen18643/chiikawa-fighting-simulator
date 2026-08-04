@@ -41,7 +41,7 @@ Feast.DEFINITIONS = {
 		clicks = 40,
 		wageMinutes = 8,
 		weight = 5,
-		buff = { id = "feast_onigiri", stat = "staminaRegen", bonus = Constants.FOOD.BONUS_MEAT },
+		buff = { id = "feast_onigiri", skill = "resilience", bonus = Constants.FOOD.BONUS_MEAT },
 	},
 	dango = {
 		id = "dango",

@@ -58,14 +58,6 @@ local function buildKitchen()
 	end
 end
 
-local function clicksNeeded(profile: any, def: Recipes.RecipeDefinition): number
-	local exponents = math.floor(math.max(BigNumber.log10(profile.skills.resilience), 0))
-	return math.max(
-		math.ceil(def.baseClicks * COOKING.MIN_CLICKS_FRACTION),
-		def.baseClicks - COOKING.CLICKS_PER_RESILIENCE_EXPONENT * exponents
-	)
-end
-
 local function nearStation(root: BasePart): boolean
 	return stationPosition ~= nil
 		and (root.Position - stationPosition :: Vector3).Magnitude <= COOKING.STATION_RADIUS + 8
@@ -109,7 +101,7 @@ local function onSelect(player: Player, recipeId: any)
 		ingredients[ingredient.id] -= ingredient.count
 	end
 
-	local needed = clicksNeeded(profile, def)
+	local needed = Formulas.cookClicks(profile, def.baseClicks)
 	sessions[player] = { recipeId = recipeId, needed = needed, progress = 0 }
 	eventRemote:FireClient(player, "started", recipeId, needed)
 	character:SetAttribute("Cooking", true)

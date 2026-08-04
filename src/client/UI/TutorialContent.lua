@@ -40,7 +40,7 @@ local function controlsFor(device: "keyboard" | "gamepad" | "touch"): { Row }
 	elseif device == "gamepad" then
 		return {
 			{ label = "L-Stick", value = "Walk around" },
-			{ label = "L3", value = "Sprint; it costs no stamina" },
+			{ label = "L3", value = "Sprint; it is always free" },
 			{ label = "A", value = "Hop over anything in your way" },
 			{ label = "R2", value = "One press starts one work action" },
 			{ label = "Skill bar", value = "Choose which skill open-ground work trains" },
@@ -53,7 +53,7 @@ local function controlsFor(device: "keyboard" | "gamepad" | "touch"): { Row }
 
 	return {
 		{ label = "W A S D", value = "Walk around" },
-		{ label = "Shift", value = "Sprint; it costs no stamina" },
+		{ label = "Shift", value = "Sprint; it is always free" },
 		{ label = "Space", value = "Hop over anything in your way" },
 		{ label = "Left click", value = "One click starts one work action" },
 		{ label = "1  2  3  4", value = "Select Tobatsu, Resilience, Kusatori or Exam Prep" },
@@ -89,7 +89,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 				},
 				{
 					title = "Nothing is lost",
-					body = "Sprinting is free. Running out of stamina causes a short rest, not a failure. "
+					body = "Sprinting is free and you can work as fast as you can click. "
 						.. "Mushroom Frogs and Wolves can hurt you outside Home; Ducks flee when struck. "
 						.. "Character defeat loses nothing and there is no PvP.",
 				},
@@ -139,7 +139,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 						{
 							label = "2 · Resilience",
 							value = "Endurance under pressure",
-							note = "Earned by cooking, fishing and eating giant food; raises your maximum health and stamina.",
+							note = "Earned by cooking, fishing and eating giant food; raises your maximum health and cuts the clicks a dish costs.",
 							accent = "resilience",
 						},
 						{
@@ -158,12 +158,12 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 					style = "skills",
 				},
 				{
-					title = "Stamina",
+					title = "Resilience",
 					bullets = {
-						"You start with 100 stamina. An accepted active action costs 1.",
-						"Stamina begins at 6 regeneration per second; Resilience improves the maximum and regeneration.",
-							"Resilience also raises your maximum health, so tougher mobs stay survivable.",
-						"At zero, you rest for about 5 seconds and then continue.",
+						"Nothing throttles your work but the click limiter. There is no stamina bar to run dry.",
+						"Untrained, a dish costs five times its listed clicks. Cooking is slow until Resilience grows.",
+						"That penalty falls away as Resilience climbs, and is gone entirely at 100,000.",
+						"Resilience also raises your maximum health, so tougher mobs stay survivable.",
 						"Every skill is earned by doing something. Standing still earns nothing, and there is no offline progress.",
 					},
 				},
@@ -260,7 +260,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 						{
 							label = "0–2 min",
 							value = "Read the HUD",
-							note = "Find Yen, wage, the four round skill buttons and the stamina ring.",
+							note = "Find Yen, wage, the four round skill buttons and the health ring.",
 							accent = "resilience",
 						},
 						{

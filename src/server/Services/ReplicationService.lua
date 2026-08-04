@@ -10,7 +10,6 @@ local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
 local DataService = require(script.Parent.DataService)
 local RegionService = require(script.Parent.RegionService)
-local StaminaService = require(script.Parent.StaminaService)
 local StudyService = require(script.Parent.StudyService)
 
 local ReplicationService = {
@@ -41,8 +40,6 @@ local function buildSnapshot(player: Player, profile: any)
 		boosts = profile.boosts,
 		foodBuffs = profile.foodBuffs,
 		upgrades = profile.upgrades,
-		stamina = { current = profile.stamina.current, max = profile.stamina.max },
-		resting = StaminaService.isResting(player),
 		seasons = profile.seasons,
 		certifications = profile.certifications,
 		certificationCap = Certifications.capFor(profile),

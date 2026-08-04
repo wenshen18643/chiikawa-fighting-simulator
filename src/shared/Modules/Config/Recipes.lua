@@ -45,9 +45,9 @@ Recipes.DEFINITIONS = {
 		model = "onigiri",
 		ingredients = { { id = "rice", count = 2 } },
 		baseClicks = 8,
-		buff = { id = "dish_onigiri", stat = "staminaRegen", bonus = Constants.FOOD.BONUS_PLAIN },
+		buff = { id = "dish_onigiri", skill = "resilience", bonus = Constants.FOOD.BONUS_PLAIN },
 		glyph = "onigiri",
-		description = "Rice balls that put a spring back in your step.",
+		description = "Rice balls that put a spring back in your step. You last longer for it.",
 	},
 	dango = {
 		id = "dango",

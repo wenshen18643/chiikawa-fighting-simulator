@@ -14,7 +14,7 @@ type Row = {
 	sub: string,
 	skill: string?,
 	level: number,
-	maxLevel: number,
+	tierProgress: number,
 	multiplier: number,
 	nextMultiplier: number,
 	cost: any?,
@@ -31,6 +31,13 @@ local built: { [string]: { [string]: any } } = {}
 local order: { string } = {}
 local latest: { [string]: Row } = {}
 local yen: any = nil
+
+local function multiplierText(multiplier: number): string
+	if multiplier < 1000 then
+		return string.format("%.2f", multiplier)
+	end
+	return BigNumber.toString(BigNumber.fromNumber(multiplier))
+end
 
 local function canAfford(row: Row): boolean
 	if not row.cost then
@@ -150,25 +157,22 @@ local function paintRow(row: Row)
 		return
 	end
 
-	parts.setLevel(if row.maxLevel > 0 then row.level / row.maxLevel else 0)
+	parts.setLevel(row.tierProgress)
 
 	if parts.caption and parts.caption:IsA("TextLabel") then
-		parts.caption.Text = `Level {row.level} / {row.maxLevel}`
+		parts.caption.Text = `Level {row.level}`
 	end
 
-	local maxed = row.cost == nil
 	local affordable = canAfford(row)
 
 	if parts.costLabel and parts.costLabel:IsA("TextLabel") then
-		parts.costLabel.Text = if maxed
-			then `x{string.format("%.2f", row.multiplier)}`
-			else `x{string.format("%.2f", row.multiplier)} → x{string.format("%.2f", row.nextMultiplier)}`
+		parts.costLabel.Text = `x{multiplierText(row.multiplier)} → x{multiplierText(row.nextMultiplier)}`
 	end
 
 	local button = parts.buy :: TextButton
-	parts.enabled = affordable and not maxed
+	parts.enabled = affordable
 
-	button.Text = if maxed then "Maxed" else `{BigNumber.toString(row.cost)} yen`
+	button.Text = `{BigNumber.toString(row.cost)} yen`
 	button.BackgroundColor3 = if parts.enabled then parts.tint else UI.color.paperSunken
 	button.TextColor3 = if parts.enabled then UI.color.paperDeep else UI.color.inkFaint
 	button.Active = parts.enabled

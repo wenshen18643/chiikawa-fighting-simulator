@@ -1,3 +1,4 @@
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -6,6 +7,7 @@ local Skills = require(Shared.Modules.Config.Skills)
 local UI = require(Shared.UI)
 local WorkCore = {}
 local RING_SIZE = 84
+local LOW_HEALTH_RATIO = 0.3
 local root: Frame
 local setRing: (number) -> ()
 local ringGlyph: Frame
@@ -17,7 +19,47 @@ local actionPill: Frame
 local actionLabel: TextLabel
 local currentSkill: string? = nil
 local ringGlyphSkill: string? = nil
-local lastRatio = 0
+local healthConnections: { RBXScriptConnection } = {}
+
+local function showHealth(humanoid: Humanoid)
+	local max = humanoid.MaxHealth
+	local ratio = if max > 0 then math.clamp(humanoid.Health / max, 0, 1) else 0
+	local low = ratio <= LOW_HEALTH_RATIO
+
+	setRing(ratio)
+	ringValue.Text = tostring(math.ceil(humanoid.Health))
+	ringCaption.Text = if low then "LOW" else "HEALTH"
+	ringCaption.TextColor3 = if low then UI.color.danger else UI.color.inkFaint
+end
+
+local function bindHealth()
+	local function bind(character: Model)
+		for _, connection in healthConnections do
+			connection:Disconnect()
+		end
+		table.clear(healthConnections)
+
+		local humanoid = character:WaitForChild("Humanoid", 10) :: Humanoid?
+		if not humanoid or Players.LocalPlayer.Character ~= character then
+			return
+		end
+
+		local function refresh()
+			showHealth(humanoid)
+		end
+		table.insert(healthConnections, humanoid.HealthChanged:Connect(refresh))
+		table.insert(healthConnections, humanoid:GetPropertyChangedSignal("MaxHealth"):Connect(refresh))
+		refresh()
+	end
+
+	local player = Players.LocalPlayer
+	player.CharacterAdded:Connect(function(character)
+		task.spawn(bind, character)
+	end)
+	if player.Character then
+		task.spawn(bind, player.Character)
+	end
+end
 
 function WorkCore.build(parent: Instance): Frame
 	root = UI.card(parent, "WorkCore")
@@ -29,11 +71,11 @@ function WorkCore.build(parent: Instance): Frame
 	UI.shadow(root)
 
 	local ring
-	ring, setRing = UI.ring(root, "Stamina", {
+	ring, setRing = UI.ring(root, "Health", {
 		extent = UDim2.fromOffset(RING_SIZE, RING_SIZE),
 		position = UDim2.fromOffset(0, 0),
 		thickness = 9,
-		color = UI.color.leaf,
+		color = UI.color.health,
 		zIndex = 3,
 	})
 	ring.AnchorPoint = Vector2.new(0, 0.5)
@@ -58,7 +100,7 @@ function WorkCore.build(parent: Instance): Frame
 	})
 
 	ringCaption = UI.label(ring, "Caption", {
-		text = "STAMINA",
+		text = "HEALTH",
 		font = UI.font.bold,
 		size = 9,
 		color = UI.color.inkFaint,
@@ -114,6 +156,8 @@ function WorkCore.build(parent: Instance): Frame
 		zIndex = 5,
 	})
 
+	bindHealth()
+
 	return root
 end
 
@@ -145,16 +189,6 @@ function WorkCore.update(snapshot: any)
 	if not root then
 		return
 	end
-
-	local stamina = snapshot.stamina
-	local ratio = if stamina.max > 0 then math.clamp(stamina.current / stamina.max, 0, 1) else 0
-
-	lastRatio += (ratio - lastRatio) * 0.5
-	setRing(lastRatio)
-
-	ringValue.Text = tostring(math.floor(stamina.current))
-	ringCaption.Text = if snapshot.resting then "RESTING" else "STAMINA"
-	ringCaption.TextColor3 = if snapshot.resting then UI.color.rest else UI.color.inkFaint
 
 	showTraining(snapshot)
 
