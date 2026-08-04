@@ -7,6 +7,7 @@ local Formulas = require(Shared.Modules.Formulas)
 local RateLimiter = require(Shared.Modules.RateLimiter)
 local Remotes = require(Shared.Modules.Remotes)
 local Companions = require(Shared.Modules.Config.Companions)
+local Ingredients = require(Shared.Modules.Config.Ingredients)
 local Seasonings = require(Shared.Modules.Config.Seasonings)
 local Skills = require(Shared.Modules.Config.Skills)
 local CurrencyService = require(script.Parent.CurrencyService)
@@ -147,8 +148,9 @@ local function pullSomething(player: Player, profile: any): boolean
 	if node then
 		return ForagingService.pull(player, profile, node)
 	end
-	if section then
-		WeedService.pull(section)
+	if section and WeedService.pull(section) then
+		local ingredients = profile.currencies.ingredients
+		ingredients[Ingredients.WEED_ID] = (ingredients[Ingredients.WEED_ID] or 0) + 1
 		rollSeasoning(player, profile)
 		return true
 	end

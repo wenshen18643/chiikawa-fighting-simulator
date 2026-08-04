@@ -58,6 +58,7 @@ type DynamicClump = {
 	remaining: number,
 	centre: Vector3?,
 	ingredient: Ingredients.IngredientDefinition?,
+	refreshScheduled: boolean,
 	generation: number,
 }
 
@@ -498,14 +499,19 @@ local function clearDynamicClump(clump: DynamicClump)
 	clump.remaining = 0
 	clump.centre = nil
 	clump.ingredient = nil
+	clump.refreshScheduled = false
 
 	if folder then
 		folder:Destroy()
 	end
 end
 
-local function populateDynamicClump(runtime: DynamicZoneRuntime, clump: DynamicClump): boolean
-	local ingredientId = Ingredients.rollIngredient(runtime.definition, runtime.rng)
+local function populateDynamicClump(
+	runtime: DynamicZoneRuntime,
+	clump: DynamicClump,
+	initialIngredientId: string?
+): boolean
+	local ingredientId = initialIngredientId or Ingredients.rollIngredient(runtime.definition, runtime.rng)
 	local def = ingredientId and Ingredients.get(ingredientId)
 	if not def then
 		warn(`[ForagingService] zone "{runtime.definition.id}" rolled an unknown ingredient - clump omitted`)
@@ -557,12 +563,13 @@ local function attemptPopulateDynamicClump(
 	runtime: DynamicZoneRuntime,
 	clump: DynamicClump,
 	attempt: number,
-	generation: number
+	generation: number,
+	initialIngredientId: string?
 )
 	if clump.generation ~= generation then
 		return
 	end
-	if populateDynamicClump(runtime, clump) then
+	if populateDynamicClump(runtime, clump, initialIngredientId) then
 		return
 	end
 
@@ -575,7 +582,24 @@ local function attemptPopulateDynamicClump(
 	end
 
 	task.delay(CLUMP_RESPAWN_RETRY_SECONDS, function()
-		attemptPopulateDynamicClump(runtime, clump, attempt + 1, generation)
+		attemptPopulateDynamicClump(runtime, clump, attempt + 1, generation, initialIngredientId)
+	end)
+end
+
+local function scheduleDynamicClumpRefresh(runtime: DynamicZoneRuntime, clump: DynamicClump, delaySeconds: number)
+	if clump.refreshScheduled then
+		return
+	end
+
+	clump.refreshScheduled = true
+	clump.generation += 1
+	local generation = clump.generation
+	task.delay(delaySeconds, function()
+		if clump.generation ~= generation then
+			return
+		end
+		clearDynamicClump(clump)
+		attemptPopulateDynamicClump(runtime, clump, 1, generation, nil)
 	end)
 end
 
@@ -589,24 +613,14 @@ onClumpNodeHarvested = function(node: Node): boolean
 	end
 
 	clump.remaining -= 1
-	if clump.remaining > 0 then
-		return true
-	end
-
 	local runtime = clumpRuntimes[clump]
 	local def = clump.ingredient or node.ingredient
-	clump.generation += 1
-	local generation = clump.generation
-	clearDynamicClump(clump)
-
 	if not runtime then
 		warn(`[ForagingService] dynamic clump {clump.slot} lost its zone runtime and cannot respawn`)
 		return true
 	end
 
-	task.delay(def.regrowSeconds, function()
-		attemptPopulateDynamicClump(runtime, clump, 1, generation)
-	end)
+	scheduleDynamicClumpRefresh(runtime, clump, def.regrowSeconds)
 	return true
 end
 
@@ -635,6 +649,7 @@ local function buildDynamicZone(
 		rng = Random.new(),
 		clumps = {},
 	}
+	local initialPlan = Ingredients.clumpPlan(zone)
 
 	for slot = 1, zone.clumps do
 		step()
@@ -645,11 +660,12 @@ local function buildDynamicZone(
 			remaining = 0,
 			centre = nil,
 			ingredient = nil,
+			refreshScheduled = false,
 			generation = 1,
 		}
 		table.insert(runtime.clumps, clump)
 		clumpRuntimes[clump] = runtime
-		attemptPopulateDynamicClump(runtime, clump, 1, clump.generation)
+		attemptPopulateDynamicClump(runtime, clump, 1, clump.generation, initialPlan[slot])
 	end
 end
 

@@ -74,9 +74,9 @@ function WeedService.nearestPullable(position: Vector3, maxDist: number): Sectio
 	return best
 end
 
-function WeedService.pull(section: Section)
+function WeedService.pull(section: Section): boolean
 	if section.pulled then
-		return
+		return false
 	end
 	section.pulled = true
 
@@ -92,6 +92,8 @@ function WeedService.pull(section: Section)
 			end
 		end
 	end)
+
+	return true
 end
 
 local PATCH_MODEL = "WeedingPatchProp"

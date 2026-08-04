@@ -41,6 +41,8 @@ export type ClumpDefinition = {
 
 local Ingredients = {}
 
+Ingredients.WEED_ID = "weed"
+
 Ingredients.RARITY = {
 	common = { order = 1, color = Color3.fromRGB(126, 226, 96), label = "Common" },
 	rare = { order = 2, color = Color3.fromRGB(96, 186, 255), label = "Rare" },
@@ -49,6 +51,7 @@ Ingredients.RARITY = {
 }
 
 Ingredients.ORDER = {
+	Ingredients.WEED_ID,
 	"carrot",
 	"potato",
 	"rice",
@@ -72,6 +75,18 @@ Ingredients.ORDER = {
 }
 
 Ingredients.DEFINITIONS = {
+	weed = {
+		id = Ingredients.WEED_ID,
+		name = "Weed",
+		asset = "",
+		rarity = "common",
+		gateExponent = 0,
+		minClicks = 0,
+		xpMultiplier = 0,
+		regrowSeconds = 0,
+		clip = "farm_carrot",
+		glyph = "leaf",
+	},
 	carrot = {
 		id = "carrot",
 		name = "Carrot",
@@ -496,7 +511,7 @@ function Ingredients.clumpPlan(zone: ZoneDefinition): { string }
 	end
 
 	for index = 1, zone.clumps do
-		local step = ((index - 1) % total) + 1
+		local step = math.floor((index - 0.5) * total / zone.clumps) + 1
 		local running = 0
 		for _, entry in zone.ingredients do
 			running += entry.weight
