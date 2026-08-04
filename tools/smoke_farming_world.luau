@@ -69,7 +69,7 @@ for plotId, model in plotModels do
 	local base = model:FindFirstChild("Base")
 	assert(base and base:IsA("BasePart"), `Plot {plotId} has no base`)
 	assert(base.Size.X == Farming.PLOT_SIZE and base.Size.Z == Farming.PLOT_SIZE, `Plot {plotId} is not square`)
-	assert(model:FindFirstChild("ManagePrompt", true), `Plot {plotId} has no prompt`)
+	assert(not model:FindFirstChild("ManagePrompt", true), `Plot {plotId} still has a legacy manage prompt`)
 	for otherId = plotId + 1, #plotModels do
 		local otherBase = plotModels[otherId]:FindFirstChild("Base")
 		assert(otherBase and otherBase:IsA("BasePart"), `Plot {otherId} has no base`)

@@ -35,7 +35,6 @@ export type Snapshot = {
 
 export type Dependencies = {
 	clock: () -> number,
-	onPrompt: (Player, number) -> (),
 	onLeaseExpired: (number, number) -> (),
 	renderCrop: (Folder, string, number, CFrame) -> (),
 }
@@ -50,7 +49,6 @@ type Fields = {
 	_cropFolder: Folder,
 	_cropCFrame: CFrame,
 	_dependencies: Dependencies,
-	_promptConnection: RBXScriptConnection?,
 	_ownerUserId: number?,
 	_ownerName: string?,
 	_leaseEndsAt: number?,
@@ -171,15 +169,6 @@ function FarmPlot.new(
 	cropFolder.Name = "Crop"
 	cropFolder.Parent = model
 
-	local prompt = Instance.new("ProximityPrompt")
-	prompt.Name = "ManagePrompt"
-	prompt.ActionText = "Manage"
-	prompt.ObjectText = `Farm Plot {plotId}`
-	prompt.MaxActivationDistance = Farming.INTERACTION_DISTANCE
-	prompt.HoldDuration = 0
-	prompt.RequiresLineOfSight = false
-	prompt.Parent = soil
-
 	model.PrimaryPart = base
 	model:SetAttribute("PlotId", plotId)
 	model:SetAttribute("RentPrice", Farming.RENT_PRICE)
@@ -194,7 +183,6 @@ function FarmPlot.new(
 		_cropFolder = cropFolder,
 		_cropCFrame = cframe * CFrame.new(0, Farming.PLOT_THICKNESS / 2 + 0.52, 0),
 		_dependencies = dependencies,
-		_promptConnection = nil,
 		_ownerUserId = nil,
 		_ownerName = nil,
 		_leaseEndsAt = nil,
@@ -206,10 +194,6 @@ function FarmPlot.new(
 		_cropTasks = {},
 		_destroyed = false,
 	} :: Fields, FarmPlot)
-
-	self._promptConnection = prompt.Triggered:Connect(function(player)
-		dependencies.onPrompt(player, plotId)
-	end)
 
 	return self
 end
@@ -400,10 +384,6 @@ function FarmPlot.Destroy(self: FarmPlot)
 		cancelThread(owned)
 	end
 	table.clear(self._cropTasks)
-	if self._promptConnection then
-		self._promptConnection:Disconnect()
-		self._promptConnection = nil
-	end
 	CollectionService:RemoveTag(self._model, "FarmPlot")
 	self._model:Destroy()
 end

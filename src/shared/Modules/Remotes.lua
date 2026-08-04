@@ -55,8 +55,9 @@ local REMOTE_TREE = {
 		Bid = "RemoteEvent",
 		Plant = "RemoteEvent",
 		Harvest = "RemoteEvent",
-		Open = "RemoteEvent",
+		RequestState = "RemoteEvent",
 		State = "RemoteEvent",
+		Teleport = "RemoteEvent",
 	},
 	Guide = {
 		Acknowledge = "RemoteEvent",

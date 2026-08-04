@@ -35,6 +35,7 @@ local function controlsFor(device: "keyboard" | "gamepad" | "touch"): { Row }
 			{ label = "Platter", value = "Open your inventory" },
 			{ label = "Pin", value = "Toggle the local minimap" },
 			{ label = "Map", value = "Open the Atlas, ladder and fast travel" },
+			{ label = "🌸", value = "Open the community farm" },
 			{ label = "?", value = "Open this Field Guide again" },
 		}
 	elseif device == "gamepad" then
@@ -47,6 +48,7 @@ local function controlsFor(device: "keyboard" | "gamepad" | "touch"): { Row }
 			{ label = "X", value = "Talk, forage or cook when a prompt appears" },
 			{ label = "Y", value = "Open your inventory" },
 			{ label = "Select", value = "Open the Atlas, ladder and fast travel" },
+			{ label = "Flower", value = "Open the community farm from the left rail" },
 			{ label = "Start", value = "Open this Field Guide again" },
 		}
 	end
@@ -61,6 +63,7 @@ local function controlsFor(device: "keyboard" | "gamepad" | "touch"): { Row }
 		{ label = "I", value = "Open your inventory" },
 		{ label = "M", value = "Toggle the local minimap" },
 		{ label = "N", value = "Open the Atlas, ladder and fast travel" },
+		{ label = "F", value = "Open the community farm" },
 		{ label = "H / F1", value = "Open this Field Guide again" },
 	}
 end

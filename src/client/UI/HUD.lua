@@ -10,6 +10,7 @@ local UI = require(Shared.UI)
 local StateController = require(script.Parent.Parent.Controllers.StateController)
 local Atlas = require(script.Parent.Atlas)
 local ControlsPanel = require(script.Parent.ControlsPanel)
+local FarmMenu = require(script.Parent.FarmMenu)
 local InventoryMenu = require(script.Parent.InventoryMenu)
 local Minimap = require(script.Parent.Minimap)
 local SkillBar = require(script.Parent.SkillBar)
@@ -238,7 +239,15 @@ local function updateBuffs(boosts: { any }?)
 	buffHolder.Visible = #active > 0
 end
 
-local function buildSideRail(parent: Instance, buttons: { { glyph: string, hint: string, activated: () -> () } })
+type SideRailButton = {
+	name: string?,
+	glyph: string?,
+	emoji: string?,
+	hint: string,
+	activated: () -> (),
+}
+
+local function buildSideRail(parent: Instance, buttons: { SideRailButton })
 	local rail = Instance.new("Frame")
 	rail.Name = "SideRail"
 	rail.Position = UDim2.fromOffset(18, 174)
@@ -254,7 +263,7 @@ local function buildSideRail(parent: Instance, buttons: { { glyph: string, hint:
 
 	for index, spec in buttons do
 		local button = Instance.new("TextButton")
-		button.Name = spec.glyph
+		button.Name = spec.name or spec.glyph or "Action"
 		button.LayoutOrder = index
 		button.Size = UDim2.fromOffset(52, 52)
 		button.BackgroundColor3 = UI.color.paper
@@ -265,13 +274,24 @@ local function buildSideRail(parent: Instance, buttons: { { glyph: string, hint:
 		UI.corner(button, UI.radius.pill)
 		UI.stroke(button, UI.color.line, UI.Theme.stroke.heavy)
 
-		UI.glyph(button, spec.glyph, {
-			color = UI.color.ink,
-			extent = UDim2.fromOffset(22, 22),
-			anchor = Vector2.new(0.5, 0.5),
-			position = UDim2.fromScale(0.5, 0.5),
-			zIndex = 6,
-		})
+		if spec.emoji then
+			UI.label(button, "Emoji", {
+				text = spec.emoji,
+				font = UI.font.bold,
+				size = 25,
+				align = Enum.TextXAlignment.Center,
+				extent = UDim2.fromScale(1, 1),
+				zIndex = 6,
+			})
+		else
+			UI.glyph(button, assert(spec.glyph, "Side rail button needs a glyph or emoji"), {
+				color = UI.color.ink,
+				extent = UDim2.fromOffset(22, 22),
+				anchor = Vector2.new(0.5, 0.5),
+				position = UDim2.fromScale(0.5, 0.5),
+				zIndex = 6,
+			})
+		end
 
 		local hint = Instance.new("Frame")
 		hint.Name = "Hint"
@@ -486,6 +506,15 @@ function HUD.init()
 
 			activated = function()
 				Atlas.toggle()
+			end,
+		},
+		{
+			name = "Farm",
+			emoji = "🌸",
+			hint = "F",
+
+			activated = function()
+				FarmMenu.toggle()
 			end,
 		},
 		{

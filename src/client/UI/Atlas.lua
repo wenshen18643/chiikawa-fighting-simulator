@@ -140,6 +140,7 @@ local CONTROLS = {
 	{ key = "E", what = "Talk to someone" },
 	{ key = "M", what = "Toggle the minimap" },
 	{ key = "N", what = "This Atlas" },
+	{ key = "F", what = "Open the community farm" },
 	{ key = "H", what = "Open the full Field Guide" },
 }
 

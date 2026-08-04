@@ -26,9 +26,11 @@ type CropState = FarmPlotModule.CropState
 type Credit = FarmMailboxService.Credit
 
 local FarmingService = {}
+local STATE_REQUESTS_PER_SECOND = 1
 local plots: { [number]: FarmPlot } = {}
 local plotLocks: { [number]: boolean } = {}
 local limiters: { [Player]: RateLimiter.RateLimiter } = {}
+local stateRequestLimiters: { [Player]: RateLimiter.RateLimiter } = {}
 local deferredCredits: { { userId: number, credit: Credit } } = {}
 local creditSequence = 0
 local farmFolder: Folder? = nil
@@ -37,8 +39,9 @@ local rentRemote: RemoteEvent
 local bidRemote: RemoteEvent
 local plantRemote: RemoteEvent
 local harvestRemote: RemoteEvent
-local openRemote: RemoteEvent
+local requestStateRemote: RemoteEvent
 local stateRemote: RemoteEvent
+local teleportRemote: RemoteEvent
 
 local function now(): number
 	return os.time()
@@ -70,6 +73,18 @@ end
 
 local function canAct(player: Player): boolean
 	return player.Parent == Players and limiterFor(player):consume()
+end
+
+local function canRequestState(player: Player): boolean
+	if player.Parent ~= Players then
+		return false
+	end
+	local limiter = stateRequestLimiters[player]
+	if not limiter then
+		limiter = RateLimiter.new(STATE_REQUESTS_PER_SECOND, 1)
+		stateRequestLimiters[player] = limiter
+	end
+	return limiter:consume()
 end
 
 local function isNear(player: Player, plot: FarmPlot): boolean
@@ -249,17 +264,6 @@ local function reject(player: Player, message: string)
 	NotifyService.send(player, message, "locked")
 end
 
-local function onPrompt(player: Player, plotId: number)
-	local plot = plots[plotId]
-	if not plot or not isNear(player, plot) then
-		return
-	end
-	withPlotLock(plotId, function(lockedPlot)
-		ensureCurrentLocked(lockedPlot, now())
-		openRemote:FireClient(player, lockedPlot:snapshot(now()), positionCount(player.UserId))
-	end)
-end
-
 local function onLeaseExpired(plotId: number, _generation: number)
 	withPlotLock(plotId, function(plot)
 		turnoverLocked(plot, now())
@@ -271,7 +275,7 @@ local function handleRent(player: Player, rawPlotId: any)
 		return
 	end
 	local plot = plotFromArgument(rawPlotId)
-	if not plot or not isNear(player, plot) then
+	if not plot then
 		return
 	end
 	local profile = DataService.get(player)
@@ -308,7 +312,7 @@ local function handleBid(player: Player, rawPlotId: any, rawAmount: any)
 		return
 	end
 	local plot = plotFromArgument(rawPlotId)
-	if not plot or not validInteger(rawAmount) or not isNear(player, plot) then
+	if not plot or not validInteger(rawAmount) then
 		return
 	end
 	local amount = rawAmount :: number
@@ -371,6 +375,63 @@ local function handleBid(player: Player, rawPlotId: any, rawAmount: any)
 		lockedPlot:setBid({ userId = player.UserId, name = player.DisplayName, amount = amount })
 		NotifyService.send(player, string.format("You lead Plot %02d at ¥%d.", lockedPlot:getId(), amount), "reward")
 		pushPlot(lockedPlot)
+	end)
+end
+
+local function handleRequestState(player: Player)
+	if shuttingDown or not canRequestState(player) then
+		return
+	end
+	local atTime = now()
+	for plotId = 1, Farming.PLOT_COUNT do
+		withPlotLock(plotId, function(plot)
+			ensureCurrentLocked(plot, atTime)
+		end)
+	end
+	pushAll(player)
+end
+
+local function handleTeleport(player: Player, rawPlotId: any)
+	if shuttingDown or not canAct(player) then
+		return
+	end
+	local plot = plotFromArgument(rawPlotId)
+	if not plot then
+		return
+	end
+
+	withPlotLock(plot:getId(), function(lockedPlot)
+		local atTime = now()
+		ensureCurrentLocked(lockedPlot, atTime)
+		if lockedPlot:getOwnerUserId() ~= player.UserId or not lockedPlot:isActive(atTime) then
+			reject(player, "You no longer own that plot.")
+			return
+		end
+
+		local character = player.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if not character or not humanoid or humanoid.Health <= 0 or not root or not root:IsA("BasePart") then
+			reject(player, "Your character is not ready to teleport.")
+			return
+		end
+
+		local area = Areas.get(Areas.STARTING_AREA)
+		local plotCFrame = area and Layout.farmPlotCFrame(area, lockedPlot:getId())
+		if not area or not plotCFrame then
+			reject(player, "That plot is not available right now.")
+			return
+		end
+
+		local targetPosition = plotCFrame.Position + Vector3.new(0, Farming.PLOT_THICKNESS / 2 + 3, 0)
+		local entrancePosition = Layout.farmEntranceCFrame(area).Position
+		root.AssemblyLinearVelocity = Vector3.zero
+		root.AssemblyAngularVelocity = Vector3.zero
+		root.CFrame = CFrame.lookAt(
+			targetPosition,
+			Vector3.new(entrancePosition.X, targetPosition.Y, entrancePosition.Z)
+		)
+		NotifyService.send(player, string.format("Teleported to Plot %02d.", lockedPlot:getId()), "travel")
 	end)
 end
 
@@ -694,7 +755,6 @@ local function buildFarm()
 		assert(cframe, string.format("Farming layout is missing Plot %02d", plotId))
 		plots[plotId] = FarmPlotModule.new(plotId, cframe, folder, {
 			clock = now,
-			onPrompt = onPrompt,
 			onLeaseExpired = onLeaseExpired,
 			renderCrop = renderCrop,
 		})
@@ -774,15 +834,19 @@ function FarmingService.init()
 	bidRemote = Remotes.event("Farm", "Bid")
 	plantRemote = Remotes.event("Farm", "Plant")
 	harvestRemote = Remotes.event("Farm", "Harvest")
-	openRemote = Remotes.event("Farm", "Open")
+	requestStateRemote = Remotes.event("Farm", "RequestState")
 	stateRemote = Remotes.event("Farm", "State")
+	teleportRemote = Remotes.event("Farm", "Teleport")
 
 	rentRemote.OnServerEvent:Connect(handleRent)
 	bidRemote.OnServerEvent:Connect(handleBid)
 	plantRemote.OnServerEvent:Connect(handlePlant)
 	harvestRemote.OnServerEvent:Connect(handleHarvest)
+	requestStateRemote.OnServerEvent:Connect(handleRequestState)
+	teleportRemote.OnServerEvent:Connect(handleTeleport)
 	Players.PlayerRemoving:Connect(function(player)
 		limiters[player] = nil
+		stateRequestLimiters[player] = nil
 	end)
 	DataService.onLoaded(function(player)
 		if next(plots) then
