@@ -38,10 +38,10 @@ function Sections.parse(coord: string): (number?, number?)
 end
 
 local MAP = {
-	{ "sakura", "sakura", "sakura", "sakura", "flower", "meadow" },
-	{ "flower", "bare", "farm", "sakura", "meadow", "flower" },
-	{ "meadow", "bare", "kitchen", "library", "bare", "grove" },
-	{ "meadow", "bare", "market", "bare", "picnic", "grove" },
+	{ "sakura", "sakura", "sakura", "bare", "bare", "meadow" },
+	{ "flower", "ramen", "farm", "bare", "bare", "flower" },
+	{ "meadow", "berry", "kitchen", "library", "bare", "grove" },
+	{ "meadow", "bramble", "market", "bare", "bare", "grove" },
 	{ "meadow", "sausage", "sausage", "mushroom", "snow", "lake" },
 	{ "meadow", "sausage", "sausage", "grove", "quarry", "meadowQuiet" },
 }

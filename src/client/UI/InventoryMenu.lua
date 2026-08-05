@@ -94,12 +94,24 @@ local function buildIngredientCard(row: { [string]: any }, index: number)
 	local card = UI.card(listHolder, def.id, { radius = UI.radius.chip })
 	card.LayoutOrder = index
 
-	UI.glyph(card, def.glyph, {
-		color = tint,
-		extent = UDim2.fromOffset(30, 30),
-		position = UDim2.fromOffset(12, 12),
-		zIndex = card.ZIndex + 2,
-	})
+	if def.image then
+		local image = Instance.new("ImageLabel")
+		image.Name = "Icon"
+		image.BackgroundTransparency = 1
+		image.Image = def.image
+		image.ScaleType = Enum.ScaleType.Fit
+		image.Position = UDim2.fromOffset(8, 8)
+		image.Size = UDim2.fromOffset(38, 38)
+		image.ZIndex = card.ZIndex + 2
+		image.Parent = card
+	else
+		UI.glyph(card, def.glyph, {
+			color = tint,
+			extent = UDim2.fromOffset(30, 30),
+			position = UDim2.fromOffset(12, 12),
+			zIndex = card.ZIndex + 2,
+		})
+	end
 
 	local name = UI.label(card, "Name", {
 		text = def.name,

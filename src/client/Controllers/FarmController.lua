@@ -133,7 +133,8 @@ local function update(model: Model)
 			else ""
 		status.Text = string.format("%s · %s%s", ownerName, clockText(leaseEndsAt - os.time()), cropText)
 	else
-		status.Text = "Vacant · Rent Yen 20"
+		status.RichText = true
+		status.Text = '<font transparency="0.5">Vacant</font> · Rent Yen 20'
 	end
 
 	local bidderName = model:GetAttribute("HighestBidderName")
