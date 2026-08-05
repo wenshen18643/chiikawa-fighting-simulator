@@ -52,6 +52,7 @@ local BOOT_ORDER = {
 	"ShopService",
 	"ReplicationService",
 
+	"PerimeterService",
 	"BoardService",
 }
 

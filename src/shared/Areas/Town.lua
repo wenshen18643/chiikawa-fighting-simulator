@@ -1,6 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Props = require(ReplicatedStorage.Shared.Modules.Props)
-local Sections = require(ReplicatedStorage.Shared.Modules.Config.Sections)
 local Streets = require(ReplicatedStorage.Shared.Modules.Config.Streets)
 local Area = require(script.Parent.Area)
 local SectionDressing = require(script.Parent.SectionDressing)
@@ -9,7 +8,7 @@ return Area.define({
 	id = 1,
 	key = "town",
 	name = "Town & Grass Field",
-	flavour = "Roadside weeding, tiny study desks, sasumata practice, and hot ramen bowls.",
+	flavour = "Roadside weeding, tiny study desks, market stalls, and hot ramen bowls.",
 
 	gate = { skillTotal = 0, certificationTotal = 0 },
 	origin = Vector3.new(0, 0, 0),
@@ -22,9 +21,7 @@ return Area.define({
 
 	decorate = function(ctx)
 		local helpers = ctx.helpers
-		local half = ctx.area.terrain.islandSize / 2
 		local plazaEdge = ctx.plazaRadius + 12
-		local sasumataAt = { name = "Sasumata Yard", x = -half * 0.48 - 25, z = half * 0.35 }
 		local weedsAt = { name = "Roadside Weeds", x = 30, z = 190 }
 		local desksAt = { name = "Study Desks", x = 150, z = 30 }
 
@@ -45,7 +42,7 @@ return Area.define({
 			helpers.hedge(ctx, verge, Streets)
 		end
 
-		for index, landmark in { sasumataAt, weedsAt } do
+		for index, landmark in { weedsAt } do
 			local reach = math.sqrt(landmark.x * landmark.x + landmark.z * landmark.z)
 			local dirX, dirZ = landmark.x / reach, landmark.z / reach
 			helpers.signpost(ctx, {
@@ -59,22 +56,6 @@ return Area.define({
 				height = 2.2,
 			})
 		end
-
-		local gateZ = -(half - 20)
-		for step = 1, 9 do
-			local z = -plazaEdge + (gateZ + plazaEdge) * (step / 10)
-			if step % 3 == 0 then
-				helpers.prop(ctx, "pinkBench", -19, z, { height = 3.2, rotation = math.rad(90) })
-				helpers.prop(ctx, `flowerBed{(step % 3) + 1}`, 20, z + 6, { height = 2.2 })
-			end
-		end
-
-		helpers.signpost(ctx, {
-			title = "Ramen",
-			subtitle = "hot bowls",
-			x = -half * 0.48 + 34,
-			z = half * 0.5 - 30,
-		})
 
 		for _, marker in
 			{
@@ -121,64 +102,7 @@ return Area.define({
 		end
 
 		helpers.studyDesk(ctx, { x = desksAt.x, z = desksAt.z, y = 2.4 })
-		helpers.sasumataDummy(ctx, { x = sasumataAt.x, z = sasumataAt.z, y = 4.5 })
 		helpers.weedingPatch(ctx, { x = weedsAt.x, z = weedsAt.z, y = 1.5 })
-		helpers.waterfallZone(ctx, {
-			x = half * 0.65,
-			z = -half * 0.45,
-			y = 8.0,
-		})
-		helpers.prop(ctx, "bridge", half * 0.65 - 46, -half * 0.45, { height = 7, rotation = math.rad(90) })
-		helpers.prop(ctx, "pinkBench", half * 0.65 - 24, -half * 0.45 + 30, { height = 3.2, rotation = math.rad(180) })
-		helpers.prop(ctx, "flowerBed3", half * 0.65 - 34, -half * 0.45 + 40, { height = 2.2 })
-
-		local houses = { "house1", "house2", "house3" }
-
-		local function homestead(index: number, x: number, z: number, facing: number, joinZ: number?)
-			if Sections.isWild(x, z) then
-				return
-			end
-
-			local placed = helpers.prop(ctx, houses[(index - 1) % #houses + 1], x, z, {
-				height = ctx.rng:NextNumber(13, 16),
-				rotation = facing + math.rad(ctx.rng:NextNumber(-7, 7)),
-			})
-			if not placed then
-				helpers.hut(ctx, {
-					x = x,
-					z = z,
-					width = ctx.rng:NextNumber(18, 24),
-					depth = ctx.rng:NextNumber(14, 19),
-					height = ctx.rng:NextNumber(11, 14),
-					roofColor = if index % 2 == 0 then Color3.fromRGB(244, 186, 190) else Color3.fromRGB(168, 206, 232),
-				})
-			end
-
-			helpers.prop(ctx, `flowerBed{(index % 3) + 1}`, x - 14, z + 13, { height = 2.2 })
-			helpers.prop(ctx, "mailBox", x - 10, z + 15, { height = 3.6 })
-			if index % 3 == 0 then
-				helpers.prop(ctx, "picnicTable", x + 12, z + 17, { height = 3.4 })
-			elseif index % 3 == 1 then
-				helpers.prop(ctx, "laundryLine", x + 13, z + 18, { height = 5.5 })
-			else
-				helpers.prop(ctx, "wateringCan", x + 9, z + 14, { height = 1.6 })
-			end
-
-			if joinZ and index <= 7 then
-				helpers.path(ctx, { fromX = x, fromZ = z + 12, toX = 0, toZ = joinZ, spacing = 10, width = 4.5 })
-			end
-		end
-
-		for index = 1, 9 do
-			local x = -half * 0.44 + (index - 1) * (half * 0.11)
-			homestead(index, x, -half * 0.52, 0, -half * 0.4)
-		end
-		helpers.signpost(ctx, { title = "The Lane", subtitle = "mind the washing", x = 0, z = -half * 0.4 })
-
-		for index = 1, 5 do
-			homestead(index + 1, -half * 0.62, -half * 0.16 + (index - 1) * (half * 0.13), math.rad(90))
-		end
-		helpers.signpost(ctx, { title = "West Row", x = -half * 0.5, z = half * 0.2 })
 
 		SectionDressing.dress(ctx)
 	end,

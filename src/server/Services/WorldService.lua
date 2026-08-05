@@ -629,9 +629,11 @@ local function dressWorld()
 			continue
 		end
 
-		local fenced, fenceErr = pcall(buildFence, region, folder, step)
-		if not fenced then
-			warn(`[WorldService] area "{region.key}" fence failed: {fenceErr}`)
+		if region.id ~= Areas.STARTING_AREA then
+			local fenced, fenceErr = pcall(buildFence, region, folder, step)
+			if not fenced then
+				warn(`[WorldService] area "{region.key}" fence failed: {fenceErr}`)
+			end
 		end
 
 		local ok, err = pcall(decorateArea, region, folder, step)
