@@ -8,6 +8,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Budget = require(Shared.Modules.Budget)
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
+local Cave = require(Shared.Modules.Config.Cave)
 local Layout = require(Shared.Modules.Config.Layout)
 local UI = require(Shared.UI)
 local AssetService = require(script.Parent.AssetService)
@@ -164,10 +165,10 @@ local function buildFenceRun(parent: Folder, from: Vector3, to: Vector3, step: (
 
 	local direction = span.Unit
 	local yaw = math.atan2(direction.X, direction.Z)
-	local posts = math.floor(length / FENCE.SPACING)
+	local posts = math.max(1, math.round(length / FENCE.SPACING))
 
 	for index = 0, posts do
-		local at = from + direction * (index * FENCE.SPACING)
+		local at = from + direction * (length * index / posts)
 		if step then
 			step()
 		end
@@ -494,17 +495,19 @@ local function decorateArea(area: Areas.AreaDefinition, parent: Folder, step: ((
 end
 
 local function configureLighting()
+	local surface = Cave.SURFACE_LIGHT
+
 	Lighting.ClockTime = 15.5
-	Lighting.Brightness = 1.1
+	Lighting.Brightness = surface.brightness
 	Lighting.ExposureCompensation = -0.1
 	Lighting.GlobalShadows = true
-	Lighting.Ambient = Color3.fromRGB(60, 60, 65)
-	Lighting.OutdoorAmbient = Color3.fromRGB(75, 75, 80)
+	Lighting.Ambient = surface.ambient
+	Lighting.OutdoorAmbient = surface.outdoorAmbient
 	Lighting.EnvironmentDiffuseScale = 0.35
 	Lighting.EnvironmentSpecularScale = 0.15
-	Lighting.FogEnd = 6500
+	Lighting.FogEnd = surface.fogEnd
 	Lighting.FogStart = 2200
-	Lighting.FogColor = Color3.fromRGB(180, 188, 196)
+	Lighting.FogColor = surface.fogColor
 
 	local existingAtmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
 	if existingAtmosphere then

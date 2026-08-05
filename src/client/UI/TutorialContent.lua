@@ -228,7 +228,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 				{
 					title = "Yen",
 					bullets = {
-						"Your base wage is 60 Yen per minute, paid automatically in smaller slices.",
+						"Your base wage is 1 Yen per second, paid automatically in small batches.",
 						"Kusatori increases that wage and also pays 0.25 Yen per point gained.",
 						"Yen can be accumulated, but the regular shop and spending loop are not playable yet.",
 						"Stamps are visible but do not yet have an earning or spending loop.",

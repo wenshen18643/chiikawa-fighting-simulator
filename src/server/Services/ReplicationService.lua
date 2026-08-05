@@ -46,7 +46,7 @@ local function buildSnapshot(player: Player, profile: any)
 		study = StudyService.snapshot(player, profile),
 		selectedSkill = profile.selectedSkill,
 		gainPerAction = gainPerAction,
-		yenPerMinute = Formulas.yenPerMinute(profile),
+		yenPerSecond = Formulas.yenPerSecond(profile),
 		regionId = RegionService.getCurrentRegion(player),
 		unlockedRegions = profile.unlockedRegions,
 		highestUnlockedRegion = RegionService.getHighestUnlocked(profile),

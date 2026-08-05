@@ -36,16 +36,6 @@ return Area.define({
 			helpers.hedge(ctx, verge, Streets)
 		end
 
-		for _, marker in
-			{
-				{ title = "Library", subtitle = "and the exam hall", x = 70, z = 106 },
-				{ title = "Kitchen", subtitle = "something is always on", x = -70, z = 106 },
-				{ title = "Market Square", subtitle = "upgrades and work", x = -30, z = -42 },
-			}
-		do
-			helpers.signpost(ctx, marker)
-		end
-
 		local KITCHEN_YARD = {
 			{ key = "shopStall", x = -118, z = 108, height = 7, yaw = 90 },
 			{ key = "shopStall", x = -118, z = 72, height = 7, yaw = -90 },
@@ -63,7 +53,6 @@ return Area.define({
 			{ key = "teaPot", x = -166, z = 46, height = 3.5 },
 			{ key = "lantern", x = -136, z = 38, height = 4.6 },
 			{ key = "lantern", x = -166, z = 34, height = 4.6 },
-			{ key = "wateringCan", x = -178, z = 100, height = 1.7, yaw = 180, pitch = -35 },
 			{ key = "sakuraTree", x = -188, z = 132, height = 17 },
 			{ key = "sakuraTree", x = -188, z = 52, height = 16 },
 		}

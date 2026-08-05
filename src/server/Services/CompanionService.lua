@@ -7,10 +7,12 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Companions = require(Shared.Modules.Config.Companions)
+local Constants = require(Shared.Modules.Constants)
 local Mascot = require(Shared.Modules.Mascot)
 local Mobs = require(Shared.Modules.Config.Mobs)
 local Npcs = require(Shared.Modules.Config.Npcs)
 local Remotes = require(Shared.Modules.Remotes)
+local SafeZone = require(Shared.Modules.Config.SafeZone)
 local Skeleton = require(Shared.Modules.Anim.Skeleton)
 local Skills = require(Shared.Modules.Config.Skills)
 local UI = require(Shared.UI)
@@ -33,7 +35,8 @@ local ANIM_ACTION_ATTRIBUTE = "AnimAction"
 local ANIM_SKILL_ATTRIBUTE = "AnimSkill"
 local ACT_COOLDOWN = 0.12
 local COMPANION_ID_ATTRIBUTE = "CompanionId"
-local SHELF_PLUSHIE_SIZE = 1.5
+local SHELF_PLUSHIE_SIZE = 2.6
+local SHELF_SLOT_SPACING = 3.8
 local TOSS_HAND_OFFSET = CFrame.new(1.2, 0.7, -1.9)
 local TOSS_TO_HAND = 0.26
 local TOSS_TO_APEX = 0.5
@@ -419,7 +422,7 @@ local function buildStand(base: CFrame): Model?
 	local size = model:GetExtentsSize()
 	local largest = math.max(size.X, size.Y, size.Z)
 	if largest > 0.01 then
-		local scale = 7 / largest
+		local scale = SafeZone.STAND.fit / largest
 		if math.abs(scale - 1) > 0.01 then
 			model:ScaleTo(scale)
 		end
@@ -488,7 +491,7 @@ local function buildStand(base: CFrame): Model?
 			:FireClient(player, roster(DataService.get(player)), selectionFor(player))
 	end)
 
-	local across = { -2.2, 0, 2.2 }
+	local across = { -SHELF_SLOT_SPACING, 0, SHELF_SLOT_SPACING }
 	local alongX = boxSize.X >= boxSize.Z
 	local plushies = Instance.new("Model")
 	plushies.Name = "Plushies"
@@ -529,7 +532,8 @@ local function buildStand(base: CFrame): Model?
 			local slot = if alongX
 				then Vector3.new(offset, shelfY - pivot.Position.Y, 0)
 				else Vector3.new(0, shelfY - pivot.Position.Y, offset)
-			plushie:PivotTo(pivot * CFrame.new(slot))
+			local seat = (pivot * CFrame.new(slot)).Position
+			plushie:PivotTo(CFrame.new(seat) * CFrame.Angles(0, math.rad(SafeZone.STAND.plushieYaw), 0))
 			local plushieBox, plushieBoxSize = plushie:GetBoundingBox()
 			local plushieBottom = plushieBox.Position - plushieBox.YVector * (plushieBoxSize.Y / 2)
 			plushie:PivotTo(plushie:GetPivot() + Vector3.new(0, shelfY - plushieBottom.Y, 0))
@@ -779,7 +783,10 @@ function CompanionService.init()
 	folder.Name = "Companions"
 	folder.Parent = Workspace
 
-	local stand = buildStand(CFrame.new(15, 1.75, -3) * CFrame.Angles(0, math.rad(-80), 0))
+	local stand = buildStand(
+		CFrame.new(SafeZone.STAND.x, Constants.WORLD.PLATFORM_TOP + SafeZone.FLOOR_Y, SafeZone.STAND.z)
+			* CFrame.Angles(0, math.rad(SafeZone.STAND.yaw), 0)
+	)
 	if stand then
 		stand.Parent = folder
 	end

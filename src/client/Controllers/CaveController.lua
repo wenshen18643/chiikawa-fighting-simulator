@@ -8,27 +8,9 @@ local CaveController = {}
 local LEVEL_ATTRIBUTE = "CaveLevel"
 local LANTERN_ATTRIBUTE = "HasLantern"
 local FADE = TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-
-local surface: {
-	ambient: Color3,
-	outdoorAmbient: Color3,
-	brightness: number,
-	fogEnd: number,
-	fogColor: Color3,
-}
-
+local surface = Cave.SURFACE_LIGHT
 local currentLevel = -1
 local connections: { RBXScriptConnection } = {}
-
-local function captureSurface()
-	surface = {
-		ambient = Lighting.Ambient,
-		outdoorAmbient = Lighting.OutdoorAmbient,
-		brightness = Lighting.Brightness,
-		fogEnd = Lighting.FogEnd,
-		fogColor = Lighting.FogColor,
-	}
-end
 
 local function applyLevel(index: number, hasLantern: boolean)
 	if index == currentLevel then
@@ -86,8 +68,6 @@ local function bind(character: Model)
 end
 
 function CaveController.init()
-	captureSurface()
-
 	local player = Players.LocalPlayer
 	if player.Character then
 		bind(player.Character)

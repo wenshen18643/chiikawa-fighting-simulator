@@ -7,6 +7,14 @@ Cave.GRID = 13
 Cave.CELL = 16
 Cave.MARGIN = (Sections.SIZE - Cave.GRID * Cave.CELL) / 2
 
+Cave.SURFACE_LIGHT = {
+	ambient = Color3.fromRGB(60, 60, 65),
+	outdoorAmbient = Color3.fromRGB(75, 75, 80),
+	brightness = 1.1,
+	fogEnd = 6500,
+	fogColor = Color3.fromRGB(180, 188, 196),
+}
+
 Cave.CEILING = 24
 Cave.ROOM_CEILING = 34
 Cave.BOSS_CEILING = 46

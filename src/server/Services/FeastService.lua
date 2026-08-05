@@ -197,7 +197,7 @@ end
 
 local function finish(player: Player, profile: any, food: Food)
 	local def = food.def
-	local yen = BigNumber.mulNumber(Formulas.yenPerMinute(profile), def.wageMinutes)
+	local yen = BigNumber.mulNumber(Formulas.yenPerSecond(profile), def.wageSeconds)
 	CurrencyService.award(profile, "yen", yen)
 	Boosts.applyFood(profile, def.buff, Constants.FOOD.DURATION_TIER)
 

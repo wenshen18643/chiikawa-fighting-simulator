@@ -84,7 +84,7 @@ Streets.VERGES = {
 	{ fromX = -129, fromZ = 81.8, toX = -104.2, toZ = 81.8, facing = 0, lamps = true },
 	{ fromX = -129, fromZ = 98.2, toX = -104.2, toZ = 98.2, facing = 180, lamps = true },
 
-	{ fromX = -87.8, fromZ = -90.8, toX = -87.8, toZ = -78.2, facing = -90, hedge = false },
+	{ fromX = -87.8, fromZ = -90.8, toX = -87.8, toZ = -78.2, facing = -90 },
 
 	{ fromX = -145.2, fromZ = -90.8, toX = -104.2, toZ = -90.8, facing = 180, lamps = true, hedge = false },
 	{ fromX = -87.8, fromZ = -90.8, toX = -46.8, toZ = -90.8, facing = 180, lamps = true, hedge = false },

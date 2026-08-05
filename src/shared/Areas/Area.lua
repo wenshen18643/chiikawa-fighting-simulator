@@ -776,30 +776,6 @@ function Area.helpers.ring(
 	end
 end
 
-function Area.helpers.signpost(ctx: DecorateContext, config: { [string]: any })
-	local post = Area.helpers.block(ctx, {
-		name = `Signpost_{config.title}`,
-		size = Vector3.new(0.6, 8, 0.6),
-		x = config.x or 0,
-		z = config.z or 0,
-		y = 4,
-		color = Color3.fromRGB(150, 118, 90),
-		material = Enum.Material.Wood,
-		collide = false,
-	})
-
-	ctx.UI.sign(post, {
-		name = "Sign",
-		title = config.title,
-		subtitle = config.subtitle,
-		offset = Vector3.new(0, 5, 0),
-		maxDistance = config.maxDistance or 220,
-		titleColor = config.titleColor or ctx.UI.color.white,
-	})
-
-	return post
-end
-
 local REQUIRED = { "id", "key", "name", "flavour", "gate", "origin", "terrain", "palette" }
 
 function Area.define(definition: AreaDefinition): AreaDefinition

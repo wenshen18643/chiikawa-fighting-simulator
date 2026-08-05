@@ -98,7 +98,7 @@ function Formulas.maxHealth(profile: any): number
 	return Constants.HEALTH.BASE_MAX + Formulas.resilienceLog(profile) * Constants.HEALTH.MAX_PER_RESILIENCE_LOG
 end
 
-function Formulas.yenPerMinute(profile: any): BigNum
+function Formulas.yenPerSecond(profile: any): BigNum
 	local certificationBonus = 1
 	for _, order in profile.certifications do
 		certificationBonus += order * Certifications.WAGE_BONUS_PER_ORDER
@@ -112,7 +112,7 @@ function Formulas.yenPerMinute(profile: any): BigNum
 		* Upgrades.multiplier(profile, "yen")
 		* (1 + Boosts.foodBonus(profile, "yen", true))
 
-	return BigNumber.mulNumber(BigNumber.fromNumber(Constants.CURRENCY.BASE_YEN_PER_MINUTE), multiplier)
+	return BigNumber.mulNumber(BigNumber.fromNumber(Constants.CURRENCY.BASE_YEN_PER_SECOND), multiplier)
 end
 
 function Formulas.yenForGain(skillId: string, gain: BigNum): BigNum

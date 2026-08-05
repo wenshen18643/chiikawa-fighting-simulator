@@ -15,6 +15,7 @@ local function isContraband(descendant: Instance): boolean
 end
 
 local SHADOW_MIN_SIZE = 6
+local LIGHT_MAX_BRIGHTNESS = 3
 
 local function prepare(model: Model, spec: Assets.AssetSpec)
 	for _, descendant in model:GetDescendants() do
@@ -65,6 +66,9 @@ local function prepare(model: Model, spec: Assets.AssetSpec)
 			if math.max(descendant.Size.X, descendant.Size.Y, descendant.Size.Z) < SHADOW_MIN_SIZE then
 				descendant.CastShadow = false
 			end
+		elseif descendant:IsA("Light") then
+			descendant.Shadows = false
+			descendant.Brightness = math.min(descendant.Brightness, LIGHT_MAX_BRIGHTNESS)
 		elseif isContraband(descendant) then
 			descendant:Destroy()
 		end

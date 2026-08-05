@@ -344,12 +344,12 @@ local function buildFloor()
 	disc({
 		name = "Rug",
 		thickness = 0.2,
-		diameter = 30,
+		diameter = SafeZone.RUG.diameter,
 		color = palette.mint,
 		material = Enum.Material.Fabric,
 		collide = false,
 		castShadow = false,
-		cframe = toWorld(0, SafeZone.FLOOR_Y + 0.1, -3),
+		cframe = toWorld(0, SafeZone.FLOOR_Y + 0.1, SafeZone.RUG.z),
 	})
 end
 
@@ -521,21 +521,17 @@ local function buildFuton(deckY: number)
 end
 
 local function buildLamps(deckY: number)
-	local spots = {
-		{ x = 0, y = dome.height * 0.62, z = 0, range = 34, brightness = 1.1 },
-		{ x = -9, y = deckY + 9, z = -12, range = 20, brightness = 0.7 },
-	}
-
-	for index, spot in spots do
+	for index, spot in SafeZone.LAMPS do
+		local y = if spot.on == "loft" then deckY + spot.y else spot.y
 		local bulb = piece({
 			name = `Lantern_{index}`,
 			shape = Enum.PartType.Ball,
-			size = Vector3.new(3.6, 3.6, 3.6),
+			size = Vector3.new(spot.size, spot.size, spot.size),
 			color = palette.honey,
 			material = Enum.Material.Neon,
 			collide = false,
 			castShadow = false,
-			cframe = toWorld(spot.x, spot.y, spot.z),
+			cframe = toWorld(spot.x, y, spot.z),
 		})
 		piece({
 			name = `LanternCord_{index}`,
@@ -543,7 +539,7 @@ local function buildLamps(deckY: number)
 			color = palette.timberDark,
 			collide = false,
 			castShadow = false,
-			cframe = toWorld(spot.x, spot.y + 4.8, spot.z),
+			cframe = toWorld(spot.x, y + 4.8, spot.z),
 		})
 
 		local light = Instance.new("PointLight")
@@ -707,11 +703,7 @@ local function buildFence()
 	local frontZ = SafeZone.VOLUME.centreOffset.Z + SafeZone.VOLUME.size.Z / 2 - garden.fenceInset
 	local backZ = SafeZone.VOLUME.centreOffset.Z - SafeZone.VOLUME.size.Z / 2 + garden.fenceInset
 
-	local function post(x: number, z: number, run: { [string]: any })
-		local alongX, alongZ = x - run.gateX, z - run.gateZ
-		if math.sqrt(alongX * alongX + alongZ * alongZ) < garden.gateGap then
-			return
-		end
+	local function post(x: number, z: number)
 		piece({
 			name = "FencePost",
 			size = Vector3.new(1.1, garden.fenceHeight, 1.1),
@@ -729,13 +721,17 @@ local function buildFence()
 		})
 	end
 
-	local function rails(run: { [string]: any })
+	local function geometry(run: { [string]: any })
 		local from = Vector2.new(run.fromX, run.fromZ)
 		local span = Vector2.new(run.toX, run.toZ) - from
 		local length = span.Magnitude
 		local direction = span.Unit
+		return from, direction, length, (Vector2.new(run.gateX, run.gateZ) - from):Dot(direction)
+	end
+
+	local function rails(run: { [string]: any })
+		local from, direction, length, gateAt = geometry(run)
 		local yaw = math.atan2(direction.X, direction.Y)
-		local gateAt = (Vector2.new(run.gateX, run.gateZ) - from):Dot(direction)
 
 		local halves = {
 			{ start = 0, finish = gateAt - garden.gateGap },
@@ -767,12 +763,23 @@ local function buildFence()
 	}
 
 	for _, run in runs do
-		local length = (Vector2.new(run.toX, run.toZ) - Vector2.new(run.fromX, run.fromZ)).Magnitude
+		local from, direction, length, gateAt = geometry(run)
 		local count = math.max(1, math.floor(length / garden.postSpacing))
+
 		for index = 0, count do
-			local alpha = index / count
-			post(run.fromX + (run.toX - run.fromX) * alpha, run.fromZ + (run.toZ - run.fromZ) * alpha, run)
+			local at = from + direction * (length * index / count)
+			if math.abs(length * index / count - gateAt) >= garden.gateGap then
+				post(at.X, at.Y)
+			end
 		end
+
+		for _, edge in { gateAt - garden.gateGap, gateAt + garden.gateGap } do
+			if edge > 0.5 and edge < length - 0.5 then
+				local at = from + direction * edge
+				post(at.X, at.Y)
+			end
+		end
+
 		rails(run)
 	end
 end
@@ -956,7 +963,7 @@ end
 function SafeZoneService.getSpawnCFrame(): CFrame
 	local town = Areas.BY_ID[Areas.STARTING_AREA]
 	local position = town.origin + Vector3.new(0, Constants.WORLD.PLATFORM_TOP, 0) + SafeZone.SPAWN_OFFSET
-	return CFrame.lookAt(position, position + Vector3.new(0, 0, 1))
+	return CFrame.lookAt(position, position + SafeZone.SPAWN_LOOK)
 end
 
 function SafeZoneService.getDoorstepCFrame(): CFrame

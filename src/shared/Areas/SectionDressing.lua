@@ -144,11 +144,10 @@ local function towardPlaza(cell, distance)
 	return at.X, at.Y
 end
 
-local function dressSign(ctx, cell, theme)
+local function dressEntrance(ctx, cell, theme)
 	for _, distance in { SIZE / 2 - 26, SIZE / 2 - 60, 30, -30, -(SIZE / 2 - 40) } do
 		local x, z = towardPlaza(cell, distance)
 		if math.abs(x) <= LIMIT and math.abs(z) <= LIMIT and not ctx.isReserved(x, z) then
-			ctx.helpers.signpost(ctx, { title = theme.name, subtitle = theme.sub, x = x, z = z })
 			local dir = Vector2.new(cell.cx, cell.cz).Unit
 			for _, side in { -1, 1 } do
 				local fx = x - dir.Y * side * 6
@@ -181,7 +180,7 @@ local function dressCell(ctx, cell)
 	end
 
 	if not theme.wild then
-		dressSign(ctx, cell, theme)
+		dressEntrance(ctx, cell, theme)
 	end
 end
 

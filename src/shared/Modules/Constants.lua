@@ -89,7 +89,7 @@ Constants.CURRENCY = {
 	YEN = "yen",
 	STAMPS = "stamps",
 
-	BASE_YEN_PER_MINUTE = 60,
+	BASE_YEN_PER_SECOND = 1,
 	WAGE_TICK_INTERVAL = 5,
 
 	WEEDING_YEN_PER_GAIN = 0.25,

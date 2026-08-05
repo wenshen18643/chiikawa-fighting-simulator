@@ -11,6 +11,12 @@
     "ServerStorage": {
       "$className": "ServerStorage"
     },
+    "Lighting": {
+      "$className": "Lighting",
+      "$properties": {
+        "Technology": "ShadowMap"
+      }
+    },
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
       "Shared": {

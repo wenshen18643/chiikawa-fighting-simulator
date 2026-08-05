@@ -30,8 +30,6 @@ Assets.MODELS = {
 	lantern = { template = "Lantern", scale = 1 },
 	lanternTall = { template = "LanternTall", scale = 1 },
 	mailBox = { template = "MailBox", scale = 1 },
-	laundryLine = { template = "LaundryLine", scale = 1 },
-	wateringCan = { template = "WateringCan", scale = 1 },
 	picnicTable = { template = "PicnicTable", scale = 1 },
 	lowTable = { template = "LowTable", scale = 1 },
 	tableCloth = { template = "TableCloth", scale = 1 },

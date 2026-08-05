@@ -1,39 +1,41 @@
 local SafeZone = {}
 
 SafeZone.DOME = {
-	radius = 32,
-	height = 37,
-	wall = 2.2,
-	rings = 16,
-	segmentArc = 7.0,
+	radius = 56,
+	height = 62,
+	wall = 2.4,
+	rings = 20,
+	segmentArc = 10,
 	bulge = 0.86,
 	overlap = 1.14,
 }
 
 SafeZone.FLOOR_Y = 0.75
 
+SafeZone.RUG = { diameter = 52, z = -24 }
+
 SafeZone.OPENINGS = {
-	{ name = "Door", azimuth = 0, halfAngle = 14, bottom = 0, top = 17.5, kind = "door" },
-	{ name = "WindowE", azimuth = 76, halfAngle = 10, bottom = 7.5, top = 16.5, kind = "round" },
-	{ name = "WindowW", azimuth = -76, halfAngle = 10, bottom = 7.5, top = 16.5, kind = "round" },
-	{ name = "WindowN", azimuth = 180, halfAngle = 10, bottom = 7.5, top = 16.5, kind = "round" },
-	{ name = "LoftWindow", azimuth = 0, halfAngle = 12, bottom = 21.5, top = 29, kind = "round" },
+	{ name = "Door", azimuth = 0, halfAngle = 12, bottom = 0, top = 26, kind = "door" },
+	{ name = "WindowE", azimuth = 76, halfAngle = 10, bottom = 12, top = 26, kind = "round" },
+	{ name = "WindowW", azimuth = -76, halfAngle = 10, bottom = 12, top = 26, kind = "round" },
+	{ name = "WindowN", azimuth = 180, halfAngle = 10, bottom = 12, top = 26, kind = "round" },
+	{ name = "LoftWindow", azimuth = 0, halfAngle = 12, bottom = 34, top = 47, kind = "round" },
 }
 
 SafeZone.LOFT = {
-	y = 18.5,
+	y = 30,
 	slab = 0.8,
-	frontZ = -4,
+	frontZ = -8,
 	inset = 2.6,
-	strips = 20,
+	strips = 28,
 	railHeight = 4.2,
 }
 
 SafeZone.STAIR = {
-	steps = 15,
+	steps = 25,
 	fromAzimuth = 128,
 	sweep = 132,
-	radius = 23.5,
+	radius = 41,
 	width = 7.5,
 	length = 6.4,
 }
@@ -56,12 +58,24 @@ SafeZone.palette = {
 }
 
 SafeZone.VOLUME = {
-	size = Vector3.new(184, 132, 212),
-	centreOffset = Vector3.new(0, 52, 40),
+	size = Vector3.new(200, 140, 236),
+	centreOffset = Vector3.new(0, 56, 30),
 }
 
-SafeZone.SPAWN_OFFSET = Vector3.new(0, 3.5, -17)
-SafeZone.DOORSTEP_OFFSET = Vector3.new(0, 3.5, 42)
+SafeZone.STAND = { x = 0, z = -10, yaw = -90, fit = 12, plushieYaw = 180 }
+
+SafeZone.LAMPS = {
+	{ x = 0, z = 0, y = 30, range = 42, brightness = 1.2, size = 5 },
+	{ x = -26, z = -14, y = 20, range = 24, brightness = 0.7, size = 3.6 },
+	{ x = 26, z = -14, y = 20, range = 24, brightness = 0.7, size = 3.6 },
+	{ x = -26, z = 16, y = 20, range = 24, brightness = 0.7, size = 3.6 },
+	{ x = 26, z = 16, y = 20, range = 24, brightness = 0.7, size = 3.6 },
+	{ x = -9, z = -12, y = 9, range = 18, brightness = 0.5, size = 3.6, on = "loft" },
+}
+
+SafeZone.SPAWN_OFFSET = Vector3.new(0, 3.5, 2)
+SafeZone.SPAWN_LOOK = Vector3.new(0, 0, -1)
+SafeZone.DOORSTEP_OFFSET = Vector3.new(0, 3.5, 68)
 
 export type Placement = {
 	asset: string,
@@ -95,36 +109,33 @@ SafeZone.SURFACE = {
 }
 
 SafeZone.interior = {
-	{ asset = "lowTable", x = 0, z = -3, fit = 13, name = "LowTable" },
-	{ asset = "tableCloth", x = 0, z = -3, fit = 14.5, y = SafeZone.SURFACE.lowTable, drapeOver = "LowTable" },
-	{ asset = "floorCushion", x = -9, z = -3, fit = 5, yaw = 90 },
-	{ asset = "floorCushion", x = 9, z = -3, fit = 5, yaw = -90 },
-	{ asset = "floorCushion", x = 0, z = -12, fit = 5, yaw = 180 },
+	{ asset = "lowTable", x = 0, z = -24, fit = 13, name = "LowTable" },
+	{ asset = "tableCloth", x = 0, z = -24, fit = 14.5, y = SafeZone.SURFACE.lowTable, drapeOver = "LowTable" },
+	{ asset = "floorCushion", x = -9, z = -24, fit = 5, yaw = 90 },
+	{ asset = "floorCushion", x = 9, z = -24, fit = 5, yaw = -90 },
+	{ asset = "floorCushion", x = 0, z = -33, fit = 5, yaw = 180 },
 
-	{ asset = "ramen", x = 0, z = -3, fit = SafeZone.FOOD.ramen, y = SafeZone.SURFACE.cloth },
-	{ asset = "teaPot", x = -5.5, z = 2.5, fit = 4.5, y = SafeZone.SURFACE.cloth },
-	{ asset = "teaCup", x = 4.5, z = 3, fit = 2.4, y = SafeZone.SURFACE.cloth },
-	{ asset = "teaCup", x = 6, z = 1.5, fit = 2.4, y = SafeZone.SURFACE.cloth },
+	{ asset = "ramen", x = 0, z = -24, fit = SafeZone.FOOD.ramen, y = SafeZone.SURFACE.cloth },
+	{ asset = "teaPot", x = -5.5, z = -18.5, fit = 4.5, y = SafeZone.SURFACE.cloth },
+	{ asset = "teaCup", x = 4.5, z = -18, fit = 2.4, y = SafeZone.SURFACE.cloth },
+	{ asset = "teaCup", x = 6, z = -19.5, fit = 2.4, y = SafeZone.SURFACE.cloth },
 
-	{ asset = "dangoPlatter", x = 17, z = 10, fit = SafeZone.FOOD.dangoPlatter },
-	{ asset = "onigiri", x = -16, z = 14, fit = SafeZone.FOOD.onigiri },
-	{ asset = "kettle", x = -20, z = 3, fit = 5 },
+	{ asset = "dangoPlatter", x = 24, z = 10, fit = SafeZone.FOOD.dangoPlatter },
+	{ asset = "onigiri", x = -22, z = 14, fit = SafeZone.FOOD.onigiri },
+	{ asset = "kettle", x = -28, z = 3, fit = 5 },
 } :: { Placement }
 
 SafeZone.exterior = {
-	{ asset = "sakuraTree", x = -42, z = 62, fit = 54, yaw = 25 },
-	{ asset = "sakuraTree", x = 42, z = 62, fit = 50, yaw = -40 },
-	{ asset = "sakuraTree", x = -26, z = -54, fit = 44, yaw = 150 },
+	{ asset = "sakuraTree", x = -62, z = 70, fit = 54, yaw = 25 },
+	{ asset = "sakuraTree", x = 62, z = 70, fit = 50, yaw = -40 },
+	{ asset = "sakuraTree", x = -34, z = -72, fit = 44, yaw = 150 },
 
 	{ asset = "lanternTall", x = -13, z = 99, fit = 22 },
 	{ asset = "lanternTall", x = 13, z = 99, fit = 22 },
 	{ asset = "mailBox", x = 19, z = 95, fit = 7, yaw = -20 },
 
-	{ asset = "laundryLine", x = -48, z = 8, fit = 30, yaw = 8 },
-
-	{ asset = "wateringCan", x = 24, z = 36, fit = 5, yaw = 180, pitch = -35 },
-	{ asset = "grassPatch", x = 24, z = 42, fit = 9, sink = 0.6 },
-	{ asset = "grassPatch", x = 28.5, z = 44, fit = 7, yaw = 40, sink = 0.6 },
+	{ asset = "grassPatch", x = 40, z = 66, fit = 9, sink = 0.6 },
+	{ asset = "grassPatch", x = 44.5, z = 68, fit = 7, yaw = 40, sink = 0.6 },
 
 	{ asset = "picnicTable", x = 52, z = 56, fit = 12, yaw = -22 },
 	{ asset = "dango", x = 52, z = 56, fit = SafeZone.FOOD.dango, y = SafeZone.SURFACE.picnicTable, yaw = -22 },

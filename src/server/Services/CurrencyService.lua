@@ -45,15 +45,14 @@ end
 function CurrencyService.init()
 	task.spawn(function()
 		local interval = Constants.CURRENCY.WAGE_TICK_INTERVAL
-		local fraction = interval / 60
 
 		while true do
 			task.wait(interval)
 			for _, player in Players:GetPlayers() do
 				local profile = DataService.get(player)
 				if profile then
-					local perMinute = Formulas.yenPerMinute(profile)
-					CurrencyService.award(profile, "yen", BigNumber.mulNumber(perMinute, fraction))
+					local perSecond = Formulas.yenPerSecond(profile)
+					CurrencyService.award(profile, "yen", BigNumber.mulNumber(perSecond, interval))
 					profile.meta.playtime += interval
 				end
 			end

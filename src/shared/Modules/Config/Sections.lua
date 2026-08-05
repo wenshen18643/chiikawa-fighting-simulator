@@ -156,7 +156,6 @@ Sections.THEMES = {
 			{ kind = "house", count = 2 },
 			{ kind = "prop", key = "lantern", count = 6, h = { 4.4, 4.6 } },
 			{ kind = "prop", key = "mailBox", count = 2, h = { 3.6, 3.6 } },
-			{ kind = "prop", key = "laundryLine", count = 1, h = { 5.5, 5.5 } },
 			{ kind = "flower", count = 5 },
 			{ kind = "grass", count = 12 },
 			{ kind = "grassPatch", count = 3, h = { 1.6, 2.4 } },
@@ -184,7 +183,6 @@ Sections.THEMES = {
 		arch = false,
 		recipe = {
 			{ kind = "coded", fn = "berryCrate", count = 4 },
-			{ kind = "prop", key = "wateringCan", count = 1, h = { 1.5, 1.8 } },
 			{ kind = "prop", key = "sakuraTree", count = 3, h = { 14, 18 } },
 			{ kind = "flower", count = 5 },
 			{ kind = "grassPatch", count = 5, h = { 1.6, 2.4 } },
@@ -233,7 +231,6 @@ Sections.THEMES = {
 			{ kind = "prop", key = "riceCookerSprout", count = 4, h = { 3, 3.4 }, upright = true },
 			{ kind = "coded", fn = "hayBale", count = 4 },
 			{ kind = "coded", fn = "scarecrow", count = 2 },
-			{ kind = "prop", key = "wateringCan", count = 2, h = { 1.5, 1.8 } },
 			{ kind = "grass", count = 16 },
 			{ kind = "flower", count = 3 },
 			{ kind = "house", count = 1 },

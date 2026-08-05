@@ -133,7 +133,7 @@ local function buildIdentity(parent: Instance)
 	yenLabel.TextTruncate = Enum.TextTruncate.AtEnd
 
 	wageLabel = UI.label(identityCard, "Wage", {
-		text = "0 / min",
+		text = "0 / sec",
 		font = UI.font.light,
 		size = 12,
 		color = UI.color.inkSoft,
@@ -441,7 +441,7 @@ end
 
 local function update(snapshot: any)
 	yenSet(BigNumber.toString(snapshot.yen), BigNumber.toNumber(snapshot.yen))
-	wageLabel.Text = `{BigNumber.toString(snapshot.yenPerMinute)} / min`
+	wageLabel.Text = `{BigNumber.toString(snapshot.yenPerSecond)} / sec`
 	stampLabel.Text = `{BigNumber.toString(snapshot.stamps)} stamps`
 
 	updateBuffs(snapshot.boosts, snapshot.foodBuffs)

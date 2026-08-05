@@ -113,7 +113,7 @@ export type StateSnapshot = {
 		factId: number,
 	},
 	gainPerAction: BigNum?,
-	yenPerMinute: BigNum,
+	yenPerSecond: BigNum,
 	regionId: number,
 	unlockedRegions: { [string]: boolean },
 	ingredients: { [string]: number },

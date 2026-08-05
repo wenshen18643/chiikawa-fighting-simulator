@@ -1123,9 +1123,10 @@ function Props.miniFence(ctx, x1, z1, x2, z2)
 	local gy = function(x, z)
 		return (ctx.groundY and ctx.groundY(x, z)) or 0
 	end
-	local posts = math.floor(length / 7.5)
+	local posts = math.max(1, math.round(length / 7.5))
+	local spacing = length / posts
 	for index = 0, posts do
-		local at = from + direction * (index * 7.5)
+		local at = from + direction * (index * spacing)
 		block(
 			ctx,
 			{
@@ -1156,13 +1157,13 @@ function Props.miniFence(ctx, x1, z1, x2, z2)
 			}
 		)
 		if index < posts then
-			local mid = at + direction * 3.75
+			local mid = at + direction * (spacing / 2)
 			for _, fraction in { 0.42, 0.78 } do
 				block(
 					ctx,
 					{
 						name = "Rail",
-						size = Vector3.new(0.45, 0.45, 7.5),
+						size = Vector3.new(0.45, 0.45, spacing),
 						color = WHITE,
 						material = Enum.Material.SmoothPlastic,
 						cframe = CFrame.new(ctx.origin + Vector3.new(mid.X, gy(mid.X, mid.Y) + 4.5 * fraction, mid.Y))
