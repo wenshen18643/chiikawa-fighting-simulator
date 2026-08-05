@@ -21,15 +21,9 @@ return Area.define({
 
 	decorate = function(ctx)
 		local helpers = ctx.helpers
-		local plazaEdge = ctx.plazaRadius + 12
-		local weedsAt = { name = "Roadside Weeds", x = 30, z = 190 }
 		local desksAt = { name = "Study Desks", x = 150, z = 30 }
 
 		for _, side in { -1, 1 } do
-			helpers.prop(ctx, "pinkBench", side * ctx.plazaRadius * 0.4, ctx.plazaRadius * 0.42, {
-				height = 3.2,
-				rotation = math.rad(90) * side,
-			})
 			helpers.prop(ctx, "flowerBed2", side * ctx.plazaRadius * 0.36, ctx.plazaRadius * 0.66, { height = 2.2 })
 		end
 
@@ -40,21 +34,6 @@ return Area.define({
 
 		for _, verge in Streets.VERGES do
 			helpers.hedge(ctx, verge, Streets)
-		end
-
-		for index, landmark in { weedsAt } do
-			local reach = math.sqrt(landmark.x * landmark.x + landmark.z * landmark.z)
-			local dirX, dirZ = landmark.x / reach, landmark.z / reach
-			helpers.signpost(ctx, {
-				title = landmark.name,
-				x = dirX * (plazaEdge + 34),
-				z = dirZ * (plazaEdge + 34),
-			})
-
-			local bed = `flowerBed{(index % 3) + 1}`
-			helpers.prop(ctx, bed, dirX * (plazaEdge + 22) - dirZ * 16, dirZ * (plazaEdge + 22) + dirX * 16, {
-				height = 2.2,
-			})
 		end
 
 		for _, marker in
@@ -102,7 +81,6 @@ return Area.define({
 		end
 
 		helpers.studyDesk(ctx, { x = desksAt.x, z = desksAt.z, y = 2.4 })
-		helpers.weedingPatch(ctx, { x = weedsAt.x, z = weedsAt.z, y = 1.5 })
 
 		SectionDressing.dress(ctx)
 	end,

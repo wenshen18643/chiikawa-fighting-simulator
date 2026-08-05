@@ -51,7 +51,6 @@ Assets.MODELS = {
 	flowerBed1 = { template = "FlowerBed1", scale = 1, collide = false },
 	flowerBed2 = { template = "FlowerBed2", scale = 1, collide = false },
 	flowerBed3 = { template = "FlowerBed3", scale = 1, collide = false },
-	pinkBench = { template = "PinkBench", scale = 1 },
 	bridge = { template = "Bridge", scale = 1 },
 
 	ramen = { template = "Ramen", scale = 1 },

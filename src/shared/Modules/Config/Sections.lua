@@ -154,7 +154,6 @@ Sections.THEMES = {
 		material = "Grass",
 		recipe = {
 			{ kind = "house", count = 2 },
-			{ kind = "prop", key = "pinkBench", count = 3, h = { 3.2, 3.2 }, faceOrigin = true },
 			{ kind = "prop", key = "lantern", count = 6, h = { 4.4, 4.6 } },
 			{ kind = "prop", key = "mailBox", count = 2, h = { 3.6, 3.6 } },
 			{ kind = "prop", key = "laundryLine", count = 1, h = { 5.5, 5.5 } },
@@ -202,7 +201,6 @@ Sections.THEMES = {
 			{ kind = "tree", count = 5, h = { 10, 15 }, canopy = { 9, 13 } },
 			{ kind = "prop", key = "lantern", count = 10, h = { 4.4, 4.6 } },
 			{ kind = "prop", key = "lanternTall", count = 4, h = { 6.5, 6.5 } },
-			{ kind = "prop", key = "pinkBench", count = 5, h = { 3.2, 3.2 }, faceOrigin = true },
 			{ kind = "prop", key = "picnicTable", count = 2, h = { 3.4, 3.4 }, faceOrigin = true },
 			{ kind = "prop", key = "shopStall", count = 2, h = { 7, 7 } },
 			{ kind = "coded", fn = "berryCrate", count = 6 },
@@ -327,7 +325,6 @@ Sections.THEMES = {
 		arch = true,
 		recipe = {
 			{ kind = "prop", key = "sakuraTree", count = 8, h = { 16, 24 } },
-			{ kind = "prop", key = "pinkBench", count = 3, h = { 3.2, 3.2 }, faceOrigin = true },
 			{ kind = "prop", key = "picnicTable", count = 2, h = { 3.4, 3.4 }, faceOrigin = true },
 			{ kind = "prop", key = "dango", count = 1, h = { 9, 9 }, edible = true },
 			{ kind = "flower", count = 6 },
@@ -378,7 +375,6 @@ Sections.THEMES = {
 			{ kind = "prop", key = "yogurtVanilla", count = 1, h = { 7, 7 }, pitch = 90 },
 			{ kind = "prop", key = "dangoPlatter", count = 1, h = { 9, 9 }, edible = true },
 			{ kind = "prop", key = "friendStand", count = 1, h = { 8, 8 } },
-			{ kind = "prop", key = "pinkBench", count = 3, h = { 3.2, 3.2 }, faceOrigin = true },
 			{ kind = "prop", key = "sakuraTree", count = 3, h = { 14, 18 } },
 			{ kind = "flower", count = 5 },
 			{ kind = "grass", count = 12 },

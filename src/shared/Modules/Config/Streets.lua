@@ -20,8 +20,6 @@ Streets.VERGE_OFFSET = Streets.HEDGE_WIDTH / 2
 
 Streets.LAMP_SPACING = 38
 Streets.LAMP_INSET = 4
-Streets.BENCH_SPACING = 56
-Streets.BENCH_INSET = 5
 
 export type Paved = {
 	name: string,
@@ -39,7 +37,6 @@ export type Verge = {
 	toZ: number,
 	facing: number,
 	lamps: boolean?,
-	benches: boolean?,
 	hedge: boolean?,
 }
 
@@ -57,9 +54,6 @@ Streets.PAVING = {
 	{ name = "LibraryRoad", minX = 103, maxX = 119, minZ = 83, maxZ = 97 },
 	{ name = "KitchenRoad", minX = -129, maxX = -103, minZ = 83, maxZ = 97 },
 	{ name = "MarketSpur", minX = -103, maxX = -89, minZ = -92, maxZ = -77 },
-
-	{ name = "FarmLane", minX = -166, maxX = -20, minZ = 229, maxZ = 243 },
-	{ name = "FarmGateSpur", minX = -113, maxX = -99, minZ = 243, maxZ = 250 },
 } :: { Paved }
 
 Streets.SQUARE = { name = "MarketSquare", minX = -144, maxX = -48, minZ = -188, maxZ = -92 } :: Paved
@@ -70,10 +64,10 @@ for _, area in Streets.PAVING do
 end
 
 Streets.VERGES = {
-	{ fromX = -104.2, fromZ = 158.2, toX = -8.2, toZ = 158.2, facing = 180, lamps = true, benches = true },
-	{ fromX = 8.2, fromZ = 158.2, toX = 104.2, toZ = 158.2, facing = 180, lamps = true, benches = true },
+	{ fromX = -104.2, fromZ = 158.2, toX = -8.2, toZ = 158.2, facing = 180, lamps = true },
+	{ fromX = 8.2, fromZ = 158.2, toX = 104.2, toZ = 158.2, facing = 180, lamps = true },
 
-	{ fromX = -87.8, fromZ = -78.2, toX = 104.2, toZ = -78.2, facing = 0, lamps = true, benches = true },
+	{ fromX = -87.8, fromZ = -78.2, toX = 104.2, toZ = -78.2, facing = 0, lamps = true },
 
 	{ fromX = -104.2, fromZ = -90.8, toX = -104.2, toZ = 81.8, facing = 90, lamps = true },
 	{ fromX = -104.2, fromZ = 98.2, toX = -104.2, toZ = 158.2, facing = 90, lamps = true },
@@ -81,8 +75,8 @@ Streets.VERGES = {
 	{ fromX = 104.2, fromZ = -78.2, toX = 104.2, toZ = 81.8, facing = -90, lamps = true },
 	{ fromX = 104.2, fromZ = 98.2, toX = 104.2, toZ = 158.2, facing = -90, lamps = true },
 
-	{ fromX = -8.2, fromZ = 158.2, toX = -8.2, toZ = 200, facing = 90, lamps = true },
-	{ fromX = 8.2, fromZ = 158.2, toX = 8.2, toZ = 200, facing = -90, lamps = true },
+	{ fromX = -8.2, fromZ = 158.2, toX = -8.2, toZ = 200, facing = 90 },
+	{ fromX = 8.2, fromZ = 158.2, toX = 8.2, toZ = 200, facing = -90 },
 
 	{ fromX = 104.2, fromZ = 81.8, toX = 119, toZ = 81.8, facing = 0, lamps = true },
 	{ fromX = 104.2, fromZ = 98.2, toX = 119, toZ = 98.2, facing = 180, lamps = true },
@@ -90,43 +84,14 @@ Streets.VERGES = {
 	{ fromX = -129, fromZ = 81.8, toX = -104.2, toZ = 81.8, facing = 0, lamps = true },
 	{ fromX = -129, fromZ = 98.2, toX = -104.2, toZ = 98.2, facing = 180, lamps = true },
 
-	{ fromX = -166, fromZ = 227.8, toX = -117, toZ = 227.8, facing = 0, lamps = true, hedge = false },
-	{ fromX = -95, fromZ = 227.8, toX = -20, toZ = 227.8, facing = 0, lamps = true, benches = true, hedge = false },
-
 	{ fromX = -87.8, fromZ = -90.8, toX = -87.8, toZ = -78.2, facing = -90, hedge = false },
 
 	{ fromX = -145.2, fromZ = -90.8, toX = -104.2, toZ = -90.8, facing = 180, lamps = true, hedge = false },
 	{ fromX = -87.8, fromZ = -90.8, toX = -46.8, toZ = -90.8, facing = 180, lamps = true, hedge = false },
-	{
-		fromX = -145.2,
-		fromZ = -189.2,
-		toX = -46.8,
-		toZ = -189.2,
-		facing = 0,
-		lamps = true,
-		benches = true,
-		hedge = false,
-	},
-	{
-		fromX = -145.2,
-		fromZ = -189.2,
-		toX = -145.2,
-		toZ = -90.8,
-		facing = 90,
-		lamps = true,
-		benches = true,
-		hedge = false,
-	},
-	{
-		fromX = -46.8,
-		fromZ = -189.2,
-		toX = -46.8,
-		toZ = -90.8,
-		facing = -90,
-		lamps = true,
-		benches = true,
-		hedge = false,
-	},
+
+	{ fromX = -145.2, fromZ = -189.2, toX = -46.8, toZ = -189.2, facing = 0, lamps = true, hedge = false },
+	{ fromX = -145.2, fromZ = -189.2, toX = -145.2, toZ = -90.8, facing = 90, lamps = true, hedge = false },
+	{ fromX = -46.8, fromZ = -189.2, toX = -46.8, toZ = -90.8, facing = -90, lamps = true, hedge = false },
 } :: { Verge }
 
 function Streets.reservedZones(margin: number?): { { [string]: any } }

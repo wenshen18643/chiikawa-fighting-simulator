@@ -64,7 +64,7 @@ local Mobs = {}
 
 Mobs.ORDER = { "mushroom_frog", "duck", "wolf" }
 
-Mobs.RING_INNER = { "C3", "C2", "D3", "D2", "D4", "E3", "E4", "C4", "D5", "B4", "B3" }
+Mobs.RING_INNER = { "C2", "D2", "E3", "E4", "D5", "B4", "B3" }
 
 Mobs.RING_MID = { "B2", "B5", "E5", "E2" }
 

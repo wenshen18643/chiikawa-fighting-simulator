@@ -142,7 +142,9 @@ function Layout.mobSpawnCFrames(
 			area.origin.Y + WORLD.PLATFORM_TOP,
 			centre.Z + math.sin(angle) * radius
 		)
-		table.insert(result, CFrame.lookAt(position, Vector3.new(centre.X, position.Y, centre.Z)))
+		if not Layout.isTownPosition(area, position) then
+			table.insert(result, CFrame.lookAt(position, Vector3.new(centre.X, position.Y, centre.Z)))
+		end
 	end
 
 	return result
@@ -173,7 +175,7 @@ function Layout.mobSpawnCFramesInCells(
 	end
 
 	local function standsClear(x: number, z: number): boolean
-		if Layout.isReserved(reserved, x, z) then
+		if Layout.isTownPoint(x, z, MOB.TOWN_MARGIN) or Layout.isReserved(reserved, x, z) then
 			return false
 		end
 		return clearance <= 0
@@ -244,6 +246,18 @@ function Layout.isFarmPosition(area: Areas.AreaDefinition, position: Vector3, pa
 		and localPosition.X <= farmCell.maxX + margin
 		and localPosition.Z >= farmCell.minZ - margin
 		and localPosition.Z <= farmCell.maxZ + margin
+end
+
+function Layout.isTownPoint(x: number, z: number, padding: number?): boolean
+	return Perimeter.outwardDistance(x, z) <= (padding or 0)
+end
+
+function Layout.isTownPosition(area: Areas.AreaDefinition, position: Vector3, padding: number?): boolean
+	if area.id ~= Areas.STARTING_AREA then
+		return false
+	end
+	local localPosition = position - area.origin
+	return Layout.isTownPoint(localPosition.X, localPosition.Z, padding)
 end
 
 local reservedCache: { [number]: { Zone } } = {}

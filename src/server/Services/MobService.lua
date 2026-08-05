@@ -193,7 +193,7 @@ function Mob._setDestination(self: MobActor, destination: Vector3): boolean
 		return false
 	end
 	local area = Areas.get(self._definition.regionId)
-	if area and Layout.isFarmPosition(area, destination, 8) then
+	if area and (Layout.isFarmPosition(area, destination, 8) or Layout.isTownPosition(area, destination, 8)) then
 		return false
 	end
 	if pathBudget <= 0 then
@@ -270,6 +270,10 @@ function Mob._validTarget(self: MobActor): (Model?, BasePart?, Humanoid?)
 		or humanoid.Health <= 0
 		or planarDistance(root.Position, self._home) > self._definition.leashRadius
 	then
+		return nil, nil, nil
+	end
+	local area = Areas.get(self._definition.regionId)
+	if area and Layout.isTownPosition(area, root.Position) then
 		return nil, nil, nil
 	end
 	return character, root, humanoid

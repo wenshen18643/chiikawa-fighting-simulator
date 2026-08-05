@@ -12,7 +12,6 @@ local BOOT_ORDER = {
 
 	"WorldService",
 	"LibraryService",
-	"WeedService",
 	"SafeZoneService",
 	"MarketService",
 	"NpcService",

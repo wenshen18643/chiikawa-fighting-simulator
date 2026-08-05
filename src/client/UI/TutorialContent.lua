@@ -88,7 +88,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 				},
 				{
 					title = "Your first good decision",
-					body = "Select Kusatori and pull weeds — it pays Yen directly and raises your passive wage on top of the skill itself. The Roadside Weed Patch north of the plaza is the easiest place to start.",
+					body = "Select Kusatori and pull weeds — it pays Yen directly and raises your passive wage on top of the skill itself. The grass around your own house is the easiest place to start.",
 				},
 				{
 					title = "Nothing is lost",

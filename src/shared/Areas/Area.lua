@@ -431,58 +431,6 @@ function Area.helpers.studyDesk(ctx: DecorateContext, config: { [string]: any })
 	return model
 end
 
-function Area.helpers.weedingPatch(ctx: DecorateContext, config: { [string]: any }): Model
-	local model = Instance.new("Model")
-	model.Name = "WeedingPatchProp"
-	local x, z, y = config.x or 0, config.z or 0, config.y or 1.5
-	local gy = groundAt(ctx, x, z)
-
-	local soil = Area.helpers.block(ctx, {
-		name = "SoilMound",
-		shape = Enum.PartType.Cylinder,
-		size = Vector3.new(1.2, 10.0, 10.0),
-		color = Color3.fromRGB(110, 85, 65),
-		material = Enum.Material.Ground,
-		cframe = CFrame.new(ctx.origin + Vector3.new(x, gy + y, z)) * CFrame.Angles(0, 0, math.rad(90)),
-		parent = model,
-	})
-
-	for i = 1, 8 do
-		local angle = (i / 8) * math.pi * 2
-		local dist = 3.2
-		local gx = x + math.cos(angle) * dist
-		local gz = z + math.sin(angle) * dist
-		Area.helpers.block(ctx, {
-			name = `WeedSprout_{i}`,
-			size = Vector3.new(0.6, 2.2, 0.6),
-			color = if i % 2 == 0 then Color3.fromRGB(126, 190, 104) else Color3.fromRGB(96, 162, 78),
-			material = Enum.Material.Grass,
-			cframe = CFrame.new(ctx.origin + Vector3.new(gx, gy + y + 1.2, gz)) * CFrame.Angles(0, angle, math.rad(15)),
-			parent = model,
-		})
-	end
-
-	local attachment = Instance.new("Attachment")
-	attachment.Position = Vector3.new(0, 1.5, 0)
-	attachment.Parent = soil
-
-	local emitter = Instance.new("ParticleEmitter")
-	emitter.Name = "LeafEmitter"
-	emitter.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(126, 190, 104)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(245, 175, 195)),
-	})
-	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.8), NumberSequenceKeypoint.new(1, 0.2) })
-	emitter.Lifetime = NumberRange.new(1.5, 2.5)
-	emitter.Rate = 5
-	emitter.Speed = NumberRange.new(2, 5)
-	emitter.SpreadAngle = Vector2.new(45, 45)
-	emitter.Parent = attachment
-
-	model.Parent = config.parent or ctx.parent
-	return model
-end
-
 function Area.helpers.sasumataDummy(ctx: DecorateContext, config: { [string]: any }): Model
 	local model = Instance.new("Model")
 	model.Name = "SasumataDummyProp"
@@ -773,12 +721,6 @@ function Area.helpers.hedge(ctx: DecorateContext, verge: { [string]: any }, styl
 	if verge.lamps then
 		alongRun(style.LAMP_SPACING, style.LAMP_INSET, function(x, z, y)
 			ctx.helpers.prop(ctx, "lantern", x, z, { height = 4.6, y = y, rotation = math.rad(verge.facing) })
-		end)
-	end
-
-	if verge.benches then
-		alongRun(style.BENCH_SPACING, style.BENCH_INSET, function(x, z, y)
-			ctx.helpers.prop(ctx, "pinkBench", x, z, { height = 3.2, y = y, rotation = math.rad(verge.facing) })
 		end)
 	end
 end
