@@ -612,8 +612,8 @@ local function addFieldDressing(parent: Instance, area: Areas.AreaDefinition)
 	end
 
 	local borderColor = Color3.fromRGB(150, 111, 73)
-	local halfWidth = Farming.FIELD_WIDTH / 2 + 2
-	local halfLength = Farming.FIELD_LENGTH / 2 + 2
+	local halfWidth = Farming.FIELD_WIDTH / 2 + Farming.FIELD_MARGIN
+	local halfLength = Farming.FIELD_LENGTH / 2 + Farming.FIELD_MARGIN
 	for _, side in { -1, 1 } do
 		makePart(
 			parent,

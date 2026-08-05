@@ -92,11 +92,11 @@ local function buildDetail(run: Perimeter.Run, parent: Folder, step: () -> ())
 	for index = 1, count do
 		local x, z = Perimeter.pointOn(run, (index - 0.5) / count)
 
-		slab(parent, "Pilaster", x, BASE_Y, z, spanSize(run, 10, WALL_TOP - 6, 31), {
+		slab(parent, "Pilaster", x, BASE_Y, z, spanSize(run, 10, WALL_TOP - 6, 28), {
 			color = PALETTE.stone,
 			material = Enum.Material.Slate,
 		})
-		slab(parent, "PilasterCap", x, BASE_Y + WALL_TOP - 6, z, spanSize(run, 13, 3, 34), {
+		slab(parent, "PilasterCap", x, BASE_Y + WALL_TOP - 6, z, spanSize(run, 13, 3, 32), {
 			color = PALETTE.tileDeep,
 			material = Enum.Material.Slate,
 		})

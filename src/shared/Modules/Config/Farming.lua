@@ -13,6 +13,8 @@ Farming.PLOT_STRIDE = Farming.PLOT_SIZE + Farming.AISLE_SIZE
 Farming.PLOT_THICKNESS = 2
 Farming.FIELD_WIDTH = Farming.COLUMNS * Farming.PLOT_SIZE + (Farming.COLUMNS - 1) * Farming.AISLE_SIZE
 Farming.FIELD_LENGTH = Farming.ROWS * Farming.PLOT_SIZE + (Farming.ROWS - 1) * Farming.AISLE_SIZE
+Farming.FIELD_MARGIN = 2
+Farming.FIELD_OFFSET = Vector2.new(0, 15)
 
 Farming.RENT_PRICE = 20
 Farming.LEASE_SECONDS = 10 * 60

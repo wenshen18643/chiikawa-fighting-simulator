@@ -100,7 +100,11 @@ end
 function Layout.farmFieldCFrame(area: Areas.AreaDefinition): CFrame
 	local cell = Sections.byCoord(Farming.CELL_COORD)
 	assert(cell, `Layout: farm cell "{Farming.CELL_COORD}" is invalid`)
-	return CFrame.new(area.origin + Vector3.new(cell.cx, surfaceCentreY(Farming.PLOT_THICKNESS), cell.cz))
+	return CFrame.new(area.origin + Vector3.new(
+		cell.cx + Farming.FIELD_OFFSET.X,
+		surfaceCentreY(Farming.PLOT_THICKNESS),
+		cell.cz + Farming.FIELD_OFFSET.Y
+	))
 end
 
 function Layout.farmPlotCFrame(area: Areas.AreaDefinition, plotId: number): CFrame?
@@ -114,11 +118,10 @@ function Layout.farmPlotCFrame(area: Areas.AreaDefinition, plotId: number): CFra
 end
 
 function Layout.farmEntranceCFrame(area: Areas.AreaDefinition): CFrame
-	local cell = Sections.byCoord(Farming.CELL_COORD)
-	assert(cell, `Layout: farm cell "{Farming.CELL_COORD}" is invalid`)
-	local position = area.origin + Vector3.new(cell.cx, WORLD.PLATFORM_TOP, cell.minZ + 8)
-	local plaza = Vector3.new(area.origin.X, position.Y, area.origin.Z)
-	return CFrame.lookAt(position, plaza)
+	local field = Layout.farmFieldCFrame(area).Position
+	local centre = Vector3.new(field.X, area.origin.Y + WORLD.PLATFORM_TOP, field.Z)
+	local mouth = centre - Vector3.new(0, 0, Farming.FIELD_LENGTH / 2 + Farming.FIELD_MARGIN)
+	return CFrame.lookAt(mouth, centre)
 end
 
 function Layout.mobSpawnCFrames(
