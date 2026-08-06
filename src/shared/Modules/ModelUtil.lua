@@ -67,10 +67,6 @@ function ModelUtil.seat(model: Model, position: Vector3, yaw: number, roll: numb
 	model:PivotTo(model:GetPivot() + (position - footing))
 end
 
-function ModelUtil.placeStanding(model: Model, position: Vector3, yaw: number)
-	ModelUtil.seat(model, position, yaw)
-end
-
 function ModelUtil.firstPart(model: Model): BasePart?
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then

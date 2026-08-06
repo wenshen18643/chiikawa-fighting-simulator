@@ -4,9 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Farming = require(Shared.Modules.Config.Farming)
-local Areas = require(Shared.Areas)
 local Sections = require(Shared.Modules.Config.Sections)
-local TerrainBuilder = require(script.Parent.TerrainBuilder)
 local BoardService = {}
 local FOLDER = "Board"
 local LIGHT = Color3.fromRGB(248, 244, 236)
@@ -16,12 +14,7 @@ local LABEL_LIFT = 26
 local LABEL_WIDTH = 84
 local LABEL_HEIGHT = 34
 local LABEL_DISTANCE = 620
-
-BoardService.height = Constants.WORLD.PLATFORM_TOP + 0.3
-
-local function area(): Areas.AreaDefinition
-	return Areas.BY_ID[Areas.STARTING_AREA]
-end
+local BOARD_HEIGHT = Constants.WORLD.PLATFORM_TOP + 0.3
 
 local function root(): Folder
 	local existing = Workspace:FindFirstChild(FOLDER)
@@ -44,7 +37,7 @@ local function label(cell: Sections.Cell, parent: Model)
 	anchor.CastShadow = false
 	anchor.Transparency = 1
 	anchor.Size = Vector3.one
-	anchor.CFrame = CFrame.new(cell.cx, BoardService.height + LABEL_LIFT, cell.cz)
+	anchor.CFrame = CFrame.new(cell.cx, BOARD_HEIGHT + LABEL_LIFT, cell.cz)
 
 	local gui = Instance.new("BillboardGui")
 	gui.Size = UDim2.fromOffset(LABEL_WIDTH, LABEL_HEIGHT)
@@ -107,7 +100,7 @@ local function tile(cell: Sections.Cell, parent: Folder)
 	slab.Transparency = TRANSPARENCY
 	slab.Color = if (cell.i + cell.j) % 2 == 0 then DARK else LIGHT
 	slab.Size = Vector3.new(Sections.SIZE, 0.4, Sections.SIZE)
-	slab.CFrame = CFrame.new(cell.cx, BoardService.height, cell.cz)
+	slab.CFrame = CFrame.new(cell.cx, BOARD_HEIGHT, cell.cz)
 	slab.Parent = model
 
 	label(cell, model)
@@ -126,63 +119,6 @@ function BoardService.build()
 		tile(cell, parent)
 	end
 	return parent
-end
-
-function BoardService.get(coord: string): Model?
-	local parent = Workspace:FindFirstChild(FOLDER)
-	if not parent then
-		return nil
-	end
-	local model = parent:FindFirstChild(tostring(coord):upper())
-	return if model and model:IsA("Model") then model else nil
-end
-
-function BoardService.remove(coord: string): boolean
-	local model = BoardService.get(coord)
-	if not model then
-		return false
-	end
-	model:Destroy()
-	return true
-end
-
-function BoardService.setVisible(visible: boolean)
-	local parent = Workspace:FindFirstChild(FOLDER)
-	if not parent then
-		return
-	end
-	for _, model in parent:GetChildren() do
-		local slab = model:FindFirstChild("Tile")
-		if slab and slab:IsA("BasePart") then
-			slab.Transparency = if visible then TRANSPARENCY else 1
-		end
-		local anchor = model:FindFirstChild("Label")
-		local gui = anchor and anchor:FindFirstChildWhichIsA("BillboardGui")
-		if gui then
-			gui.Enabled = visible
-		end
-	end
-end
-
-function BoardService.clear(coord: string): boolean
-	local cell = Sections.byCoord(coord)
-	if not cell then
-		warn(`[BoardService] no such cell "{coord}"`)
-		return false
-	end
-	TerrainBuilder.clearCell(area(), cell)
-	return true
-end
-
-function BoardService.rebuild(coord: string): boolean
-	local cell = Sections.byCoord(coord)
-	if not cell then
-		warn(`[BoardService] no such cell "{coord}"`)
-		return false
-	end
-	TerrainBuilder.clearCell(area(), cell)
-	TerrainBuilder.buildCell(area(), cell, nil)
-	return true
 end
 
 function BoardService.init()

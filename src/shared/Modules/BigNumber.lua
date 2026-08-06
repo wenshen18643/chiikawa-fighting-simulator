@@ -50,10 +50,6 @@ local function normalise(m: number, e: number): BigNum
 	return { m = m, e = e }
 end
 
-function BigNumber.new(mantissa: number, exponent: number): BigNum
-	return normalise(mantissa, exponent)
-end
-
 function BigNumber.zero(): BigNum
 	return { m = 0, e = 0 }
 end
@@ -124,16 +120,8 @@ function BigNumber.lte(a: BigNum, b: BigNum): boolean
 	return BigNumber.compare(a, b) <= 0
 end
 
-function BigNumber.gt(a: BigNum, b: BigNum): boolean
-	return BigNumber.compare(a, b) > 0
-end
-
 function BigNumber.gte(a: BigNum, b: BigNum): boolean
 	return BigNumber.compare(a, b) >= 0
-end
-
-function BigNumber.eq(a: BigNum, b: BigNum): boolean
-	return BigNumber.compare(a, b) == 0
 end
 
 function BigNumber.add(a: BigNum, b: BigNum): BigNum
@@ -184,23 +172,6 @@ function BigNumber.mulNumber(a: BigNum, scalar: number): BigNum
 		return BigNumber.zero()
 	end
 	return normalise(a.m * scalar, a.e)
-end
-
-function BigNumber.div(a: BigNum, b: BigNum): BigNum
-	if b.m == 0 then
-		error("BigNumber.div: division by zero", 2)
-	end
-	if a.m == 0 then
-		return BigNumber.zero()
-	end
-	return normalise(a.m / b.m, a.e - b.e)
-end
-
-function BigNumber.divNumber(a: BigNum, scalar: number): BigNum
-	if scalar == 0 then
-		error("BigNumber.divNumber: division by zero", 2)
-	end
-	return normalise(a.m / scalar, a.e)
 end
 
 function BigNumber.pow10(exponent: number): BigNum

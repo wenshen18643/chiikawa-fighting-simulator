@@ -185,16 +185,6 @@ function CompanionSkins.poolSize(rarityId: string, includeShowcase: boolean?): n
 	return if pool then #pool else 0
 end
 
-function CompanionSkins.forCharacter(characterId: string): { SkinDefinition }
-	local out = {}
-	for _, skin in skins do
-		if skin.characterId == characterId then
-			table.insert(out, skin)
-		end
-	end
-	return out
-end
-
 local function finiteInteger(value: unknown, maximum: number): number
 	if type(value) ~= "number" or value ~= value or value == math.huge or value == -math.huge then
 		return 0

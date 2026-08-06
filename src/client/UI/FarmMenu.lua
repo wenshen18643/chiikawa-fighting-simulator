@@ -77,7 +77,7 @@ local function clockText(seconds: number): string
 end
 
 local function ingredientCount(cropId: string): number
-	local snapshot = StateController.snapshot
+	local snapshot = StateController.getSnapshot()
 	return if snapshot and snapshot.ingredients then snapshot.ingredients[cropId] or 0 else 0
 end
 

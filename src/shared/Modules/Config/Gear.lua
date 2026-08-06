@@ -12,9 +12,7 @@ export type GearDefinition = {
 
 local Gear = {}
 
-Gear.SLOTS = { "pickaxe" }
-
-Gear.DEFINITIONS = {
+local DEFINITIONS = {
 	pickaxe2 = {
 		id = "pickaxe2",
 		name = "Steel Pick",
@@ -56,15 +54,7 @@ local BARE = {
 	},
 } :: { [string]: GearDefinition }
 
-function Gear.get(id: string): GearDefinition?
-	return Gear.DEFINITIONS[id]
-end
-
-function Gear.bare(slot: string): GearDefinition?
-	return BARE[slot]
-end
-
-function Gear.equipped(profile: any, slot: string): GearDefinition?
+local function equipped(profile: any, slot: string): GearDefinition?
 	local best = BARE[slot]
 	local owned = profile and profile.gear
 	if not owned then
@@ -73,7 +63,7 @@ function Gear.equipped(profile: any, slot: string): GearDefinition?
 
 	for id, has in owned do
 		if has == true then
-			local definition = Gear.DEFINITIONS[id]
+			local definition = DEFINITIONS[id]
 			if definition and definition.slot == slot and (not best or definition.tier > best.tier) then
 				best = definition
 			end
@@ -83,18 +73,13 @@ function Gear.equipped(profile: any, slot: string): GearDefinition?
 end
 
 function Gear.yieldMultiplier(profile: any, slot: string): number
-	local definition = Gear.equipped(profile, slot)
+	local definition = equipped(profile, slot)
 	return if definition then definition.yield else 1
 end
 
 function Gear.effortScale(profile: any, slot: string): number
-	local definition = Gear.equipped(profile, slot)
+	local definition = equipped(profile, slot)
 	return if definition then definition.effort else 1
-end
-
-function Gear.tier(profile: any, slot: string): number
-	local definition = Gear.equipped(profile, slot)
-	return if definition then definition.tier else 1
 end
 
 return Gear

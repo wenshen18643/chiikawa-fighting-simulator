@@ -133,12 +133,7 @@ local function onAction(_actionName: string, inputState: Enum.UserInputState)
 end
 
 function WorkController.getTrainingSkill(): string?
-	local snapshot = StateController.snapshot
-	return snapshot and snapshot.selectedSkill
-end
-
-function WorkController.getSelectedSkill(): string?
-	local snapshot = StateController.snapshot
+	local snapshot = StateController.getSnapshot()
 	return snapshot and snapshot.selectedSkill
 end
 

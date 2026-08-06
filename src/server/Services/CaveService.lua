@@ -25,13 +25,11 @@ local STONE_DARK = Color3.fromRGB(66, 63, 74)
 local BARRIER_COLOR = Color3.fromRGB(131, 91, 62)
 local GLOW_COLOR = Color3.fromRGB(178, 226, 208)
 local folder: Folder
-local mouthPosition: Vector3? = nil
-
-CaveService.ready = false
+local ready = false
 local readySignal = Instance.new("BindableEvent")
 
 function CaveService.awaitReady()
-	if CaveService.ready then
+	if ready then
 		return
 	end
 	readySignal.Event:Wait()
@@ -519,7 +517,6 @@ local function carve(area: Areas.AreaDefinition, step: Step)
 	local mouth = findMouth(area, first)
 	local groundY = ForagingService.groundAt(mouth.X, mouth.Z)
 	mouth = Vector3.new(mouth.X, groundY, mouth.Z)
-	mouthPosition = mouth
 
 	clearSurface(mouth, Cave.MOUTH.clearRadius)
 
@@ -652,23 +649,6 @@ local function deployMobs()
 	end
 end
 
-function CaveService.levelAt(position: Vector3): Cave.LevelDefinition?
-	return Cave.levelAt(position)
-end
-
-function CaveService.levelOf(player: Player): number
-	local character = player.Character
-	if not character then
-		return 0
-	end
-	local value = character:GetAttribute(LEVEL_ATTRIBUTE)
-	return if type(value) == "number" then value else 0
-end
-
-function CaveService.mouth(): Vector3?
-	return mouthPosition
-end
-
 local function setLantern(character: Model, on: boolean)
 	local existing = character:FindFirstChild("Lantern")
 	if not on then
@@ -741,7 +721,7 @@ function CaveService.init()
 
 	if not validate() then
 		warn("[CaveService] the maze failed validation; not carving it")
-		CaveService.ready = true
+		ready = true
 		readySignal:Fire()
 		return
 	end
@@ -761,7 +741,7 @@ function CaveService.init()
 		end
 		deployMobs()
 
-		CaveService.ready = true
+		ready = true
 		readySignal:Fire()
 	end)
 

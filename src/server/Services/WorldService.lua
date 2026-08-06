@@ -19,11 +19,10 @@ local WORLD = Constants.WORLD
 local regionSpawns: { [number]: CFrame } = {}
 local worldFolder: Folder
 local dressedSignal = Instance.new("BindableEvent")
-
-WorldService.dressed = false
+local dressed = false
 
 function WorldService.awaitDressed()
-	if WorldService.dressed then
+	if dressed then
 		return
 	end
 	dressedSignal.Event:Wait()
@@ -646,7 +645,7 @@ local function dressWorld()
 	end
 
 	print(`[WorldService] scenery dressed in {string.format("%.2f", os.clock() - start)}s`)
-	WorldService.dressed = true
+	dressed = true
 	dressedSignal:Fire()
 end
 

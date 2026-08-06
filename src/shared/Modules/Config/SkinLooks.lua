@@ -946,8 +946,4 @@ function SkinLooks.get(id: string): SkinLook.Look?
 	return if entry then entry.look else nil
 end
 
-function SkinLooks.entry(id: string): Entry?
-	return byId[id]
-end
-
 return SkinLooks

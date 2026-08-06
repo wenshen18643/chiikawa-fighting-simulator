@@ -217,7 +217,7 @@ local function showRecipes()
 	cookingView.Visible = false
 	recipesView.Visible = true
 
-	local snapshot = StateController.snapshot
+	local snapshot = StateController.getSnapshot()
 	if not snapshot then
 		return
 	end

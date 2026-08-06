@@ -358,47 +358,6 @@ function Props.quarryCart(ctx, x, z)
 	end
 end
 
-function Props.oreVein(ctx, x, z, tint)
-	local model = group(ctx, "OreVein")
-	local gy = groundY(ctx, x, z)
-	local color = tint or RUST
-	local main = ctx.rng:NextNumber(3.2, 4.6)
-
-	block(
-		ctx,
-		{
-			name = "Matrix",
-			shape = Enum.PartType.Ball,
-			size = Vector3.new(main, main * 0.86, main),
-			x = x,
-			z = z,
-			y = main * 0.34,
-			color = SLATE,
-			material = Enum.Material.Slate,
-			parent = model,
-		}
-	)
-	for index = 1, ctx.rng:NextInteger(4, 7) do
-		local angle = ctx.rng:NextNumber() * math.pi * 2
-		local spread = ctx.rng:NextNumber(0.2, main * 0.4)
-		local size = ctx.rng:NextNumber(0.7, 1.5)
-		block(ctx, {
-			name = `Crystal_{index}`,
-			size = Vector3.new(size, size * 1.6, size),
-			color = color,
-			material = Enum.Material.Neon,
-			cframe = CFrame.new(
-				ctx.origin + Vector3.new(x + math.cos(angle) * spread, gy + main * 0.42, z + math.sin(angle) * spread)
-			)
-				* CFrame.Angles(ctx.rng:NextNumber(-0.5, 0.5), ctx.rng:NextNumber(0, 3), ctx.rng:NextNumber(-0.5, 0.5)),
-			parent = model,
-			collide = false,
-		})
-	end
-
-	return model
-end
-
 function Props.scarecrow(ctx, x, z)
 	local model = group(ctx, "Scarecrow")
 	block(

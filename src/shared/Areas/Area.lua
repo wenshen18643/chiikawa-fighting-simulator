@@ -284,13 +284,6 @@ function Area.helpers.log(ctx: DecorateContext, x: number, z: number, length: nu
 	return part
 end
 
-function Area.helpers.hut(ctx: DecorateContext, config: { [string]: any })
-	placeAsset(ctx, "house", config.x or 0, config.z or 0, {
-		rotation = config.rotation,
-		parent = config.parent,
-	})
-end
-
 function Area.helpers.studyDesk(ctx: DecorateContext, config: { [string]: any }): Model
 	local model = Instance.new("Model")
 	model.Name = "StudyDeskProp"
@@ -431,157 +424,6 @@ function Area.helpers.studyDesk(ctx: DecorateContext, config: { [string]: any })
 	return model
 end
 
-function Area.helpers.sasumataDummy(ctx: DecorateContext, config: { [string]: any }): Model
-	local model = Instance.new("Model")
-	model.Name = "SasumataDummyProp"
-	local x, z, y = config.x or 0, config.z or 0, config.y or 4.5
-
-	local dummy = Area.helpers.block(ctx, {
-		name = "DummyPost",
-		size = Vector3.new(2.2, 9.0, 2.2),
-		color = Color3.fromRGB(150, 118, 90),
-		material = Enum.Material.Wood,
-		x = x,
-		z = z,
-		y = y,
-		parent = model,
-	})
-
-	Area.helpers.block(ctx, {
-		name = "DummyTarget",
-		size = Vector3.new(2.8, 3.2, 2.8),
-		color = Color3.fromRGB(230, 210, 180),
-		material = Enum.Material.Fabric,
-		cframe = dummy.CFrame * CFrame.new(0, 1, 0),
-		parent = model,
-	})
-
-	local sasumataPink = Color3.fromRGB(243, 167, 193)
-	local sasumataBarb = Color3.fromRGB(226, 124, 158)
-
-	local sasumataShaft = Area.helpers.block(ctx, {
-		name = "SasumataShaft",
-		size = Vector3.new(0.5, 10.0, 0.5),
-		color = sasumataPink,
-		material = Enum.Material.SmoothPlastic,
-		cframe = dummy.CFrame * CFrame.new(3.5, 0.5, 0) * CFrame.Angles(0, 0, math.rad(-15)),
-		parent = model,
-	})
-
-	Area.helpers.block(ctx, {
-		name = "SasumataGrip",
-		size = Vector3.new(0.62, 2.2, 0.62),
-		color = Color3.fromRGB(252, 247, 240),
-		material = Enum.Material.SmoothPlastic,
-		cframe = sasumataShaft.CFrame * CFrame.new(0, -2.6, 0),
-		parent = model,
-	})
-
-	Area.helpers.block(ctx, {
-		name = "SasumataForkNeck",
-		size = Vector3.new(2.2, 0.5, 0.5),
-		color = sasumataPink,
-		material = Enum.Material.SmoothPlastic,
-		cframe = sasumataShaft.CFrame * CFrame.new(0, 4.6, 0),
-		parent = model,
-	})
-
-	local prongSplay = math.rad(13)
-	local prongLength = 3.4
-
-	for _, side in { -1, 1 } do
-		local lean = prongSplay * side
-		local baseX = 1.1 * side
-
-		Area.helpers.block(ctx, {
-			name = if side < 0 then "SasumataProngLeft" else "SasumataProngRight",
-			size = Vector3.new(0.46, prongLength, 0.5),
-			color = sasumataPink,
-			material = Enum.Material.SmoothPlastic,
-			cframe = sasumataShaft.CFrame
-				* CFrame.new(baseX + math.sin(lean) * prongLength / 2, 4.6 + math.cos(lean) * prongLength / 2, 0)
-				* CFrame.Angles(0, 0, -lean),
-			parent = model,
-		})
-
-		for index = 1, 3 do
-			local along = (index - 0.35) / 3 * prongLength
-			Area.helpers.block(ctx, {
-				name = "SasumataBarb",
-				shape = Enum.PartType.Wedge,
-				size = Vector3.new(0.36, 0.66, 0.76),
-				color = sasumataBarb,
-				material = Enum.Material.SmoothPlastic,
-				cframe = sasumataShaft.CFrame
-					* CFrame.new(baseX + math.sin(lean) * along - 0.4 * side, 4.6 + math.cos(lean) * along, 0)
-					* CFrame.Angles(0, math.rad(90) * side, -lean),
-				collide = false,
-				parent = model,
-			})
-		end
-	end
-
-	local attachment = Instance.new("Attachment")
-	attachment.Position = Vector3.new(0, 2.5, 0)
-	attachment.Parent = dummy
-
-	local emitter = Instance.new("ParticleEmitter")
-	emitter.Name = "SweatEmitter"
-	emitter.Color = ColorSequence.new(Color3.fromRGB(140, 210, 255))
-	emitter.Size = NumberSequence.new(0.6)
-	emitter.Lifetime = NumberRange.new(1.0, 1.8)
-	emitter.Rate = 4
-	emitter.Speed = NumberRange.new(2, 4)
-	emitter.Parent = attachment
-
-	model.Parent = config.parent or ctx.parent
-	return model
-end
-
-function Area.helpers.waterfallZone(ctx: DecorateContext, config: { [string]: any }): Model
-	local model = Instance.new("Model")
-	model.Name = "WaterfallZoneProp"
-	local x, z, y = config.x or 0, config.z or 0, config.y or 8.0
-
-	local cliff = Area.helpers.block(ctx, {
-		name = "Cliff",
-		size = Vector3.new(12.0, 16.0, 8.0),
-		color = Color3.fromRGB(120, 125, 130),
-		material = Enum.Material.Slate,
-		x = x,
-		z = z - 4,
-		y = y,
-		parent = model,
-	})
-
-	local stream = Area.helpers.block(ctx, {
-		name = "WaterfallStream",
-		size = Vector3.new(6.0, 15.0, 0.8),
-		color = Color3.fromRGB(80, 190, 240),
-		material = Enum.Material.Neon,
-		transparency = 0.25,
-		cframe = cliff.CFrame * CFrame.new(0, 0, 4.2),
-		parent = model,
-	})
-
-	local attachment = Instance.new("Attachment")
-	attachment.Position = Vector3.new(0, -5, 0.5)
-	attachment.Parent = stream
-
-	local emitter = Instance.new("ParticleEmitter")
-	emitter.Name = "TearEmitter"
-	emitter.Color = ColorSequence.new(Color3.fromRGB(100, 200, 255))
-	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.8), NumberSequenceKeypoint.new(1, 0.3) })
-	emitter.Lifetime = NumberRange.new(1.2, 2.0)
-	emitter.Rate = 8
-	emitter.Speed = NumberRange.new(4, 8)
-	emitter.SpreadAngle = Vector2.new(60, 60)
-	emitter.Parent = attachment
-
-	model.Parent = config.parent or ctx.parent
-	return model
-end
-
 function Area.helpers.prop(ctx: DecorateContext, key: string, x: number, z: number, config: { [string]: any }?): Model?
 	local options = config or {}
 	return placeAsset(ctx, key, x, z, {
@@ -593,47 +435,6 @@ function Area.helpers.prop(ctx: DecorateContext, key: string, x: number, z: numb
 		pitch = options.pitch,
 		roll = options.roll,
 	})
-end
-
-function Area.helpers.path(ctx: DecorateContext, config: { [string]: any })
-	local from = Vector2.new(config.fromX, config.fromZ)
-	local to = Vector2.new(config.toX, config.toZ)
-	local span = to - from
-	local length = span.Magnitude
-	if length < 1 then
-		return
-	end
-
-	local direction = span.Unit
-	local spacing = config.spacing or 9
-	local width = config.width or 7
-	local steps = math.floor(length / spacing)
-
-	for index = 0, steps do
-		step(ctx)
-
-		local along = from + direction * (index * spacing)
-		local drift = ctx.rng:NextNumber(-1.4, 1.4)
-		local size = width * ctx.rng:NextNumber(0.82, 1.1)
-		local stoneX = along.X - direction.Y * drift
-		local stoneZ = along.Y + direction.X * drift
-		local stone = Instance.new("Part")
-		stone.Name = "PathStone"
-		stone.Shape = Enum.PartType.Cylinder
-		stone.Size = Vector3.new(0.5, size, size)
-		stone.CFrame = CFrame.new(ctx.origin + Vector3.new(stoneX, groundAt(ctx, stoneX, stoneZ) + 0.16, stoneZ))
-			* CFrame.Angles(0, 0, math.rad(90))
-		stone.Color = if ctx.rng:NextNumber() > 0.82
-			then config.accent or Color3.fromRGB(244, 206, 210)
-			else config.color or Color3.fromRGB(246, 240, 228)
-		stone.Material = Enum.Material.SmoothPlastic
-		stone.Anchored = true
-		stone.CanCollide = false
-		stone.CanQuery = false
-		stone.CanTouch = false
-		stone.CastShadow = false
-		stone.Parent = ctx.parent
-	end
 end
 
 function Area.helpers.paving(
@@ -722,57 +523,6 @@ function Area.helpers.hedge(ctx: DecorateContext, verge: { [string]: any }, styl
 		alongRun(style.LAMP_SPACING, style.LAMP_INSET, function(x, z, y)
 			ctx.helpers.prop(ctx, "lantern", x, z, { height = 4.6, y = y, rotation = math.rad(verge.facing) })
 		end)
-	end
-end
-
-function Area.helpers.scatter(ctx: DecorateContext, count: number, place: (x: number, z: number) -> ())
-	local half = ctx.area.terrain.islandSize / 2 - 90
-	local placed = 0
-	local tries = 0
-	local maxTries = count * 8
-
-	while placed < count and tries < maxTries do
-		tries += 1
-		local x = ctx.rng:NextNumber(-half, half)
-		local z = ctx.rng:NextNumber(-half, half)
-		if ctx.isReserved(x, z) then
-			continue
-		end
-		place(x, z)
-		placed += 1
-	end
-end
-
-function Area.helpers.cluster(
-	ctx: DecorateContext,
-	centreX: number,
-	centreZ: number,
-	radius: number,
-	count: number,
-	place: (x: number, z: number) -> ()
-)
-	for _ = 1, count do
-		local angle = ctx.rng:NextNumber(0, math.pi * 2)
-		local distance = math.sqrt(ctx.rng:NextNumber(0, 1)) * radius
-		local x = centreX + math.cos(angle) * distance
-		local z = centreZ + math.sin(angle) * distance
-		if not ctx.isReserved(x, z) then
-			place(x, z)
-		end
-	end
-end
-
-function Area.helpers.ring(
-	_ctx: DecorateContext,
-	centreX: number,
-	centreZ: number,
-	radius: number,
-	count: number,
-	place: (x: number, z: number, angle: number) -> ()
-)
-	for index = 1, count do
-		local angle = (index - 1) / count * math.pi * 2
-		place(centreX + math.cos(angle) * radius, centreZ + math.sin(angle) * radius, angle)
 	end
 end
 

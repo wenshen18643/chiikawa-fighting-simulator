@@ -105,8 +105,4 @@ function Theme.readable(background: Color3): Color3
 	return if luminance > 0.6 then Theme.color.ink else Theme.color.inkInverse
 end
 
-function Theme.skillColor(skillId: string): Color3
-	return (Theme.color :: any)[skillId] or Theme.color.leaf
-end
-
 return Theme

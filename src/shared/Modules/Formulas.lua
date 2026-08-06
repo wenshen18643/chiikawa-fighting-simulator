@@ -136,32 +136,12 @@ function Formulas.totalSkill(profile: any): BigNum
 	return total
 end
 
-function Formulas.totalCertificationOrders(profile: any): number
-	local total = 0
-	for _, order in profile.certifications do
-		total += order
-	end
-	return total
-end
-
-function Formulas.gearTier(profile: any, slot: string): number
-	return Gear.tier(profile, slot)
-end
-
 function Formulas.harvestYield(profile: any, slot: string): number
 	return math.max(1, math.floor(Gear.yieldMultiplier(profile, slot)))
 end
 
 function Formulas.harvestClicks(profile: any, slot: string, baseClicks: number): number
 	return math.max(2, math.ceil(baseClicks * Gear.effortScale(profile, slot)))
-end
-
-function Formulas.oreYield(profile: any): number
-	return Formulas.harvestYield(profile, "pickaxe")
-end
-
-function Formulas.oreSwings(profile: any, baseSwings: number): number
-	return Formulas.harvestClicks(profile, "pickaxe", baseSwings)
 end
 
 return Formulas

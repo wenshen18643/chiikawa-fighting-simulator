@@ -299,10 +299,4 @@ function ShopMenu.init()
 	end)
 end
 
-function ShopMenu.setOpen(open: boolean)
-	if setOpen then
-		setOpen(open)
-	end
-end
-
 return ShopMenu

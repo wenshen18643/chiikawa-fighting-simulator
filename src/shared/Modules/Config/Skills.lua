@@ -90,18 +90,6 @@ Skills.ACTIVITY_HINT = {
 	study = "Select Exam Prep to study.",
 } :: { [string]: string }
 
-function Skills.activityFor(skillId: string): { string }
-	local canonical = Skills.canonicalize(skillId)
-	local result = {}
-	for activity, required in Skills.ACTIVITY_SKILL do
-		if required == canonical then
-			table.insert(result, activity)
-		end
-	end
-	table.sort(result)
-	return result
-end
-
 function Skills.trains(skillId: string, activity: string): boolean
 	return Skills.ACTIVITY_SKILL[activity] == Skills.canonicalize(skillId)
 end

@@ -34,10 +34,4 @@ function SkillService.award(player: Player, profile: any, skillId: string, amoun
 	end
 end
 
-function SkillService.resetForSeason(profile: any)
-	for _, skillId in Skills.ORDER do
-		profile.skills[skillId] = BigNumber.zero()
-	end
-end
-
 return SkillService

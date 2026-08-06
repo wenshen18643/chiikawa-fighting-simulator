@@ -40,16 +40,6 @@ local nodes = HarvestNodes.new({
 	verb = "Cut",
 })
 
-QuarryService.ready = false
-local readySignal = Instance.new("BindableEvent")
-
-function QuarryService.awaitReady()
-	if QuarryService.ready then
-		return
-	end
-	readySignal.Event:Wait()
-end
-
 local function part(config: { [string]: any }): BasePart
 	local piece = Instance.new("Part")
 	piece.Name = config.name or "Part"
@@ -375,8 +365,6 @@ function QuarryService.init()
 		for _, problem in problems do
 			warn(`[QuarryService] {problem}`)
 		end
-		QuarryService.ready = true
-		readySignal:Fire()
 		return
 	end
 
@@ -397,8 +385,6 @@ function QuarryService.init()
 		local centre = Quarry.centre()
 		local foremanAt = Quarry.foremanPosition()
 		if not area or not centre or not foremanAt then
-			QuarryService.ready = true
-			readySignal:Fire()
 			return
 		end
 
@@ -411,9 +397,6 @@ function QuarryService.init()
 		buildRamp(area, centre)
 		plantVeins(area, centre)
 		buildForeman(area, foremanAt)
-
-		QuarryService.ready = true
-		readySignal:Fire()
 	end)
 end
 

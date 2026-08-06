@@ -54,8 +54,6 @@ local function play(skillId: string?)
 	sound:Play()
 end
 
-SoundController.play = play
-
 function SoundController.init()
 	container = Instance.new("Folder")
 	container.Name = "WorkSounds"

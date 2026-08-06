@@ -206,7 +206,7 @@ local function buildGuidePage(parent: Frame)
 end
 
 local function refresh()
-	local snapshot = StateController.snapshot
+	local snapshot = StateController.getSnapshot()
 	if not snapshot then
 		return
 	end
@@ -249,10 +249,6 @@ function Atlas.setOpen(open: boolean)
 	if open then
 		refresh()
 	end
-end
-
-function Atlas.isOpen(): boolean
-	return isOpen
 end
 
 function Atlas.build(parent: Instance)

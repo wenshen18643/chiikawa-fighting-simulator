@@ -132,15 +132,6 @@ function Perimeter.outwardDistance(x: number, z: number): number
 	)
 end
 
-function Perimeter.contains(x: number, z: number, margin: number?): boolean
-	return Perimeter.outwardDistance(x, z) <= -(margin or 0)
-end
-
-function Perimeter.gateCFrame(): CFrame
-	local at = Vector3.new(Perimeter.GATE.x, 0, Perimeter.GATE.z)
-	return CFrame.lookAt(at, at + Vector3.new(Perimeter.GATE.outX, 0, Perimeter.GATE.outZ))
-end
-
 function Perimeter.reservedZones(): { { [string]: any } }
 	local zones = {}
 	local halfX, halfZ = Perimeter.SIZE.X / 2, Perimeter.SIZE.Y / 2

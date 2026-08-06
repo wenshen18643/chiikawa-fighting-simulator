@@ -8,9 +8,7 @@ local Layout = require(Shared.Modules.Config.Layout)
 local Sections = require(Shared.Modules.Config.Sections)
 local TerrainBuilder = {}
 local WORLD = Constants.WORLD
-
-TerrainBuilder.ready = false
-
+local ready = false
 local readySignal = Instance.new("BindableEvent")
 local filled = 0
 local MASK_FADE = 70
@@ -170,7 +168,6 @@ function TerrainBuilder.buildArea(area: Areas.AreaDefinition, step: Step)
 end
 
 local SUB = 4
-local CLEAR_HEIGHT = 200
 
 function TerrainBuilder.paintCell(area: Areas.AreaDefinition, cell: Sections.Cell, zones: { Layout.Zone }, step: Step)
 	local top = WORLD.TERRAIN_TOP
@@ -212,36 +209,6 @@ function TerrainBuilder.paintCell(area: Areas.AreaDefinition, cell: Sections.Cel
 	end
 end
 
-function TerrainBuilder.clearCell(area: Areas.AreaDefinition, cell: Sections.Cell)
-	Workspace.Terrain:FillBlock(
-		CFrame.new(area.origin + Vector3.new(cell.cx, WORLD.TERRAIN_TOP + CLEAR_HEIGHT / 4, cell.cz)),
-		Vector3.new(Sections.SIZE, CLEAR_HEIGHT, Sections.SIZE),
-		Enum.Material.Air
-	)
-end
-
-function TerrainBuilder.buildCell(area: Areas.AreaDefinition, cell: Sections.Cell, step: Step)
-	local top = WORLD.TERRAIN_TOP
-	local surfaceDepth = WORLD.ISLAND_DEPTH / 2
-	local coreDepth = WORLD.ISLAND_DEPTH
-	local size = Sections.SIZE + 1
-
-	fillBox(
-		area.origin + Vector3.new(cell.cx, top - surfaceDepth - coreDepth / 2, cell.cz),
-		Vector3.new(size, coreDepth, size),
-		Enum.Material.Rock,
-		step
-	)
-	fillBox(
-		area.origin + Vector3.new(cell.cx, top - surfaceDepth / 2, cell.cz),
-		Vector3.new(size, surfaceDepth, size),
-		materialOf(area.terrain.material),
-		step
-	)
-
-	TerrainBuilder.paintCell(area, cell, Layout.reservedZones(area), step)
-end
-
 function TerrainBuilder.buildBridge(bridge: Layout.Bridge, step: Step)
 	local from = Areas.get(bridge.fromId)
 	if not from then
@@ -268,7 +235,7 @@ function TerrainBuilder.buildBridge(bridge: Layout.Bridge, step: Step)
 end
 
 function TerrainBuilder.awaitReady()
-	if TerrainBuilder.ready then
+	if ready then
 		return
 	end
 	readySignal.Event:Wait()
@@ -277,7 +244,7 @@ end
 function TerrainBuilder.init()
 	Workspace.Terrain:Clear()
 	filled = 0
-	TerrainBuilder.ready = false
+	ready = false
 
 	local start = os.clock()
 	local town = Areas.BY_ID[Areas.STARTING_AREA]
@@ -304,7 +271,7 @@ function TerrainBuilder.init()
 			warn(`[TerrainBuilder] relief pass failed: {err}`)
 		end
 
-		TerrainBuilder.ready = true
+		ready = true
 		readySignal:Fire()
 		print(
 			`[TerrainBuilder] whole world ready in {string.format("%.2f", os.clock() - start)}s ({filled} tiles total)`

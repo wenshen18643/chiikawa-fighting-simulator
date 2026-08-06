@@ -231,15 +231,6 @@ local function openFromServer(payload: any)
 	setPanelOpen(true)
 end
 
-function LibraryMenu.setOpen(open: boolean)
-	if not setPanelOpen then
-		return
-	end
-	if not open then
-		closeMenu()
-	end
-end
-
 function LibraryMenu.init()
 	if screen then
 		return

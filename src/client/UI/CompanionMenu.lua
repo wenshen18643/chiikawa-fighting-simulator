@@ -13,7 +13,6 @@ local panel: Frame
 local listHolder: ScrollingFrame
 local setOpen: (boolean) -> ()
 local selectRemote: RemoteEvent
-local selected: string?
 
 local function buildRow(entry: Entry, index: number, isSelected: boolean)
 	local row = UI.card(listHolder, entry.id, {
@@ -67,8 +66,6 @@ local function buildRow(entry: Entry, index: number, isSelected: boolean)
 end
 
 local function render(entries: { Entry }, current: string?)
-	selected = current
-
 	for _, child in listHolder:GetChildren() do
 		if child:IsA("GuiObject") then
 			child:Destroy()
@@ -160,16 +157,6 @@ function CompanionMenu.init()
 		render(entries, current)
 		setOpen(true)
 	end)
-end
-
-function CompanionMenu.setOpen(open: boolean)
-	if setOpen then
-		setOpen(open)
-	end
-end
-
-function CompanionMenu.current(): string?
-	return selected
 end
 
 return CompanionMenu

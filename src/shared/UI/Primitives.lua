@@ -47,13 +47,6 @@ function Primitives.list(parent: Instance, padding: number?, align: Enum.Horizon
 	return layout
 end
 
-function Primitives.aspect(parent: Instance, ratio: number): UIAspectRatioConstraint
-	local constraint = Instance.new("UIAspectRatioConstraint")
-	constraint.AspectRatio = ratio
-	constraint.Parent = parent
-	return constraint
-end
-
 function Primitives.grid(parent: Instance, cell: UDim2, padding: UDim2?): UIGridLayout
 	local layout = Instance.new("UIGridLayout")
 	layout.CellSize = cell
@@ -162,18 +155,6 @@ function Primitives.innerLine(target: GuiObject, color: Color3?, inset: number?)
 	edge.Transparency = 0.55
 
 	return liner
-end
-
-function Primitives.focusRing(target: GuiObject, color: Color3?): UIStroke
-	local ring = Instance.new("UIStroke")
-	ring.Name = "FocusRing"
-	ring.Color = color or Theme.color.sky
-	ring.Thickness = Theme.state.focus.thickness
-	ring.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	ring.LineJoinMode = Enum.LineJoinMode.Round
-	ring.Transparency = 1
-	ring.Parent = target
-	return ring
 end
 
 function Primitives.divider(parent: Instance, color: Color3?): Frame

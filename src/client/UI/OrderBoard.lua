@@ -262,10 +262,4 @@ function OrderBoard.init()
 	end)
 end
 
-function OrderBoard.setOpen(open: boolean)
-	if setOpen then
-		setOpen(open)
-	end
-end
-
 return OrderBoard

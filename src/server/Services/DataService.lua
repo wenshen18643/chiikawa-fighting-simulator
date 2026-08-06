@@ -13,11 +13,8 @@ local WeaponSkins = require(Shared.Modules.Config.WeaponSkins)
 local Upgrades = require(Shared.Modules.Config.Upgrades)
 local DataService = {}
 local profiles: { [Player]: any } = {}
-local releaseCallbacks: { (player: Player, profile: any) -> () } = {}
+local handles: { [Player]: any } = {}
 local loadedCallbacks: { (player: Player, profile: any) -> () } = {}
-
-DataService._handles = {} :: { [Player]: any }
-
 local ProfileService = nil
 local profileStore = nil
 local dataStore = nil
@@ -80,7 +77,7 @@ local function buildTemplate(): any
 	}
 end
 
-DataService.TEMPLATE = buildTemplate()
+local TEMPLATE = buildTemplate()
 
 local function deepCopy(value: any): any
 	if type(value) ~= "table" then
@@ -113,8 +110,6 @@ local OPEN_MAPS = {
 }
 
 local function reconcile(profile: any): any
-	local template = DataService.TEMPLATE
-
 	local function walk(target: any, source: any)
 		for key, value in source do
 			if target[key] == nil then
@@ -125,7 +120,7 @@ local function reconcile(profile: any): any
 		end
 	end
 
-	walk(profile, template)
+	walk(profile, TEMPLATE)
 
 	profile.unlockedWorksites = nil
 	profile.stamina = nil
@@ -230,8 +225,6 @@ local function reconcile(profile: any): any
 	return profile
 end
 
-DataService.reconcile = reconcile
-
 local function tryLoadProfileService()
 	local packages = ReplicatedStorage:FindFirstChild("Packages")
 	if not packages then
@@ -277,7 +270,7 @@ end
 
 local function fallbackLoad(player: Player): any
 	if backend == "memory" then
-		return reconcile(deepCopy(DataService.TEMPLATE))
+		return reconcile(deepCopy(TEMPLATE))
 	end
 
 	local key = keyFor(player)
@@ -286,7 +279,7 @@ local function fallbackLoad(player: Player): any
 			return dataStore:GetAsync(key)
 		end)
 		if ok then
-			return if result then reconcile(result) else reconcile(deepCopy(DataService.TEMPLATE))
+			return if result then reconcile(result) else reconcile(deepCopy(TEMPLATE))
 		end
 		warn(`[DataService] load attempt {attempt} failed for {player.Name}: {result}`)
 		task.wait(Constants.DATA.RETRY_BACKOFF * attempt)
@@ -330,10 +323,6 @@ function DataService.onLoaded(callback: (player: Player, profile: any) -> ())
 	table.insert(loadedCallbacks, callback)
 end
 
-function DataService.onRelease(callback: (player: Player, profile: any) -> ())
-	table.insert(releaseCallbacks, callback)
-end
-
 local function finishLoad(player: Player, profile: any)
 	profile.meta.lastPlayed = os.time()
 	if profile.meta.createdAt == 0 then
@@ -369,7 +358,7 @@ local function onPlayerAdded(player: Player)
 		end
 
 		reconcile(profile.Data)
-		DataService._handles[player] = profile
+		handles[player] = profile
 		finishLoad(player, profile.Data)
 	else
 		local data = fallbackLoad(player)
@@ -390,21 +379,14 @@ local function onPlayerRemoving(player: Player)
 		return
 	end
 
-	for _, callback in releaseCallbacks do
-		local ok, err = pcall(callback, player, profile)
-		if not ok then
-			warn(`[DataService] onRelease callback errored: {err}`)
-		end
-	end
-
 	profile.meta.lastPlayed = os.time()
 	profiles[player] = nil
 
 	if profileStore then
-		local handle = DataService._handles[player]
+		local handle = handles[player]
 		if handle then
 			handle:Release()
-			DataService._handles[player] = nil
+			handles[player] = nil
 		end
 	else
 		fallbackSave(player, profile)
@@ -438,7 +420,7 @@ function DataService.init()
 
 		if ProfileService then
 			backend = "profileservice"
-			profileStore = ProfileService.GetProfileStore(Constants.DATA.STORE_NAME, DataService.TEMPLATE)
+			profileStore = ProfileService.GetProfileStore(Constants.DATA.STORE_NAME, TEMPLATE)
 			print("[DataService] backend: ProfileService (session-locked)")
 		else
 			backend = "datastore"

@@ -79,8 +79,4 @@ function CaveController.init()
 	end)
 end
 
-function CaveController.level(): number
-	return math.max(currentLevel, 0)
-end
-
 return CaveController

@@ -299,31 +299,6 @@ function Components.button(parent: Instance, name: string, config: { [string]: a
 	return button
 end
 
-function Components.iconButton(parent: Instance, name: string, config: { [string]: any }): (TextButton, Frame)
-	local button = Components.button(parent, name, {
-		text = "",
-		color = config.color or Theme.color.paperRaised,
-		radius = config.radius or Theme.radius.pill,
-		extent = config.extent or UDim2.fromOffset(52, 52),
-		position = config.position,
-		anchor = config.anchor,
-		zIndex = config.zIndex,
-		elevation = config.elevation or "low",
-		onActivated = config.onActivated,
-	})
-
-	local slot = Instance.new("Frame")
-	slot.Name = "Icon"
-	slot.AnchorPoint = Vector2.new(0.5, 0.5)
-	slot.Position = UDim2.fromScale(0.5, 0.5)
-	slot.Size = config.iconExtent or UDim2.fromScale(0.56, 0.56)
-	slot.BackgroundTransparency = 1
-	slot.ZIndex = button.ZIndex + 3
-	slot.Parent = button
-
-	return button, slot
-end
-
 function Components.header(parent: Instance, name: string, config: { [string]: any }): Frame
 	local row = Instance.new("Frame")
 	row.Name = name
@@ -371,69 +346,6 @@ function Components.header(parent: Instance, name: string, config: { [string]: a
 	return row
 end
 
-function Components.badge(parent: Instance, name: string, config: { [string]: any }): Frame
-	local badge = Components.chip(parent, name, {
-		text = config.text,
-		color = config.color or Theme.color.danger,
-		textColor = Theme.color.inkInverse,
-		textSize = config.textSize or Theme.text.caption,
-		radius = Theme.radius.pill,
-		extent = config.extent or UDim2.fromOffset(24, 24),
-		position = config.position,
-		anchor = config.anchor,
-		zIndex = config.zIndex or 8,
-	})
-	Primitives.shadow(badge, "low")
-	return badge
-end
-
-function Components.statTile(parent: Instance, name: string, config: { [string]: any }): (Frame, (string) -> ())
-	local accent = config.accent or Theme.color.leaf
-
-	local tile = Components.card(parent, name, {
-		surface = "raised",
-		radius = Theme.radius.tile,
-		extent = config.extent,
-		position = config.position,
-		anchor = config.anchor,
-		zIndex = config.zIndex or 3,
-		elevation = config.elevation or "low",
-	})
-
-	local stripe = Instance.new("Frame")
-	stripe.Name = "Stripe"
-	stripe.Size = UDim2.new(1, 0, 0, 5)
-	stripe.BackgroundColor3 = accent
-	stripe.BorderSizePixel = 0
-	stripe.ZIndex = tile.ZIndex + 2
-	stripe.Parent = tile
-	Primitives.corner(stripe, 3)
-
-	Components.label(tile, "Caption", {
-		text = config.caption,
-		font = Theme.font.bold,
-		size = Theme.text.caption,
-		color = Theme.color.inkSoft,
-		position = UDim2.fromOffset(12, 10),
-		extent = UDim2.new(1, -24, 0, 14),
-		zIndex = tile.ZIndex + 3,
-	})
-
-	local value = Components.label(tile, "Value", {
-		text = config.value or "0",
-		font = Theme.font.display,
-		size = config.valueSize or Theme.text.display,
-		color = Theme.color.ink,
-		position = UDim2.fromOffset(12, 24),
-		extent = UDim2.new(1, -24, 1, -34),
-		zIndex = tile.ZIndex + 3,
-	})
-
-	return tile, function(text: string)
-		value.Text = text
-	end
-end
-
 function Components.meter(parent: Instance, name: string, config: { [string]: any }): (Frame, (number) -> ())
 	local color = config.color or Theme.color.leaf
 	local holder = Instance.new("Frame")
@@ -467,41 +379,6 @@ function Components.meter(parent: Instance, name: string, config: { [string]: an
 		function(fraction: number)
 			Motion.to(fill, Motion.settle, { Size = UDim2.fromScale(math.clamp(fraction, 0, 1), 1) })
 		end
-end
-
-function Components.toast(parent: Instance, name: string, config: { [string]: any }): Frame
-	local accent = config.accent or Theme.color.leaf
-
-	local card = Components.card(parent, name, {
-		surface = "raised",
-		radius = Theme.radius.tile,
-		extent = config.extent or UDim2.new(1, 0, 0, 52),
-		zIndex = config.zIndex or 12,
-		elevation = "base",
-	})
-
-	local stripe = Instance.new("Frame")
-	stripe.Name = "Stripe"
-	stripe.Size = UDim2.new(0, 6, 1, -12)
-	stripe.Position = UDim2.fromOffset(6, 6)
-	stripe.BackgroundColor3 = accent
-	stripe.BorderSizePixel = 0
-	stripe.ZIndex = card.ZIndex + 2
-	stripe.Parent = card
-	Primitives.corner(stripe, 3)
-
-	Components.label(card, "Message", {
-		text = config.text,
-		font = Theme.font.body,
-		size = Theme.text.small,
-		color = Theme.color.ink,
-		position = UDim2.fromOffset(20, 0),
-		extent = UDim2.new(1, -30, 1, 0),
-		wrapped = true,
-		zIndex = card.ZIndex + 3,
-	})
-
-	return card
 end
 
 function Components.sign(adornee: BasePart, config: { [string]: any }): BillboardGui

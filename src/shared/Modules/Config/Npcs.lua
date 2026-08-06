@@ -59,14 +59,4 @@ function Npcs.get(id: string): NpcDefinition?
 	return nil
 end
 
-function Npcs.getInRegion(regionId: number): { NpcDefinition }
-	local result = {}
-	for _, npc in Npcs.DEFINITIONS do
-		if npc.regionId == regionId then
-			table.insert(result, npc)
-		end
-	end
-	return result
-end
-
 return Npcs

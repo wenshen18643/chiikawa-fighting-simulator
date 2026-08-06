@@ -784,7 +784,7 @@ local function buildBook(parent: ScreenGui)
 			currentQuestionPayload = nil
 			closeRemote:FireServer()
 			setModalOpen(false)
-			local snapshot = StateController.snapshot
+			local snapshot = StateController.getSnapshot()
 			if snapshot then
 				updateBookmark(snapshot)
 			end

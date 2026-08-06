@@ -86,15 +86,6 @@ function HarvestNodes:add(model: Model, ingredientId: string, centre: Vector3, b
 	return node
 end
 
-function HarvestNodes:setIngredient(node: Node, ingredientId: string): boolean
-	local definition = Ingredients.get(ingredientId)
-	if not definition then
-		return false
-	end
-	node.ingredient = definition
-	return true
-end
-
 function HarvestNodes:clear()
 	for _, node in self.nodes do
 		node.retired = true

@@ -5,7 +5,6 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Farming = require(Shared.Modules.Config.Farming)
-local Layout = require(Shared.Modules.Config.Layout)
 local Sections = require(Shared.Modules.Config.Sections)
 
 -- Requiring the client modules here compiles their strict Luau even though a
@@ -38,27 +37,6 @@ for _, child in farm:GetChildren() do
 	end
 end
 assert(#plotModels == Farming.PLOT_COUNT, `expected {Farming.PLOT_COUNT} farm plots, got {#plotModels}`)
-
-local routes = farm:FindFirstChild("KusatoriRoutes")
-assert(routes and routes:IsA("Folder"), "Kusatori route folder is missing")
-local area = require(Shared.Areas).get(1)
-assert(area, "Town area is missing")
-for _, expected in Layout.farmRouteSegments(area) do
-	local segment = routes:FindFirstChild(expected.id)
-	assert(segment and segment:IsA("Folder"), `{expected.id} route is missing`)
-	local stones = segment:GetChildren()
-	table.sort(stones, function(a, b)
-		return a.Name < b.Name
-	end)
-	assert(#stones >= 2, `{expected.id} needs at least two stones`)
-	local first = stones[1]
-	local last = stones[#stones]
-	assert(first:IsA("BasePart") and last:IsA("BasePart"), `{expected.id} contains a non-part`)
-	local startDelta = Vector3.new(first.Position.X - expected.from.X, 0, first.Position.Z - expected.from.Z)
-	local endDelta = Vector3.new(last.Position.X - expected.to.X, 0, last.Position.Z - expected.to.Z)
-	assert(startDelta.Magnitude < 0.1, `{expected.id} does not start at Kusatori`)
-	assert(endDelta.Magnitude < 0.1, `{expected.id} does not reach its destination`)
-end
 
 table.sort(plotModels, function(a, b)
 	return a:GetAttribute("PlotId") < b:GetAttribute("PlotId")

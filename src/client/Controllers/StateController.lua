@@ -1,15 +1,13 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared").Modules.Remotes)
 local StateController = {}
-
-StateController.snapshot = nil :: any?
-
+local snapshot: any? = nil
 local listeners: { (snapshot: any) -> () } = {}
 
 function StateController.onChanged(callback: (snapshot: any) -> ()): () -> ()
 	table.insert(listeners, callback)
-	if StateController.snapshot then
-		task.spawn(callback, StateController.snapshot)
+	if snapshot then
+		task.spawn(callback, snapshot)
 	end
 
 	return function()
@@ -20,11 +18,15 @@ function StateController.onChanged(callback: (snapshot: any) -> ()): () -> ()
 	end
 end
 
+function StateController.getSnapshot(): any?
+	return snapshot
+end
+
 function StateController.init()
-	Remotes.event("State", "Snapshot").OnClientEvent:Connect(function(snapshot)
-		StateController.snapshot = snapshot
+	Remotes.event("State", "Snapshot").OnClientEvent:Connect(function(nextSnapshot)
+		snapshot = nextSnapshot
 		for _, callback in listeners do
-			local ok, err = pcall(callback, snapshot)
+			local ok, err = pcall(callback, nextSnapshot)
 			if not ok then
 				warn(`[StateController] listener errored: {err}`)
 			end

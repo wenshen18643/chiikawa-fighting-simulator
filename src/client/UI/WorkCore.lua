@@ -210,10 +210,4 @@ function WorkCore.update(snapshot: any)
 	end
 end
 
-function WorkCore.setVisible(visible: boolean)
-	if root then
-		root.Visible = visible
-	end
-end
-
 return WorkCore

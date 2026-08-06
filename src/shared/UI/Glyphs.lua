@@ -305,10 +305,6 @@ Glyphs.FOR_SKILL = {
 	craft = "book",
 }
 
-function Glyphs.exists(name: string): boolean
-	return shapes[name] ~= nil
-end
-
 function Glyphs.render(parent: Instance, name: string, config: { [string]: any }?): Frame
 	local options = config or {}
 	local container = Instance.new("Frame")

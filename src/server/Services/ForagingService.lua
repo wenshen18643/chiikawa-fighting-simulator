@@ -98,11 +98,10 @@ local forageEvent: RemoteEvent
 local groundParams: RaycastParams
 local groundTop = 0
 local readySignal = Instance.new("BindableEvent")
-
-ForagingService.ready = false
+local ready = false
 
 function ForagingService.awaitReady()
-	if ForagingService.ready then
+	if ready then
 		return
 	end
 	readySignal.Event:Wait()
@@ -548,7 +547,7 @@ function ForagingService.init()
 			end
 		end
 
-		ForagingService.ready = true
+		ready = true
 		readySignal:Fire()
 	end)
 

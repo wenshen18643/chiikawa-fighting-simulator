@@ -7,7 +7,6 @@ local Mascot = require(Shared.Modules.Mascot)
 local Npcs = require(Shared.Modules.Config.Npcs)
 local Areas = require(Shared.Areas)
 local NotifyService = require(script.Parent.NotifyService)
-local WorldService = require(script.Parent.WorldService)
 local NpcService = {}
 local spoken: { [Player]: { [string]: number } } = {}
 
@@ -121,21 +120,6 @@ function NpcService.init()
 	game:GetService("Players").PlayerRemoving:Connect(function(player)
 		spoken[player] = nil
 	end)
-end
-
-function NpcService.validatePlacement()
-	for _, definition in Npcs.DEFINITIONS do
-		local region = Areas.get(definition.regionId)
-		if region then
-			local half = region.terrain.islandSize / 2 - 20
-			if math.abs(definition.offset.X) > half or math.abs(definition.offset.Z) > half then
-				warn(`[NpcService] "{definition.id}" is placed outside its island`)
-			end
-		end
-	end
-	if not WorldService.getSpawnCFrame(Areas.STARTING_AREA) then
-		warn("[NpcService] world has no starting spawn - did WorldService run first?")
-	end
 end
 
 return NpcService

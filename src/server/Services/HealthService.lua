@@ -23,13 +23,6 @@ local function apply(player: Player, profile: any, fullHeal: boolean)
 	humanoid.Health = if fullHeal then maxHealth else math.min(maxHealth, humanoid.Health + granted)
 end
 
-function HealthService.refresh(player: Player)
-	local profile = DataService.get(player)
-	if profile then
-		apply(player, profile, false)
-	end
-end
-
 function HealthService.init()
 	local function bindCharacter(player: Player, character: Model)
 		if not character:FindFirstChildOfClass("Humanoid") then

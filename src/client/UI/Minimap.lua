@@ -289,7 +289,7 @@ local function refresh()
 	local worldFraction = Layout.toMapFraction(position)
 	stripMarker.Position = UDim2.fromScale(worldFraction.X, 0.5)
 
-	local snapshot = StateController.snapshot
+	local snapshot = StateController.getSnapshot()
 	for regionId, cell in stripCells do
 		local unlocked = not snapshot or snapshot.unlockedRegions[tostring(regionId)] == true
 		local here = regionId == area.id
@@ -309,10 +309,6 @@ end
 
 function Minimap.toggle()
 	Minimap.setOpen(not isOpen)
-end
-
-function Minimap.isOpen(): boolean
-	return isOpen
 end
 
 function Minimap.build(parent: Instance): Frame
@@ -389,12 +385,6 @@ function Minimap.build(parent: Instance): Frame
 	end)
 
 	return root
-end
-
-function Minimap.setVisible(visible: boolean)
-	if root then
-		root.Visible = visible
-	end
 end
 
 return Minimap

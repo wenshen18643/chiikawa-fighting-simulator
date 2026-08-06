@@ -563,33 +563,6 @@ function Ingredients.isMeat(id: string): boolean
 	return def ~= nil and def.meat == true
 end
 
-function Ingredients.rollIngredient(zone: ZoneDefinition, rng: Random): string?
-	local total = 0
-	for _, entry in zone.ingredients do
-		if entry.weight > 0 then
-			total += entry.weight
-		end
-	end
-	if total <= 0 then
-		return nil
-	end
-
-	local roll = rng:NextNumber(0, total)
-	local running = 0
-	local fallback: string? = nil
-	for _, entry in zone.ingredients do
-		if entry.weight > 0 then
-			running += entry.weight
-			fallback = entry.id
-			if roll < running then
-				return entry.id
-			end
-		end
-	end
-
-	return fallback
-end
-
 function Ingredients.clumpPlan(zone: ZoneDefinition): { string }
 	local plan = {}
 	local total = 0
