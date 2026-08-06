@@ -37,6 +37,13 @@ export type CompanionSkinState = {
 	legendaryMisses: number,
 }
 
+export type WeaponSkinState = {
+	copies: { [string]: number },
+	equipped: { [string]: string },
+	rarePlusMisses: number,
+	legendaryMisses: number,
+}
+
 export type Gear = {
 	weedingTool: string?,
 	armor: string?,
@@ -91,6 +98,7 @@ export type PlayerProfile = {
 	seasons: number,
 	companions: CompanionState,
 	companionSkins: CompanionSkinState,
+	weaponSkins: WeaponSkinState,
 	gear: Gear,
 	recipes: { [string]: boolean },
 	dishes: { [string]: number },

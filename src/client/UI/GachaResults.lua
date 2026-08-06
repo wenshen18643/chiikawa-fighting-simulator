@@ -2,30 +2,32 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local CompanionSkins = require(Shared.Modules.Config.CompanionSkins)
 local UI = require(Shared.UI)
 
-type PullResult = {
+export type PullResult = {
 	skinId: string,
-	rarity: CompanionSkins.RarityId,
+	rarity: string,
 	isNew: boolean,
 }
+
+export type Presentation = {
+	name: string,
+	subtitle: string,
+	rarityName: string,
+	rarityColor: Color3,
+	rarityOrder: number,
+}
+
+export type Presenter = (result: PullResult) -> Presentation?
 
 local GachaResults = {}
 local BACKDROP = Color3.fromRGB(9, 13, 29)
 local PANEL = Color3.fromRGB(25, 31, 52)
 local WHITE = Color3.fromRGB(255, 250, 235)
 
-local function addResultCard(parent: Instance, result: PullResult, index: number)
-	local rarity = CompanionSkins.RARITIES[result.rarity]
-	local skin = CompanionSkins.get(result.skinId)
-	if not skin then
-		return
-	end
-	local character = CompanionSkins.CHARACTERS[skin.characterId]
-
+local function addResultCard(parent: Instance, result: PullResult, presentation: Presentation, index: number)
 	local card = UI.card(parent, `Result{index}`, {
-		color = rarity.color:Lerp(BACKDROP, 0.78),
+		color = presentation.rarityColor:Lerp(BACKDROP, 0.78),
 		radius = UI.radius.card,
 		stroke = false,
 		sheen = false,
@@ -34,13 +36,13 @@ local function addResultCard(parent: Instance, result: PullResult, index: number
 	card.LayoutOrder = index
 	card.Visible = false
 
-	local stroke = UI.stroke(card, rarity.color, 2)
+	local stroke = UI.stroke(card, presentation.rarityColor, 2)
 	stroke.Transparency = 0.08
 
 	local gradient = Instance.new("UIGradient")
 	gradient.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, rarity.color:Lerp(WHITE, 0.12)),
-		ColorSequenceKeypoint.new(0.02, rarity.color:Lerp(BACKDROP, 0.72)),
+		ColorSequenceKeypoint.new(0, presentation.rarityColor:Lerp(WHITE, 0.12)),
+		ColorSequenceKeypoint.new(0.02, presentation.rarityColor:Lerp(BACKDROP, 0.72)),
 		ColorSequenceKeypoint.new(1, BACKDROP),
 	})
 	gradient.Rotation = 90
@@ -59,16 +61,16 @@ local function addResultCard(parent: Instance, result: PullResult, index: number
 		extent = UDim2.fromOffset(40, 18),
 	})
 	UI.label(card, "Rarity", {
-		text = string.upper(rarity.name),
+		text = string.upper(presentation.rarityName),
 		font = UI.font.bold,
 		size = UI.text.caption,
-		color = rarity.color,
+		color = presentation.rarityColor,
 		align = Enum.TextXAlignment.Right,
 		position = UDim2.new(0.42, 0, 0, 8),
 		extent = UDim2.new(0.58, -12, 0, 18),
 	})
 	UI.label(card, "Name", {
-		text = skin.name,
+		text = presentation.name,
 		font = UI.font.display,
 		size = UI.text.body,
 		color = WHITE,
@@ -77,8 +79,8 @@ local function addResultCard(parent: Instance, result: PullResult, index: number
 		extent = UDim2.new(1, -20, 0, 50),
 		wrapped = true,
 	})
-	UI.label(card, "Character", {
-		text = if character then character.name else skin.characterId,
+	UI.label(card, "Subtitle", {
+		text = presentation.subtitle,
 		font = UI.font.body,
 		size = UI.text.small,
 		color = Color3.fromRGB(196, 202, 220),
@@ -109,6 +111,7 @@ function GachaResults.show(
 	parent: PlayerGui,
 	results: { PullResult },
 	drawId: string,
+	present: Presenter,
 	onClosed: () -> ()
 ): () -> ()
 	local finished = false
@@ -198,7 +201,10 @@ function GachaResults.show(
 	grid.Parent = resultList
 
 	for index, result in results do
-		addResultCard(resultList, result, index)
+		local presentation = present(result)
+		if presentation then
+			addResultCard(resultList, result, presentation, index)
+		end
 	end
 
 	local continueButton = UI.button(panel, "Continue", {

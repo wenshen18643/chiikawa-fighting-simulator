@@ -9,6 +9,7 @@ local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
 local Skills = require(Shared.Modules.Config.Skills)
 local CompanionSkins = require(Shared.Modules.Config.CompanionSkins)
+local WeaponSkins = require(Shared.Modules.Config.WeaponSkins)
 local Upgrades = require(Shared.Modules.Config.Upgrades)
 local DataService = {}
 local profiles: { [Player]: any } = {}
@@ -51,6 +52,12 @@ local function buildTemplate(): any
 		selectedSkill = Skills.ORDER[1],
 		companions = {},
 		companionSkins = {
+			copies = {},
+			equipped = {},
+			rarePlusMisses = 0,
+			legendaryMisses = 0,
+		},
+		weaponSkins = {
 			copies = {},
 			equipped = {},
 			rarePlusMisses = 0,
@@ -193,6 +200,7 @@ local function reconcile(profile: any): any
 	end
 
 	CompanionSkins.reconcileProfile(profile)
+	WeaponSkins.reconcileProfile(profile)
 
 	local now = os.time()
 	for index = #profile.boosts, 1, -1 do

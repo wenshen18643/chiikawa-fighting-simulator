@@ -105,13 +105,13 @@ CompanionSkins.DRAWS = {
 		id = "standard",
 		name = "Standard Draw",
 		cost = 1000,
-		weights = { common = 60, uncommon = 25, rare = 10, epic = 4, legendary = 1 },
+		weights = { common = 83.999, uncommon = 10, rare = 5, epic = 1, legendary = 0.001 },
 	},
 	premium = {
 		id = "premium",
 		name = "Premium Draw",
 		cost = 2500,
-		weights = { common = 55, uncommon = 25, rare = 10, epic = 5, legendary = 5 },
+		weights = { common = 66.995, uncommon = 22, rare = 8, epic = 3, legendary = 0.005 },
 	},
 } :: { [string]: DrawDefinition }
 

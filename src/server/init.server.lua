@@ -51,6 +51,7 @@ local BOOT_ORDER = {
 	"ShopService",
 	"ReplicationService",
 	"GachaService",
+	"WeaponGachaService",
 
 	"PerimeterService",
 	"BoardService",

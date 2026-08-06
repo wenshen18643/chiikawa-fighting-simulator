@@ -3,14 +3,23 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local CompanionSkins = require(Shared.Modules.Config.CompanionSkins)
 local UI = require(Shared.UI)
 
-type PullResult = {
+export type PullResult = {
 	skinId: string,
-	rarity: CompanionSkins.RarityId,
+	rarity: string,
 	isNew: boolean,
 }
+
+export type Presentation = {
+	name: string,
+	subtitle: string,
+	rarityName: string,
+	rarityColor: Color3,
+	rarityOrder: number,
+}
+
+export type Presenter = (result: PullResult) -> Presentation?
 
 local GachaReveal = {}
 local BACKDROP = Color3.fromRGB(8, 12, 30)
@@ -96,9 +105,13 @@ local function makeRing(parent: Instance, color: Color3): Frame
 	return ring
 end
 
-local function makeResultLabels(parent: Instance, result: PullResult, index: number, total: number)
-	local rarity = CompanionSkins.RARITIES[result.rarity]
-	local skin = CompanionSkins.get(result.skinId)
+local function makeResultLabels(
+	parent: Instance,
+	result: PullResult,
+	presentation: Presentation,
+	index: number,
+	total: number
+)
 	local counter = Instance.new("TextLabel")
 	counter.Name = "Counter"
 	counter.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -120,8 +133,8 @@ local function makeResultLabels(parent: Instance, result: PullResult, index: num
 	rarityLabel.Font = UI.font.bold
 	rarityLabel.Position = UDim2.fromScale(0.5, 0.57)
 	rarityLabel.Size = UDim2.fromScale(0.8, 0.07)
-	rarityLabel.Text = string.upper(rarity.name)
-	rarityLabel.TextColor3 = rarity.color
+	rarityLabel.Text = string.upper(presentation.rarityName)
+	rarityLabel.TextColor3 = presentation.rarityColor
 	rarityLabel.TextSize = 18
 	rarityLabel.TextStrokeColor3 = BACKDROP
 	rarityLabel.TextStrokeTransparency = 0.25
@@ -136,7 +149,7 @@ local function makeResultLabels(parent: Instance, result: PullResult, index: num
 	nameLabel.Font = UI.font.display
 	nameLabel.Position = UDim2.fromScale(0.5, 0.64)
 	nameLabel.Size = UDim2.fromScale(0.82, 0.1)
-	nameLabel.Text = if skin then skin.name else "Mystery Skin"
+	nameLabel.Text = presentation.name
 	nameLabel.TextColor3 = WHITE
 	nameLabel.TextSize = 26
 	nameLabel.TextStrokeColor3 = BACKDROP
@@ -171,7 +184,12 @@ local function makeResultLabels(parent: Instance, result: PullResult, index: num
 	tween(copyLabel, 0.25, Enum.EasingStyle.Quad, { TextTransparency = 0 })
 end
 
-function GachaReveal.play(parent: PlayerGui, results: { PullResult }, onComplete: () -> ()): () -> ()
+function GachaReveal.play(
+	parent: PlayerGui,
+	results: { PullResult },
+	present: Presenter,
+	onComplete: () -> ()
+): () -> ()
 	local rng = Random.new()
 	local finished = false
 	local sceneGeneration = 0
@@ -260,7 +278,13 @@ function GachaReveal.play(parent: PlayerGui, results: { PullResult }, onComplete
 		local index = nextIndex
 		nextIndex += 1
 		local result = results[index]
-		local rarity = CompanionSkins.RARITIES[result.rarity]
+		local presentation = present(result) or {
+			name = "Mystery Skin",
+			subtitle = "Unknown item",
+			rarityName = "Unknown",
+			rarityColor = Color3.fromRGB(178, 158, 152),
+			rarityOrder = 1,
+		}
 		local scene = Instance.new("Frame")
 		scene.Name = `Pull{index}`
 		scene.BackgroundTransparency = 1
@@ -274,7 +298,7 @@ function GachaReveal.play(parent: PlayerGui, results: { PullResult }, onComplete
 		end
 
 		if UI.motion.isReducedMotion() then
-			makeResultLabels(scene, result, index, #results)
+			makeResultLabels(scene, result, presentation, index, #results)
 			task.delay(0.55, function()
 				if isCurrent() then
 					playNext()
@@ -286,7 +310,7 @@ function GachaReveal.play(parent: PlayerGui, results: { PullResult }, onComplete
 		local flare = Instance.new("Frame")
 		flare.Name = "WishCoreGlow"
 		flare.AnchorPoint = Vector2.new(0.5, 0.5)
-		flare.BackgroundColor3 = rarity.color
+		flare.BackgroundColor3 = presentation.rarityColor
 		flare.BackgroundTransparency = 0.55
 		flare.BorderSizePixel = 0
 		flare.Position = UDim2.fromScale(-0.08, 0.95)
@@ -307,20 +331,23 @@ function GachaReveal.play(parent: PlayerGui, results: { PullResult }, onComplete
 		core.Parent = flare
 		corner(core, UDim.new(0.22, 0))
 
-		local travelTime = 0.5 + rarity.order * 0.025
+		local travelTime = 0.5 + presentation.rarityOrder * 0.025
 		tween(flare, travelTime, Enum.EasingStyle.Quint, {
 			Position = UDim2.fromScale(0.5, 0.43),
-			Size = UDim2.fromOffset(140 + rarity.order * 10, 140 + rarity.order * 10),
+			Size = UDim2.fromOffset(
+				140 + presentation.rarityOrder * 10,
+				140 + presentation.rarityOrder * 10
+			),
 		})
 		tween(core, travelTime, Enum.EasingStyle.Quint, {
 			Rotation = 225,
-			Size = UDim2.fromOffset(40 + rarity.order * 4, 40 + rarity.order * 4),
+			Size = UDim2.fromOffset(40 + presentation.rarityOrder * 4, 40 + presentation.rarityOrder * 4),
 		})
 
-		for streakIndex = 1, 10 + rarity.order * 4 do
+		for streakIndex = 1, 10 + presentation.rarityOrder * 4 do
 			task.delay(streakIndex * 0.012, function()
 				if isCurrent() then
-					makeStreak(scene, rng, rarity.color)
+					makeStreak(scene, rng, presentation.rarityColor)
 				end
 			end)
 		end
@@ -329,8 +356,8 @@ function GachaReveal.play(parent: PlayerGui, results: { PullResult }, onComplete
 			if not isCurrent() then
 				return
 			end
-			for _ = 1, math.max(1, rarity.order - 1) do
-				makeRing(scene, rarity.color)
+			for _ = 1, math.max(1, presentation.rarityOrder - 1) do
+				makeRing(scene, presentation.rarityColor)
 			end
 		end)
 
@@ -341,7 +368,7 @@ function GachaReveal.play(parent: PlayerGui, results: { PullResult }, onComplete
 
 			local flash = Instance.new("Frame")
 			flash.Name = "RarityFlash"
-			flash.BackgroundColor3 = rarity.color:Lerp(WHITE, 0.55)
+			flash.BackgroundColor3 = presentation.rarityColor:Lerp(WHITE, 0.55)
 			flash.BackgroundTransparency = 1
 			flash.BorderSizePixel = 0
 			flash.Size = UDim2.fromScale(1, 1)
@@ -354,7 +381,7 @@ function GachaReveal.play(parent: PlayerGui, results: { PullResult }, onComplete
 				end
 			end)
 
-			makeResultLabels(scene, result, index, #results)
+			makeResultLabels(scene, result, presentation, index, #results)
 		end)
 
 		task.delay(travelTime + 0.72, function()

@@ -5,7 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
-local CompanionSkins = require(Shared.Modules.Config.CompanionSkins)
+local WeaponSkins = require(Shared.Modules.Config.WeaponSkins)
 local Remotes = require(Shared.Modules.Remotes)
 local UI = require(Shared.UI)
 local StateController = require(script.Parent.Parent.Controllers.StateController)
@@ -22,8 +22,6 @@ type GachaState = {
 	equipped: { [string]: string },
 	rarePlusMisses: number,
 	legendaryMisses: number,
-	bestByCharacter: { [string]: string },
-	selectedCharacter: string?,
 }
 
 type PullResult = {
@@ -32,17 +30,16 @@ type PullResult = {
 	isNew: boolean,
 }
 
-local GachaMenu = {}
-local INPUT_LOCK = "gacha-menu"
-local FLOW_INPUT_LOCK = "gacha-flow"
+local WeaponGachaMenu = {}
+local INPUT_LOCK = "weapon-gacha-menu"
+local FLOW_INPUT_LOCK = "weapon-gacha-flow"
 local CLOSE_DISTANCE = 24
+local WEAPON_ID = "sasumata"
 local screen: ScreenGui
-local panel: Frame
 local setOpen: (boolean) -> ()
 local isOpen = false
 local state: GachaState? = nil
 local activePage = "draw"
-local collectionFilter = "all"
 local pullBusy = false
 local cancelReveal: (() -> ())? = nil
 local cancelResults: (() -> ())? = nil
@@ -52,10 +49,17 @@ local tabButtons = {} :: { [string]: TextButton }
 local yenLabel: TextLabel
 local capacityLabel: TextLabel
 local collectionList: ScrollingFrame
-local collectionFilterBar: Frame
 local pullRemote: RemoteEvent
 local equipRemote: RemoteEvent
 local sellRemote: RemoteEvent
+
+local function clearGuiObjects(parent: Instance)
+	for _, child in parent:GetChildren() do
+		if child:IsA("GuiObject") then
+			child:Destroy()
+		end
+	end
+end
 
 local function setPullBusy(busy: boolean)
 	pullBusy = busy
@@ -67,28 +71,16 @@ local function setPullBusy(busy: boolean)
 	end
 end
 
-local function clearGuiObjects(parent: Instance)
-	for _, child in parent:GetChildren() do
-		if child:IsA("GuiObject") then
-			child:Destroy()
-		end
-	end
-end
-
-local function currentState(): GachaState?
-	return state
-end
-
 local function presentResult(result: PullResult): GachaReveal.Presentation?
-	local skin = CompanionSkins.get(result.skinId)
-	local rarity = CompanionSkins.getRarity(result.rarity)
+	local skin = WeaponSkins.get(result.skinId)
+	local rarity = WeaponSkins.getRarity(result.rarity)
 	if not skin or not rarity then
 		return nil
 	end
-	local character = CompanionSkins.CHARACTERS[skin.characterId]
+	local weapon = WeaponSkins.WEAPONS[skin.weaponId]
 	return {
 		name = skin.name,
-		subtitle = if character then character.name else skin.characterId,
+		subtitle = if weapon then `{weapon.name} skin` else "Weapon skin",
 		rarityName = rarity.name,
 		rarityColor = rarity.color,
 		rarityOrder = rarity.order,
@@ -96,13 +88,12 @@ local function presentResult(result: PullResult): GachaReveal.Presentation?
 end
 
 local function paintStatus()
-	local snapshot = currentState()
+	local snapshot = state
 	if not snapshot then
 		yenLabel.Text = "0 yen"
-		capacityLabel.Text = `0 / {CompanionSkins.CAPACITY} slots`
+		capacityLabel.Text = `0 / {WeaponSkins.CAPACITY} slots used`
 		return
 	end
-
 	yenLabel.Text = if snapshot.unlimitedYen then "∞ yen" else `{BigNumber.toString(snapshot.yen)} yen`
 	capacityLabel.Text = `{snapshot.used} / {snapshot.capacity} slots used`
 end
@@ -115,7 +106,7 @@ local function showPage(key: string)
 	for pageKey, button in tabButtons do
 		local selected = pageKey == key
 		local accent = if pageKey == "draw"
-			then UI.color.sky
+			then UI.color.gold
 			elseif pageKey == "collection" then UI.color.mint
 			else UI.color.lavender
 		button.BackgroundColor3 = if selected then accent else UI.color.paperRaised
@@ -161,11 +152,11 @@ local function buildNavigation(parent: Frame)
 	showPage(activePage)
 end
 
-local function drawButton(parent: Instance, drawId: CompanionSkins.DrawId, count: number, position: UDim2)
-	local draw = CompanionSkins.DRAWS[drawId]
+local function drawButton(parent: Instance, drawId: WeaponSkins.DrawId, count: number, position: UDim2)
+	local draw = WeaponSkins.DRAWS[drawId]
 	local accent = if drawId == "premium" then UI.color.gold else UI.color.sky
 	local button = UI.button(parent, `Draw{count}`, {
-		text = if count == 1 then `Draw 1  ·  {draw.cost} yen` else `Draw 10  ·  {draw.cost * count} yen`,
+		text = `Draw {count}  ·  {draw.cost * count} yen`,
 		color = accent,
 		textColor = UI.color.ink,
 		extent = UDim2.new(0.46, 0, 0, 36),
@@ -189,8 +180,8 @@ local function drawButton(parent: Instance, drawId: CompanionSkins.DrawId, count
 	table.insert(drawButtons, button)
 end
 
-local function buildDrawTicket(parent: Instance, drawId: CompanionSkins.DrawId, position: UDim2)
-	local draw = CompanionSkins.DRAWS[drawId]
+local function buildDrawTicket(parent: Instance, drawId: WeaponSkins.DrawId, position: UDim2)
+	local draw = WeaponSkins.DRAWS[drawId]
 	local premium = drawId == "premium"
 	local card = UI.card(parent, drawId, {
 		color = if premium then UI.color.sand else UI.color.paperRaised,
@@ -203,7 +194,6 @@ local function buildDrawTicket(parent: Instance, drawId: CompanionSkins.DrawId, 
 	card.Size = UDim2.new(0.485, 0, 1, 0)
 
 	local accent = Instance.new("Frame")
-	accent.Name = "Accent"
 	accent.BackgroundColor3 = if premium then UI.color.gold else UI.color.sky
 	accent.BorderSizePixel = 0
 	accent.Position = UDim2.fromOffset(0, 14)
@@ -212,7 +202,7 @@ local function buildDrawTicket(parent: Instance, drawId: CompanionSkins.DrawId, 
 	UI.corner(accent, 3)
 
 	UI.label(card, "Eyebrow", {
-		text = if premium then "LUCKY CAPSULE" else "EVERYDAY CAPSULE",
+		text = if premium then "LUCKY WEAPON CAPSULE" else "EVERYDAY WEAPON CAPSULE",
 		font = UI.font.bold,
 		size = UI.text.caption,
 		color = if premium then UI.color.gold else UI.color.sky,
@@ -239,22 +229,21 @@ local function buildDrawTicket(parent: Instance, drawId: CompanionSkins.DrawId, 
 	drawButton(card, drawId, 10, UDim2.new(0.51, 0, 1, -44))
 end
 
-local function sellableCopies(snapshot: GachaState, skin: CompanionSkins.SkinDefinition): number
+local function sellableCopies(snapshot: GachaState, skin: WeaponSkins.SkinDefinition): number
 	local owned = snapshot.copies[skin.id] or 0
-	local reserved = if snapshot.equipped[skin.characterId] == skin.id then 1 else 0
+	local reserved = if snapshot.equipped[skin.weaponId] == skin.id then 1 else 0
 	return math.max(owned - reserved, 0)
 end
 
-local function buildCollectionRow(skin: CompanionSkins.SkinDefinition, index: number)
-	local snapshot = currentState()
+local function buildCollectionRow(skin: WeaponSkins.SkinDefinition, index: number)
+	local snapshot = state
 	if not snapshot then
 		return
 	end
 	local count = snapshot.copies[skin.id] or 0
-	local equipped = snapshot.equipped[skin.characterId] == skin.id
+	local equipped = snapshot.equipped[skin.weaponId] == skin.id
 	local sellable = sellableCopies(snapshot, skin)
-	local rarity = CompanionSkins.RARITIES[skin.rarity]
-
+	local rarity = WeaponSkins.RARITIES[skin.rarity]
 	local row = UI.card(collectionList, skin.id, {
 		color = if equipped then UI.color.paperDeep else UI.color.paperRaised,
 		radius = UI.radius.chip,
@@ -264,8 +253,8 @@ local function buildCollectionRow(skin: CompanionSkins.SkinDefinition, index: nu
 	})
 	row.Size = UDim2.new(1, -10, 0, 88)
 	row.LayoutOrder = index
-	local stroke = UI.stroke(row, rarity.color, if equipped then 2 else 1)
-	stroke.Transparency = if count > 0 then 0.25 else 0.7
+	local outline = UI.stroke(row, rarity.color, if equipped then 2 else 1)
+	outline.Transparency = if count > 0 then 0.25 else 0.7
 
 	UI.label(row, "Rarity", {
 		text = string.upper(rarity.name),
@@ -283,8 +272,8 @@ local function buildCollectionRow(skin: CompanionSkins.SkinDefinition, index: nu
 		position = UDim2.fromOffset(14, 27),
 		extent = UDim2.new(0.42, 0, 0, 24),
 	})
-	UI.label(row, "Visual", {
-		text = if skin.assetKey then "Appearance ready" else "Visual coming soon",
+	UI.label(row, "Weapon", {
+		text = "Sasumata finish",
 		font = UI.font.light,
 		size = UI.text.caption,
 		color = UI.color.inkSoft,
@@ -316,7 +305,7 @@ local function buildCollectionRow(skin: CompanionSkins.SkinDefinition, index: nu
 			position = UDim2.new(0.45, 0, 0, 46),
 
 			onActivated = function()
-				equipRemote:FireServer({ characterId = skin.characterId, skinId = skin.id })
+				equipRemote:FireServer({ weaponId = skin.weaponId, skinId = skin.id })
 			end,
 		})
 	end
@@ -366,98 +355,44 @@ local function buildCollectionRow(skin: CompanionSkins.SkinDefinition, index: nu
 	end
 end
 
-local function paintCollectionFilters()
-	for _, child in collectionFilterBar:GetChildren() do
-		if child:IsA("TextButton") then
-			local selected = child.Name == collectionFilter
-			child.BackgroundColor3 = if selected then UI.color.blush else UI.color.paperSunken
-			child.TextColor3 = if selected then UI.color.ink else UI.color.inkSoft
-		end
-	end
-end
-
 local function renderCollection()
 	clearGuiObjects(collectionList)
-	local index = 0
-	for _, skin in CompanionSkins.SKINS do
-		if collectionFilter == "all" or skin.characterId == collectionFilter then
-			index += 1
-			buildCollectionRow(skin, index)
-		end
+	for index, skin in WeaponSkins.SKINS do
+		buildCollectionRow(skin, index)
 	end
 	collectionList.CanvasPosition = Vector2.zero
-	paintCollectionFilters()
 end
 
-local function buildCollectionFilters(parent: Frame)
-	collectionFilterBar = Instance.new("Frame")
-	collectionFilterBar.Name = "Filters"
-	collectionFilterBar.BackgroundTransparency = 1
-	collectionFilterBar.Size = UDim2.new(1, 0, 0, 34)
-	collectionFilterBar.Parent = parent
-	local layout = Instance.new("UIListLayout")
-	layout.FillDirection = Enum.FillDirection.Horizontal
-	layout.Padding = UDim.new(0, 6)
-	layout.Parent = collectionFilterBar
-
-	local entries = {
-		{ key = "all", label = "All skins" },
-		{ key = "chiikawa", label = "Chiikawa" },
-		{ key = "hachiware", label = "Hachiware" },
-		{ key = "usagi", label = "Usagi" },
-	}
-	for index, entry in entries do
-		local button = UI.button(collectionFilterBar, entry.key, {
-			text = entry.label,
-			color = UI.color.paperSunken,
-			textColor = UI.color.inkSoft,
-			extent = UDim2.new(0.25, -5, 1, 0),
-			stroke = false,
-			sheen = false,
-
-			onActivated = function()
-				collectionFilter = entry.key
-				renderCollection()
-			end,
-		})
-		button.LayoutOrder = index
-	end
-end
-
-local function buildBaseButtons(parent: Frame)
-	local holder = UI.card(parent, "BaseLooks", {
+local function buildBaseLook(parent: Frame)
+	local holder = UI.card(parent, "BaseLook", {
 		color = UI.color.paperRaised,
 		radius = UI.radius.chip,
-		position = UDim2.fromOffset(0, 42),
 		stroke = false,
 		sheen = false,
 		innerLine = false,
 	})
 	holder.Size = UDim2.new(1, 0, 0, 48)
 	UI.label(holder, "Label", {
-		text = "BASE LOOKS",
+		text = "SASUMATA BASE LOOK",
 		font = UI.font.bold,
 		size = UI.text.caption,
 		color = UI.color.inkSoft,
 		position = UDim2.fromOffset(12, 15),
-		extent = UDim2.fromOffset(90, 18),
+		extent = UDim2.new(0.6, 0, 0, 18),
 	})
-	for index, characterId in CompanionSkins.CHARACTER_ORDER do
-		local character = CompanionSkins.CHARACTERS[characterId]
-		UI.button(holder, characterId, {
-			text = `{character.name} base`,
-			color = UI.color.paperSunken,
-			textColor = UI.color.ink,
-			extent = UDim2.new(0.27, -6, 0, 30),
-			position = UDim2.new(0.18 + (index - 1) * 0.275, 0, 0, 9),
-			stroke = false,
-			sheen = false,
+	UI.button(holder, "EquipBase", {
+		text = "Equip Classic Pink",
+		color = UI.color.paperSunken,
+		textColor = UI.color.ink,
+		extent = UDim2.fromOffset(180, 30),
+		position = UDim2.new(1, -192, 0, 9),
+		stroke = false,
+		sheen = false,
 
-			onActivated = function()
-				equipRemote:FireServer({ characterId = characterId })
-			end,
-		})
-	end
+		onActivated = function()
+			equipRemote:FireServer({ weaponId = WEAPON_ID })
+		end,
+	})
 end
 
 local function buildOddsPage(parent: Frame)
@@ -474,18 +409,18 @@ local function buildOddsPage(parent: Frame)
 	UI.list(scroll, 8)
 
 	UI.label(scroll, "Intro", {
-		text = "Every capsule uses the odds below. Each rarity contains one Chiikawa, one Hachiware, and one Usagi skin, chosen evenly.",
+		text = "Every capsule uses the odds below. Each rarity currently contains one Sasumata finish.",
 		font = UI.font.body,
 		size = UI.text.small,
 		color = UI.color.inkSoft,
-		extent = UDim2.new(1, -10, 0, 44),
+		extent = UDim2.new(1, -10, 0, 36),
 		wrapped = true,
 	})
 
-	for index, rarityId in CompanionSkins.RARITY_ORDER do
-		local rarity = CompanionSkins.RARITIES[rarityId]
-		local standard = CompanionSkins.DRAWS.standard.weights[rarityId]
-		local premium = CompanionSkins.DRAWS.premium.weights[rarityId]
+	for index, rarityId in WeaponSkins.RARITY_ORDER do
+		local rarity = WeaponSkins.RARITIES[rarityId]
+		local standard = WeaponSkins.DRAWS.standard.weights[rarityId]
+		local premium = WeaponSkins.DRAWS.premium.weights[rarityId]
 		local card = UI.card(scroll, rarityId, {
 			color = UI.color.paperRaised,
 			radius = UI.radius.chip,
@@ -495,8 +430,8 @@ local function buildOddsPage(parent: Frame)
 		})
 		card.Size = UDim2.new(1, -10, 0, 58)
 		card.LayoutOrder = index
-		local stroke = UI.stroke(card, rarity.color, 2)
-		stroke.Transparency = 0.25
+		local outline = UI.stroke(card, rarity.color, 2)
+		outline.Transparency = 0.25
 		UI.label(card, "Name", {
 			text = rarity.name,
 			font = UI.font.display,
@@ -506,7 +441,7 @@ local function buildOddsPage(parent: Frame)
 			extent = UDim2.new(0.3, 0, 0, 22),
 		})
 		UI.label(card, "Bonus", {
-			text = `Best-owned bonus ×{string.format("%.2f", rarity.multiplier)}  ·  sells for {rarity.resaleYen} yen`,
+			text = `Sells for {rarity.resaleYen} yen`,
 			font = UI.font.light,
 			size = UI.text.caption,
 			color = UI.color.inkSoft,
@@ -514,22 +449,19 @@ local function buildOddsPage(parent: Frame)
 			extent = UDim2.new(0.56, 0, 0, 18),
 		})
 		UI.label(card, "Rates", {
-			text = `Standard {standard}%  ·  Premium {premium}%\nEach skin {string.format("%.2f", standard / 3)}% / {string.format(
-				"%.2f",
-				premium / 3
-			)}%`,
+			text = `Standard {standard}%  ·  Premium {premium}%`,
 			font = UI.font.bold,
 			size = UI.text.caption,
 			color = UI.color.ink,
 			align = Enum.TextXAlignment.Right,
-			position = UDim2.new(1, -244, 0, 8),
-			extent = UDim2.fromOffset(230, 42),
+			position = UDim2.new(1, -244, 0, 18),
+			extent = UDim2.fromOffset(230, 22),
 		})
 	end
 end
 
 local function buildPanel(parent: ScreenGui)
-	local _scrim, content, toggle = UI.modal(parent, "GachaMenu", {
+	local _scrim, content, toggle = UI.modal(parent, "WeaponGachaMenu", {
 		extent = UDim2.new(0.74, 0, 0.84, 0),
 		zIndex = 30,
 
@@ -538,30 +470,29 @@ local function buildPanel(parent: ScreenGui)
 			WorkController.setInputLocked(INPUT_LOCK, open)
 		end,
 	})
-	panel = content
 	setOpen = toggle
-	UI.padding(panel, UI.space.base)
+	UI.padding(content, UI.space.base)
 
 	local constraint = Instance.new("UISizeConstraint")
 	constraint.MinSize = Vector2.new(620, 500)
 	constraint.MaxSize = Vector2.new(780, 650)
-	constraint.Parent = panel
+	constraint.Parent = content
 
-	UI.label(panel, "Title", {
-		text = "Skin Capsule Shop",
+	UI.label(content, "Title", {
+		text = "Weapon Skin Capsule Shop",
 		font = UI.font.display,
 		size = UI.text.display,
-		extent = UDim2.new(0.6, 0, 0, 30),
+		extent = UDim2.new(0.68, 0, 0, 30),
 	})
-	UI.label(panel, "Subtitle", {
-		text = "Draw, equip, and trade companion looks.",
+	UI.label(content, "Subtitle", {
+		text = "Draw, equip, and trade Sasumata finishes.",
 		font = UI.font.light,
 		size = UI.text.small,
 		color = UI.color.inkSoft,
 		position = UDim2.fromOffset(0, 32),
 		extent = UDim2.new(0.68, 0, 0, 20),
 	})
-	UI.button(panel, "Close", {
+	UI.button(content, "Close", {
 		text = "Close",
 		extent = UDim2.fromOffset(74, 30),
 		position = UDim2.new(1, -74, 0, 2),
@@ -573,7 +504,7 @@ local function buildPanel(parent: ScreenGui)
 		end,
 	})
 
-	local status = UI.card(panel, "Status", {
+	local status = UI.card(content, "Status", {
 		color = UI.color.paperRaised,
 		radius = UI.radius.pill,
 		position = UDim2.fromOffset(0, 56),
@@ -603,8 +534,7 @@ local function buildPanel(parent: ScreenGui)
 	body.BackgroundTransparency = 1
 	body.Position = UDim2.fromOffset(0, 148)
 	body.Size = UDim2.new(1, 0, 1, -148)
-	body.Parent = panel
-
+	body.Parent = content
 	for _, key in { "draw", "collection", "odds" } do
 		local page = Instance.new("Frame")
 		page.Name = key
@@ -615,26 +545,23 @@ local function buildPanel(parent: ScreenGui)
 		pages[key] = page
 	end
 
-	buildNavigation(panel)
-
+	buildNavigation(content)
 	buildDrawTicket(pages.draw, "standard", UDim2.fromScale(0, 0))
 	buildDrawTicket(pages.draw, "premium", UDim2.fromScale(0.515, 0))
+	buildBaseLook(pages.collection)
 
-	buildCollectionFilters(pages.collection)
-	buildBaseButtons(pages.collection)
 	collectionList = Instance.new("ScrollingFrame")
 	collectionList.Name = "CollectionList"
 	collectionList.BackgroundTransparency = 1
 	collectionList.BorderSizePixel = 0
-	collectionList.Position = UDim2.fromOffset(0, 98)
-	collectionList.Size = UDim2.new(1, 0, 1, -98)
+	collectionList.Position = UDim2.fromOffset(0, 56)
+	collectionList.Size = UDim2.new(1, 0, 1, -56)
 	collectionList.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	collectionList.CanvasSize = UDim2.fromOffset(0, 0)
 	collectionList.ScrollBarThickness = 6
 	collectionList.ScrollBarImageColor3 = UI.color.inkSoft
 	collectionList.Parent = pages.collection
 	UI.list(collectionList, 7)
-
 	buildOddsPage(pages.odds)
 	paintStatus()
 end
@@ -651,7 +578,6 @@ local function acceptState(value: unknown): GachaState?
 		or type(candidate.equipped) ~= "table"
 		or type(candidate.rarePlusMisses) ~= "number"
 		or type(candidate.legendaryMisses) ~= "number"
-		or type(candidate.bestByCharacter) ~= "table"
 	then
 		return nil
 	end
@@ -685,15 +611,11 @@ local function parseResults(value: unknown): { PullResult }?
 		if type(item.skinId) ~= "string" or type(item.rarity) ~= "string" or type(item.isNew) ~= "boolean" then
 			return nil
 		end
-		local rarity = CompanionSkins.getRarity(item.rarity)
-		if not rarity or not CompanionSkins.get(item.skinId) then
+		local rarity = WeaponSkins.getRarity(item.rarity)
+		if not rarity or not WeaponSkins.get(item.skinId) then
 			return nil
 		end
-		local result: PullResult = {
-			skinId = item.skinId,
-			rarity = item.rarity,
-			isNew = item.isNew,
-		}
+		local result: PullResult = { skinId = item.skinId, rarity = item.rarity, isNew = item.isNew }
 		table.insert(results, result)
 	end
 	return results
@@ -701,8 +623,8 @@ end
 
 local function isNearNpc(): boolean
 	local safeZone = Workspace:FindFirstChild("SafeZone")
-	local model = safeZone and safeZone:FindFirstChild("GachaGuy")
-	local prompt = model and model:FindFirstChild("GachaPrompt", true)
+	local model = safeZone and safeZone:FindFirstChild("WeaponsGachaGuy")
+	local prompt = model and model:FindFirstChild("WeaponGachaPrompt", true)
 	local anchor = prompt and prompt.Parent
 	local character = Players.LocalPlayer.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -713,29 +635,26 @@ local function isNearNpc(): boolean
 		and (root.Position - anchor.Position).Magnitude <= CLOSE_DISTANCE
 end
 
-function GachaMenu.init()
+function WeaponGachaMenu.init()
 	local player = Players.LocalPlayer
 	local playerGui = player:WaitForChild("PlayerGui")
-
 	screen = Instance.new("ScreenGui")
-	screen.Name = "GachaMenu"
+	screen.Name = "WeaponGachaMenu"
 	screen.ResetOnSpawn = false
-	screen.DisplayOrder = 11
+	screen.DisplayOrder = 12
 	screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	screen.Parent = playerGui
 	buildPanel(screen)
 
-	pullRemote = Remotes.event("Gacha", "Pull")
-	equipRemote = Remotes.event("Gacha", "Equip")
-	sellRemote = Remotes.event("Gacha", "Sell")
-
-	Remotes.event("Gacha", "Open").OnClientEvent:Connect(function(value)
+	pullRemote = Remotes.event("WeaponGacha", "Pull")
+	equipRemote = Remotes.event("WeaponGacha", "Equip")
+	sellRemote = Remotes.event("WeaponGacha", "Sell")
+	Remotes.event("WeaponGacha", "Open").OnClientEvent:Connect(function(value)
 		applyState(value)
 		showPage("draw")
 		setOpen(true)
 	end)
-
-	Remotes.event("Gacha", "Event").OnClientEvent:Connect(function(payload)
+	Remotes.event("WeaponGacha", "Event").OnClientEvent:Connect(function(payload)
 		if type(payload) ~= "table" then
 			return
 		end
@@ -764,8 +683,6 @@ function GachaMenu.init()
 			end
 		elseif payload.kind == "denied" then
 			setPullBusy(false)
-		elseif payload.kind == "sold" or payload.kind == "state" then
-			renderCollection()
 		end
 	end)
 
@@ -777,7 +694,6 @@ function GachaMenu.init()
 			paintStatus()
 		end
 	end)
-
 	player.CharacterAdded:Connect(function()
 		if cancelReveal then
 			cancelReveal()
@@ -792,7 +708,6 @@ function GachaMenu.init()
 			setOpen(false)
 		end
 	end)
-
 	task.spawn(function()
 		while screen.Parent do
 			task.wait(0.25)
@@ -803,4 +718,4 @@ function GachaMenu.init()
 	end)
 end
 
-return GachaMenu
+return WeaponGachaMenu

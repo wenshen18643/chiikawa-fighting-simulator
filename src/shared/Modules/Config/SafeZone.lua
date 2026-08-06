@@ -124,6 +124,7 @@ SafeZone.interior = {
 	{ asset = "onigiri", x = -22, z = 14, fit = SafeZone.FOOD.onigiri },
 	{ asset = "kettle", x = -28, z = 3, fit = 5 },
 	{ asset = "gachaGuy", x = 34, z = -8, fit = 10, yaw = 90, name = "GachaGuy" },
+	{ asset = "weaponsGachaGuy", x = 34, z = 8, fit = 10, yaw = 90, name = "WeaponsGachaGuy" },
 } :: { Placement }
 
 SafeZone.exterior = {

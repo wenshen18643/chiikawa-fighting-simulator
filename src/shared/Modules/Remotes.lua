@@ -32,6 +32,13 @@ local REMOTE_TREE = {
 		Sell = "RemoteEvent",
 		Event = "RemoteEvent",
 	},
+	WeaponGacha = {
+		Open = "RemoteEvent",
+		Pull = "RemoteEvent",
+		Equip = "RemoteEvent",
+		Sell = "RemoteEvent",
+		Event = "RemoteEvent",
+	},
 	Study = {
 		Page = "RemoteEvent",
 		Answer = "RemoteEvent",
