@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CompanionSkins = require(Shared.Modules.Config.CompanionSkins)
 local UI = require(Shared.UI)
+local SkinPreview = require(script.Parent.SkinPreview)
 
 type PullResult = {
 	skinId: string,
@@ -22,7 +23,6 @@ local function addResultCard(parent: Instance, result: PullResult, index: number
 	if not skin then
 		return
 	end
-	local character = CompanionSkins.CHARACTERS[skin.characterId]
 
 	local card = UI.card(parent, `Result{index}`, {
 		color = rarity.color:Lerp(BACKDROP, 0.78),
@@ -67,24 +67,22 @@ local function addResultCard(parent: Instance, result: PullResult, index: number
 		position = UDim2.new(0.42, 0, 0, 8),
 		extent = UDim2.new(0.58, -12, 0, 18),
 	})
+	local stage = Instance.new("Frame")
+	stage.Name = "Stage"
+	stage.BackgroundTransparency = 1
+	stage.Position = UDim2.fromOffset(10, 28)
+	stage.Size = UDim2.new(1, -20, 1, -80)
+	stage.Parent = card
+
 	UI.label(card, "Name", {
 		text = skin.name,
 		font = UI.font.display,
-		size = UI.text.body,
+		size = UI.text.small,
 		color = WHITE,
 		align = Enum.TextXAlignment.Center,
-		position = UDim2.fromOffset(10, 36),
-		extent = UDim2.new(1, -20, 0, 50),
+		position = UDim2.new(0, 8, 1, -48),
+		extent = UDim2.new(1, -16, 0, 30),
 		wrapped = true,
-	})
-	UI.label(card, "Character", {
-		text = if character then character.name else skin.characterId,
-		font = UI.font.body,
-		size = UI.text.small,
-		color = Color3.fromRGB(196, 202, 220),
-		align = Enum.TextXAlignment.Center,
-		position = UDim2.new(0, 10, 1, -52),
-		extent = UDim2.new(1, -20, 0, 20),
 	})
 	UI.label(card, "CopyState", {
 		text = if result.isNew then "NEW!" else "EXTRA COPY",
@@ -92,7 +90,7 @@ local function addResultCard(parent: Instance, result: PullResult, index: number
 		size = UI.text.caption,
 		color = if result.isNew then Color3.fromRGB(138, 244, 192) else Color3.fromRGB(176, 183, 204),
 		align = Enum.TextXAlignment.Center,
-		position = UDim2.new(0, 10, 1, -29),
+		position = UDim2.new(0, 10, 1, -22),
 		extent = UDim2.new(1, -20, 0, 18),
 	})
 
@@ -102,6 +100,12 @@ local function addResultCard(parent: Instance, result: PullResult, index: number
 		end
 		card.Visible = true
 		UI.motion.to(scale, UI.motion.pop, { Scale = 1 })
+		SkinPreview.mount(stage, result.skinId, {
+			backdrop = 1,
+			zoom = 1.85,
+			radius = UI.radius.chip,
+			zIndex = card.ZIndex + 1,
+		})
 	end)
 end
 
@@ -190,8 +194,8 @@ function GachaResults.show(
 	local columns = math.min(math.max(#results, 1), 5)
 	grid.CellPadding = UDim2.fromOffset(10, 10)
 	grid.CellSize = if #results == 1
-		then UDim2.new(0.56, 0, 0, 210)
-		else UDim2.new(1 / columns, -10, 0, 160)
+		then UDim2.new(0.56, 0, 0, 280)
+		else UDim2.new(1 / columns, -10, 0, 196)
 	grid.FillDirectionMaxCells = columns
 	grid.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	grid.SortOrder = Enum.SortOrder.LayoutOrder

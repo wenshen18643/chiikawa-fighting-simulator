@@ -13,6 +13,7 @@ local BOOT_ORDER = {
 	{ container = script.Controllers, name = "ForageProgressController" },
 	{ container = script.Controllers, name = "FeastProgressController" },
 	{ container = script.Controllers, name = "CompanionShelfController" },
+	{ container = script.Controllers, name = "SkinFxController" },
 	{ container = script.Controllers, name = "SafeZoneAnimController" },
 	{ container = script.Controllers, name = "CaveController" },
 	{ container = script.Controllers, name = "SoundController" },

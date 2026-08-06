@@ -5,6 +5,7 @@ local TweenService = game:GetService("TweenService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CompanionSkins = require(Shared.Modules.Config.CompanionSkins)
 local UI = require(Shared.UI)
+local SkinPreview = require(script.Parent.SkinPreview)
 
 type PullResult = {
 	skinId: string,
@@ -99,6 +100,24 @@ end
 local function makeResultLabels(parent: Instance, result: PullResult, index: number, total: number)
 	local rarity = CompanionSkins.RARITIES[result.rarity]
 	local skin = CompanionSkins.get(result.skinId)
+	local stage = Instance.new("Frame")
+	stage.Name = "SkinStage"
+	stage.AnchorPoint = Vector2.new(0.5, 0.5)
+	stage.BackgroundTransparency = 1
+	stage.Position = UDim2.fromScale(0.5, 0.36)
+	stage.Size = UDim2.fromOffset(0, 0)
+	stage.ZIndex = 117
+	stage.Parent = parent
+
+	local stageSize = UDim2.fromOffset(216 + rarity.order * 26, 216 + rarity.order * 26)
+	local preview = SkinPreview.mount(stage, result.skinId, {
+		spin = true,
+		backdrop = 1,
+		zoom = 1.7,
+		zIndex = 117,
+	})
+	preview.Size = UDim2.fromScale(1, 1)
+
 	local counter = Instance.new("TextLabel")
 	counter.Name = "Counter"
 	counter.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -134,11 +153,11 @@ local function makeResultLabels(parent: Instance, result: PullResult, index: num
 	nameLabel.AnchorPoint = Vector2.new(0.5, 0.5)
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Font = UI.font.display
-	nameLabel.Position = UDim2.fromScale(0.5, 0.64)
-	nameLabel.Size = UDim2.fromScale(0.82, 0.1)
+	nameLabel.Position = UDim2.fromScale(0.5, 0.65)
+	nameLabel.Size = UDim2.fromScale(0.82, 0.08)
 	nameLabel.Text = if skin then skin.name else "Mystery Skin"
 	nameLabel.TextColor3 = WHITE
-	nameLabel.TextSize = 26
+	nameLabel.TextSize = 16
 	nameLabel.TextStrokeColor3 = BACKDROP
 	nameLabel.TextStrokeTransparency = 0.15
 	nameLabel.TextTransparency = 1
@@ -150,7 +169,7 @@ local function makeResultLabels(parent: Instance, result: PullResult, index: num
 	copyLabel.AnchorPoint = Vector2.new(0.5, 0.5)
 	copyLabel.BackgroundTransparency = 1
 	copyLabel.Font = UI.font.bold
-	copyLabel.Position = UDim2.fromScale(0.5, 0.71)
+	copyLabel.Position = UDim2.fromScale(0.5, 0.72)
 	copyLabel.Size = UDim2.fromOffset(240, 30)
 	copyLabel.Text = if result.isNew then "NEW!" else "EXTRA COPY"
 	copyLabel.TextColor3 = if result.isNew then Color3.fromRGB(138, 244, 192) else Color3.fromRGB(196, 202, 220)
@@ -160,14 +179,16 @@ local function makeResultLabels(parent: Instance, result: PullResult, index: num
 	copyLabel.Parent = parent
 
 	if UI.motion.isReducedMotion() then
+		stage.Size = stageSize
 		rarityLabel.TextTransparency = 0
 		nameLabel.TextTransparency = 0
 		copyLabel.TextTransparency = 0
 		return
 	end
 
-	tween(rarityLabel, 0.28, Enum.EasingStyle.Back, { TextSize = 34, TextTransparency = 0 })
-	tween(nameLabel, 0.32, Enum.EasingStyle.Back, { TextSize = 42, TextTransparency = 0 })
+	tween(stage, 0.34, Enum.EasingStyle.Back, { Size = stageSize })
+	tween(rarityLabel, 0.28, Enum.EasingStyle.Back, { TextSize = 32, TextTransparency = 0 })
+	tween(nameLabel, 0.32, Enum.EasingStyle.Back, { TextSize = 24, TextTransparency = 0 })
 	tween(copyLabel, 0.25, Enum.EasingStyle.Quad, { TextTransparency = 0 })
 end
 
@@ -309,7 +330,7 @@ function GachaReveal.play(parent: PlayerGui, results: { PullResult }, onComplete
 
 		local travelTime = 0.5 + rarity.order * 0.025
 		tween(flare, travelTime, Enum.EasingStyle.Quint, {
-			Position = UDim2.fromScale(0.5, 0.43),
+			Position = UDim2.fromScale(0.5, 0.36),
 			Size = UDim2.fromOffset(140 + rarity.order * 10, 140 + rarity.order * 10),
 		})
 		tween(core, travelTime, Enum.EasingStyle.Quint, {
@@ -353,6 +374,12 @@ function GachaReveal.play(parent: PlayerGui, results: { PullResult }, onComplete
 					tween(flash, 0.28, Enum.EasingStyle.Quad, { BackgroundTransparency = 1 })
 				end
 			end)
+
+			tween(core, 0.26, Enum.EasingStyle.Quad, { BackgroundTransparency = 1 })
+			tween(flare, 0.4, Enum.EasingStyle.Quad, {
+				BackgroundTransparency = 0.78,
+				Size = UDim2.fromOffset(230 + rarity.order * 30, 230 + rarity.order * 30),
+			})
 
 			makeResultLabels(scene, result, index, #results)
 		end)

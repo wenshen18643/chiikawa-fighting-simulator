@@ -12,6 +12,7 @@ local StateController = require(script.Parent.Parent.Controllers.StateController
 local WorkController = require(script.Parent.Parent.Controllers.WorkController)
 local GachaReveal = require(script.Parent.GachaReveal)
 local GachaResults = require(script.Parent.GachaResults)
+local SkinPreview = require(script.Parent.SkinPreview)
 
 type GachaState = {
 	yen: BigNumber.BigNum,
@@ -53,6 +54,11 @@ local yenLabel: TextLabel
 local capacityLabel: TextLabel
 local collectionList: ScrollingFrame
 local collectionFilterBar: Frame
+local selectedSkinId: string? = nil
+local pityMeters = {} :: { [string]: (number, string) -> () }
+local detailPane: Frame
+local renderDetail: () -> ()
+local renderCollection: () -> ()
 local pullRemote: RemoteEvent
 local equipRemote: RemoteEvent
 local sellRemote: RemoteEvent
@@ -84,11 +90,54 @@ local function paintStatus()
 	if not snapshot then
 		yenLabel.Text = "0 yen"
 		capacityLabel.Text = `0 / {CompanionSkins.CAPACITY} slots`
+		for _, paint in pityMeters do
+			paint(0, "-")
+		end
 		return
 	end
 
 	yenLabel.Text = if snapshot.unlimitedYen then "∞ yen" else `{BigNumber.toString(snapshot.yen)} yen`
 	capacityLabel.Text = `{snapshot.used} / {snapshot.capacity} slots used`
+
+	local rareLeft = math.max(CompanionSkins.RARE_PLUS_PITY - snapshot.rarePlusMisses, 0)
+	local legendaryLeft = math.max(CompanionSkins.LEGENDARY_PITY - snapshot.legendaryMisses, 0)
+	local paintRare = pityMeters.rare
+	if paintRare then
+		paintRare(snapshot.rarePlusMisses / CompanionSkins.RARE_PLUS_PITY, `Rare+ in {rareLeft}`)
+	end
+	local paintLegendary = pityMeters.legendary
+	if paintLegendary then
+		paintLegendary(
+			snapshot.legendaryMisses / CompanionSkins.LEGENDARY_PITY,
+			`Legendary in {legendaryLeft}`
+		)
+	end
+end
+
+local function buildPityMeter(parent: Instance, key: string, accent: Color3, position: UDim2)
+	local holder = Instance.new("Frame")
+	holder.Name = `Pity_{key}`
+	holder.BackgroundTransparency = 1
+	holder.Position = position
+	holder.Size = UDim2.new(0.32, 0, 0, 32)
+	holder.Parent = parent
+
+	local caption = UI.label(holder, "Caption", {
+		text = "-",
+		font = UI.font.bold,
+		size = UI.text.caption,
+		color = UI.color.inkSoft,
+		extent = UDim2.new(1, 0, 0, 14),
+	})
+
+	local track, fill = UI.bar(holder, "Track", accent)
+	track.Position = UDim2.fromOffset(0, 18)
+	track.Size = UDim2.new(1, 0, 0, 8)
+
+	pityMeters[key] = function(fraction: number, text: string)
+		caption.Text = text
+		fill.Size = UDim2.fromScale(math.clamp(fraction, 0, 1), 1)
+	end
 end
 
 local function showPage(key: string)
@@ -111,7 +160,7 @@ local function buildNavigation(parent: Frame)
 	local navigation = UI.card(parent, "Navigation", {
 		color = UI.color.paperSunken,
 		radius = UI.radius.chip,
-		position = UDim2.fromOffset(0, 94),
+		position = UDim2.fromOffset(0, 110),
 		stroke = false,
 		sheen = false,
 		innerLine = false,
@@ -210,13 +259,66 @@ local function buildDrawTicket(parent: Instance, drawId: CompanionSkins.DrawId, 
 		position = UDim2.fromOffset(18, 27),
 		extent = UDim2.new(1, -32, 0, 28),
 	})
-	UI.label(card, "Odds", {
-		text = `Legendary {draw.weights.legendary}%  ·  Epic {draw.weights.epic}%`,
-		font = UI.font.light,
-		size = UI.text.small,
+	local pips = Instance.new("Frame")
+	pips.Name = "Odds"
+	pips.BackgroundTransparency = 1
+	pips.Position = UDim2.fromOffset(18, 58)
+	pips.Size = UDim2.new(1, -36, 0, 26)
+	pips.Parent = card
+
+	for index, rarityId in CompanionSkins.RARITY_ORDER do
+		local rarity = CompanionSkins.RARITIES[rarityId]
+		local weight = draw.weights[rarityId]
+		local pip = Instance.new("Frame")
+		pip.Name = rarityId
+		pip.BackgroundColor3 = rarity.color
+		pip.BorderSizePixel = 0
+		pip.Position = UDim2.new((index - 1) / 5, 2, 0, 0)
+		pip.Size = UDim2.new(1 / 5, -4, 0, 5)
+		pip.Parent = pips
+		UI.corner(pip, UI.radius.pill)
+
+		UI.label(pips, `{rarityId}Rate`, {
+			text = `{weight}%`,
+			font = UI.font.bold,
+			size = UI.text.caption,
+			color = rarity.color,
+			align = Enum.TextXAlignment.Center,
+			position = UDim2.new((index - 1) / 5, 2, 0, 8),
+			extent = UDim2.new(1 / 5, -4, 0, 16),
+		})
+	end
+
+	local featured = CompanionSkins.rollSkin(if premium then "legendary" else "epic", Random.new())
+	local stage = Instance.new("Frame")
+	stage.Name = "Featured"
+	stage.BackgroundTransparency = 1
+	stage.Position = UDim2.fromOffset(18, 92)
+	stage.Size = UDim2.new(1, -36, 1, -178)
+	stage.Parent = card
+	SkinPreview.mount(stage, featured.id, {
+		spin = true,
+		zoom = 1.7,
+		radius = UI.radius.tile,
+	})
+
+	UI.label(card, "FeaturedName", {
+		text = `Featured · {featured.name}`,
+		font = UI.font.bold,
+		size = UI.text.caption,
 		color = UI.color.inkSoft,
-		position = UDim2.fromOffset(18, 56),
-		extent = UDim2.new(1, -32, 0, 20),
+		align = Enum.TextXAlignment.Center,
+		position = UDim2.new(0, 18, 1, -82),
+		extent = UDim2.new(1, -36, 0, 16),
+	})
+	UI.label(card, "Cost", {
+		text = `{draw.cost} yen per capsule`,
+		font = UI.font.light,
+		size = UI.text.caption,
+		color = UI.color.inkFaint,
+		align = Enum.TextXAlignment.Center,
+		position = UDim2.new(0, 18, 1, -66),
+		extent = UDim2.new(1, -36, 0, 16),
 	})
 
 	drawButton(card, drawId, 1, UDim2.new(0.03, 0, 1, -44))
@@ -236,51 +338,56 @@ local function buildCollectionRow(skin: CompanionSkins.SkinDefinition, index: nu
 	end
 	local count = snapshot.copies[skin.id] or 0
 	local equipped = snapshot.equipped[skin.characterId] == skin.id
-	local sellable = sellableCopies(snapshot, skin)
 	local rarity = CompanionSkins.RARITIES[skin.rarity]
+	local chosen = selectedSkinId == skin.id
 
-	local row = UI.card(collectionList, skin.id, {
-		color = if equipped then UI.color.paperDeep else UI.color.paperRaised,
+	local row = UI.button(collectionList, skin.id, {
+		text = "",
+		color = if chosen then UI.color.paperDeep else UI.color.paperRaised,
 		radius = UI.radius.chip,
 		stroke = false,
 		sheen = false,
-		innerLine = false,
-	})
-	row.Size = UDim2.new(1, -10, 0, 88)
-	row.LayoutOrder = index
-	local stroke = UI.stroke(row, rarity.color, if equipped then 2 else 1)
-	stroke.Transparency = if count > 0 then 0.25 else 0.7
 
-	UI.label(row, "Rarity", {
-		text = string.upper(rarity.name),
-		font = UI.font.bold,
-		size = UI.text.caption,
-		color = rarity.color,
-		position = UDim2.fromOffset(14, 10),
-		extent = UDim2.new(0.34, 0, 0, 16),
+		onActivated = function()
+			selectedSkinId = skin.id
+			renderCollection()
+		end,
 	})
+	row.Size = UDim2.new(1, -10, 0, 46)
+	row.LayoutOrder = index
+	row.AutoButtonColor = false
+	local stroke = UI.stroke(row, rarity.color, if chosen then 2 else 1)
+	stroke.Transparency = if count > 0 then 0.2 else 0.72
+
+	local dot = Instance.new("Frame")
+	dot.Name = "Rarity"
+	dot.AnchorPoint = Vector2.new(0, 0.5)
+	dot.BackgroundColor3 = rarity.color
+	dot.BackgroundTransparency = if count > 0 then 0 else 0.6
+	dot.BorderSizePixel = 0
+	dot.Position = UDim2.new(0, 12, 0.5, 0)
+	dot.Size = UDim2.fromOffset(10, 10)
+	dot.Parent = row
+	UI.corner(dot, UI.radius.pill)
+
 	UI.label(row, "Name", {
 		text = skin.name,
 		font = UI.font.display,
-		size = UI.text.body,
+		size = UI.text.small,
 		color = if count > 0 then UI.color.ink else UI.color.inkFaint,
-		position = UDim2.fromOffset(14, 27),
-		extent = UDim2.new(0.42, 0, 0, 24),
+		position = UDim2.fromOffset(30, 6),
+		extent = UDim2.new(1, -110, 0, 20),
 	})
-	UI.label(row, "Visual", {
-		text = if skin.assetKey then "Appearance ready" else "Visual coming soon",
+	UI.label(row, "Owned", {
+		text = if skin.showcase
+			then "Showcase"
+			elseif count > 0 then `Owned ×{count}`
+			else "Not owned",
 		font = UI.font.light,
 		size = UI.text.caption,
 		color = UI.color.inkSoft,
-		position = UDim2.fromOffset(14, 54),
-		extent = UDim2.new(0.42, 0, 0, 18),
-	})
-	UI.chip(row, "Copies", {
-		text = `×{count}`,
-		color = if count > 0 then rarity.color else UI.color.paperSunken,
-		textColor = UI.color.ink,
-		extent = UDim2.fromOffset(52, 24),
-		position = UDim2.new(0.45, 0, 0, 12),
+		position = UDim2.fromOffset(30, 24),
+		extent = UDim2.new(1, -110, 0, 16),
 	})
 
 	if equipped then
@@ -288,64 +395,9 @@ local function buildCollectionRow(skin: CompanionSkins.SkinDefinition, index: nu
 			text = "Equipped",
 			color = UI.color.mint,
 			textColor = UI.color.ink,
-			extent = UDim2.fromOffset(84, 24),
-			position = UDim2.new(0.45, 0, 0, 48),
-		})
-	elseif count > 0 then
-		UI.button(row, "Equip", {
-			text = "Equip",
-			color = UI.color.sky,
-			textColor = UI.color.ink,
-			extent = UDim2.fromOffset(84, 28),
-			position = UDim2.new(0.45, 0, 0, 46),
-
-			onActivated = function()
-				equipRemote:FireServer({ characterId = skin.characterId, skinId = skin.id })
-			end,
-		})
-	end
-
-	UI.label(row, "Sale", {
-		text = `{rarity.resaleYen} yen each`,
-		font = UI.font.light,
-		size = UI.text.caption,
-		color = UI.color.inkSoft,
-		align = Enum.TextXAlignment.Right,
-		position = UDim2.new(1, -220, 0, 9),
-		extent = UDim2.fromOffset(206, 18),
-	})
-	if sellable > 0 then
-		UI.button(row, "SellOne", {
-			text = "Sell 1",
-			color = UI.color.paperSunken,
-			textColor = UI.color.ink,
-			extent = UDim2.fromOffset(92, 30),
-			position = UDim2.new(1, -204, 0, 40),
-
-			onActivated = function()
-				sellRemote:FireServer({ skinId = skin.id, count = 1 })
-			end,
-		})
-		UI.button(row, "SellMax", {
-			text = `Sell {sellable}`,
-			color = UI.color.warning,
-			textColor = UI.color.ink,
-			extent = UDim2.fromOffset(98, 30),
-			position = UDim2.new(1, -106, 0, 40),
-
-			onActivated = function()
-				sellRemote:FireServer({ skinId = skin.id, count = sellable })
-			end,
-		})
-	else
-		UI.label(row, "NoSale", {
-			text = if equipped and count == 1 then "Equipped copy is protected" else "No copy to sell",
-			font = UI.font.light,
-			size = UI.text.caption,
-			color = UI.color.inkFaint,
-			align = Enum.TextXAlignment.Right,
-			position = UDim2.new(1, -214, 0, 43),
-			extent = UDim2.fromOffset(200, 24),
+			textSize = UI.text.caption,
+			extent = UDim2.fromOffset(74, 22),
+			position = UDim2.new(1, -86, 0.5, -11),
 		})
 	end
 end
@@ -360,17 +412,204 @@ local function paintCollectionFilters()
 	end
 end
 
-local function renderCollection()
+local function matchesFilter(skin: CompanionSkins.SkinDefinition): boolean
+	if collectionFilter == "all" then
+		return true
+	end
+	if collectionFilter == "showcase" then
+		return skin.showcase == true
+	end
+	return skin.characterId == collectionFilter
+end
+
+function renderDetail()
+	clearGuiObjects(detailPane)
+
+	local snapshot = currentState()
+	local skin = if selectedSkinId then CompanionSkins.get(selectedSkinId) else nil
+	if not skin or not snapshot then
+		UI.label(detailPane, "Empty", {
+			text = "Pick a look on the left to preview it in 3D.",
+			font = UI.font.light,
+			size = UI.text.small,
+			color = UI.color.inkFaint,
+			align = Enum.TextXAlignment.Center,
+			position = UDim2.new(0, 12, 0.5, -20),
+			extent = UDim2.new(1, -24, 0, 40),
+			wrapped = true,
+		})
+		return
+	end
+
+	local rarity = CompanionSkins.RARITIES[skin.rarity]
+	local character = CompanionSkins.CHARACTERS[skin.characterId]
+	local count = snapshot.copies[skin.id] or 0
+	local equipped = snapshot.equipped[skin.characterId] == skin.id
+	local sellable = sellableCopies(snapshot, skin)
+	local stage = Instance.new("Frame")
+	stage.Name = "Stage"
+	stage.BackgroundTransparency = 1
+	stage.Position = UDim2.fromOffset(10, 10)
+	stage.Size = UDim2.new(1, -20, 0, 172)
+	stage.Parent = detailPane
+	SkinPreview.mount(stage, skin.id, { spin = true, zoom = 1.6 })
+
+	UI.label(detailPane, "Name", {
+		text = skin.name,
+		font = UI.font.display,
+		size = UI.text.subtitle,
+		align = Enum.TextXAlignment.Center,
+		position = UDim2.fromOffset(10, 190),
+		extent = UDim2.new(1, -20, 0, 24),
+		wrapped = true,
+	})
+	UI.label(detailPane, "Tagline", {
+		text = `{string.upper(rarity.name)}  ·  {if character then character.name else skin.characterId}`,
+		font = UI.font.bold,
+		size = UI.text.caption,
+		color = rarity.color,
+		align = Enum.TextXAlignment.Center,
+		position = UDim2.fromOffset(10, 216),
+		extent = UDim2.new(1, -20, 0, 16),
+	})
+	UI.label(detailPane, "Bonus", {
+		text = `Best-owned bonus ×{string.format("%.2f", rarity.multiplier)}  ·  sells for {rarity.resaleYen} yen`,
+		font = UI.font.light,
+		size = UI.text.caption,
+		color = UI.color.inkSoft,
+		align = Enum.TextXAlignment.Center,
+		position = UDim2.fromOffset(10, 236),
+		extent = UDim2.new(1, -20, 0, 16),
+	})
+
+	if skin.showcase then
+		UI.label(detailPane, "Locked", {
+			text = "Showcase look - not in the capsule pool.",
+			font = UI.font.light,
+			size = UI.text.caption,
+			color = UI.color.inkFaint,
+			align = Enum.TextXAlignment.Center,
+			position = UDim2.new(0, 10, 1, -70),
+			extent = UDim2.new(1, -20, 0, 30),
+			wrapped = true,
+		})
+		return
+	end
+
+	if count == 0 then
+		UI.label(detailPane, "Locked", {
+			text = "Not owned yet - draw a capsule to unlock it.",
+			font = UI.font.light,
+			size = UI.text.caption,
+			color = UI.color.inkFaint,
+			align = Enum.TextXAlignment.Center,
+			position = UDim2.new(0, 10, 1, -70),
+			extent = UDim2.new(1, -20, 0, 30),
+			wrapped = true,
+		})
+		return
+	end
+
+	if equipped then
+		UI.button(detailPane, "Unequip", {
+			text = `Back to {if character then character.name else "base"} base`,
+			color = UI.color.paperSunken,
+			textColor = UI.color.ink,
+			textSize = UI.text.caption,
+			extent = UDim2.new(1, -20, 0, 32),
+			position = UDim2.new(0, 10, 1, -78),
+			stroke = false,
+			sheen = false,
+
+			onActivated = function()
+				equipRemote:FireServer({ characterId = skin.characterId })
+			end,
+		})
+	else
+		UI.button(detailPane, "Equip", {
+			text = "Equip this look",
+			color = UI.color.sky,
+			textColor = UI.color.ink,
+			extent = UDim2.new(1, -20, 0, 32),
+			position = UDim2.new(0, 10, 1, -78),
+			stroke = false,
+			sheen = false,
+
+			onActivated = function()
+				equipRemote:FireServer({ characterId = skin.characterId, skinId = skin.id })
+			end,
+		})
+	end
+
+	if sellable > 0 then
+		UI.button(detailPane, "SellOne", {
+			text = "Sell 1",
+			color = UI.color.paperSunken,
+			textColor = UI.color.ink,
+			textSize = UI.text.caption,
+			extent = UDim2.new(0.5, -14, 0, 30),
+			position = UDim2.new(0, 10, 1, -40),
+			stroke = false,
+			sheen = false,
+
+			onActivated = function()
+				sellRemote:FireServer({ skinId = skin.id, count = 1 })
+			end,
+		})
+		UI.button(detailPane, "SellMax", {
+			text = `Sell {sellable}`,
+			color = UI.color.warning,
+			textColor = UI.color.ink,
+			textSize = UI.text.caption,
+			extent = UDim2.new(0.5, -14, 0, 30),
+			position = UDim2.new(0.5, 4, 1, -40),
+			stroke = false,
+			sheen = false,
+
+			onActivated = function()
+				sellRemote:FireServer({ skinId = skin.id, count = sellable })
+			end,
+		})
+	else
+		UI.label(detailPane, "NoSale", {
+			text = "Your only copy is equipped, so it is protected.",
+			font = UI.font.light,
+			size = UI.text.caption,
+			color = UI.color.inkFaint,
+			align = Enum.TextXAlignment.Center,
+			position = UDim2.new(0, 10, 1, -38),
+			extent = UDim2.new(1, -20, 0, 28),
+			wrapped = true,
+		})
+	end
+end
+
+function renderCollection()
 	clearGuiObjects(collectionList)
-	local index = 0
+
+	local visible = {}
 	for _, skin in CompanionSkins.SKINS do
-		if collectionFilter == "all" or skin.characterId == collectionFilter then
-			index += 1
-			buildCollectionRow(skin, index)
+		if matchesFilter(skin) then
+			table.insert(visible, skin)
 		end
 	end
-	collectionList.CanvasPosition = Vector2.zero
+
+	local stillShown = false
+	for _, skin in visible do
+		if skin.id == selectedSkinId then
+			stillShown = true
+			break
+		end
+	end
+	if not stillShown then
+		selectedSkinId = if visible[1] then visible[1].id else nil
+	end
+
+	for index, skin in visible do
+		buildCollectionRow(skin, index)
+	end
 	paintCollectionFilters()
+	renderDetail()
 end
 
 local function buildCollectionFilters(parent: Frame)
@@ -385,17 +624,19 @@ local function buildCollectionFilters(parent: Frame)
 	layout.Parent = collectionFilterBar
 
 	local entries = {
-		{ key = "all", label = "All skins" },
+		{ key = "all", label = "All" },
 		{ key = "chiikawa", label = "Chiikawa" },
 		{ key = "hachiware", label = "Hachiware" },
 		{ key = "usagi", label = "Usagi" },
+		{ key = "showcase", label = "Showcase" },
 	}
 	for index, entry in entries do
 		local button = UI.button(collectionFilterBar, entry.key, {
 			text = entry.label,
+			textSize = UI.text.caption,
 			color = UI.color.paperSunken,
 			textColor = UI.color.inkSoft,
-			extent = UDim2.new(0.25, -5, 1, 0),
+			extent = UDim2.new(1 / #entries, -5, 1, 0),
 			stroke = false,
 			sheen = false,
 
@@ -405,42 +646,6 @@ local function buildCollectionFilters(parent: Frame)
 			end,
 		})
 		button.LayoutOrder = index
-	end
-end
-
-local function buildBaseButtons(parent: Frame)
-	local holder = UI.card(parent, "BaseLooks", {
-		color = UI.color.paperRaised,
-		radius = UI.radius.chip,
-		position = UDim2.fromOffset(0, 42),
-		stroke = false,
-		sheen = false,
-		innerLine = false,
-	})
-	holder.Size = UDim2.new(1, 0, 0, 48)
-	UI.label(holder, "Label", {
-		text = "BASE LOOKS",
-		font = UI.font.bold,
-		size = UI.text.caption,
-		color = UI.color.inkSoft,
-		position = UDim2.fromOffset(12, 15),
-		extent = UDim2.fromOffset(90, 18),
-	})
-	for index, characterId in CompanionSkins.CHARACTER_ORDER do
-		local character = CompanionSkins.CHARACTERS[characterId]
-		UI.button(holder, characterId, {
-			text = `{character.name} base`,
-			color = UI.color.paperSunken,
-			textColor = UI.color.ink,
-			extent = UDim2.new(0.27, -6, 0, 30),
-			position = UDim2.new(0.18 + (index - 1) * 0.275, 0, 0, 9),
-			stroke = false,
-			sheen = false,
-
-			onActivated = function()
-				equipRemote:FireServer({ characterId = characterId })
-			end,
-		})
 	end
 end
 
@@ -458,11 +663,11 @@ local function buildOddsPage(parent: Frame)
 	UI.list(scroll, 8)
 
 	UI.label(scroll, "Intro", {
-		text = "Every capsule uses the odds below. Each rarity contains one Chiikawa, one Hachiware, and one Usagi skin, chosen evenly.",
+		text = `Every capsule uses the odds below. A capsule first picks a rarity, then picks evenly from the looks in that rarity. Showcase looks are viewable in the Collection tab but never drop. A rare or better is guaranteed every {CompanionSkins.RARE_PLUS_PITY} pulls, and a legendary every {CompanionSkins.LEGENDARY_PITY}.`,
 		font = UI.font.body,
 		size = UI.text.small,
 		color = UI.color.inkSoft,
-		extent = UDim2.new(1, -10, 0, 44),
+		extent = UDim2.new(1, -10, 0, 60),
 		wrapped = true,
 	})
 
@@ -497,11 +702,12 @@ local function buildOddsPage(parent: Frame)
 			position = UDim2.fromOffset(14, 31),
 			extent = UDim2.new(0.56, 0, 0, 18),
 		})
+		local pool = math.max(CompanionSkins.poolSize(rarityId), 1)
 		UI.label(card, "Rates", {
-			text = `Standard {standard}%  ·  Premium {premium}%\nEach skin {string.format("%.2f", standard / 3)}% / {string.format(
+			text = `Standard {standard}%  ·  Premium {premium}%\n{pool} look{if pool == 1 then "" else "s"} · each {string.format(
 				"%.2f",
-				premium / 3
-			)}%`,
+				standard / pool
+			)}% / {string.format("%.2f", premium / pool)}%`,
 			font = UI.font.bold,
 			size = UI.text.caption,
 			color = UI.color.ink,
@@ -527,8 +733,8 @@ local function buildPanel(parent: ScreenGui)
 	UI.padding(panel, UI.space.base)
 
 	local constraint = Instance.new("UISizeConstraint")
-	constraint.MinSize = Vector2.new(620, 500)
-	constraint.MaxSize = Vector2.new(780, 650)
+	constraint.MinSize = Vector2.new(700, 520)
+	constraint.MaxSize = Vector2.new(980, 680)
 	constraint.Parent = panel
 
 	UI.label(panel, "Title", {
@@ -559,34 +765,36 @@ local function buildPanel(parent: ScreenGui)
 
 	local status = UI.card(panel, "Status", {
 		color = UI.color.paperRaised,
-		radius = UI.radius.pill,
+		radius = UI.radius.chip,
 		position = UDim2.fromOffset(0, 56),
 		stroke = false,
 		sheen = false,
 		innerLine = false,
 	})
-	status.Size = UDim2.new(1, 0, 0, 30)
+	status.Size = UDim2.new(1, 0, 0, 46)
 	yenLabel = UI.label(status, "Yen", {
 		text = "0 yen",
 		font = UI.font.bold,
 		size = UI.text.small,
-		position = UDim2.fromOffset(12, 5),
-		extent = UDim2.new(0.5, -12, 0, 20),
+		position = UDim2.fromOffset(14, 6),
+		extent = UDim2.new(0.26, -14, 0, 18),
 	})
 	capacityLabel = UI.label(status, "Capacity", {
 		text = "0 / 60 slots used",
-		font = UI.font.body,
-		size = UI.text.small,
-		align = Enum.TextXAlignment.Right,
-		position = UDim2.new(0.5, 0, 0, 5),
-		extent = UDim2.new(0.5, -12, 0, 20),
+		font = UI.font.light,
+		size = UI.text.caption,
+		color = UI.color.inkSoft,
+		position = UDim2.fromOffset(14, 24),
+		extent = UDim2.new(0.26, -14, 0, 16),
 	})
+	buildPityMeter(status, "rare", UI.color.sky, UDim2.new(0.3, 0, 0, 7))
+	buildPityMeter(status, "legendary", UI.color.gold, UDim2.new(0.65, 0, 0, 7))
 
 	local body = Instance.new("Frame")
 	body.Name = "Body"
 	body.BackgroundTransparency = 1
-	body.Position = UDim2.fromOffset(0, 148)
-	body.Size = UDim2.new(1, 0, 1, -148)
+	body.Position = UDim2.fromOffset(0, 164)
+	body.Size = UDim2.new(1, 0, 1, -164)
 	body.Parent = panel
 
 	for _, key in { "draw", "collection", "odds" } do
@@ -605,19 +813,28 @@ local function buildPanel(parent: ScreenGui)
 	buildDrawTicket(pages.draw, "premium", UDim2.fromScale(0.515, 0))
 
 	buildCollectionFilters(pages.collection)
-	buildBaseButtons(pages.collection)
 	collectionList = Instance.new("ScrollingFrame")
 	collectionList.Name = "CollectionList"
 	collectionList.BackgroundTransparency = 1
 	collectionList.BorderSizePixel = 0
-	collectionList.Position = UDim2.fromOffset(0, 98)
-	collectionList.Size = UDim2.new(1, 0, 1, -98)
+	collectionList.Position = UDim2.fromOffset(0, 42)
+	collectionList.Size = UDim2.new(0.53, 0, 1, -42)
 	collectionList.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	collectionList.CanvasSize = UDim2.fromOffset(0, 0)
 	collectionList.ScrollBarThickness = 6
 	collectionList.ScrollBarImageColor3 = UI.color.inkSoft
 	collectionList.Parent = pages.collection
-	UI.list(collectionList, 7)
+	UI.list(collectionList, 6)
+
+	detailPane = UI.card(pages.collection, "Detail", {
+		color = UI.color.paperRaised,
+		radius = UI.radius.tile,
+		position = UDim2.new(0.55, 0, 0, 42),
+		stroke = false,
+		sheen = false,
+		innerLine = false,
+	})
+	detailPane.Size = UDim2.new(0.45, 0, 1, -42)
 
 	buildOddsPage(pages.odds)
 	paintStatus()

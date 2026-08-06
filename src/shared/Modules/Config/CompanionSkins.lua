@@ -1,5 +1,8 @@
 --!strict
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local SkinLooks = require(Shared.Modules.Config.SkinLooks)
 local CompanionSkins = {}
 
 export type RarityId = "common" | "uncommon" | "rare" | "epic" | "legendary"
@@ -32,6 +35,7 @@ export type SkinDefinition = {
 	name: string,
 	characterId: string,
 	rarity: RarityId,
+	showcase: boolean?,
 	assetKey: string?,
 	scale: number?,
 }
@@ -135,31 +139,60 @@ CompanionSkins.CHARACTERS = {
 } :: { [string]: CharacterDefinition }
 
 local skins = {} :: { SkinDefinition }
-for _, characterId in CompanionSkins.CHARACTER_ORDER do
-	local character = CompanionSkins.CHARACTERS[characterId]
-	for _, rarityId in RARITY_ORDER do
-		local rarity = CompanionSkins.RARITIES[rarityId]
-		local skin: SkinDefinition = {
-			id = `{characterId}_{rarityId}_01`,
-			name = `{character.name} {rarity.name} Skin`,
-			characterId = characterId,
-			rarity = (rarityId :: any) :: RarityId,
-			assetKey = nil,
-			scale = nil,
-		}
-		table.insert(skins, skin)
+for _, entry in SkinLooks.ENTRIES do
+	if not CompanionSkins.CHARACTERS[entry.characterId] then
+		continue
 	end
+	if not CompanionSkins.RARITIES[entry.rarity] then
+		continue
+	end
+	table.insert(skins, {
+		id = entry.id,
+		name = entry.name,
+		characterId = entry.characterId,
+		rarity = (entry.rarity :: any) :: RarityId,
+		showcase = entry.showcase,
+		assetKey = nil,
+		scale = nil,
+	})
 end
 CompanionSkins.SKINS = skins
 
 local byId = {} :: { [string]: SkinDefinition }
 local byRarity = {} :: { [string]: { SkinDefinition } }
+local dropPool = {} :: { [string]: { SkinDefinition } }
 for _, rarityId in RARITY_ORDER do
 	byRarity[rarityId] = {}
+	dropPool[rarityId] = {}
 end
 for _, skin in skins do
 	byId[skin.id] = skin
 	table.insert(byRarity[skin.rarity], skin)
+	if not skin.showcase then
+		table.insert(dropPool[skin.rarity], skin)
+	end
+end
+for _, rarityId in RARITY_ORDER do
+	if #dropPool[rarityId] == 0 then
+		dropPool[rarityId] = byRarity[rarityId]
+	end
+end
+
+CompanionSkins.BY_RARITY = byRarity
+
+function CompanionSkins.poolSize(rarityId: string, includeShowcase: boolean?): number
+	local pool = if includeShowcase then byRarity[rarityId] else dropPool[rarityId]
+	return if pool then #pool else 0
+end
+
+function CompanionSkins.forCharacter(characterId: string): { SkinDefinition }
+	local out = {}
+	for _, skin in skins do
+		if skin.characterId == characterId then
+			table.insert(out, skin)
+		end
+	end
+	return out
 end
 
 local function finiteInteger(value: unknown, maximum: number): number
@@ -285,7 +318,7 @@ function CompanionSkins.rollRarity(draw: DrawDefinition, minimumOrder: number, r
 end
 
 function CompanionSkins.rollSkin(rarityId: string, rng: Random): SkinDefinition
-	local pool = byRarity[rarityId]
+	local pool = dropPool[rarityId]
 	return pool[rng:NextInteger(1, #pool)]
 end
 

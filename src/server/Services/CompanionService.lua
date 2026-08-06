@@ -15,6 +15,8 @@ local Npcs = require(Shared.Modules.Config.Npcs)
 local Remotes = require(Shared.Modules.Remotes)
 local SafeZone = require(Shared.Modules.Config.SafeZone)
 local Skeleton = require(Shared.Modules.Anim.Skeleton)
+local SkinLook = require(Shared.Modules.SkinLook)
+local SkinLooks = require(Shared.Modules.Config.SkinLooks)
 local Skills = require(Shared.Modules.Config.Skills)
 local UI = require(Shared.UI)
 local AssetService = require(script.Parent.AssetService)
@@ -269,6 +271,29 @@ local function buildCompanion(spec: Companions.CompanionSpec, profile: any?): (M
 	return Mascot.build(definition.build, CFrame.new(), spec.name), 1
 end
 
+local function dressCompanion(model: Model, spec: Companions.CompanionSpec, profile: any?): number
+	local equipped = if profile then CompanionSkins.equippedSkin(profile, spec.id) else nil
+	if not equipped then
+		return 1
+	end
+
+	local look = SkinLooks.get(equipped.id)
+	if not look then
+		return 1
+	end
+
+	model:SetAttribute("CompanionSkinId", equipped.id)
+	for _, part in SkinLook.apply(model, spec.id, look) do
+		part.Anchored = false
+		part.Massless = true
+		if collisionGroupReady then
+			part.CollisionGroup = COLLISION_GROUP
+		end
+	end
+
+	return look.scale or 1
+end
+
 local function sendShelf(player: Player, id: string)
 	Remotes.event("Companion", "Shelf"):FireClient(player, id)
 end
@@ -336,6 +361,8 @@ local function spawn(player: Player, character: Model, trigger: string)
 		model:Destroy()
 		return
 	end
+
+	skinScale *= dressCompanion(model, spec, profile)
 
 	despawn(player)
 	sendShelf(player, spec.id)
