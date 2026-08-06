@@ -13,6 +13,9 @@ local LIGHT = Color3.fromRGB(248, 244, 236)
 local DARK = Color3.fromRGB(116, 146, 128)
 local TRANSPARENCY = 0.55
 local LABEL_LIFT = 26
+local LABEL_WIDTH = 84
+local LABEL_HEIGHT = 34
+local LABEL_DISTANCE = 620
 
 BoardService.height = Constants.WORLD.PLATFORM_TOP + 0.3
 
@@ -44,32 +47,47 @@ local function label(cell: Sections.Cell, parent: Model)
 	anchor.CFrame = CFrame.new(cell.cx, BoardService.height + LABEL_LIFT, cell.cz)
 
 	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(150, 64)
+	gui.Size = UDim2.fromOffset(LABEL_WIDTH, LABEL_HEIGHT)
 	gui.AlwaysOnTop = true
 	gui.LightInfluence = 0
-	gui.MaxDistance = 1400
+	gui.MaxDistance = LABEL_DISTANCE
 	gui.Parent = anchor
 
+	local plate = Instance.new("Frame")
+	plate.Name = "Plate"
+	plate.BackgroundColor3 = Color3.fromRGB(28, 32, 30)
+	plate.BackgroundTransparency = 0.35
+	plate.BorderSizePixel = 0
+	plate.Size = UDim2.fromScale(1, 1)
+	plate.Parent = gui
+
+	local rounded = Instance.new("UICorner")
+	rounded.CornerRadius = UDim.new(0, 6)
+	rounded.Parent = plate
+
 	local coord = Instance.new("TextLabel")
+	coord.Name = "Coord"
 	coord.BackgroundTransparency = 1
-	coord.Size = UDim2.fromScale(1, 0.62)
+	coord.Position = UDim2.fromScale(0, 0.06)
+	coord.Size = UDim2.fromScale(1, 0.52)
 	coord.Font = Enum.Font.GothamBold
 	coord.TextScaled = true
 	coord.TextColor3 = Color3.fromRGB(255, 255, 255)
-	coord.TextStrokeTransparency = 0.2
+	coord.TextStrokeTransparency = 0.35
 	coord.Text = cell.coord
-	coord.Parent = gui
+	coord.Parent = plate
 
 	local theme = Instance.new("TextLabel")
+	theme.Name = "Theme"
 	theme.BackgroundTransparency = 1
-	theme.Position = UDim2.fromScale(0, 0.62)
-	theme.Size = UDim2.fromScale(1, 0.38)
+	theme.Position = UDim2.fromScale(0.06, 0.58)
+	theme.Size = UDim2.fromScale(0.88, 0.34)
 	theme.Font = Enum.Font.Gotham
 	theme.TextScaled = true
-	theme.TextColor3 = Color3.fromRGB(226, 226, 226)
-	theme.TextStrokeTransparency = 0.4
+	theme.TextColor3 = Color3.fromRGB(206, 214, 208)
+	theme.TextStrokeTransparency = 0.6
 	theme.Text = cell.theme
-	theme.Parent = gui
+	theme.Parent = plate
 
 	anchor.Parent = parent
 end

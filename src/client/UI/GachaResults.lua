@@ -16,6 +16,7 @@ export type Presentation = {
 	rarityName: string,
 	rarityColor: Color3,
 	rarityOrder: number,
+	mountPreview: ((parent: Instance, hero: boolean) -> GuiObject?)?,
 }
 
 export type Presenter = (result: PullResult) -> Presentation?
@@ -69,32 +70,49 @@ local function addResultCard(parent: Instance, result: PullResult, presentation:
 		position = UDim2.new(0.42, 0, 0, 8),
 		extent = UDim2.new(0.58, -12, 0, 18),
 	})
+	local mountPreview = presentation.mountPreview
+	local stage: Frame? = nil
+
+	if mountPreview then
+		local host = Instance.new("Frame")
+		host.Name = "Stage"
+		host.BackgroundTransparency = 1
+		host.Position = UDim2.fromOffset(10, 28)
+		host.Size = UDim2.new(1, -20, 1, -80)
+		host.Parent = card
+		stage = host
+	end
+
 	UI.label(card, "Name", {
 		text = presentation.name,
 		font = UI.font.display,
-		size = UI.text.body,
+		size = if stage then UI.text.small else UI.text.body,
 		color = WHITE,
 		align = Enum.TextXAlignment.Center,
-		position = UDim2.fromOffset(10, 36),
-		extent = UDim2.new(1, -20, 0, 50),
+		position = if stage then UDim2.new(0, 8, 1, -48) else UDim2.fromOffset(10, 36),
+		extent = if stage then UDim2.new(1, -16, 0, 30) else UDim2.new(1, -20, 0, 50),
 		wrapped = true,
 	})
-	UI.label(card, "Subtitle", {
-		text = presentation.subtitle,
-		font = UI.font.body,
-		size = UI.text.small,
-		color = Color3.fromRGB(196, 202, 220),
-		align = Enum.TextXAlignment.Center,
-		position = UDim2.new(0, 10, 1, -52),
-		extent = UDim2.new(1, -20, 0, 20),
-	})
+
+	if not stage then
+		UI.label(card, "Subtitle", {
+			text = presentation.subtitle,
+			font = UI.font.body,
+			size = UI.text.small,
+			color = Color3.fromRGB(196, 202, 220),
+			align = Enum.TextXAlignment.Center,
+			position = UDim2.new(0, 10, 1, -52),
+			extent = UDim2.new(1, -20, 0, 20),
+		})
+	end
+
 	UI.label(card, "CopyState", {
 		text = if result.isNew then "NEW!" else "EXTRA COPY",
 		font = UI.font.bold,
 		size = UI.text.caption,
 		color = if result.isNew then Color3.fromRGB(138, 244, 192) else Color3.fromRGB(176, 183, 204),
 		align = Enum.TextXAlignment.Center,
-		position = UDim2.new(0, 10, 1, -29),
+		position = if stage then UDim2.new(0, 10, 1, -22) else UDim2.new(0, 10, 1, -29),
 		extent = UDim2.new(1, -20, 0, 18),
 	})
 
@@ -104,6 +122,12 @@ local function addResultCard(parent: Instance, result: PullResult, presentation:
 		end
 		card.Visible = true
 		UI.motion.to(scale, UI.motion.pop, { Scale = 1 })
+		if stage and mountPreview then
+			local preview = mountPreview(stage, false)
+			if preview then
+				preview.ZIndex = card.ZIndex + 1
+			end
+		end
 	end)
 end
 
@@ -189,22 +213,29 @@ function GachaResults.show(
 	resultList.Size = UDim2.new(1, -48, 1, -180)
 	resultList.Parent = panel
 
+	local cards: { { result: PullResult, presentation: Presentation } } = {}
+	local withPreview = false
+	for _, result in results do
+		local presentation = present(result)
+		if presentation then
+			table.insert(cards, { result = result, presentation = presentation })
+			withPreview = withPreview or presentation.mountPreview ~= nil
+		end
+	end
+
 	local grid = Instance.new("UIGridLayout")
-	local columns = math.min(math.max(#results, 1), 5)
+	local columns = math.min(math.max(#cards, 1), 5)
 	grid.CellPadding = UDim2.fromOffset(10, 10)
-	grid.CellSize = if #results == 1
-		then UDim2.new(0.56, 0, 0, 210)
-		else UDim2.new(1 / columns, -10, 0, 160)
+	grid.CellSize = if #cards == 1
+		then UDim2.new(0.56, 0, 0, if withPreview then 280 else 210)
+		else UDim2.new(1 / columns, -10, 0, if withPreview then 196 else 160)
 	grid.FillDirectionMaxCells = columns
 	grid.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	grid.Parent = resultList
 
-	for index, result in results do
-		local presentation = present(result)
-		if presentation then
-			addResultCard(resultList, result, presentation, index)
-		end
+	for index, entry in cards do
+		addResultCard(resultList, entry.result, entry.presentation, index)
 	end
 
 	local continueButton = UI.button(panel, "Continue", {

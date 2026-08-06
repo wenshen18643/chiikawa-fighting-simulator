@@ -17,6 +17,7 @@ export type Presentation = {
 	rarityName: string,
 	rarityColor: Color3,
 	rarityOrder: number,
+	mountPreview: ((parent: Instance, hero: boolean) -> GuiObject?)?,
 }
 
 export type Presenter = (result: PullResult) -> Presentation?
@@ -112,6 +113,31 @@ local function makeResultLabels(
 	index: number,
 	total: number
 )
+	local mountPreview = presentation.mountPreview
+	local stage: Frame? = nil
+	local stageSize = UDim2.fromOffset(0, 0)
+
+	if mountPreview then
+		local host = Instance.new("Frame")
+		host.Name = "PreviewStage"
+		host.AnchorPoint = Vector2.new(0.5, 0.5)
+		host.BackgroundTransparency = 1
+		host.Position = UDim2.fromScale(0.5, 0.36)
+		host.Size = UDim2.fromOffset(0, 0)
+		host.ZIndex = 117
+		host.Parent = parent
+
+		local preview = mountPreview(host, true)
+		if preview then
+			preview.Size = UDim2.fromScale(1, 1)
+			stage = host
+			local span = 216 + presentation.rarityOrder * 26
+			stageSize = UDim2.fromOffset(span, span)
+		else
+			host:Destroy()
+		end
+	end
+
 	local counter = Instance.new("TextLabel")
 	counter.Name = "Counter"
 	counter.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -147,11 +173,11 @@ local function makeResultLabels(
 	nameLabel.AnchorPoint = Vector2.new(0.5, 0.5)
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Font = UI.font.display
-	nameLabel.Position = UDim2.fromScale(0.5, 0.64)
-	nameLabel.Size = UDim2.fromScale(0.82, 0.1)
+	nameLabel.Position = if stage then UDim2.fromScale(0.5, 0.65) else UDim2.fromScale(0.5, 0.64)
+	nameLabel.Size = if stage then UDim2.fromScale(0.82, 0.08) else UDim2.fromScale(0.82, 0.1)
 	nameLabel.Text = presentation.name
 	nameLabel.TextColor3 = WHITE
-	nameLabel.TextSize = 26
+	nameLabel.TextSize = if stage then 16 else 26
 	nameLabel.TextStrokeColor3 = BACKDROP
 	nameLabel.TextStrokeTransparency = 0.15
 	nameLabel.TextTransparency = 1
@@ -163,7 +189,7 @@ local function makeResultLabels(
 	copyLabel.AnchorPoint = Vector2.new(0.5, 0.5)
 	copyLabel.BackgroundTransparency = 1
 	copyLabel.Font = UI.font.bold
-	copyLabel.Position = UDim2.fromScale(0.5, 0.71)
+	copyLabel.Position = UDim2.fromScale(0.5, 0.72)
 	copyLabel.Size = UDim2.fromOffset(240, 30)
 	copyLabel.Text = if result.isNew then "NEW!" else "EXTRA COPY"
 	copyLabel.TextColor3 = if result.isNew then Color3.fromRGB(138, 244, 192) else Color3.fromRGB(196, 202, 220)
@@ -172,15 +198,23 @@ local function makeResultLabels(
 	copyLabel.ZIndex = 116
 	copyLabel.Parent = parent
 
+	local nameTarget = if stage then 24 else 42
+
 	if UI.motion.isReducedMotion() then
+		if stage then
+			stage.Size = stageSize
+		end
 		rarityLabel.TextTransparency = 0
 		nameLabel.TextTransparency = 0
 		copyLabel.TextTransparency = 0
 		return
 	end
 
+	if stage then
+		tween(stage, 0.34, Enum.EasingStyle.Back, { Size = stageSize })
+	end
 	tween(rarityLabel, 0.28, Enum.EasingStyle.Back, { TextSize = 34, TextTransparency = 0 })
-	tween(nameLabel, 0.32, Enum.EasingStyle.Back, { TextSize = 42, TextTransparency = 0 })
+	tween(nameLabel, 0.32, Enum.EasingStyle.Back, { TextSize = nameTarget, TextTransparency = 0 })
 	tween(copyLabel, 0.25, Enum.EasingStyle.Quad, { TextTransparency = 0 })
 end
 
@@ -278,12 +312,13 @@ function GachaReveal.play(
 		local index = nextIndex
 		nextIndex += 1
 		local result = results[index]
-		local presentation = present(result) or {
+		local presentation: Presentation = present(result) or {
 			name = "Mystery Skin",
 			subtitle = "Unknown item",
 			rarityName = "Unknown",
 			rarityColor = Color3.fromRGB(178, 158, 152),
 			rarityOrder = 1,
+			mountPreview = nil,
 		}
 		local scene = Instance.new("Frame")
 		scene.Name = `Pull{index}`
@@ -332,8 +367,9 @@ function GachaReveal.play(
 		corner(core, UDim.new(0.22, 0))
 
 		local travelTime = 0.5 + presentation.rarityOrder * 0.025
+		local hasPreview = presentation.mountPreview ~= nil
 		tween(flare, travelTime, Enum.EasingStyle.Quint, {
-			Position = UDim2.fromScale(0.5, 0.43),
+			Position = if hasPreview then UDim2.fromScale(0.5, 0.36) else UDim2.fromScale(0.5, 0.43),
 			Size = UDim2.fromOffset(
 				140 + presentation.rarityOrder * 10,
 				140 + presentation.rarityOrder * 10
@@ -380,6 +416,17 @@ function GachaReveal.play(
 					tween(flash, 0.28, Enum.EasingStyle.Quad, { BackgroundTransparency = 1 })
 				end
 			end)
+
+			if hasPreview then
+				tween(core, 0.26, Enum.EasingStyle.Quad, { BackgroundTransparency = 1 })
+				tween(flare, 0.4, Enum.EasingStyle.Quad, {
+					BackgroundTransparency = 0.78,
+					Size = UDim2.fromOffset(
+						230 + presentation.rarityOrder * 30,
+						230 + presentation.rarityOrder * 30
+					),
+				})
+			end
 
 			makeResultLabels(scene, result, presentation, index, #results)
 		end)

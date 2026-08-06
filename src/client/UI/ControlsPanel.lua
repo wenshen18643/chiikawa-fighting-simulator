@@ -17,6 +17,11 @@ local PAGE_SCROLLBAR_GUTTER = 16
 local HERO_PADDING = 18
 local HERO_ACCENT_INSET = 4
 local HERO_ACCENT_END_INSET = 10
+local PANEL_MARGIN = UI.space.loose
+local PANEL_MIN = Vector2.new(640, 420)
+local PANEL_MAX = Vector2.new(960, 680)
+local HEADER_HEIGHT = 78
+local NAV_WIDTH = 164
 local screen: ScreenGui
 local scrim: TextButton
 local panel: Frame
@@ -154,6 +159,7 @@ local function addTimelineRow(parent: Instance, index: number, rowData: Tutorial
 	row.Size = UDim2.new(1, 0, 0, 78)
 	row.AutomaticSize = Enum.AutomaticSize.Y
 	row.LayoutOrder = index
+	row.ClipsDescendants = true
 
 	local rail = Instance.new("Frame")
 	rail.Name = "Route"
@@ -239,13 +245,16 @@ local function buildBlock(parent: ScrollingFrame, index: number, block: Tutorial
 	local card = UI.card(parent, `Block_{index}`, {
 		color = UI.color.paperDeep,
 		transparency = 0.08,
-		radius = UI.radius.card,
+		radius = UI.radius.tile,
+		stroke = false,
+		sheen = false,
+		innerLine = false,
 		zIndex = 23,
 	})
 	card.Size = UDim2.new(1, 0, 0, 0)
 	card.AutomaticSize = Enum.AutomaticSize.Y
 	card.LayoutOrder = index + 1
-	UI.padding(card, 16)
+	UI.padding(card, UI.space.base)
 
 	local layout = Instance.new("UIListLayout")
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -254,7 +263,7 @@ local function buildBlock(parent: ScrollingFrame, index: number, block: Tutorial
 
 	local title = autoLabel(card, "Title", block.title, {
 		font = UI.font.display,
-		size = 18,
+		size = UI.text.subtitle,
 		zIndex = 25,
 	})
 	title.LayoutOrder = 1
@@ -345,7 +354,10 @@ local function buildPage(parent: Frame, pageData: TutorialContent.Page): Scrolli
 	local hero = UI.card(page, "Hero", {
 		color = UI.color.paperDeep,
 		transparency = 0,
-		radius = UI.radius.card,
+		radius = UI.radius.tile,
+		stroke = false,
+		sheen = false,
+		innerLine = false,
 		zIndex = 23,
 	})
 	hero.Size = UDim2.new(1, 0, 0, 0)
@@ -374,11 +386,11 @@ local function buildPage(parent: Frame, pageData: TutorialContent.Page): Scrolli
 
 	local title = autoLabel(hero, "Title", pageData.title, {
 		font = UI.font.display,
-		size = 26,
+		size = UI.text.title,
 		color = UI.color.ink,
 		zIndex = 24,
 	})
-	title.Position = UDim2.fromOffset(0, 24)
+	title.Position = UDim2.fromOffset(0, 22)
 
 	for index, block in pageData.blocks do
 		buildBlock(page, index, block, accent)
@@ -422,8 +434,13 @@ local function viewportSize(): Vector2
 end
 
 local function targetPanelSize(): UDim2
-	local compact = viewportSize().X < COMPACT_WIDTH
-	return if compact then UDim2.fromScale(0.96, 0.92) else UDim2.fromScale(0.88, 0.86)
+	local view = viewportSize()
+	local compact = view.X < COMPACT_WIDTH
+	local widthShare = if compact then 0.96 else 0.9
+	local heightShare = if compact then 0.92 else 0.88
+	local width = math.clamp(view.X * widthShare, math.min(PANEL_MIN.X, view.X - 16), PANEL_MAX.X)
+	local height = math.clamp(view.Y * heightShare, math.min(PANEL_MIN.Y, view.Y - 16), PANEL_MAX.Y)
+	return UDim2.fromOffset(math.floor(width), math.floor(height))
 end
 
 local function applyResponsiveLayout()
@@ -437,36 +454,37 @@ local function applyResponsiveLayout()
 	end
 
 	if compact then
-		navigation.Position = UDim2.fromOffset(14, 62)
-		navigation.Size = UDim2.new(1, -28, 0, 42)
+		navigation.Position = UDim2.fromOffset(PANEL_MARGIN, HEADER_HEIGHT)
+		navigation.Size = UDim2.new(1, -PANEL_MARGIN * 2, 0, 40)
 		navigation.AutomaticCanvasSize = Enum.AutomaticSize.X
 		navigation.ScrollingDirection = Enum.ScrollingDirection.X
 		navigationLayout.FillDirection = Enum.FillDirection.Horizontal
-		navigationLayout.Padding = UDim.new(0, 7)
+		navigationLayout.Padding = UDim.new(0, UI.space.tight)
 
-		contentHost.Position = UDim2.fromOffset(14, 114)
-		contentHost.Size = UDim2.new(1, -28, 1, -128)
+		contentHost.Position = UDim2.fromOffset(PANEL_MARGIN, HEADER_HEIGHT + 50)
+		contentHost.Size = UDim2.new(1, -PANEL_MARGIN * 2, 1, -(HEADER_HEIGHT + 50 + PANEL_MARGIN))
 		closeButton.Text = "CLOSE"
 		closeButton.Size = UDim2.fromOffset(72, 28)
 
 		for _, button in pageButtons do
-			button.Size = UDim2.fromOffset(116, 38)
+			button.Size = UDim2.fromOffset(112, 34)
 		end
 	else
-		navigation.Position = UDim2.fromOffset(18, 76)
-		navigation.Size = UDim2.new(0, 168, 1, -94)
+		navigation.Position = UDim2.fromOffset(PANEL_MARGIN, HEADER_HEIGHT)
+		navigation.Size = UDim2.new(0, NAV_WIDTH, 1, -(HEADER_HEIGHT + PANEL_MARGIN))
 		navigation.AutomaticCanvasSize = Enum.AutomaticSize.Y
 		navigation.ScrollingDirection = Enum.ScrollingDirection.Y
 		navigationLayout.FillDirection = Enum.FillDirection.Vertical
-		navigationLayout.Padding = UDim.new(0, 8)
+		navigationLayout.Padding = UDim.new(0, UI.space.tight)
 
-		contentHost.Position = UDim2.fromOffset(204, 76)
-		contentHost.Size = UDim2.new(1, -222, 1, -94)
+		local contentX = PANEL_MARGIN + NAV_WIDTH + UI.space.base
+		contentHost.Position = UDim2.fromOffset(contentX, HEADER_HEIGHT)
+		contentHost.Size = UDim2.new(1, -(contentX + PANEL_MARGIN), 1, -(HEADER_HEIGHT + PANEL_MARGIN))
 		closeButton.Text = "BACK TO GAME"
 		closeButton.Size = UDim2.fromOffset(124, 30)
 
 		for _, button in pageButtons do
-			button.Size = UDim2.new(1, 0, 0, 42)
+			button.Size = UDim2.new(1, 0, 0, 40)
 		end
 	end
 end
@@ -475,7 +493,7 @@ local function buildPanel(parent: ScreenGui)
 	scrim = Instance.new("TextButton")
 	scrim.Name = "FieldGuideScrim"
 	scrim.Size = UDim2.fromScale(1, 1)
-	scrim.BackgroundColor3 = UI.color.glassDark
+	scrim.BackgroundColor3 = UI.color.scrim
 	scrim.BackgroundTransparency = 1
 	scrim.BorderSizePixel = 0
 	scrim.AutoButtonColor = false
@@ -491,6 +509,9 @@ local function buildPanel(parent: ScreenGui)
 		color = UI.color.paper,
 		transparency = 0,
 		radius = UI.radius.card,
+		strokeColor = UI.color.lineSoft,
+		strokeWidth = UI.Theme.stroke.hair,
+		innerLine = false,
 		zIndex = 21,
 	})
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -498,37 +519,34 @@ local function buildPanel(parent: ScreenGui)
 	panel.Size = targetPanelSize()
 	UI.shadow(panel)
 
-	local limit = Instance.new("UISizeConstraint")
-	limit.MaxSize = Vector2.new(980, 700)
-	limit.Parent = panel
-
 	UI.label(panel, "Eyebrow", {
 		text = "FIELD GUIDE",
 		font = UI.font.bold,
 		size = UI.text.caption,
 		color = UI.color.inkFaint,
-		position = UDim2.fromOffset(20, 10),
-		extent = UDim2.fromOffset(180, 16),
+		position = UDim2.fromOffset(PANEL_MARGIN, 14),
+		extent = UDim2.fromOffset(180, 14),
 		zIndex = 23,
 	})
 
 	UI.label(panel, "Title", {
 		text = "How to play",
 		font = UI.font.display,
-		size = 24,
-		position = UDim2.fromOffset(20, 25),
-		extent = UDim2.new(1, -180, 0, 31),
+		size = UI.text.title,
+		position = UDim2.fromOffset(PANEL_MARGIN, 29),
+		extent = UDim2.new(1, -(PANEL_MARGIN + 160), 0, 28),
 		zIndex = 23,
 	})
 
 	headerRule = Instance.new("Frame")
 	headerRule.Name = "ChapterColour"
-	headerRule.Position = UDim2.fromOffset(0, 58)
-	headerRule.Size = UDim2.new(1, 0, 0, 4)
+	headerRule.Position = UDim2.fromOffset(PANEL_MARGIN, HEADER_HEIGHT - 16)
+	headerRule.Size = UDim2.new(1, -PANEL_MARGIN * 2, 0, 3)
 	headerRule.BackgroundColor3 = UI.color.leaf
 	headerRule.BorderSizePixel = 0
-	headerRule.ZIndex = 23
+	headerRule.ZIndex = 22
 	headerRule.Parent = panel
+	UI.corner(headerRule, 2)
 
 	closeButton = UI.button(panel, "Close", {
 		text = "BACK TO GAME",
@@ -602,9 +620,12 @@ function ControlsPanel.setOpen(shouldOpen: boolean)
 		scrim.BackgroundTransparency = 1
 
 		local goal = targetPanelSize()
-		panel.Size = UDim2.new(goal.X.Scale * 0.96, goal.X.Offset, goal.Y.Scale * 0.96, goal.Y.Offset)
+		panel.Size = UDim2.fromOffset(
+			math.floor(goal.X.Offset * 0.96),
+			math.floor(goal.Y.Offset * 0.96)
+		)
 		TweenService:Create(scrim, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			BackgroundTransparency = 0.28,
+			BackgroundTransparency = UI.opacity.veil,
 		}):Play()
 		TweenService:Create(panel, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 			Size = goal,
