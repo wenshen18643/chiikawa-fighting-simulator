@@ -376,7 +376,7 @@ local function buildCollectionRow(skin: CompanionSkins.SkinDefinition, index: nu
 		size = UI.text.small,
 		color = if count > 0 then UI.color.ink else UI.color.inkFaint,
 		position = UDim2.fromOffset(30, 6),
-		extent = UDim2.new(1, -110, 0, 20),
+		extent = UDim2.new(1, -124, 0, 20),
 	})
 	UI.label(row, "Owned", {
 		text = if skin.showcase
@@ -387,7 +387,7 @@ local function buildCollectionRow(skin: CompanionSkins.SkinDefinition, index: nu
 		size = UI.text.caption,
 		color = UI.color.inkSoft,
 		position = UDim2.fromOffset(30, 24),
-		extent = UDim2.new(1, -110, 0, 16),
+		extent = UDim2.new(1, -124, 0, 16),
 	})
 
 	if equipped then
@@ -446,40 +446,49 @@ function renderDetail()
 	local count = snapshot.copies[skin.id] or 0
 	local equipped = snapshot.equipped[skin.characterId] == skin.id
 	local sellable = sellableCopies(snapshot, skin)
+	local actionHeight = if skin.showcase or count == 0 then 44 else 78
+	local infoHeight = 64
+	local footprint = actionHeight + infoHeight
 	local stage = Instance.new("Frame")
 	stage.Name = "Stage"
 	stage.BackgroundTransparency = 1
 	stage.Position = UDim2.fromOffset(10, 10)
-	stage.Size = UDim2.new(1, -20, 0, 172)
+	stage.Size = UDim2.new(1, -20, 1, -(footprint + 18))
 	stage.Parent = detailPane
 	SkinPreview.mount(stage, skin.id, { spin = true, zoom = 1.6 })
 
-	UI.label(detailPane, "Name", {
+	local info = Instance.new("Frame")
+	info.Name = "Info"
+	info.BackgroundTransparency = 1
+	info.Position = UDim2.new(0, 10, 1, -footprint)
+	info.Size = UDim2.new(1, -20, 0, infoHeight)
+	info.Parent = detailPane
+
+	UI.label(info, "Name", {
 		text = skin.name,
 		font = UI.font.display,
 		size = UI.text.subtitle,
 		align = Enum.TextXAlignment.Center,
-		position = UDim2.fromOffset(10, 190),
-		extent = UDim2.new(1, -20, 0, 24),
+		extent = UDim2.new(1, 0, 0, 24),
 		wrapped = true,
 	})
-	UI.label(detailPane, "Tagline", {
+	UI.label(info, "Tagline", {
 		text = `{string.upper(rarity.name)}  ·  {if character then character.name else skin.characterId}`,
 		font = UI.font.bold,
 		size = UI.text.caption,
 		color = rarity.color,
 		align = Enum.TextXAlignment.Center,
-		position = UDim2.fromOffset(10, 216),
-		extent = UDim2.new(1, -20, 0, 16),
+		position = UDim2.fromOffset(0, 26),
+		extent = UDim2.new(1, 0, 0, 16),
 	})
-	UI.label(detailPane, "Bonus", {
-		text = `Best-owned bonus ×{string.format("%.2f", rarity.multiplier)}  ·  sells for {rarity.resaleYen} yen`,
+	UI.label(info, "Bonus", {
+		text = `Bonus ×{string.format("%.2f", rarity.multiplier)}  ·  {rarity.resaleYen} yen`,
 		font = UI.font.light,
 		size = UI.text.caption,
 		color = UI.color.inkSoft,
 		align = Enum.TextXAlignment.Center,
-		position = UDim2.fromOffset(10, 236),
-		extent = UDim2.new(1, -20, 0, 16),
+		position = UDim2.fromOffset(0, 44),
+		extent = UDim2.new(1, 0, 0, 16),
 	})
 
 	if skin.showcase then
@@ -489,7 +498,7 @@ function renderDetail()
 			size = UI.text.caption,
 			color = UI.color.inkFaint,
 			align = Enum.TextXAlignment.Center,
-			position = UDim2.new(0, 10, 1, -70),
+			position = UDim2.new(0, 10, 1, -38),
 			extent = UDim2.new(1, -20, 0, 30),
 			wrapped = true,
 		})
@@ -503,7 +512,7 @@ function renderDetail()
 			size = UI.text.caption,
 			color = UI.color.inkFaint,
 			align = Enum.TextXAlignment.Center,
-			position = UDim2.new(0, 10, 1, -70),
+			position = UDim2.new(0, 10, 1, -38),
 			extent = UDim2.new(1, -20, 0, 30),
 			wrapped = true,
 		})
