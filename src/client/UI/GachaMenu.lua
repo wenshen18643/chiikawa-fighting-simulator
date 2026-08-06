@@ -11,6 +11,7 @@ local UI = require(Shared.UI)
 local StateController = require(script.Parent.Parent.Controllers.StateController)
 local WorkController = require(script.Parent.Parent.Controllers.WorkController)
 local GachaReveal = require(script.Parent.GachaReveal)
+local GachaResults = require(script.Parent.GachaResults)
 
 type GachaState = {
 	yen: BigNumber.BigNum,
@@ -33,6 +34,7 @@ type PullResult = {
 
 local GachaMenu = {}
 local INPUT_LOCK = "gacha-menu"
+local FLOW_INPUT_LOCK = "gacha-flow"
 local CLOSE_DISTANCE = 24
 local screen: ScreenGui
 local panel: Frame
@@ -41,17 +43,14 @@ local isOpen = false
 local state: GachaState? = nil
 local activePage = "draw"
 local collectionFilter = "all"
-local revealGeneration = 0
 local pullBusy = false
 local cancelReveal: (() -> ())? = nil
+local cancelResults: (() -> ())? = nil
 local pages = {} :: { [string]: Frame }
 local drawButtons = {} :: { TextButton }
 local tabButtons = {} :: { [string]: TextButton }
 local yenLabel: TextLabel
 local capacityLabel: TextLabel
-local resultHolder: ScrollingFrame
-local resultTitle: TextLabel
-local skipButton: TextButton
 local collectionList: ScrollingFrame
 local collectionFilterBar: Frame
 local pullRemote: RemoteEvent
@@ -60,6 +59,7 @@ local sellRemote: RemoteEvent
 
 local function setPullBusy(busy: boolean)
 	pullBusy = busy
+	WorkController.setInputLocked(FLOW_INPUT_LOCK, busy)
 	for _, button in drawButtons do
 		button.Active = not busy
 		button.AutoButtonColor = not busy
@@ -164,7 +164,7 @@ local function drawButton(parent: Instance, drawId: CompanionSkins.DrawId, count
 			setPullBusy(true)
 			pullRemote:FireServer({ drawId = drawId, count = count })
 			task.delay(6, function()
-				if pullBusy and not cancelReveal then
+				if pullBusy and not cancelReveal and not cancelResults then
 					setPullBusy(false)
 				end
 			end)
@@ -184,7 +184,7 @@ local function buildDrawTicket(parent: Instance, drawId: CompanionSkins.DrawId, 
 		sheen = false,
 		innerLine = false,
 	})
-	card.Size = UDim2.new(0.485, 0, 0, 126)
+	card.Size = UDim2.new(0.485, 0, 1, 0)
 
 	local accent = Instance.new("Frame")
 	accent.Name = "Accent"
@@ -221,76 +221,6 @@ local function buildDrawTicket(parent: Instance, drawId: CompanionSkins.DrawId, 
 
 	drawButton(card, drawId, 1, UDim2.new(0.03, 0, 1, -44))
 	drawButton(card, drawId, 10, UDim2.new(0.51, 0, 1, -44))
-end
-
-local function showPullResults(results: { PullResult }, drawId: string)
-	revealGeneration += 1
-	local generation = revealGeneration
-	clearGuiObjects(resultHolder)
-	resultTitle.Text = `{if drawId == "premium" then "Premium" else "Standard"} results · {#results} capsule(s)`
-	skipButton.Visible = #results > 1
-	resultHolder.CanvasPosition = Vector2.zero
-
-	local columns = math.min(math.max(#results, 1), 4)
-	local gap = 8
-	local rows = math.ceil(#results / columns)
-	resultHolder.CanvasSize = UDim2.fromOffset(0, rows * 88)
-	for index, result in results do
-		local skin = CompanionSkins.get(result.skinId)
-		local rarity = CompanionSkins.RARITIES[result.rarity]
-		if not skin then
-			continue
-		end
-
-		local column = (index - 1) % columns
-		local row = math.floor((index - 1) / columns)
-		local card = UI.card(resultHolder, `Result{index}`, {
-			color = UI.color.paperRaised,
-			radius = UI.radius.chip,
-			position = UDim2.new(column / columns, if column == 0 then 0 else gap, 0, row * 88),
-			stroke = false,
-			sheen = false,
-			innerLine = false,
-		})
-		card.Size = UDim2.new(1 / columns, -gap, 0, 80)
-		card.Visible = false
-		local stroke = UI.stroke(card, rarity.color, 1.5)
-		stroke.Transparency = 0.25
-
-		UI.label(card, "Rarity", {
-			text = string.upper(rarity.name),
-			font = UI.font.bold,
-			size = UI.text.caption,
-			color = rarity.color,
-			position = UDim2.fromOffset(8, 7),
-			extent = UDim2.new(1, -16, 0, 16),
-		})
-		UI.label(card, "Name", {
-			text = skin.name,
-			font = UI.font.display,
-			size = UI.text.small,
-			position = UDim2.fromOffset(8, 24),
-			extent = UDim2.new(1, -16, 0, 30),
-			wrapped = true,
-		})
-		UI.label(card, "New", {
-			text = if result.isNew then "NEW" else "EXTRA COPY",
-			font = UI.font.bold,
-			size = 10,
-			color = if result.isNew then UI.color.success else UI.color.inkFaint,
-			position = UDim2.new(0, 8, 1, -17),
-			extent = UDim2.new(1, -16, 0, 12),
-		})
-
-		task.delay((index - 1) * 0.055, function()
-			if revealGeneration ~= generation or not card.Parent then
-				return
-			end
-			card.Visible = true
-			card.Size = UDim2.new(1 / columns, -gap, 0, 66)
-			UI.motion.to(card, UI.motion.pop, { Size = UDim2.new(1 / columns, -gap, 0, 80) })
-		end)
-	end
 end
 
 local function sellableCopies(snapshot: GachaState, skin: CompanionSkins.SkinDefinition): number
@@ -673,42 +603,6 @@ local function buildPanel(parent: ScreenGui)
 
 	buildDrawTicket(pages.draw, "standard", UDim2.fromScale(0, 0))
 	buildDrawTicket(pages.draw, "premium", UDim2.fromScale(0.515, 0))
-	resultTitle = UI.label(pages.draw, "ResultTitle", {
-		text = "Your capsules will open here",
-		font = UI.font.display,
-		size = UI.text.body,
-		position = UDim2.fromOffset(0, 140),
-		extent = UDim2.new(0.75, 0, 0, 26),
-	})
-	skipButton = UI.button(pages.draw, "Skip", {
-		text = "Show all",
-		extent = UDim2.fromOffset(100, 28),
-		position = UDim2.new(1, -100, 0, 138),
-		stroke = false,
-		sheen = false,
-
-		onActivated = function()
-			revealGeneration += 1
-			for _, child in resultHolder:GetChildren() do
-				if child:IsA("GuiObject") then
-					child.Visible = true
-				end
-			end
-			skipButton.Visible = false
-		end,
-	})
-	skipButton.Visible = false
-	resultHolder = Instance.new("ScrollingFrame")
-	resultHolder.Name = "Results"
-	resultHolder.BackgroundTransparency = 1
-	resultHolder.BorderSizePixel = 0
-	resultHolder.Position = UDim2.fromOffset(0, 172)
-	resultHolder.Size = UDim2.new(1, 0, 1, -172)
-	resultHolder.CanvasSize = UDim2.fromOffset(0, 0)
-	resultHolder.ScrollBarThickness = 5
-	resultHolder.ScrollBarImageColor3 = UI.color.inkSoft
-	resultHolder.ClipsDescendants = true
-	resultHolder.Parent = pages.draw
 
 	buildCollectionFilters(pages.collection)
 	buildBaseButtons(pages.collection)
@@ -837,10 +731,16 @@ function GachaMenu.init()
 				if cancelReveal then
 					cancelReveal()
 				end
+				if cancelResults then
+					cancelResults()
+					cancelResults = nil
+				end
 				cancelReveal = GachaReveal.play(playerGui, results, function()
 					cancelReveal = nil
-					showPullResults(results, drawId)
-					setPullBusy(false)
+					cancelResults = GachaResults.show(playerGui, results, drawId, function()
+						cancelResults = nil
+						setPullBusy(false)
+					end)
 				end)
 			else
 				setPullBusy(false)
@@ -865,6 +765,10 @@ function GachaMenu.init()
 		if cancelReveal then
 			cancelReveal()
 			cancelReveal = nil
+		end
+		if cancelResults then
+			cancelResults()
+			cancelResults = nil
 		end
 		setPullBusy(false)
 		if isOpen then

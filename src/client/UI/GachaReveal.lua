@@ -23,17 +23,6 @@ local function corner(parent: GuiObject, radius: UDim)
 	item.Parent = parent
 end
 
-local function highestRarity(results: { PullResult }): CompanionSkins.RarityDefinition
-	local highest = CompanionSkins.RARITIES.common
-	for _, result in results do
-		local rarity = CompanionSkins.RARITIES[result.rarity]
-		if rarity and rarity.order > highest.order then
-			highest = rarity
-		end
-	end
-	return highest
-end
-
 local function tween(instance: Instance, duration: number, style: Enum.EasingStyle, goal: { [string]: any }): Tween
 	local info = TweenInfo.new(
 		if UI.motion.isReducedMotion() then 0.01 else duration,
@@ -45,7 +34,7 @@ local function tween(instance: Instance, duration: number, style: Enum.EasingSty
 	return animation
 end
 
-local function makeStar(parent: Instance, rng: Random, zIndex: number): Frame
+local function makeStar(parent: Instance, rng: Random): Frame
 	local size = rng:NextInteger(2, 6)
 	local star = Instance.new("Frame")
 	star.Name = "Star"
@@ -55,13 +44,13 @@ local function makeStar(parent: Instance, rng: Random, zIndex: number): Frame
 	star.BorderSizePixel = 0
 	star.Position = UDim2.fromScale(rng:NextNumber(), rng:NextNumber())
 	star.Size = UDim2.fromOffset(size, size)
-	star.ZIndex = zIndex
+	star.ZIndex = 102
 	star.Parent = parent
 	corner(star, UDim.new(1, 0))
 	return star
 end
 
-local function makeStreak(parent: Instance, rng: Random, color: Color3, zIndex: number)
+local function makeStreak(parent: Instance, rng: Random, color: Color3)
 	local length = rng:NextInteger(90, 260)
 	local streak = Instance.new("Frame")
 	streak.Name = "WishTrail"
@@ -72,13 +61,12 @@ local function makeStreak(parent: Instance, rng: Random, color: Color3, zIndex: 
 	streak.Position = UDim2.new(rng:NextNumber(-0.2, 0.8), 0, rng:NextNumber(0.35, 1.2), 0)
 	streak.Rotation = -32
 	streak.Size = UDim2.fromOffset(length, rng:NextInteger(2, 5))
-	streak.ZIndex = zIndex
+	streak.ZIndex = 104
 	streak.Parent = parent
 	corner(streak, UDim.new(1, 0))
 
-	local destination = streak.Position + UDim2.fromScale(0.55, -0.7)
-	local flight = tween(streak, rng:NextNumber(0.45, 0.9), Enum.EasingStyle.Quad, {
-		Position = destination,
+	local flight = tween(streak, rng:NextNumber(0.38, 0.68), Enum.EasingStyle.Quad, {
+		Position = streak.Position + UDim2.fromScale(0.55, -0.7),
 		BackgroundTransparency = 1,
 	})
 	flight.Completed:Connect(function()
@@ -86,14 +74,14 @@ local function makeStreak(parent: Instance, rng: Random, color: Color3, zIndex: 
 	end)
 end
 
-local function makeRing(parent: Instance, color: Color3, zIndex: number): Frame
+local function makeRing(parent: Instance, color: Color3): Frame
 	local ring = Instance.new("Frame")
 	ring.Name = "ImpactRing"
 	ring.AnchorPoint = Vector2.new(0.5, 0.5)
 	ring.BackgroundTransparency = 1
-	ring.Position = UDim2.fromScale(0.5, 0.45)
+	ring.Position = UDim2.fromScale(0.5, 0.43)
 	ring.Size = UDim2.fromOffset(24, 24)
-	ring.ZIndex = zIndex
+	ring.ZIndex = 106
 	ring.Parent = parent
 	corner(ring, UDim.new(1, 0))
 
@@ -103,15 +91,92 @@ local function makeRing(parent: Instance, color: Color3, zIndex: number): Frame
 	stroke.Transparency = 0.05
 	stroke.Parent = ring
 
-	tween(ring, 0.7, Enum.EasingStyle.Quint, { Size = UDim2.fromScale(0.82, 0.82) })
-	tween(stroke, 0.62, Enum.EasingStyle.Quad, { Thickness = 1, Transparency = 1 })
+	tween(ring, 0.55, Enum.EasingStyle.Quint, { Size = UDim2.fromScale(0.82, 0.82) })
+	tween(stroke, 0.5, Enum.EasingStyle.Quad, { Thickness = 1, Transparency = 1 })
 	return ring
 end
 
+local function makeResultLabels(parent: Instance, result: PullResult, index: number, total: number)
+	local rarity = CompanionSkins.RARITIES[result.rarity]
+	local skin = CompanionSkins.get(result.skinId)
+	local counter = Instance.new("TextLabel")
+	counter.Name = "Counter"
+	counter.AnchorPoint = Vector2.new(0.5, 0.5)
+	counter.BackgroundTransparency = 1
+	counter.Font = UI.font.bold
+	counter.Position = UDim2.fromScale(0.5, 0.16)
+	counter.Size = UDim2.fromOffset(220, 30)
+	counter.Text = `PULL {index} / {total}`
+	counter.TextColor3 = WHITE
+	counter.TextSize = UI.text.small
+	counter.TextTransparency = 0.15
+	counter.ZIndex = 116
+	counter.Parent = parent
+
+	local rarityLabel = Instance.new("TextLabel")
+	rarityLabel.Name = "Rarity"
+	rarityLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+	rarityLabel.BackgroundTransparency = 1
+	rarityLabel.Font = UI.font.bold
+	rarityLabel.Position = UDim2.fromScale(0.5, 0.57)
+	rarityLabel.Size = UDim2.fromScale(0.8, 0.07)
+	rarityLabel.Text = string.upper(rarity.name)
+	rarityLabel.TextColor3 = rarity.color
+	rarityLabel.TextSize = 18
+	rarityLabel.TextStrokeColor3 = BACKDROP
+	rarityLabel.TextStrokeTransparency = 0.25
+	rarityLabel.TextTransparency = 1
+	rarityLabel.ZIndex = 116
+	rarityLabel.Parent = parent
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Name = "SkinName"
+	nameLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Font = UI.font.display
+	nameLabel.Position = UDim2.fromScale(0.5, 0.64)
+	nameLabel.Size = UDim2.fromScale(0.82, 0.1)
+	nameLabel.Text = if skin then skin.name else "Mystery Skin"
+	nameLabel.TextColor3 = WHITE
+	nameLabel.TextSize = 26
+	nameLabel.TextStrokeColor3 = BACKDROP
+	nameLabel.TextStrokeTransparency = 0.15
+	nameLabel.TextTransparency = 1
+	nameLabel.ZIndex = 116
+	nameLabel.Parent = parent
+
+	local copyLabel = Instance.new("TextLabel")
+	copyLabel.Name = "CopyState"
+	copyLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+	copyLabel.BackgroundTransparency = 1
+	copyLabel.Font = UI.font.bold
+	copyLabel.Position = UDim2.fromScale(0.5, 0.71)
+	copyLabel.Size = UDim2.fromOffset(240, 30)
+	copyLabel.Text = if result.isNew then "NEW!" else "EXTRA COPY"
+	copyLabel.TextColor3 = if result.isNew then Color3.fromRGB(138, 244, 192) else Color3.fromRGB(196, 202, 220)
+	copyLabel.TextSize = UI.text.small
+	copyLabel.TextTransparency = 1
+	copyLabel.ZIndex = 116
+	copyLabel.Parent = parent
+
+	if UI.motion.isReducedMotion() then
+		rarityLabel.TextTransparency = 0
+		nameLabel.TextTransparency = 0
+		copyLabel.TextTransparency = 0
+		return
+	end
+
+	tween(rarityLabel, 0.28, Enum.EasingStyle.Back, { TextSize = 34, TextTransparency = 0 })
+	tween(nameLabel, 0.32, Enum.EasingStyle.Back, { TextSize = 42, TextTransparency = 0 })
+	tween(copyLabel, 0.25, Enum.EasingStyle.Quad, { TextTransparency = 0 })
+end
+
 function GachaReveal.play(parent: PlayerGui, results: { PullResult }, onComplete: () -> ()): () -> ()
-	local rarity = highestRarity(results)
 	local rng = Random.new()
 	local finished = false
+	local sceneGeneration = 0
+	local activeScene: Frame? = nil
+	local nextIndex = 1
 	local screen = Instance.new("ScreenGui")
 	screen.Name = "GachaWishReveal"
 	screen.DisplayOrder = 80
@@ -132,158 +197,182 @@ function GachaReveal.play(parent: PlayerGui, results: { PullResult }, onComplete
 
 	local sky = Instance.new("UIGradient")
 	sky.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, SKY_TOP:Lerp(rarity.color, 0.3)),
+		ColorSequenceKeypoint.new(0, SKY_TOP),
 		ColorSequenceKeypoint.new(0.58, BACKDROP),
 		ColorSequenceKeypoint.new(1, Color3.fromRGB(3, 5, 15)),
 	})
 	sky.Rotation = 90
 	sky.Parent = overlay
 
-	local finishButton = Instance.new("TextButton")
-	finishButton.Name = "Skip"
-	finishButton.AnchorPoint = Vector2.new(1, 1)
-	finishButton.AutoButtonColor = false
-	finishButton.BackgroundColor3 = Color3.fromRGB(20, 27, 50)
-	finishButton.BackgroundTransparency = 0.2
-	finishButton.BorderSizePixel = 0
-	finishButton.Font = UI.font.bold
-	finishButton.Position = UDim2.new(1, -24, 1, -22)
-	finishButton.Size = UDim2.fromOffset(116, 38)
-	finishButton.Text = "Skip reveal"
-	finishButton.TextColor3 = WHITE
-	finishButton.TextSize = UI.text.small
-	finishButton.ZIndex = 120
-	finishButton.Parent = overlay
-	corner(finishButton, UDim.new(1, 0))
-
-	local function finish()
-		if finished then
-			return
-		end
-		finished = true
-		screen:Destroy()
-		onComplete()
-	end
-
-	finishButton.Activated:Connect(finish)
-	tween(overlay, 0.22, Enum.EasingStyle.Quad, { BackgroundTransparency = 0 })
-
-	if UI.motion.isReducedMotion() then
-		local simpleLabel = Instance.new("TextLabel")
-		simpleLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-		simpleLabel.BackgroundTransparency = 1
-		simpleLabel.Font = UI.font.display
-		simpleLabel.Position = UDim2.fromScale(0.5, 0.47)
-		simpleLabel.Size = UDim2.fromScale(0.8, 0.12)
-		simpleLabel.Text = string.upper(rarity.name)
-		simpleLabel.TextColor3 = rarity.color
-		simpleLabel.TextSize = 34
-		simpleLabel.ZIndex = 110
-		simpleLabel.Parent = overlay
-		task.delay(0.28, finish)
-		return finish
-	end
-
-	for _ = 1, 34 do
-		local star = makeStar(overlay, rng, 102)
-		tween(star, rng:NextNumber(0.8, 1.6), Enum.EasingStyle.Sine, {
-			BackgroundTransparency = 1,
+	for _ = 1, 38 do
+		local star = makeStar(overlay, rng)
+		tween(star, rng:NextNumber(1.1, 2.2), Enum.EasingStyle.Sine, {
+			BackgroundTransparency = 0.8,
 			Size = star.Size + UDim2.fromOffset(3, 3),
 		})
 	end
 
-	local flare = Instance.new("Frame")
-	flare.Name = "WishCoreGlow"
-	flare.AnchorPoint = Vector2.new(0.5, 0.5)
-	flare.BackgroundColor3 = rarity.color
-	flare.BackgroundTransparency = 0.55
-	flare.BorderSizePixel = 0
-	flare.Position = UDim2.fromScale(-0.08, 0.95)
-	flare.Size = UDim2.fromOffset(110, 110)
-	flare.ZIndex = 108
-	flare.Parent = overlay
-	corner(flare, UDim.new(1, 0))
+	local skipButton = Instance.new("TextButton")
+	skipButton.Name = "Skip"
+	skipButton.AnchorPoint = Vector2.new(1, 1)
+	skipButton.AutoButtonColor = false
+	skipButton.BackgroundColor3 = Color3.fromRGB(20, 27, 50)
+	skipButton.BackgroundTransparency = 0.2
+	skipButton.BorderSizePixel = 0
+	skipButton.Font = UI.font.bold
+	skipButton.Position = UDim2.new(1, -24, 1, -22)
+	skipButton.Size = UDim2.fromOffset(128, 38)
+	skipButton.Text = "Skip all"
+	skipButton.TextColor3 = WHITE
+	skipButton.TextSize = UI.text.small
+	skipButton.ZIndex = 120
+	skipButton.Parent = overlay
+	corner(skipButton, UDim.new(1, 0))
 
-	local core = Instance.new("Frame")
-	core.Name = "WishCore"
-	core.AnchorPoint = Vector2.new(0.5, 0.5)
-	core.BackgroundColor3 = WHITE
-	core.BorderSizePixel = 0
-	core.Position = UDim2.fromScale(0.5, 0.5)
-	core.Rotation = 45
-	core.Size = UDim2.fromOffset(34, 34)
-	core.ZIndex = 109
-	core.Parent = flare
-	corner(core, UDim.new(0.22, 0))
+	local function close(completed: boolean)
+		if finished then
+			return
+		end
+		finished = true
+		sceneGeneration += 1
+		screen:Destroy()
+		if completed then
+			onComplete()
+		end
+	end
 
-	local travelTime = 0.78 + rarity.order * 0.055
-	tween(flare, travelTime, Enum.EasingStyle.Quint, {
-		Position = UDim2.fromScale(0.5, 0.45),
-		Size = UDim2.fromOffset(155 + rarity.order * 12, 155 + rarity.order * 12),
-	})
-	tween(core, travelTime, Enum.EasingStyle.Quint, {
-		Rotation = 225,
-		Size = UDim2.fromOffset(44 + rarity.order * 4, 44 + rarity.order * 4),
-	})
+	local playNext: () -> ()
 
-	local streakCount = 13 + rarity.order * 5
-	for index = 1, streakCount do
-		task.delay(index * 0.018, function()
-			if not finished and overlay.Parent then
-				makeStreak(overlay, rng, rarity.color, 104)
+	playNext = function()
+		if finished then
+			return
+		end
+		if nextIndex > #results then
+			close(true)
+			return
+		end
+
+		if activeScene then
+			activeScene:Destroy()
+		end
+		sceneGeneration += 1
+		local generation = sceneGeneration
+		local index = nextIndex
+		nextIndex += 1
+		local result = results[index]
+		local rarity = CompanionSkins.RARITIES[result.rarity]
+		local scene = Instance.new("Frame")
+		scene.Name = `Pull{index}`
+		scene.BackgroundTransparency = 1
+		scene.Size = UDim2.fromScale(1, 1)
+		scene.ZIndex = 103
+		scene.Parent = overlay
+		activeScene = scene
+
+		local function isCurrent(): boolean
+			return not finished and sceneGeneration == generation and scene.Parent ~= nil
+		end
+
+		if UI.motion.isReducedMotion() then
+			makeResultLabels(scene, result, index, #results)
+			task.delay(0.55, function()
+				if isCurrent() then
+					playNext()
+				end
+			end)
+			return
+		end
+
+		local flare = Instance.new("Frame")
+		flare.Name = "WishCoreGlow"
+		flare.AnchorPoint = Vector2.new(0.5, 0.5)
+		flare.BackgroundColor3 = rarity.color
+		flare.BackgroundTransparency = 0.55
+		flare.BorderSizePixel = 0
+		flare.Position = UDim2.fromScale(-0.08, 0.95)
+		flare.Size = UDim2.fromOffset(100, 100)
+		flare.ZIndex = 108
+		flare.Parent = scene
+		corner(flare, UDim.new(1, 0))
+
+		local core = Instance.new("Frame")
+		core.Name = "WishCore"
+		core.AnchorPoint = Vector2.new(0.5, 0.5)
+		core.BackgroundColor3 = WHITE
+		core.BorderSizePixel = 0
+		core.Position = UDim2.fromScale(0.5, 0.5)
+		core.Rotation = 45
+		core.Size = UDim2.fromOffset(32, 32)
+		core.ZIndex = 109
+		core.Parent = flare
+		corner(core, UDim.new(0.22, 0))
+
+		local travelTime = 0.5 + rarity.order * 0.025
+		tween(flare, travelTime, Enum.EasingStyle.Quint, {
+			Position = UDim2.fromScale(0.5, 0.43),
+			Size = UDim2.fromOffset(140 + rarity.order * 10, 140 + rarity.order * 10),
+		})
+		tween(core, travelTime, Enum.EasingStyle.Quint, {
+			Rotation = 225,
+			Size = UDim2.fromOffset(40 + rarity.order * 4, 40 + rarity.order * 4),
+		})
+
+		for streakIndex = 1, 10 + rarity.order * 4 do
+			task.delay(streakIndex * 0.012, function()
+				if isCurrent() then
+					makeStreak(scene, rng, rarity.color)
+				end
+			end)
+		end
+
+		task.delay(travelTime * 0.72, function()
+			if not isCurrent() then
+				return
+			end
+			for _ = 1, math.max(1, rarity.order - 1) do
+				makeRing(scene, rarity.color)
+			end
+		end)
+
+		task.delay(travelTime, function()
+			if not isCurrent() then
+				return
+			end
+
+			local flash = Instance.new("Frame")
+			flash.Name = "RarityFlash"
+			flash.BackgroundColor3 = rarity.color:Lerp(WHITE, 0.55)
+			flash.BackgroundTransparency = 1
+			flash.BorderSizePixel = 0
+			flash.Size = UDim2.fromScale(1, 1)
+			flash.ZIndex = 115
+			flash.Parent = scene
+			tween(flash, 0.1, Enum.EasingStyle.Quad, { BackgroundTransparency = 0.04 })
+			task.delay(0.09, function()
+				if flash.Parent then
+					tween(flash, 0.28, Enum.EasingStyle.Quad, { BackgroundTransparency = 1 })
+				end
+			end)
+
+			makeResultLabels(scene, result, index, #results)
+		end)
+
+		task.delay(travelTime + 0.72, function()
+			if isCurrent() then
+				playNext()
 			end
 		end)
 	end
 
-	task.delay(travelTime * 0.72, function()
-		if finished or not overlay.Parent then
-			return
-		end
-		for _ = 1, math.max(1, rarity.order - 1) do
-			makeRing(overlay, rarity.color, 106)
-		end
+	skipButton.Activated:Connect(function()
+		close(true)
 	end)
+	tween(overlay, 0.18, Enum.EasingStyle.Quad, { BackgroundTransparency = 0 })
+	task.defer(playNext)
 
-	task.delay(travelTime, function()
-		if finished or not overlay.Parent then
-			return
-		end
-
-		local flash = Instance.new("Frame")
-		flash.Name = "RarityFlash"
-		flash.BackgroundColor3 = rarity.color:Lerp(WHITE, 0.55)
-		flash.BackgroundTransparency = 1
-		flash.BorderSizePixel = 0
-		flash.Size = UDim2.fromScale(1, 1)
-		flash.ZIndex = 115
-		flash.Parent = overlay
-		tween(flash, 0.12, Enum.EasingStyle.Quad, { BackgroundTransparency = 0.04 })
-		task.delay(0.11, function()
-			if flash.Parent then
-				tween(flash, 0.36, Enum.EasingStyle.Quad, { BackgroundTransparency = 1 })
-			end
-		end)
-
-		local rarityLabel = Instance.new("TextLabel")
-		rarityLabel.Name = "Rarity"
-		rarityLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-		rarityLabel.BackgroundTransparency = 1
-		rarityLabel.Font = UI.font.display
-		rarityLabel.Position = UDim2.fromScale(0.5, 0.57)
-		rarityLabel.Size = UDim2.fromScale(0.8, 0.12)
-		rarityLabel.Text = string.upper(rarity.name)
-		rarityLabel.TextColor3 = rarity.color
-		rarityLabel.TextSize = 22
-		rarityLabel.TextStrokeColor3 = BACKDROP
-		rarityLabel.TextStrokeTransparency = 0.25
-		rarityLabel.TextTransparency = 1
-		rarityLabel.ZIndex = 116
-		rarityLabel.Parent = overlay
-		tween(rarityLabel, 0.38, Enum.EasingStyle.Back, { TextSize = 42, TextTransparency = 0 })
-	end)
-
-	task.delay(travelTime + 0.82 + rarity.order * 0.05, finish)
-	return finish
+	return function()
+		close(false)
+	end
 end
 
 return GachaReveal
