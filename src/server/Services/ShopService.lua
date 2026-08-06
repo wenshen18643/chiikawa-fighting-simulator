@@ -86,7 +86,11 @@ local function board(profile: any)
 			table.insert(rows, row)
 		end
 	end
-	return { rows = rows, yen = profile.currencies.yen }
+	return {
+		rows = rows,
+		yen = profile.currencies.yen,
+		unlimitedYen = CurrencyService.isUnlimited("yen"),
+	}
 end
 
 function ShopService.open(player: Player)

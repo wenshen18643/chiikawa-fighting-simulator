@@ -4,6 +4,7 @@ local BigNumber = require(Shared.Modules.BigNumber)
 local Boosts = require(Shared.Modules.Boosts)
 local Constants = require(Shared.Modules.Constants)
 local Certifications = require(Shared.Modules.Config.Certifications)
+local CompanionSkins = require(Shared.Modules.Config.CompanionSkins)
 local Gear = require(Shared.Modules.Config.Gear)
 local Skills = require(Shared.Modules.Config.Skills)
 local Upgrades = require(Shared.Modules.Config.Upgrades)
@@ -25,6 +26,7 @@ function Formulas.gainMultiplier(profile: any, skillId: string): BigNum
 	multiplier = BigNumber.mulNumber(multiplier, Formulas.comfortMultiplier(profile))
 	multiplier = BigNumber.mulNumber(multiplier, Formulas.boostMultiplier(profile, canonical))
 	multiplier = BigNumber.mulNumber(multiplier, Upgrades.gainMultiplier(profile, canonical))
+	multiplier = BigNumber.mulNumber(multiplier, CompanionSkins.activeMultiplier(profile, canonical))
 
 	multiplier = BigNumber.mulNumber(multiplier, 1 + Boosts.foodBonus(profile, canonical, false))
 

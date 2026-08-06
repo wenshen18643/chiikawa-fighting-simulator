@@ -25,6 +25,18 @@ export type Companion = {
 	active: boolean,
 }
 
+export type CompanionState = {
+	selected: string?,
+	owned: { [string]: boolean }?,
+}
+
+export type CompanionSkinState = {
+	copies: { [string]: number },
+	equipped: { [string]: string },
+	rarePlusMisses: number,
+	legendaryMisses: number,
+}
+
 export type Gear = {
 	weedingTool: string?,
 	armor: string?,
@@ -77,7 +89,8 @@ export type PlayerProfile = {
 	examAttempts: { [string]: number },
 	currencies: Currencies,
 	seasons: number,
-	companions: { Companion },
+	companions: CompanionState,
+	companionSkins: CompanionSkinState,
 	gear: Gear,
 	recipes: { [string]: boolean },
 	dishes: { [string]: number },
@@ -100,6 +113,7 @@ export type PlayerProfile = {
 export type StateSnapshot = {
 	skills: { [string]: BigNum },
 	yen: BigNum,
+	unlimitedYen: boolean,
 	stamps: BigNum,
 	seasons: number,
 	certifications: { [string]: number },

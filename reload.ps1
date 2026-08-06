@@ -42,6 +42,8 @@ $SourcemapOutput = Join-Path $ProjectRoot "sourcemap.json"
 $CacheDir = Join-Path $ProjectRoot ".reload"
 $StampFile = Join-Path $CacheDir "stamp.txt"
 $TypeCacheFile = Join-Path $CacheDir "typecheck.txt"
+$EnvironmentFile = Join-Path $ProjectRoot ".env"
+$RuntimeEnvironmentFile = Join-Path $ProjectRoot "src\server\Environment.lua"
 
 Set-Location $ProjectRoot
 
@@ -50,6 +52,54 @@ $Clock = [System.Diagnostics.Stopwatch]::StartNew()
 function Write-Stage([string]$Message, [string]$Colour = "Cyan") {
     Write-Host ("[{0,5:0.00}s] {1}" -f $Clock.Elapsed.TotalSeconds, $Message) -ForegroundColor $Colour
 }
+
+function Sync-Environment {
+    $UnlimitedYen = $false
+
+    if (Test-Path -LiteralPath $EnvironmentFile) {
+        foreach ($RawLine in [System.IO.File]::ReadAllLines($EnvironmentFile)) {
+            $Line = $RawLine.Trim()
+            if ($Line -eq "" -or $Line.StartsWith("#")) { continue }
+
+            $Separator = $Line.IndexOf("=")
+            if ($Separator -lt 1) { continue }
+
+            $Key = $Line.Substring(0, $Separator).Trim()
+            if ($Key -ne "UNLIMITED_YEN") { continue }
+
+            $Value = $Line.Substring($Separator + 1).Trim().Trim('"').Trim("'").ToLowerInvariant()
+            if ($Value -in @("true", "1", "yes", "on")) {
+                $UnlimitedYen = $true
+            }
+            elseif ($Value -in @("false", "0", "no", "off")) {
+                $UnlimitedYen = $false
+            }
+            else {
+                Write-Host "Invalid UNLIMITED_YEN value '$Value' in .env." -ForegroundColor Red
+                Write-Host "Use true/false, 1/0, yes/no, or on/off." -ForegroundColor Yellow
+                exit 1
+            }
+        }
+    }
+
+    $LuaBoolean = $UnlimitedYen.ToString().ToLowerInvariant()
+    $Contents = "return {`n`tUNLIMITED_YEN = $LuaBoolean,`n}`n"
+    $Current = if (Test-Path -LiteralPath $RuntimeEnvironmentFile) {
+        [System.IO.File]::ReadAllText($RuntimeEnvironmentFile)
+    }
+    else {
+        ""
+    }
+
+    if ($Current -ne $Contents) {
+        [System.IO.File]::WriteAllText($RuntimeEnvironmentFile, $Contents, [System.Text.UTF8Encoding]::new($false))
+    }
+
+    $State = if ($UnlimitedYen) { "enabled" } else { "disabled" }
+    Write-Stage "Unlimited yen: $State (.env)"
+}
+
+Sync-Environment
 
 if ($Check) { $NoOpen = $true }
 if (-not (Test-Path $CacheDir)) { [void](New-Item -ItemType Directory -Path $CacheDir) }

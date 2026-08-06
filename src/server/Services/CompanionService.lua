@@ -7,6 +7,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Companions = require(Shared.Modules.Config.Companions)
+local CompanionSkins = require(Shared.Modules.Config.CompanionSkins)
 local Constants = require(Shared.Modules.Constants)
 local Mascot = require(Shared.Modules.Mascot)
 local Mobs = require(Shared.Modules.Config.Mobs)
@@ -210,14 +211,28 @@ local function remember(player: Player, id: string)
 	profile.companions.selected = id
 end
 
-local function buildCompanion(spec: Companions.CompanionSpec): Model?
+local function buildCompanion(spec: Companions.CompanionSpec, profile: any?): (Model?, number)
 	if spec.kind == "asset" then
-		local key = spec.assetKey
-		if not key then
-			return nil
+		local equippedSkin = profile and CompanionSkins.equippedSkin(profile, spec.id)
+		if equippedSkin and equippedSkin.assetKey then
+			local skinned = AssetService.clone(equippedSkin.assetKey)
+			if skinned then
+				skinned:SetAttribute("CompanionSkinId", equippedSkin.id)
+				return skinned, equippedSkin.scale or 1
+			end
+			warn(`[CompanionService] skin asset "{equippedSkin.assetKey}" is unavailable; using {spec.id}'s base look`)
 		end
 
-		return AssetService.clone(key)
+		local key = spec.assetKey
+		if not key then
+			return nil, 1
+		end
+
+		local base = AssetService.clone(key)
+		if base and equippedSkin then
+			base:SetAttribute("CompanionSkinId", equippedSkin.id)
+		end
+		return base, 1
 	end
 
 	if spec.kind == "built" then
@@ -225,12 +240,12 @@ local function buildCompanion(spec: Companions.CompanionSpec): Model?
 		local definition = mobId and Mobs.get(mobId)
 		if not definition then
 			warn(`[CompanionService] "{spec.id}" names mob "{mobId}", which is not in Config/Mobs`)
-			return nil
+			return nil, 1
 		end
 
 		local model = MobRig.build(definition)
 		if not model then
-			return nil
+			return nil, 1
 		end
 		model.Name = spec.name
 		for _, descendant in model:GetDescendants() do
@@ -241,17 +256,17 @@ local function buildCompanion(spec: Companions.CompanionSpec): Model?
 				descendant.CanQuery = false
 			end
 		end
-		return model
+		return model, 1
 	end
 
 	local npcId = spec.npcId
 	local definition = npcId and Npcs.get(npcId)
 	if not definition then
 		warn(`[CompanionService] "{spec.id}" names npc "{npcId}", which is not in Config/Npcs`)
-		return nil
+		return nil, 1
 	end
 
-	return Mascot.build(definition.build, CFrame.new(), spec.name)
+	return Mascot.build(definition.build, CFrame.new(), spec.name), 1
 end
 
 local function sendShelf(player: Player, id: string)
@@ -289,13 +304,22 @@ local function spawn(player: Player, character: Model, trigger: string)
 		return
 	end
 
+	local profile = DataService.get(player)
 	local spec = Companions.get(wanted)
-	local model = if spec then buildCompanion(spec) else nil
+	local model: Model? = nil
+	local skinScale = 1
+	if spec then
+		model, skinScale = buildCompanion(spec, profile)
+	end
 
 	if not model then
 		local fallback = Companions.get(Companions.DEFAULT)
 		spec = fallback
-		model = if fallback then buildCompanion(fallback) else nil
+		if fallback then
+			model, skinScale = buildCompanion(fallback, profile)
+		else
+			model, skinScale = nil, 1
+		end
 		if model then
 			warn(`[CompanionService] "{wanted}" unavailable for {player.Name} - using "{Companions.DEFAULT}"`)
 		end
@@ -318,7 +342,7 @@ local function spawn(player: Player, character: Model, trigger: string)
 	model.Name = `Companion_{player.Name}`
 	model:SetAttribute(ANIM_OWNER_ATTRIBUTE, player.UserId)
 
-	local scale = if spec.kind == "asset" then normalise(model, spec.scale) else 1
+	local scale = if spec.kind == "asset" then normalise(model, (spec.scale or 1) * skinScale) else 1
 	addLabel(root, spec.name)
 
 	local target = Instance.new("Attachment")
@@ -487,8 +511,7 @@ local function buildStand(base: CFrame): Model?
 	prompt.Parent = primary
 
 	prompt.Triggered:Connect(function(player)
-		Remotes.event("Companion", "Open")
-			:FireClient(player, roster(DataService.get(player)), selectionFor(player))
+		Remotes.event("Companion", "Open"):FireClient(player, roster(DataService.get(player)), selectionFor(player))
 	end)
 
 	local across = { -SHELF_SLOT_SPACING, 0, SHELF_SLOT_SPACING }
@@ -769,6 +792,11 @@ function CompanionService.act(player: Player, skillId: string?)
 		model:SetAttribute(ANIM_SKILL_ATTRIBUTE, Skills.canonicalize(skillId))
 	end
 	model:SetAttribute(ANIM_ACTION_ATTRIBUTE, now)
+end
+
+function CompanionService.refreshAppearance(player: Player)
+	tossGeneration[player] = (tossGeneration[player] or 0) + 1
+	respawnCompanion(player, "skin changed")
 end
 
 function CompanionService.init()

@@ -31,6 +31,7 @@ local built: { [string]: { [string]: any } } = {}
 local order: { string } = {}
 local latest: { [string]: Row } = {}
 local yen: any = nil
+local unlimitedYen = false
 
 local function multiplierText(multiplier: number): string
 	if multiplier < 1000 then
@@ -42,6 +43,9 @@ end
 local function canAfford(row: Row): boolean
 	if not row.cost then
 		return false
+	end
+	if unlimitedYen then
+		return true
 	end
 	if not BigNumber.isValid(yen) then
 		return false
@@ -190,6 +194,7 @@ end
 local function render(payload: { [string]: any })
 	local rows = payload.rows or {}
 	yen = payload.yen or yen
+	unlimitedYen = payload.unlimitedYen == true
 
 	for index, row in rows do
 		latest[row.id] = row
@@ -288,6 +293,7 @@ function ShopMenu.init()
 	StateController.onChanged(function(snapshot)
 		if snapshot and snapshot.yen then
 			yen = snapshot.yen
+			unlimitedYen = snapshot.unlimitedYen == true
 			repaint()
 		end
 	end)

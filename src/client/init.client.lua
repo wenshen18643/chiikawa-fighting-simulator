@@ -31,6 +31,7 @@ local BOOT_ORDER = {
 	{ container = script.UI, name = "OrderBoard" },
 	{ container = script.UI, name = "OrderTracker" },
 	{ container = script.UI, name = "ShopMenu" },
+	{ container = script.UI, name = "GachaMenu" },
 }
 
 for _, entry in BOOT_ORDER do

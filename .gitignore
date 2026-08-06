@@ -35,5 +35,7 @@ Thumbs.db
 .claude
 .agents
 AGENTS.md
+.env
+/src/server/Environment.lua
 # reload.ps1 incremental cache
 /.reload/

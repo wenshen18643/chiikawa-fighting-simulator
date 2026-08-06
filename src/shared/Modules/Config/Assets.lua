@@ -25,6 +25,7 @@ Assets.MODELS = {
 
 	grassPatch = { template = "GrassPatch", scale = 1, collide = false },
 	friendStand = { template = "FriendStand", scale = 1 },
+	gachaGuy = { template = "GachaGuy", scale = 1, collide = false },
 	oreChunk = { template = "OreChunk", scale = 1, collide = false },
 	strawberryDoor = { template = "StrawberryDoor", scale = 1 },
 	lantern = { template = "Lantern", scale = 1 },

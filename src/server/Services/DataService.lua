@@ -8,6 +8,7 @@ local Boosts = require(Shared.Modules.Boosts)
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
 local Skills = require(Shared.Modules.Config.Skills)
+local CompanionSkins = require(Shared.Modules.Config.CompanionSkins)
 local Upgrades = require(Shared.Modules.Config.Upgrades)
 local DataService = {}
 local profiles: { [Player]: any } = {}
@@ -49,6 +50,12 @@ local function buildTemplate(): any
 
 		selectedSkill = Skills.ORDER[1],
 		companions = {},
+		companionSkins = {
+			copies = {},
+			equipped = {},
+			rarePlusMisses = 0,
+			legendaryMisses = 0,
+		},
 		gear = {},
 		recipes = {},
 		dishes = {},
@@ -59,7 +66,7 @@ local function buildTemplate(): any
 		upgrades = {},
 		boosts = {},
 		foodBuffs = {},
-		settings ={ autoWork = false, vfxQuality = "high", musicVolume = 1 },
+		settings = { autoWork = false, vfxQuality = "high", musicVolume = 1 },
 		farm = { claimedCredits = {}, claimedCreditOrder = {} },
 		version = Constants.DATA.SCHEMA_VERSION,
 		meta = { createdAt = 0, lastPlayed = 0, playtime = 0, introShown = false },
@@ -94,6 +101,8 @@ local OPEN_MAPS = {
 	active = true,
 	completed = true,
 	claimedCredits = true,
+	copies = true,
+	equipped = true,
 }
 
 local function reconcile(profile: any): any
@@ -183,10 +192,16 @@ local function reconcile(profile: any): any
 		profile.seasons = 0
 	end
 
+	CompanionSkins.reconcileProfile(profile)
+
 	local now = os.time()
 	for index = #profile.boosts, 1, -1 do
 		local id = profile.boosts[index].id or ""
-		if (profile.boosts[index].expiresAt or 0) <= now or string.sub(id, 1, 5) == "dish_" or string.sub(id, 1, 6) == "feast_" then
+		if
+			(profile.boosts[index].expiresAt or 0) <= now
+			or string.sub(id, 1, 5) == "dish_"
+			or string.sub(id, 1, 6) == "feast_"
+		then
 			table.remove(profile.boosts, index)
 		end
 	end

@@ -440,7 +440,11 @@ local function gradeProgress(value: any): (number, number)
 end
 
 local function update(snapshot: any)
-	yenSet(BigNumber.toString(snapshot.yen), BigNumber.toNumber(snapshot.yen))
+	if snapshot.unlimitedYen then
+		yenSet("∞")
+	else
+		yenSet(BigNumber.toString(snapshot.yen), BigNumber.toNumber(snapshot.yen))
+	end
 	wageLabel.Text = `{BigNumber.toString(snapshot.yenPerSecond)} / sec`
 	stampLabel.Text = `{BigNumber.toString(snapshot.stamps)} stamps`
 

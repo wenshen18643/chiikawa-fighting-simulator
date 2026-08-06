@@ -8,6 +8,7 @@ local Constants = require(Shared.Modules.Constants)
 local Formulas = require(Shared.Modules.Formulas)
 local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
+local CurrencyService = require(script.Parent.CurrencyService)
 local DataService = require(script.Parent.DataService)
 local RegionService = require(script.Parent.RegionService)
 local StudyService = require(script.Parent.StudyService)
@@ -33,6 +34,7 @@ local function buildSnapshot(player: Player, profile: any)
 	return {
 		skills = skills,
 		yen = profile.currencies.yen,
+		unlimitedYen = CurrencyService.isUnlimited("yen"),
 		stamps = profile.currencies.stamps,
 		ingredients = profile.currencies.ingredients,
 		seasonings = profile.currencies.seasonings,
