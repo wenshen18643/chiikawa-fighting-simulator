@@ -12,6 +12,11 @@ local TutorialContent = require(script.Parent.TutorialContent)
 local ControlsPanel = {}
 local TOGGLE_ACTION = "ToggleControls"
 local COMPACT_WIDTH = 760
+local PAGE_EDGE_GUTTER = 6
+local PAGE_SCROLLBAR_GUTTER = 16
+local HERO_PADDING = 18
+local HERO_ACCENT_INSET = 4
+local HERO_ACCENT_END_INSET = 10
 local screen: ScreenGui
 local scrim: TextButton
 local panel: Frame
@@ -237,7 +242,7 @@ local function buildBlock(parent: ScrollingFrame, index: number, block: Tutorial
 		radius = UI.radius.card,
 		zIndex = 23,
 	})
-	card.Size = UDim2.new(1, -8, 0, 0)
+	card.Size = UDim2.new(1, 0, 0, 0)
 	card.AutomaticSize = Enum.AutomaticSize.Y
 	card.LayoutOrder = index + 1
 	UI.padding(card, 16)
@@ -326,7 +331,10 @@ local function buildPage(parent: Frame, pageData: TutorialContent.Page): Scrolli
 	page.Visible = false
 	page.ZIndex = 22
 	page.Parent = parent
-	UI.padding(page, 4, { right = 12, bottom = 10 })
+	UI.padding(page, PAGE_EDGE_GUTTER, {
+		right = PAGE_SCROLLBAR_GUTTER,
+		bottom = 10,
+	})
 
 	local list = Instance.new("UIListLayout")
 	list.SortOrder = Enum.SortOrder.LayoutOrder
@@ -340,19 +348,20 @@ local function buildPage(parent: Frame, pageData: TutorialContent.Page): Scrolli
 		radius = UI.radius.card,
 		zIndex = 23,
 	})
-	hero.Size = UDim2.new(1, -8, 0, 0)
+	hero.Size = UDim2.new(1, 0, 0, 0)
 	hero.AutomaticSize = Enum.AutomaticSize.Y
 	hero.LayoutOrder = 1
-	UI.padding(hero, 18)
+	UI.padding(hero, HERO_PADDING)
 
 	local rule = Instance.new("Frame")
 	rule.Name = "Accent"
-	rule.Position = UDim2.fromOffset(-18, -18)
-	rule.Size = UDim2.new(0, 7, 1, 36)
+	rule.Position = UDim2.fromOffset(HERO_ACCENT_INSET - HERO_PADDING, HERO_ACCENT_END_INSET - HERO_PADDING)
+	rule.Size = UDim2.new(0, 6, 1, HERO_PADDING * 2 - HERO_ACCENT_END_INSET * 2)
 	rule.BackgroundColor3 = accent
 	rule.BorderSizePixel = 0
 	rule.ZIndex = 24
 	rule.Parent = hero
+	UI.corner(rule, UI.radius.pill)
 
 	UI.label(hero, "Kicker", {
 		text = pageData.kicker,
