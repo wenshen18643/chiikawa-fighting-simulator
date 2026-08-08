@@ -13,6 +13,7 @@ local WorkController = require(script.Parent.Parent.Controllers.WorkController)
 local UIManager = require(script.Parent.UIManager)
 local GachaReveal = require(script.Parent.GachaReveal)
 local GachaResults = require(script.Parent.GachaResults)
+local WeaponPreview = require(script.Parent.WeaponPreview)
 
 type GachaState = {
 	yen: BigNumber.BigNum,
@@ -35,22 +36,28 @@ local WeaponGachaMenu = {}
 local MENU_ID = "weapon-gacha"
 local FLOW_INPUT_LOCK = "weapon-gacha-flow"
 local CLOSE_DISTANCE = 24
-local WEAPON_ID = "sasumata"
 local screen: ScreenGui
 local setPanelOpen: (boolean, boolean?) -> ()
 local closeButton: TextButton
 local isOpen = false
 local state: GachaState? = nil
 local activePage = "draw"
+local collectionFilter = "all"
 local pullBusy = false
 local cancelReveal: (() -> ())? = nil
 local cancelResults: (() -> ())? = nil
 local pages = {} :: { [string]: Frame }
 local drawButtons = {} :: { TextButton }
 local tabButtons = {} :: { [string]: TextButton }
+local pityMeters = {} :: { [string]: (number, string) -> () }
 local yenLabel: TextLabel
 local capacityLabel: TextLabel
 local collectionList: ScrollingFrame
+local collectionFilterBar: Frame
+local detailPane: Frame
+local selectedSkinId: string? = nil
+local renderDetail: () -> ()
+local renderCollection: () -> ()
 local pullRemote: RemoteEvent
 local equipRemote: RemoteEvent
 local sellRemote: RemoteEvent
@@ -84,13 +91,24 @@ local function presentResult(result: PullResult): GachaReveal.Presentation?
 	if not skin or not rarity then
 		return nil
 	end
-	local weapon = WeaponSkins.WEAPONS[skin.weaponId]
+	local weapon = WeaponSkins.getWeapon(skin.weaponId)
 	return {
 		name = skin.name,
-		subtitle = if weapon then `{weapon.name} skin` else "Weapon skin",
+		subtitle = if weapon then weapon.name else skin.weaponId,
 		rarityName = rarity.name,
 		rarityColor = rarity.color,
 		rarityOrder = rarity.order,
+
+		mountPreview = function(parent: Instance, hero: boolean): GuiObject?
+			local preview = WeaponPreview.mount(
+				parent,
+				skin.id,
+				if hero
+					then { spin = true, backdrop = 1, zoom = 1.35 }
+					else { backdrop = 1, zoom = 1.45, radius = UI.radius.chip }
+			)
+			return preview
+		end,
 	}
 end
 
@@ -99,10 +117,51 @@ local function paintStatus()
 	if not snapshot then
 		yenLabel.Text = "0 yen"
 		capacityLabel.Text = `0 / {WeaponSkins.CAPACITY} slots used`
+		for _, paint in pityMeters do
+			paint(0, "-")
+		end
 		return
 	end
+
 	yenLabel.Text = if snapshot.unlimitedYen then "∞ yen" else `{BigNumber.toString(snapshot.yen)} yen`
 	capacityLabel.Text = `{snapshot.used} / {snapshot.capacity} slots used`
+
+	local rareLeft = math.max(WeaponSkins.RARE_PLUS_PITY - snapshot.rarePlusMisses, 0)
+	local legendaryLeft = math.max(WeaponSkins.LEGENDARY_PITY - snapshot.legendaryMisses, 0)
+	local paintRare = pityMeters.rare
+	if paintRare then
+		paintRare(snapshot.rarePlusMisses / WeaponSkins.RARE_PLUS_PITY, `Rare+ in {rareLeft}`)
+	end
+	local paintLegendary = pityMeters.legendary
+	if paintLegendary then
+		paintLegendary(snapshot.legendaryMisses / WeaponSkins.LEGENDARY_PITY, `Legendary in {legendaryLeft}`)
+	end
+end
+
+local function buildPityMeter(parent: Instance, key: string, accent: Color3, position: UDim2)
+	local holder = Instance.new("Frame")
+	holder.Name = `Pity_{key}`
+	holder.BackgroundTransparency = 1
+	holder.Position = position
+	holder.Size = UDim2.new(0.32, 0, 0, 32)
+	holder.Parent = parent
+
+	local caption = UI.label(holder, "Caption", {
+		text = "-",
+		font = UI.font.bold,
+		size = UI.text.caption,
+		color = UI.color.inkSoft,
+		extent = UDim2.new(1, 0, 0, 14),
+	})
+
+	local track, fill = UI.bar(holder, "Track", accent)
+	track.Position = UDim2.fromOffset(0, 18)
+	track.Size = UDim2.new(1, 0, 0, 8)
+
+	pityMeters[key] = function(fraction: number, text: string)
+		caption.Text = text
+		fill.Size = UDim2.fromScale(math.clamp(fraction, 0, 1), 1)
+	end
 end
 
 local function showPage(key: string)
@@ -125,7 +184,7 @@ local function buildNavigation(parent: Frame)
 	local navigation = UI.card(parent, "Navigation", {
 		color = UI.color.paperSunken,
 		radius = UI.radius.chip,
-		position = UDim2.fromOffset(0, 94),
+		position = UDim2.fromOffset(0, 110),
 		stroke = false,
 		sheen = false,
 		innerLine = false,
@@ -134,7 +193,7 @@ local function buildNavigation(parent: Frame)
 
 	local entries = {
 		{ key = "draw", label = "Draw" },
-		{ key = "collection", label = "Collection" },
+		{ key = "collection", label = "Armoury" },
 		{ key = "odds", label = "Odds" },
 	}
 	for index, entry in entries do
@@ -163,7 +222,7 @@ local function drawButton(parent: Instance, drawId: WeaponSkins.DrawId, count: n
 	local draw = WeaponSkins.DRAWS[drawId]
 	local accent = if drawId == "premium" then UI.color.gold else UI.color.sky
 	local button = UI.button(parent, `Draw{count}`, {
-		text = `Draw {count}  ·  {draw.cost * count} yen`,
+		text = if count == 1 then `Draw 1  ·  {draw.cost} yen` else `Draw 10  ·  {draw.cost * count} yen`,
 		color = accent,
 		textColor = UI.color.ink,
 		extent = UDim2.new(0.46, 0, 0, 44),
@@ -201,6 +260,7 @@ local function buildDrawTicket(parent: Instance, drawId: WeaponSkins.DrawId, pos
 	card.Size = UDim2.new(0.485, 0, 1, 0)
 
 	local accent = Instance.new("Frame")
+	accent.Name = "Accent"
 	accent.BackgroundColor3 = if premium then UI.color.gold else UI.color.sky
 	accent.BorderSizePixel = 0
 	accent.Position = UDim2.fromOffset(0, 14)
@@ -223,13 +283,67 @@ local function buildDrawTicket(parent: Instance, drawId: WeaponSkins.DrawId, pos
 		position = UDim2.fromOffset(18, 27),
 		extent = UDim2.new(1, -32, 0, 28),
 	})
-	UI.label(card, "Odds", {
-		text = `Legendary {draw.weights.legendary}%  ·  Epic {draw.weights.epic}%`,
-		font = UI.font.light,
-		size = UI.text.small,
+
+	local pips = Instance.new("Frame")
+	pips.Name = "Odds"
+	pips.BackgroundTransparency = 1
+	pips.Position = UDim2.fromOffset(18, 58)
+	pips.Size = UDim2.new(1, -36, 0, 26)
+	pips.Parent = card
+
+	for index, rarityId in WeaponSkins.RARITY_ORDER do
+		local rarity = WeaponSkins.RARITIES[rarityId]
+		local weight = draw.weights[rarityId]
+		local pip = Instance.new("Frame")
+		pip.Name = rarityId
+		pip.BackgroundColor3 = rarity.color
+		pip.BorderSizePixel = 0
+		pip.Position = UDim2.new((index - 1) / 5, 2, 0, 0)
+		pip.Size = UDim2.new(1 / 5, -4, 0, 5)
+		pip.Parent = pips
+		UI.corner(pip, UI.radius.pill)
+
+		UI.label(pips, `{rarityId}Rate`, {
+			text = `{weight}%`,
+			font = UI.font.bold,
+			size = UI.text.caption,
+			color = rarity.color,
+			align = Enum.TextXAlignment.Center,
+			position = UDim2.new((index - 1) / 5, 2, 0, 8),
+			extent = UDim2.new(1 / 5, -4, 0, 16),
+		})
+	end
+
+	local featured = WeaponSkins.rollSkin(if premium then "legendary" else "epic", Random.new())
+	local stage = Instance.new("Frame")
+	stage.Name = "Featured"
+	stage.BackgroundTransparency = 1
+	stage.Position = UDim2.fromOffset(18, 92)
+	stage.Size = UDim2.new(1, -36, 1, -178)
+	stage.Parent = card
+	WeaponPreview.mount(stage, featured.id, {
+		spin = true,
+		zoom = 1.35,
+		radius = UI.radius.tile,
+	})
+
+	UI.label(card, "FeaturedName", {
+		text = `Featured · {featured.name}`,
+		font = UI.font.bold,
+		size = UI.text.caption,
 		color = UI.color.inkSoft,
-		position = UDim2.fromOffset(18, 56),
-		extent = UDim2.new(1, -32, 0, 20),
+		align = Enum.TextXAlignment.Center,
+		position = UDim2.new(0, 18, 1, -82),
+		extent = UDim2.new(1, -36, 0, 16),
+	})
+	UI.label(card, "Cost", {
+		text = `{draw.cost} yen per capsule`,
+		font = UI.font.light,
+		size = UI.text.caption,
+		color = UI.color.inkFaint,
+		align = Enum.TextXAlignment.Center,
+		position = UDim2.new(0, 18, 1, -66),
+		extent = UDim2.new(1, -36, 0, 16),
 	})
 
 	drawButton(card, drawId, 1, UDim2.new(0.03, 0, 1, -52))
@@ -237,9 +351,7 @@ local function buildDrawTicket(parent: Instance, drawId: WeaponSkins.DrawId, pos
 end
 
 local function sellableCopies(snapshot: GachaState, skin: WeaponSkins.SkinDefinition): number
-	local owned = snapshot.copies[skin.id] or 0
-	local reserved = if snapshot.equipped[skin.weaponId] == skin.id then 1 else 0
-	return math.max(owned - reserved, 0)
+	return WeaponSkins.sellableCopies(snapshot, skin.id)
 end
 
 local function buildCollectionRow(skin: WeaponSkins.SkinDefinition, index: number)
@@ -248,51 +360,57 @@ local function buildCollectionRow(skin: WeaponSkins.SkinDefinition, index: numbe
 		return
 	end
 	local count = snapshot.copies[skin.id] or 0
-	local equipped = snapshot.equipped[skin.weaponId] == skin.id
-	local sellable = sellableCopies(snapshot, skin)
+	local equipped = snapshot.equipped[WeaponSkins.SLOT] == skin.id
 	local rarity = WeaponSkins.RARITIES[skin.rarity]
-	local row = UI.card(collectionList, skin.id, {
-		color = if equipped then UI.color.paperDeep else UI.color.paperRaised,
+	local weapon = WeaponSkins.getWeapon(skin.weaponId)
+	local chosen = selectedSkinId == skin.id
+
+	local row = UI.button(collectionList, skin.id, {
+		text = "",
+		color = if chosen then UI.color.paperDeep else UI.color.paperRaised,
 		radius = UI.radius.chip,
 		stroke = false,
 		sheen = false,
-		innerLine = false,
-	})
-	row.Size = UDim2.new(1, -10, 0, 88)
-	row.LayoutOrder = index
-	local outline = UI.stroke(row, rarity.color, if equipped then 2 else 1)
-	outline.Transparency = if count > 0 then 0.25 else 0.7
 
-	UI.label(row, "Rarity", {
-		text = string.upper(rarity.name),
-		font = UI.font.bold,
-		size = UI.text.caption,
-		color = rarity.color,
-		position = UDim2.fromOffset(14, 10),
-		extent = UDim2.new(0.34, 0, 0, 16),
+		onActivated = function()
+			selectedSkinId = skin.id
+			renderCollection()
+		end,
 	})
+	row.Size = UDim2.new(1, -10, 0, 46)
+	row.LayoutOrder = index
+	row.AutoButtonColor = false
+	local stroke = UI.stroke(row, rarity.color, if chosen then 2 else 1)
+	stroke.Transparency = if count > 0 then 0.2 else 0.72
+
+	local dot = Instance.new("Frame")
+	dot.Name = "Rarity"
+	dot.AnchorPoint = Vector2.new(0, 0.5)
+	dot.BackgroundColor3 = rarity.color
+	dot.BackgroundTransparency = if count > 0 then 0 else 0.6
+	dot.BorderSizePixel = 0
+	dot.Position = UDim2.new(0, 12, 0.5, 0)
+	dot.Size = UDim2.fromOffset(10, 10)
+	dot.Parent = row
+	UI.corner(dot, UI.radius.pill)
+
 	UI.label(row, "Name", {
 		text = skin.name,
 		font = UI.font.display,
-		size = UI.text.body,
+		size = UI.text.small,
 		color = if count > 0 then UI.color.ink else UI.color.inkFaint,
-		position = UDim2.fromOffset(14, 27),
-		extent = UDim2.new(0.42, 0, 0, 24),
+		position = UDim2.fromOffset(30, 6),
+		extent = UDim2.new(1, -124, 0, 20),
 	})
-	UI.label(row, "Weapon", {
-		text = "Sasumata finish",
+	UI.label(row, "Owned", {
+		text = if count > 0
+			then `{if weapon then weapon.name else skin.weaponId} · owned ×{count}`
+			else `{if weapon then weapon.name else skin.weaponId} · not owned`,
 		font = UI.font.light,
 		size = UI.text.caption,
 		color = UI.color.inkSoft,
-		position = UDim2.fromOffset(14, 54),
-		extent = UDim2.new(0.42, 0, 0, 18),
-	})
-	UI.chip(row, "Copies", {
-		text = `×{count}`,
-		color = if count > 0 then rarity.color else UI.color.paperSunken,
-		textColor = UI.color.ink,
-		extent = UDim2.fromOffset(52, 24),
-		position = UDim2.new(0.45, 0, 0, 12),
+		position = UDim2.fromOffset(30, 24),
+		extent = UDim2.new(1, -124, 0, 16),
 	})
 
 	if equipped then
@@ -300,106 +418,289 @@ local function buildCollectionRow(skin: WeaponSkins.SkinDefinition, index: numbe
 			text = "Equipped",
 			color = UI.color.mint,
 			textColor = UI.color.ink,
-			extent = UDim2.fromOffset(84, 24),
-			position = UDim2.new(0.45, 0, 0, 48),
+			textSize = UI.text.caption,
+			extent = UDim2.fromOffset(74, 22),
+			position = UDim2.new(1, -86, 0.5, -11),
 		})
-	elseif count > 0 then
-		UI.button(row, "Equip", {
-			text = "Equip",
-			color = UI.color.sky,
+	end
+end
+
+local function paintCollectionFilters()
+	for _, child in collectionFilterBar:GetChildren() do
+		if child:IsA("TextButton") then
+			local selected = child.Name == collectionFilter
+			child.BackgroundColor3 = if selected then UI.color.blush else UI.color.paperSunken
+			child.TextColor3 = if selected then UI.color.ink else UI.color.inkSoft
+		end
+	end
+end
+
+local function matchesFilter(skin: WeaponSkins.SkinDefinition): boolean
+	if collectionFilter == "all" then
+		return true
+	end
+	if collectionFilter == "owned" then
+		local snapshot = state
+		return snapshot ~= nil and (snapshot.copies[skin.id] or 0) > 0
+	end
+	return skin.origin == collectionFilter
+end
+
+function renderDetail()
+	clearGuiObjects(detailPane)
+
+	local snapshot = state
+	local skin = if selectedSkinId then WeaponSkins.get(selectedSkinId) else nil
+	if not skin or not snapshot then
+		UI.label(detailPane, "Empty", {
+			text = "Pick a weapon on the left to preview it in 3D.",
+			font = UI.font.light,
+			size = UI.text.small,
+			color = UI.color.inkFaint,
+			align = Enum.TextXAlignment.Center,
+			position = UDim2.new(0, 12, 0.5, -20),
+			extent = UDim2.new(1, -24, 0, 40),
+			wrapped = true,
+		})
+		return
+	end
+
+	local rarity = WeaponSkins.RARITIES[skin.rarity]
+	local weapon = WeaponSkins.getWeapon(skin.weaponId)
+	local origin = WeaponSkins.getOrigin(skin.origin)
+	local count = snapshot.copies[skin.id] or 0
+	local equipped = snapshot.equipped[WeaponSkins.SLOT] == skin.id
+	local sellable = sellableCopies(snapshot, skin)
+	local actionHeight = if count == 0 then 44 else 78
+	local infoHeight = 82
+	local footprint = actionHeight + infoHeight
+	local stage = Instance.new("Frame")
+	stage.Name = "Stage"
+	stage.BackgroundTransparency = 1
+	stage.Position = UDim2.fromOffset(10, 10)
+	stage.Size = UDim2.new(1, -20, 1, -(footprint + 18))
+	stage.Parent = detailPane
+	WeaponPreview.mount(stage, skin.id, { spin = true, zoom = 1.3 })
+
+	local info = Instance.new("Frame")
+	info.Name = "Info"
+	info.BackgroundTransparency = 1
+	info.Position = UDim2.new(0, 10, 1, -footprint)
+	info.Size = UDim2.new(1, -20, 0, infoHeight)
+	info.Parent = detailPane
+
+	UI.label(info, "Name", {
+		text = skin.name,
+		font = UI.font.display,
+		size = UI.text.subtitle,
+		align = Enum.TextXAlignment.Center,
+		extent = UDim2.new(1, 0, 0, 24),
+		wrapped = true,
+	})
+	UI.label(info, "Tagline", {
+		text = `{string.upper(rarity.name)}  ·  {if weapon then weapon.name else skin.weaponId}`,
+		font = UI.font.bold,
+		size = UI.text.caption,
+		color = rarity.color,
+		align = Enum.TextXAlignment.Center,
+		position = UDim2.fromOffset(0, 26),
+		extent = UDim2.new(1, 0, 0, 16),
+	})
+	UI.label(info, "Blurb", {
+		text = skin.blurb,
+		font = UI.font.light,
+		size = UI.text.caption,
+		color = UI.color.inkSoft,
+		align = Enum.TextXAlignment.Center,
+		position = UDim2.fromOffset(0, 44),
+		extent = UDim2.new(1, 0, 0, 20),
+		wrapped = true,
+	})
+	UI.label(info, "Origin", {
+		text = `{if origin then origin.name else skin.origin}  ·  {rarity.resaleYen} yen`,
+		font = UI.font.light,
+		size = UI.text.caption,
+		color = UI.color.inkFaint,
+		align = Enum.TextXAlignment.Center,
+		position = UDim2.fromOffset(0, 64),
+		extent = UDim2.new(1, 0, 0, 16),
+	})
+
+	if count == 0 then
+		UI.label(detailPane, "Locked", {
+			text = "Not owned yet - draw a capsule to unlock it.",
+			font = UI.font.light,
+			size = UI.text.caption,
+			color = UI.color.inkFaint,
+			align = Enum.TextXAlignment.Center,
+			position = UDim2.new(0, 10, 1, -38),
+			extent = UDim2.new(1, -20, 0, 30),
+			wrapped = true,
+		})
+		return
+	end
+
+	local isDefault = skin.id == WeaponSkins.DEFAULT_SKIN_ID
+	if equipped and isDefault then
+		UI.label(detailPane, "DefaultNote", {
+			text = "Your starter weapon. Equipped by default.",
+			font = UI.font.light,
+			size = UI.text.caption,
+			color = UI.color.inkFaint,
+			align = Enum.TextXAlignment.Center,
+			position = UDim2.new(0, 10, 1, -74),
+			extent = UDim2.new(1, -20, 0, 26),
+			wrapped = true,
+		})
+	elseif equipped then
+		UI.button(detailPane, "Unequip", {
+			text = "Back to the Stale Sasumata",
+			color = UI.color.paperSunken,
 			textColor = UI.color.ink,
-			extent = UDim2.fromOffset(84, 28),
-			position = UDim2.new(0.45, 0, 0, 46),
+			textSize = UI.text.caption,
+			extent = UDim2.new(1, -20, 0, 32),
+			position = UDim2.new(0, 10, 1, -78),
+			stroke = false,
+			sheen = false,
 
 			onActivated = function()
-				equipRemote:FireServer({ weaponId = skin.weaponId, skinId = skin.id })
+				equipRemote:FireServer({})
+			end,
+		})
+	else
+		UI.button(detailPane, "Equip", {
+			text = "Equip this weapon",
+			color = UI.color.sky,
+			textColor = UI.color.ink,
+			extent = UDim2.new(1, -20, 0, 32),
+			position = UDim2.new(0, 10, 1, -78),
+			stroke = false,
+			sheen = false,
+
+			onActivated = function()
+				equipRemote:FireServer({ skinId = skin.id })
 			end,
 		})
 	end
 
-	UI.label(row, "Sale", {
-		text = `{rarity.resaleYen} yen each`,
-		font = UI.font.light,
-		size = UI.text.caption,
-		color = UI.color.inkSoft,
-		align = Enum.TextXAlignment.Right,
-		position = UDim2.new(1, -220, 0, 9),
-		extent = UDim2.fromOffset(206, 18),
-	})
 	if sellable > 0 then
-		UI.button(row, "SellOne", {
+		UI.button(detailPane, "SellOne", {
 			text = "Sell 1",
 			color = UI.color.paperSunken,
 			textColor = UI.color.ink,
-			extent = UDim2.fromOffset(92, 30),
-			position = UDim2.new(1, -204, 0, 40),
+			textSize = UI.text.caption,
+			extent = UDim2.new(0.5, -14, 0, 30),
+			position = UDim2.new(0, 10, 1, -40),
+			stroke = false,
+			sheen = false,
 
 			onActivated = function()
 				sellRemote:FireServer({ skinId = skin.id, count = 1 })
 			end,
 		})
-		UI.button(row, "SellMax", {
+		UI.button(detailPane, "SellMax", {
 			text = `Sell {sellable}`,
 			color = UI.color.warning,
 			textColor = UI.color.ink,
-			extent = UDim2.fromOffset(98, 30),
-			position = UDim2.new(1, -106, 0, 40),
+			textSize = UI.text.caption,
+			extent = UDim2.new(0.5, -14, 0, 30),
+			position = UDim2.new(0.5, 4, 1, -40),
+			stroke = false,
+			sheen = false,
 
 			onActivated = function()
 				sellRemote:FireServer({ skinId = skin.id, count = sellable })
 			end,
 		})
 	else
-		UI.label(row, "NoSale", {
-			text = if equipped and count == 1 then "Equipped copy is protected" else "No copy to sell",
+		UI.label(detailPane, "NoSale", {
+			text = if isDefault
+				then "Your starter weapon cannot be sold."
+				else "Your only copy is equipped, so it is protected.",
 			font = UI.font.light,
 			size = UI.text.caption,
 			color = UI.color.inkFaint,
-			align = Enum.TextXAlignment.Right,
-			position = UDim2.new(1, -214, 0, 43),
-			extent = UDim2.fromOffset(200, 24),
+			align = Enum.TextXAlignment.Center,
+			position = UDim2.new(0, 10, 1, -38),
+			extent = UDim2.new(1, -20, 0, 28),
+			wrapped = true,
 		})
 	end
 end
 
-local function renderCollection()
+function renderCollection()
 	clearGuiObjects(collectionList)
-	for index, skin in WeaponSkins.SKINS do
+
+	local visible = {}
+	for _, skin in WeaponSkins.SKINS do
+		if matchesFilter(skin) then
+			table.insert(visible, skin)
+		end
+	end
+
+	local stillShown = false
+	for _, skin in visible do
+		if skin.id == selectedSkinId then
+			stillShown = true
+			break
+		end
+	end
+	if not stillShown then
+		selectedSkinId = if visible[1] then visible[1].id else nil
+	end
+
+	for index, skin in visible do
 		buildCollectionRow(skin, index)
 	end
-	collectionList.CanvasPosition = Vector2.zero
+	paintCollectionFilters()
+	renderDetail()
 end
 
-local function buildBaseLook(parent: Frame)
-	local holder = UI.card(parent, "BaseLook", {
-		color = UI.color.paperRaised,
-		radius = UI.radius.chip,
-		stroke = false,
-		sheen = false,
-		innerLine = false,
-	})
-	holder.Size = UDim2.new(1, 0, 0, 48)
-	UI.label(holder, "Label", {
-		text = "SASUMATA BASE LOOK",
-		font = UI.font.bold,
-		size = UI.text.caption,
-		color = UI.color.inkSoft,
-		position = UDim2.fromOffset(12, 15),
-		extent = UDim2.new(0.6, 0, 0, 18),
-	})
-	UI.button(holder, "EquipBase", {
-		text = "Equip Classic Pink",
-		color = UI.color.paperSunken,
-		textColor = UI.color.ink,
-		extent = UDim2.fromOffset(180, 30),
-		position = UDim2.new(1, -192, 0, 9),
-		stroke = false,
-		sheen = false,
+local function buildCollectionFilters(parent: Frame)
+	collectionFilterBar = Instance.new("Frame")
+	collectionFilterBar.Name = "Filters"
+	collectionFilterBar.BackgroundTransparency = 1
+	collectionFilterBar.Size = UDim2.new(1, 0, 0, 34)
+	collectionFilterBar.Parent = parent
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Horizontal
+	layout.Padding = UDim.new(0, 6)
+	layout.Parent = collectionFilterBar
 
-		onActivated = function()
-			equipRemote:FireServer({ weaponId = WEAPON_ID })
-		end,
-	})
+	local entries = {
+		{ key = "all", label = "All" },
+		{ key = "canon", label = "From the show" },
+		{ key = "cool", label = "Cool" },
+		{ key = "cute", label = "Cute" },
+		{ key = "owned", label = "Owned" },
+	}
+	for index, entry in entries do
+		local button = UI.button(collectionFilterBar, entry.key, {
+			text = entry.label,
+			textSize = UI.text.caption,
+			color = UI.color.paperSunken,
+			textColor = UI.color.inkSoft,
+			extent = UDim2.new(1 / #entries, -5, 1, 0),
+			stroke = false,
+			sheen = false,
+
+			onActivated = function()
+				collectionFilter = entry.key
+				renderCollection()
+			end,
+		})
+		button.LayoutOrder = index
+	end
+end
+
+local function percent(value: number): string
+	if value <= 0 then
+		return "0%"
+	end
+	if value < 0.01 then
+		return "<0.01%"
+	end
+	return `{string.format("%.2f", value)}%`
 end
 
 local function buildOddsPage(parent: Frame)
@@ -416,11 +717,11 @@ local function buildOddsPage(parent: Frame)
 	UI.list(scroll, 8)
 
 	UI.label(scroll, "Intro", {
-		text = "Every capsule uses the odds below. Each rarity currently contains one Sasumata finish.",
+		text = `Every capsule uses the odds below. A capsule first picks a rarity, then picks evenly from the weapons in that rarity. A rare or better is guaranteed every {WeaponSkins.RARE_PLUS_PITY} pulls, and a legendary every {WeaponSkins.LEGENDARY_PITY}. Weapons are looks only - none of them change how fast you work.`,
 		font = UI.font.body,
 		size = UI.text.small,
 		color = UI.color.inkSoft,
-		extent = UDim2.new(1, -10, 0, 36),
+		extent = UDim2.new(1, -10, 0, 60),
 		wrapped = true,
 	})
 
@@ -455,14 +756,17 @@ local function buildOddsPage(parent: Frame)
 			position = UDim2.fromOffset(14, 31),
 			extent = UDim2.new(0.56, 0, 0, 18),
 		})
+		local pool = math.max(WeaponSkins.poolSize(rarityId), 1)
 		UI.label(card, "Rates", {
-			text = `Standard {standard}%  ·  Premium {premium}%`,
+			text = `Standard {standard}%  ·  Premium {premium}%\n{pool} weapon{if pool == 1 then "" else "s"} · each {percent(
+				standard / pool
+			)} / {percent(premium / pool)}`,
 			font = UI.font.bold,
 			size = UI.text.caption,
 			color = UI.color.ink,
 			align = Enum.TextXAlignment.Right,
-			position = UDim2.new(1, -244, 0, 18),
-			extent = UDim2.fromOffset(230, 22),
+			position = UDim2.new(1, -244, 0, 8),
+			extent = UDim2.fromOffset(230, 42),
 		})
 	end
 end
@@ -501,13 +805,13 @@ local function buildPanel(parent: ScreenGui)
 	UI.padding(content, UI.space.base)
 
 	UI.label(content, "Title", {
-		text = "Weapon Skin Capsule Shop",
+		text = "Weapon Capsule Shop",
 		font = UI.font.display,
 		size = UI.text.display,
 		extent = UDim2.new(0.68, 0, 0, 30),
 	})
 	UI.label(content, "Subtitle", {
-		text = "Draw, equip, and trade Sasumata finishes.",
+		text = "Draw, equip, and trade weapons. Equipping swaps what you carry right away.",
 		font = UI.font.light,
 		size = UI.text.small,
 		color = UI.color.inkSoft,
@@ -528,28 +832,30 @@ local function buildPanel(parent: ScreenGui)
 
 	local status = UI.card(content, "Status", {
 		color = UI.color.paperRaised,
-		radius = UI.radius.pill,
+		radius = UI.radius.chip,
 		position = UDim2.fromOffset(0, 56),
 		stroke = false,
 		sheen = false,
 		innerLine = false,
 	})
-	status.Size = UDim2.new(1, 0, 0, 30)
+	status.Size = UDim2.new(1, 0, 0, 46)
 	yenLabel = UI.label(status, "Yen", {
 		text = "0 yen",
 		font = UI.font.bold,
 		size = UI.text.small,
-		position = UDim2.fromOffset(12, 5),
-		extent = UDim2.new(0.5, -12, 0, 20),
+		position = UDim2.fromOffset(14, 6),
+		extent = UDim2.new(0.26, -14, 0, 18),
 	})
 	capacityLabel = UI.label(status, "Capacity", {
-		text = "0 / 60 slots used",
-		font = UI.font.body,
-		size = UI.text.small,
-		align = Enum.TextXAlignment.Right,
-		position = UDim2.new(0.5, 0, 0, 5),
-		extent = UDim2.new(0.5, -12, 0, 20),
+		text = `0 / {WeaponSkins.CAPACITY} slots used`,
+		font = UI.font.light,
+		size = UI.text.caption,
+		color = UI.color.inkSoft,
+		position = UDim2.fromOffset(14, 24),
+		extent = UDim2.new(0.26, -14, 0, 16),
 	})
+	buildPityMeter(status, "rare", UI.color.sky, UDim2.new(0.3, 0, 0, 7))
+	buildPityMeter(status, "legendary", UI.color.gold, UDim2.new(0.65, 0, 0, 7))
 
 	local bodyFrame = Instance.new("ScrollingFrame")
 	bodyFrame.Name = "Body"
@@ -561,6 +867,7 @@ local function buildPanel(parent: ScreenGui)
 	bodyFrame.Size = UDim2.new(1, 0, 1, -148)
 	bodyFrame.Parent = content
 	body = bodyFrame
+
 	for _, key in { "draw", "collection", "odds" } do
 		local page = Instance.new("Frame")
 		page.Name = key
@@ -573,22 +880,34 @@ local function buildPanel(parent: ScreenGui)
 	applyBodyLayout(UI.responsive.isCompact())
 
 	buildNavigation(content)
+
 	buildDrawTicket(pages.draw, "standard", UDim2.fromScale(0, 0))
 	buildDrawTicket(pages.draw, "premium", UDim2.fromScale(0.515, 0))
-	buildBaseLook(pages.collection)
 
+	buildCollectionFilters(pages.collection)
 	collectionList = Instance.new("ScrollingFrame")
 	collectionList.Name = "CollectionList"
 	collectionList.BackgroundTransparency = 1
 	collectionList.BorderSizePixel = 0
-	collectionList.Position = UDim2.fromOffset(0, 56)
-	collectionList.Size = UDim2.new(1, 0, 1, -56)
+	collectionList.Position = UDim2.fromOffset(0, 42)
+	collectionList.Size = UDim2.new(0.53, 0, 1, -42)
 	collectionList.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	collectionList.CanvasSize = UDim2.fromOffset(0, 0)
 	collectionList.ScrollBarThickness = 6
 	collectionList.ScrollBarImageColor3 = UI.color.inkSoft
 	collectionList.Parent = pages.collection
-	UI.list(collectionList, 7)
+	UI.list(collectionList, 6)
+
+	detailPane = UI.card(pages.collection, "Detail", {
+		color = UI.color.paperRaised,
+		radius = UI.radius.tile,
+		position = UDim2.new(0.55, 0, 0, 42),
+		stroke = false,
+		sheen = false,
+		innerLine = false,
+	})
+	detailPane.Size = UDim2.new(0.45, 0, 1, -42)
+
 	buildOddsPage(pages.odds)
 	paintStatus()
 
@@ -687,6 +1006,7 @@ end
 function WeaponGachaMenu.init()
 	local player = Players.LocalPlayer
 	local playerGui = player:WaitForChild("PlayerGui")
+
 	screen = Instance.new("ScreenGui")
 	screen.Name = "WeaponGachaMenu"
 	screen.ResetOnSpawn = false
@@ -698,11 +1018,13 @@ function WeaponGachaMenu.init()
 	pullRemote = Remotes.event("WeaponGacha", "Pull")
 	equipRemote = Remotes.event("WeaponGacha", "Equip")
 	sellRemote = Remotes.event("WeaponGacha", "Sell")
+
 	Remotes.event("WeaponGacha", "Open").OnClientEvent:Connect(function(value)
 		applyState(value)
 		showPage("draw")
 		WeaponGachaMenu.setOpen(true)
 	end)
+
 	Remotes.event("WeaponGacha", "Event").OnClientEvent:Connect(function(payload)
 		if type(payload) ~= "table" then
 			return
@@ -732,6 +1054,8 @@ function WeaponGachaMenu.init()
 			end
 		elseif payload.kind == "denied" then
 			setPullBusy(false)
+		elseif payload.kind == "sold" or payload.kind == "state" then
+			renderCollection()
 		end
 	end)
 
@@ -743,6 +1067,7 @@ function WeaponGachaMenu.init()
 			paintStatus()
 		end
 	end)
+
 	player.CharacterAdded:Connect(function()
 		if cancelReveal then
 			cancelReveal()
@@ -757,6 +1082,7 @@ function WeaponGachaMenu.init()
 			WeaponGachaMenu.setOpen(false)
 		end
 	end)
+
 	task.spawn(function()
 		while screen.Parent do
 			task.wait(0.25)

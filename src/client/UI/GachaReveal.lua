@@ -2,6 +2,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GuiService = game:GetService("GuiService")
+local TweenService = game:GetService("TweenService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local UI = require(Shared.UI)
 local InputMode = require(script.Parent.InputMode)
@@ -27,6 +28,25 @@ local GachaReveal = {}
 local BACKDROP = Color3.fromRGB(8, 12, 30)
 local SKY_TOP = Color3.fromRGB(32, 50, 92)
 local WHITE = Color3.fromRGB(255, 250, 235)
+local GOLD = Color3.fromRGB(255, 214, 122)
+
+GachaReveal.CINEMATIC_ORDER = 5
+
+local CHARMS = { "💖", "⭐", "✨", "🌸", "🎀", "💫", "🍬" }
+local CONFETTI_COLORS = {
+	Color3.fromRGB(255, 176, 208),
+	Color3.fromRGB(255, 226, 150),
+	Color3.fromRGB(168, 226, 255),
+	Color3.fromRGB(196, 246, 202),
+	Color3.fromRGB(214, 190, 255),
+}
+
+local PACE = 1.6
+local CINEMATIC_BEATS = 3
+local CINEMATIC_BEAT = 0.26
+local CINEMATIC_CHARGE = CINEMATIC_BEATS * CINEMATIC_BEAT
+local CINEMATIC_BURST = CINEMATIC_CHARGE + 0.34
+local CINEMATIC_HOLD = CINEMATIC_BURST + 2.1
 
 local function corner(parent: GuiObject, radius: UDim)
 	local item = Instance.new("UICorner")
@@ -35,7 +55,16 @@ local function corner(parent: GuiObject, radius: UDim)
 end
 
 local function tween(instance: Instance, duration: number, style: Enum.EasingStyle, goal: { [string]: any }): Tween
-	return UI.motion.play(instance, TweenInfo.new(duration, style, Enum.EasingDirection.Out), goal)
+	return UI.motion.play(instance, TweenInfo.new(duration * PACE, style, Enum.EasingDirection.Out), goal)
+end
+
+local function after(seconds: number, callback: () -> ())
+	task.delay(if UI.motion.isReducedMotion() then seconds else seconds * PACE, callback)
+end
+
+local function spin(instance: GuiObject, seconds: number, clockwise: boolean)
+	local info = TweenInfo.new(seconds, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1)
+	TweenService:Create(instance, info, { Rotation = if clockwise then 360 else -360 }):Play()
 end
 
 local function makeStar(parent: Instance, rng: Random): Frame
@@ -78,7 +107,7 @@ local function makeStreak(parent: Instance, rng: Random, color: Color3)
 	end)
 end
 
-local function makeRing(parent: Instance, color: Color3): Frame
+local function makeRing(parent: Instance, color: Color3, span: number, thickness: number, life: number): Frame
 	local ring = Instance.new("Frame")
 	ring.Name = "ImpactRing"
 	ring.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -91,13 +120,195 @@ local function makeRing(parent: Instance, color: Color3): Frame
 
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = color
-	stroke.Thickness = 5
+	stroke.Thickness = thickness
 	stroke.Transparency = 0.05
 	stroke.Parent = ring
 
-	tween(ring, 0.55, Enum.EasingStyle.Quint, { Size = UDim2.fromScale(0.82, 0.82) })
-	tween(stroke, 0.5, Enum.EasingStyle.Quad, { Thickness = 1, Transparency = 1 })
+	tween(ring, life, Enum.EasingStyle.Quint, { Size = UDim2.fromScale(span, span) })
+	tween(stroke, life * 0.92, Enum.EasingStyle.Quad, { Thickness = 1, Transparency = 1 })
 	return ring
+end
+
+local function makeSunburst(parent: Instance, color: Color3): Frame
+	local hub = Instance.new("Frame")
+	hub.Name = "Sunburst"
+	hub.AnchorPoint = Vector2.new(0.5, 0.5)
+	hub.BackgroundTransparency = 1
+	hub.Position = UDim2.fromScale(0.5, 0.36)
+	hub.Size = UDim2.fromScale(1.6, 1.6)
+	hub.SizeConstraint = Enum.SizeConstraint.RelativeYY
+	hub.ZIndex = 105
+	hub.Parent = parent
+
+	local group = Instance.new("UIScale")
+	group.Scale = 0.1
+	group.Parent = hub
+
+	for index = 1, 12 do
+		local ray = Instance.new("Frame")
+		ray.Name = `Ray_{index}`
+		ray.AnchorPoint = Vector2.new(0.5, 0.5)
+		ray.BackgroundColor3 = if index % 2 == 0 then color else color:Lerp(WHITE, 0.55)
+		ray.BackgroundTransparency = 0.62
+		ray.BorderSizePixel = 0
+		ray.Position = UDim2.fromScale(0.5, 0.5)
+		ray.Rotation = index * 15
+		ray.Size = UDim2.fromScale(0.055, 1)
+		ray.ZIndex = 105
+		ray.Parent = hub
+
+		local fade = Instance.new("UIGradient")
+		fade.Rotation = 90
+		fade.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.5, 0.2),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		fade.Parent = ray
+	end
+
+	tween(group, 0.7, Enum.EasingStyle.Quint, { Scale = 1 })
+	spin(hub, 26, true)
+	return hub
+end
+
+local function makeCharm(parent: Instance, rng: Random, size: number): TextLabel
+	local charm = Instance.new("TextLabel")
+	charm.Name = "Charm"
+	charm.AnchorPoint = Vector2.new(0.5, 0.5)
+	charm.BackgroundTransparency = 1
+	charm.Font = UI.font.bold
+	charm.Size = UDim2.fromOffset(size, size)
+	charm.Text = CHARMS[rng:NextInteger(1, #CHARMS)]
+	charm.TextSize = size
+	charm.ZIndex = 118
+	charm.Parent = parent
+	return charm
+end
+
+local function burstConfetti(parent: Instance, rng: Random)
+	for index = 1, 26 do
+		local angle = (index / 26) * math.pi * 2 + rng:NextNumber(-0.16, 0.16)
+		local reach = rng:NextNumber(0.24, 0.52)
+		local piece: GuiObject
+		if index % 3 == 0 then
+			piece = makeCharm(parent, rng, rng:NextInteger(20, 34))
+		else
+			local flake = Instance.new("Frame")
+			flake.Name = "Confetti"
+			flake.AnchorPoint = Vector2.new(0.5, 0.5)
+			flake.BackgroundColor3 = CONFETTI_COLORS[rng:NextInteger(1, #CONFETTI_COLORS)]
+			flake.BorderSizePixel = 0
+			flake.Rotation = rng:NextInteger(0, 180)
+			flake.Size = UDim2.fromOffset(rng:NextInteger(8, 16), rng:NextInteger(8, 16))
+			flake.ZIndex = 118
+			flake.Parent = parent
+			corner(flake, UDim.new(0.35, 0))
+			piece = flake
+		end
+
+		piece.Position = UDim2.fromScale(0.5, 0.4)
+		local flight = tween(piece, rng:NextNumber(0.7, 1.15), Enum.EasingStyle.Quint, {
+			Position = UDim2.fromScale(0.5 + math.cos(angle) * reach, 0.4 + math.sin(angle) * reach * 0.86),
+			Rotation = piece.Rotation + rng:NextInteger(-220, 220),
+		})
+		if piece:IsA("TextLabel") then
+			tween(piece, 1.4, Enum.EasingStyle.Quad, { TextTransparency = 1 })
+		else
+			tween(piece, 1.4, Enum.EasingStyle.Quad, { BackgroundTransparency = 1 })
+		end
+		flight.Completed:Connect(function()
+			piece:Destroy()
+		end)
+	end
+end
+
+local function floatCharm(parent: Instance, rng: Random)
+	local charm = makeCharm(parent, rng, rng:NextInteger(18, 30))
+	charm.Position = UDim2.fromScale(rng:NextNumber(0.12, 0.88), 1.08)
+	charm.TextTransparency = 0.15
+	local rise = tween(charm, rng:NextNumber(1.6, 2.6), Enum.EasingStyle.Sine, {
+		Position = charm.Position - UDim2.fromScale(rng:NextNumber(-0.08, 0.08), rng:NextNumber(0.75, 1.2)),
+		TextTransparency = 1,
+		Rotation = rng:NextInteger(-40, 40),
+	})
+	rise.Completed:Connect(function()
+		charm:Destroy()
+	end)
+end
+
+local function makeBanner(parent: Instance, presentation: Presentation)
+	local banner = Instance.new("Frame")
+	banner.Name = "LegendaryBanner"
+	banner.AnchorPoint = Vector2.new(0.5, 0.5)
+	banner.BackgroundColor3 = Color3.fromRGB(26, 20, 44)
+	banner.BackgroundTransparency = 0.12
+	banner.BorderSizePixel = 0
+	banner.Position = UDim2.fromScale(-0.6, 0.5)
+	banner.Size = UDim2.new(1.25, 0, 0, 46)
+	banner.ZIndex = 112
+	banner.Parent = parent
+
+	local sheen = Instance.new("UIGradient")
+	sheen.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(26, 20, 44)),
+		ColorSequenceKeypoint.new(0.5, presentation.rarityColor:Lerp(Color3.fromRGB(26, 20, 44), 0.45)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(26, 20, 44)),
+	})
+	sheen.Parent = banner
+
+	local edge = Instance.new("UIStroke")
+	edge.Color = GOLD
+	edge.Thickness = 2
+	edge.Transparency = 0.25
+	edge.Parent = banner
+
+	local ribbon = Instance.new("TextLabel")
+	ribbon.Name = "Ribbon"
+	ribbon.BackgroundTransparency = 1
+	ribbon.Font = UI.font.bold
+	ribbon.Size = UDim2.fromScale(1, 1)
+	ribbon.Text = `✨  {string.upper(presentation.rarityName)}  ·  {presentation.subtitle}  ✨`
+	ribbon.TextColor3 = GOLD
+	ribbon.TextSize = 20
+	ribbon.ZIndex = 113
+	ribbon.Parent = banner
+
+	tween(banner, 0.42, Enum.EasingStyle.Back, { Position = UDim2.fromScale(0.5, 0.5) })
+end
+
+local function makeContinuePrompt(parent: Instance, onContinue: () -> ())
+	local gate = Instance.new("TextButton")
+	gate.Name = "ContinueGate"
+	gate.AutoButtonColor = false
+	gate.BackgroundTransparency = 1
+	gate.Size = UDim2.fromScale(1, 1)
+	gate.Text = ""
+	gate.ZIndex = 119
+	gate.Parent = parent
+
+	local hint = Instance.new("TextLabel")
+	hint.Name = "Hint"
+	hint.AnchorPoint = Vector2.new(0.5, 0.5)
+	hint.BackgroundTransparency = 1
+	hint.Font = UI.font.bold
+	hint.Position = UDim2.fromScale(0.5, 0.9)
+	hint.Size = UDim2.fromOffset(340, 32)
+	hint.Text = "♡  tap anywhere to continue  ♡"
+	hint.TextColor3 = WHITE
+	hint.TextSize = 20
+	hint.TextStrokeColor3 = BACKDROP
+	hint.TextStrokeTransparency = 0.35
+	hint.TextTransparency = 0.1
+	hint.ZIndex = 119
+	hint.Parent = gate
+
+	if not UI.motion.isReducedMotion() then
+		local breathe = TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+		TweenService:Create(hint, breathe, { TextTransparency = 0.6 }):Play()
+	end
+
+	gate.Activated:Connect(onContinue)
 end
 
 local function makeResultLabels(
@@ -105,7 +316,8 @@ local function makeResultLabels(
 	result: PullResult,
 	presentation: Presentation,
 	index: number,
-	total: number
+	total: number,
+	hero: boolean
 )
 	local mountPreview = presentation.mountPreview
 	local stage: Frame? = nil
@@ -125,7 +337,7 @@ local function makeResultLabels(
 		if preview then
 			preview.Size = UDim2.fromScale(1, 1)
 			stage = host
-			local span = 216 + presentation.rarityOrder * 26
+			local span = (216 + presentation.rarityOrder * 26) * (if hero then 1.12 else 1)
 			stageSize = UDim2.fromOffset(span, span)
 		else
 			host:Destroy()
@@ -151,10 +363,10 @@ local function makeResultLabels(
 	rarityLabel.AnchorPoint = Vector2.new(0.5, 0.5)
 	rarityLabel.BackgroundTransparency = 1
 	rarityLabel.Font = UI.font.bold
-	rarityLabel.Position = UDim2.fromScale(0.5, 0.57)
+	rarityLabel.Position = UDim2.fromScale(0.5, if hero then 0.6 else 0.57)
 	rarityLabel.Size = UDim2.fromScale(0.8, 0.07)
-	rarityLabel.Text = string.upper(presentation.rarityName)
-	rarityLabel.TextColor3 = presentation.rarityColor
+	rarityLabel.Text = if hero then `★ {string.upper(presentation.rarityName)} ★` else string.upper(presentation.rarityName)
+	rarityLabel.TextColor3 = if hero then GOLD else presentation.rarityColor
 	rarityLabel.TextSize = 18
 	rarityLabel.TextStrokeColor3 = BACKDROP
 	rarityLabel.TextStrokeTransparency = 0.25
@@ -167,7 +379,7 @@ local function makeResultLabels(
 	nameLabel.AnchorPoint = Vector2.new(0.5, 0.5)
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Font = UI.font.display
-	nameLabel.Position = if stage then UDim2.fromScale(0.5, 0.65) else UDim2.fromScale(0.5, 0.64)
+	nameLabel.Position = if stage then UDim2.fromScale(0.5, 0.68) else UDim2.fromScale(0.5, 0.64)
 	nameLabel.Size = if stage then UDim2.fromScale(0.82, 0.08) else UDim2.fromScale(0.82, 0.1)
 	nameLabel.Text = presentation.name
 	nameLabel.TextColor3 = WHITE
@@ -183,7 +395,7 @@ local function makeResultLabels(
 	copyLabel.AnchorPoint = Vector2.new(0.5, 0.5)
 	copyLabel.BackgroundTransparency = 1
 	copyLabel.Font = UI.font.bold
-	copyLabel.Position = UDim2.fromScale(0.5, 0.72)
+	copyLabel.Position = UDim2.fromScale(0.5, if hero then 0.76 else 0.72)
 	copyLabel.Size = UDim2.fromOffset(240, 30)
 	copyLabel.Text = if result.isNew then "NEW!" else "EXTRA COPY"
 	copyLabel.TextColor3 = if result.isNew then Color3.fromRGB(138, 244, 192) else Color3.fromRGB(196, 202, 220)
@@ -192,7 +404,7 @@ local function makeResultLabels(
 	copyLabel.ZIndex = 116
 	copyLabel.Parent = parent
 
-	local nameTarget = if stage then 24 else 42
+	local nameTarget = if stage then (if hero then 30 else 24) else 42
 
 	if UI.motion.isReducedMotion() then
 		if stage then
@@ -205,9 +417,12 @@ local function makeResultLabels(
 	end
 
 	if stage then
-		tween(stage, 0.34, Enum.EasingStyle.Back, { Size = stageSize })
+		tween(stage, if hero then 0.5 else 0.34, Enum.EasingStyle.Back, { Size = stageSize })
 	end
-	tween(rarityLabel, 0.28, Enum.EasingStyle.Back, { TextSize = 34, TextTransparency = 0 })
+	tween(rarityLabel, if hero then 0.4 else 0.28, Enum.EasingStyle.Back, {
+		TextSize = if hero then 46 else 34,
+		TextTransparency = 0,
+	})
 	tween(nameLabel, 0.32, Enum.EasingStyle.Back, { TextSize = nameTarget, TextTransparency = 0 })
 	tween(copyLabel, 0.25, Enum.EasingStyle.Quad, { TextTransparency = 0 })
 end
@@ -221,6 +436,7 @@ function GachaReveal.play(
 	local rng = Random.new()
 	local previousSelection = GuiService.SelectedObject
 	local finished = false
+	local skipping = false
 	local sceneGeneration = 0
 	local activeScene: Frame? = nil
 	local nextIndex = 1
@@ -276,6 +492,10 @@ function GachaReveal.play(
 	skipButton.Parent = overlay
 	corner(skipButton, UDim.new(1, 0))
 
+	local function isCinematic(presentation: Presentation): boolean
+		return presentation.rarityOrder >= GachaReveal.CINEMATIC_ORDER
+	end
+
 	local function close(completed: boolean)
 		if finished then
 			return
@@ -293,13 +513,35 @@ function GachaReveal.play(
 		end
 	end
 
+	local function resolve(result: PullResult): Presentation
+		return present(result)
+			or {
+				name = "Mystery Skin",
+				subtitle = "Unknown item",
+				rarityName = "Unknown",
+				rarityColor = Color3.fromRGB(178, 158, 152),
+				rarityOrder = 1,
+				mountPreview = nil,
+			}
+	end
+
 	local playNext: () -> ()
 
 	playNext = function()
 		if finished then
 			return
 		end
-		if nextIndex > #results then
+
+		local presentation: Presentation? = nil
+		while nextIndex <= #results do
+			local candidate = resolve(results[nextIndex])
+			if not skipping or isCinematic(candidate) then
+				presentation = candidate
+				break
+			end
+			nextIndex += 1
+		end
+		if not presentation then
 			close(true)
 			return
 		end
@@ -312,14 +554,9 @@ function GachaReveal.play(
 		local index = nextIndex
 		nextIndex += 1
 		local result = results[index]
-		local presentation: Presentation = present(result) or {
-			name = "Mystery Skin",
-			subtitle = "Unknown item",
-			rarityName = "Unknown",
-			rarityColor = Color3.fromRGB(178, 158, 152),
-			rarityOrder = 1,
-			mountPreview = nil,
-		}
+		local hero = isCinematic(presentation)
+		skipButton.Visible = not hero
+
 		local scene = Instance.new("Frame")
 		scene.Name = `Pull{index}`
 		scene.BackgroundTransparency = 1
@@ -332,12 +569,119 @@ function GachaReveal.play(
 			return not finished and sceneGeneration == generation and scene.Parent ~= nil
 		end
 
+		local function advance()
+			if isCurrent() then
+				playNext()
+			end
+		end
+
 		if UI.motion.isReducedMotion() then
-			makeResultLabels(scene, result, presentation, index, #results)
-			task.delay(0.55, function()
-				if isCurrent() then
-					playNext()
+			makeResultLabels(scene, result, presentation, index, #results, hero)
+			if hero then
+				makeContinuePrompt(scene, advance)
+			else
+				task.delay(0.55, advance)
+			end
+			return
+		end
+
+		if hero then
+			local charge = Instance.new("Frame")
+			charge.Name = "WishHeart"
+			charge.AnchorPoint = Vector2.new(0.5, 0.5)
+			charge.BackgroundColor3 = WHITE
+			charge.BorderSizePixel = 0
+			charge.Position = UDim2.fromScale(0.5, 0.36)
+			charge.Size = UDim2.fromOffset(18, 18)
+			charge.ZIndex = 110
+			charge.Parent = scene
+			corner(charge, UDim.new(1, 0))
+
+			local halo = Instance.new("UIStroke")
+			halo.Color = presentation.rarityColor
+			halo.Thickness = 3
+			halo.Transparency = 0.2
+			halo.Parent = charge
+
+			for beat = 1, CINEMATIC_BEATS do
+				after((beat - 1) * CINEMATIC_BEAT, function()
+					if not isCurrent() then
+						return
+					end
+					local span = 22 + beat * 16
+					tween(charge, CINEMATIC_BEAT * 0.44, Enum.EasingStyle.Back, {
+						Size = UDim2.fromOffset(span, span),
+					})
+					makeRing(scene, presentation.rarityColor, 0.24 + beat * 0.12, 3, CINEMATIC_BEAT * 0.9)
+					floatCharm(scene, rng)
+					floatCharm(scene, rng)
+				end)
+			end
+
+			after(CINEMATIC_CHARGE, function()
+				if not isCurrent() then
+					return
 				end
+				makeSunburst(scene, presentation.rarityColor)
+				tween(charge, 0.3, Enum.EasingStyle.Quint, {
+					Size = UDim2.fromOffset(260, 260),
+					BackgroundTransparency = 1,
+				})
+				tween(halo, 0.3, Enum.EasingStyle.Quad, { Transparency = 1, Thickness = 1 })
+			end)
+
+			after(CINEMATIC_BURST, function()
+				if not isCurrent() then
+					return
+				end
+
+				local flash = Instance.new("Frame")
+				flash.Name = "LegendaryFlash"
+				flash.BackgroundColor3 = WHITE
+				flash.BackgroundTransparency = 1
+				flash.BorderSizePixel = 0
+				flash.Size = UDim2.fromScale(1, 1)
+				flash.ZIndex = 115
+				flash.Parent = scene
+				tween(flash, 0.08, Enum.EasingStyle.Quad, { BackgroundTransparency = 0 })
+				after(0.09, function()
+					if flash.Parent then
+						tween(flash, 0.45, Enum.EasingStyle.Quad, { BackgroundTransparency = 1 })
+					end
+				end)
+
+				for wave = 1, 3 do
+					after(wave * 0.09, function()
+						if isCurrent() then
+							makeRing(scene, if wave % 2 == 0 then GOLD else presentation.rarityColor, 1.5, 6, 0.85)
+						end
+					end)
+				end
+
+				burstConfetti(scene, rng)
+				makeBanner(scene, presentation)
+				makeResultLabels(scene, result, presentation, index, #results, true)
+			end)
+
+			for wave = 1, 14 do
+				after(CINEMATIC_BURST + wave * 0.17, function()
+					if isCurrent() then
+						floatCharm(scene, rng)
+					end
+				end)
+			end
+
+			after(CINEMATIC_HOLD, function()
+				if not isCurrent() then
+					return
+				end
+				makeContinuePrompt(scene, advance)
+				task.spawn(function()
+					while isCurrent() do
+						floatCharm(scene, rng)
+						task.wait(0.45)
+					end
+				end)
 			end)
 			return
 		end
@@ -381,23 +725,23 @@ function GachaReveal.play(
 		})
 
 		for streakIndex = 1, 10 + presentation.rarityOrder * 4 do
-			task.delay(streakIndex * 0.012, function()
+			after(streakIndex * 0.012, function()
 				if isCurrent() then
 					makeStreak(scene, rng, presentation.rarityColor)
 				end
 			end)
 		end
 
-		task.delay(travelTime * 0.72, function()
+		after(travelTime * 0.72, function()
 			if not isCurrent() then
 				return
 			end
 			for _ = 1, math.max(1, presentation.rarityOrder - 1) do
-				makeRing(scene, presentation.rarityColor)
+				makeRing(scene, presentation.rarityColor, 0.82, 5, 0.55)
 			end
 		end)
 
-		task.delay(travelTime, function()
+		after(travelTime, function()
 			if not isCurrent() then
 				return
 			end
@@ -411,7 +755,7 @@ function GachaReveal.play(
 			flash.ZIndex = 115
 			flash.Parent = scene
 			tween(flash, 0.1, Enum.EasingStyle.Quad, { BackgroundTransparency = 0.04 })
-			task.delay(0.09, function()
+			after(0.09, function()
 				if flash.Parent then
 					tween(flash, 0.28, Enum.EasingStyle.Quad, { BackgroundTransparency = 1 })
 				end
@@ -428,18 +772,19 @@ function GachaReveal.play(
 				})
 			end
 
-			makeResultLabels(scene, result, presentation, index, #results)
+			makeResultLabels(scene, result, presentation, index, #results, false)
 		end)
 
-		task.delay(travelTime + 0.72, function()
-			if isCurrent() then
-				playNext()
-			end
-		end)
+		after(travelTime + 0.72, advance)
 	end
 
 	skipButton.Activated:Connect(function()
-		close(true)
+		if finished or skipping then
+			return
+		end
+		skipping = true
+		skipButton.Visible = false
+		playNext()
 	end)
 	if InputMode.current() == "gamepad" then
 		task.defer(function()

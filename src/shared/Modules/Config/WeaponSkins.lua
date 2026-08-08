@@ -1,6 +1,9 @@
 --!strict
 
-local CompanionSkins = require(script.Parent.CompanionSkins)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local CompanionSkins = require(Shared.Modules.Config.CompanionSkins)
+local WeaponLooks = require(Shared.Modules.Config.WeaponLooks)
 local WeaponSkins = {}
 
 export type RarityId = CompanionSkins.RarityId
@@ -11,7 +14,11 @@ export type DrawDefinition = CompanionSkins.DrawDefinition
 export type WeaponDefinition = {
 	id: string,
 	name: string,
-	baseName: string,
+}
+
+export type OriginDefinition = {
+	id: string,
+	name: string,
 }
 
 export type SkinDefinition = {
@@ -19,11 +26,14 @@ export type SkinDefinition = {
 	name: string,
 	weaponId: string,
 	rarity: RarityId,
-	primary: Color3,
-	secondary: Color3,
-	accent: Color3,
-	material: Enum.Material,
-	accentMaterial: Enum.Material,
+	origin: string,
+	blurb: string,
+	showcase: boolean?,
+}
+
+export type OwnedView = {
+	copies: { [string]: number },
+	equipped: { [string]: string },
 }
 
 export type ProfileState = {
@@ -41,81 +51,71 @@ WeaponSkins.RARITY_ORDER = CompanionSkins.RARITY_ORDER
 WeaponSkins.RARITIES = CompanionSkins.RARITIES
 WeaponSkins.DRAWS = CompanionSkins.DRAWS
 
-WeaponSkins.WEAPON_ORDER = { "sasumata" }
+WeaponSkins.SLOT = "weapon"
+WeaponSkins.DEFAULT_SKIN_ID = WeaponLooks.DEFAULT_ID
+
+WeaponSkins.ORIGIN_ORDER = { "canon", "cool", "cute" }
+WeaponSkins.ORIGINS = {
+	canon = { id = "canon", name = "From the show" },
+	cool = { id = "cool", name = "Original · cool" },
+	cute = { id = "cute", name = "Original · cute" },
+} :: { [string]: OriginDefinition }
+
 WeaponSkins.WEAPONS = {
-	sasumata = {
-		id = "sasumata",
-		name = "Sasumata",
-		baseName = "Classic Pink",
-	},
+	sasumata = { id = "sasumata", name = "Sasumata" },
+	club = { id = "club", name = "Club" },
+	staff = { id = "staff", name = "Discharge Rod" },
+	sword = { id = "sword", name = "Sword" },
+	binyoyo = { id = "binyoyo", name = "Binyoyo" },
+	mallet = { id = "mallet", name = "Mallet" },
+	morningstar = { id = "morningstar", name = "Morningstar" },
+	axe = { id = "axe", name = "Axe" },
+	wand = { id = "wand", name = "Wand" },
 } :: { [string]: WeaponDefinition }
 
-WeaponSkins.SKINS = {
-	{
-		id = "sasumata_common_01",
-		name = "Strawberry Patrol",
-		weaponId = "sasumata",
-		rarity = "common",
-		primary = Color3.fromRGB(243, 167, 193),
-		secondary = Color3.fromRGB(226, 124, 158),
-		accent = Color3.fromRGB(252, 247, 240),
-		material = Enum.Material.SmoothPlastic,
-		accentMaterial = Enum.Material.SmoothPlastic,
-	},
-	{
-		id = "sasumata_uncommon_01",
-		name = "Melon Defender",
-		weaponId = "sasumata",
-		rarity = "uncommon",
-		primary = Color3.fromRGB(137, 216, 167),
-		secondary = Color3.fromRGB(66, 151, 105),
-		accent = Color3.fromRGB(235, 255, 224),
-		material = Enum.Material.SmoothPlastic,
-		accentMaterial = Enum.Material.Neon,
-	},
-	{
-		id = "sasumata_rare_01",
-		name = "Tidal Guardian",
-		weaponId = "sasumata",
-		rarity = "rare",
-		primary = Color3.fromRGB(104, 192, 244),
-		secondary = Color3.fromRGB(44, 105, 184),
-		accent = Color3.fromRGB(224, 247, 255),
-		material = Enum.Material.Metal,
-		accentMaterial = Enum.Material.Neon,
-	},
-	{
-		id = "sasumata_epic_01",
-		name = "Wisteria Moon",
-		weaponId = "sasumata",
-		rarity = "epic",
-		primary = Color3.fromRGB(182, 139, 235),
-		secondary = Color3.fromRGB(103, 67, 168),
-		accent = Color3.fromRGB(245, 225, 255),
-		material = Enum.Material.Metal,
-		accentMaterial = Enum.Material.Neon,
-	},
-	{
-		id = "sasumata_legendary_01",
-		name = "Rakko's Golden Fang",
-		weaponId = "sasumata",
-		rarity = "legendary",
-		primary = Color3.fromRGB(247, 199, 74),
-		secondary = Color3.fromRGB(207, 86, 56),
-		accent = Color3.fromRGB(255, 247, 192),
-		material = Enum.Material.Metal,
-		accentMaterial = Enum.Material.Neon,
-	},
-} :: { SkinDefinition }
+local skins = {} :: { SkinDefinition }
+for _, entry in WeaponLooks.ENTRIES do
+	if not WeaponSkins.WEAPONS[entry.weaponId] then
+		continue
+	end
+	if not WeaponSkins.RARITIES[entry.rarity] then
+		continue
+	end
+	table.insert(skins, {
+		id = entry.id,
+		name = entry.name,
+		weaponId = entry.weaponId,
+		rarity = (entry.rarity :: any) :: RarityId,
+		origin = entry.origin,
+		blurb = entry.blurb,
+		showcase = entry.showcase,
+	})
+end
+WeaponSkins.SKINS = skins
 
 local byId = {} :: { [string]: SkinDefinition }
 local byRarity = {} :: { [string]: { SkinDefinition } }
+local dropPool = {} :: { [string]: { SkinDefinition } }
 for _, rarityId in WeaponSkins.RARITY_ORDER do
 	byRarity[rarityId] = {}
+	dropPool[rarityId] = {}
 end
-for _, skin in WeaponSkins.SKINS do
+for _, skin in skins do
 	byId[skin.id] = skin
 	table.insert(byRarity[skin.rarity], skin)
+	if not skin.showcase then
+		table.insert(dropPool[skin.rarity], skin)
+	end
+end
+for _, rarityId in WeaponSkins.RARITY_ORDER do
+	if #dropPool[rarityId] == 0 then
+		dropPool[rarityId] = byRarity[rarityId]
+	end
+end
+
+function WeaponSkins.poolSize(rarityId: string, includeShowcase: boolean?): number
+	local pool = if includeShowcase then byRarity[rarityId] else dropPool[rarityId]
+	return if pool then #pool else 0
 end
 
 local function finiteInteger(value: unknown, maximum: number): number
@@ -127,6 +127,14 @@ end
 
 function WeaponSkins.get(id: string): SkinDefinition?
 	return byId[id]
+end
+
+function WeaponSkins.getWeapon(id: string): WeaponDefinition?
+	return WeaponSkins.WEAPONS[id]
+end
+
+function WeaponSkins.getOrigin(id: string): OriginDefinition?
+	return WeaponSkins.ORIGINS[id]
 end
 
 function WeaponSkins.getDraw(id: string): DrawDefinition?
@@ -150,23 +158,30 @@ function WeaponSkins.totalCopies(state: ProfileState): number
 	return total
 end
 
-function WeaponSkins.isEquipped(state: ProfileState, skinId: string): boolean
-	for _, equippedId in state.equipped do
-		if equippedId == skinId then
-			return true
-		end
-	end
-	return false
+function WeaponSkins.isEquipped(state: OwnedView, skinId: string): boolean
+	return state.equipped[WeaponSkins.SLOT] == skinId
 end
 
-function WeaponSkins.equippedSkin(profile: any, weaponId: string): SkinDefinition?
+function WeaponSkins.reservedCopies(state: OwnedView, skinId: string): number
+	if skinId == WeaponSkins.DEFAULT_SKIN_ID or WeaponSkins.isEquipped(state, skinId) then
+		return 1
+	end
+	return 0
+end
+
+function WeaponSkins.sellableCopies(state: OwnedView, skinId: string): number
+	local owned = state.copies[skinId] or 0
+	return math.max(owned - WeaponSkins.reservedCopies(state, skinId), 0)
+end
+
+function WeaponSkins.equippedSkin(profile: any): SkinDefinition?
 	local state = WeaponSkins.getState(profile)
 	if not state then
 		return nil
 	end
-	local skinId = state.equipped[weaponId]
+	local skinId = state.equipped[WeaponSkins.SLOT]
 	local skin = if skinId then byId[skinId] else nil
-	if skin and skin.weaponId == weaponId and (state.copies[skin.id] or 0) > 0 then
+	if skin and (state.copies[skin.id] or 0) > 0 then
 		return skin
 	end
 	return nil
@@ -177,7 +192,7 @@ function WeaponSkins.rollRarity(draw: DrawDefinition, minimumOrder: number, rng:
 end
 
 function WeaponSkins.rollSkin(rarityId: string, rng: Random): SkinDefinition
-	local pool = byRarity[rarityId]
+	local pool = dropPool[rarityId]
 	return pool[rng:NextInteger(1, #pool)]
 end
 
@@ -200,17 +215,22 @@ function WeaponSkins.reconcileProfile(profile: any): ProfileState
 		end
 	end
 
+	local default = WeaponSkins.DEFAULT_SKIN_ID
+	copies[default] = math.max(copies[default] or 0, 1)
+
 	local equipped = {} :: { [string]: string }
 	local rawEquipped = raw.equipped
 	if type(rawEquipped) == "table" then
-		for weaponId, skinId in rawEquipped do
-			if type(weaponId) == "string" and type(skinId) == "string" then
-				local skin = byId[skinId]
-				if skin and skin.weaponId == weaponId and (copies[skinId] or 0) > 0 then
-					equipped[weaponId] = skinId
-				end
-			end
+		local candidate = rawEquipped[WeaponSkins.SLOT]
+		if type(candidate) ~= "string" then
+			candidate = rawEquipped.sasumata
 		end
+		if type(candidate) == "string" and byId[candidate] and (copies[candidate] or 0) > 0 then
+			equipped[WeaponSkins.SLOT] = candidate
+		end
+	end
+	if not equipped[WeaponSkins.SLOT] then
+		equipped[WeaponSkins.SLOT] = default
 	end
 
 	local state: ProfileState = {
@@ -225,8 +245,7 @@ function WeaponSkins.reconcileProfile(profile: any): ProfileState
 		for _, rarityId in WeaponSkins.RARITY_ORDER do
 			for _, skin in byRarity[rarityId] do
 				local count = state.copies[skin.id] or 0
-				local reserved = if WeaponSkins.isEquipped(state, skin.id) then 1 else 0
-				local removable = math.min(math.max(count - reserved, 0), excess)
+				local removable = math.min(WeaponSkins.sellableCopies(state, skin.id), excess)
 				if removable > 0 then
 					local remaining = count - removable
 					if remaining > 0 then

@@ -44,26 +44,17 @@ Skeleton.PROFILES = {
 	},
 	usagi = {
 		joints = {
-			root = "Body",
-			earL = "BaseEar",
-			earR = "BaseEar2",
-			armL = "LeftArm",
-			armR = "RightArm",
-			legL = "LeftLeg",
-			legR = "RightLeg",
+			root = "RootJoint",
+			head = "Neck",
+			tail = "TailJoint",
+			earL = "LeftEarJoint",
+			earR = "RightEarJoint",
+			armL = "Left Shoulder",
+			armR = "Right Shoulder",
+			legL = "Left Hip",
+			legR = "Right Hip",
 		},
-		attach = {
-			{ pattern = "^Head$", to = "Body" },
-			{ pattern = "^Tail$", to = "Body" },
-			{ pattern = "^BaseEarLeft", to = "LeftHead" },
-			{ pattern = "^BaseEarRight", to = "RightHead" },
-			{ pattern = "^RightEarBase", to = "RightHead" },
-			{ pattern = "^LeftEarBase", to = "LeftHead" },
-			{ pattern = "^LE", to = "LeftHead" },
-			{ pattern = "^RE", to = "RightHead" },
-		},
-		nearest = { "Body", "LeftHead", "RightHead" },
-		fallback = "Body",
+		fallback = "Torso",
 	},
 
 	yoroi = {
@@ -454,9 +445,19 @@ local function buildRig(model: Model): BasePart?
 	return root
 end
 
-local function findRoot(model: Model): BasePart?
-	local named = model:FindFirstChild("HumanoidRootPart", true)
-	if named and named:IsA("BasePart") then
+local function partIndex(model: Model): { [string]: BasePart }
+	local index: { [string]: BasePart } = {}
+	for _, part in partsOf(model) do
+		if not index[part.Name] then
+			index[part.Name] = part
+		end
+	end
+	return index
+end
+
+local function findRoot(model: Model, index: { [string]: BasePart }): BasePart?
+	local named = index.HumanoidRootPart
+	if named then
 		return named
 	end
 	if model.PrimaryPart then
@@ -474,15 +475,7 @@ local function findRoot(model: Model): BasePart?
 	return best
 end
 
-local function namedPart(model: Model, name: string): BasePart?
-	local found = model:FindFirstChild(name, true)
-	if found and found:IsA("BasePart") then
-		return found
-	end
-	return nil
-end
-
-local function attachLoose(model: Model, profile: Profile, root: BasePart)
+local function attachLoose(model: Model, profile: Profile, root: BasePart, index: { [string]: BasePart })
 	local jointed: { [BasePart]: boolean } = { [root] = true }
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("Motor6D") or descendant:IsA("Weld") or descendant:IsA("WeldConstraint") then
@@ -499,7 +492,7 @@ local function attachLoose(model: Model, profile: Profile, root: BasePart)
 	local candidates: { BasePart } = {}
 	if profile.nearest then
 		for _, name in profile.nearest do
-			local found = namedPart(model, name)
+			local found = index[name]
 			if found then
 				table.insert(candidates, found)
 			end
@@ -510,7 +503,7 @@ local function attachLoose(model: Model, profile: Profile, root: BasePart)
 		if profile.attach then
 			for _, rule in profile.attach do
 				if string.match(part.Name, rule.pattern) then
-					local found = namedPart(model, rule.to)
+					local found = index[rule.to]
 					if found and found ~= part then
 						return found
 					end
@@ -533,7 +526,7 @@ local function attachLoose(model: Model, profile: Profile, root: BasePart)
 		end
 
 		if profile.fallback then
-			local found = namedPart(model, profile.fallback)
+			local found = index[profile.fallback]
 			if found and found ~= part then
 				return found
 			end
@@ -587,13 +580,14 @@ function Skeleton.prepare(model: Model, profileId: string): BasePart?
 		buildRig(model)
 	end
 
-	local root = findRoot(model)
+	local index = partIndex(model)
+	local root = findRoot(model, index)
 	if not root then
 		return nil
 	end
 
 	realign(model)
-	attachLoose(model, profile, root)
+	attachLoose(model, profile, root, index)
 
 	model.PrimaryPart = root
 	model:SetAttribute(Skeleton.PROFILE_ATTRIBUTE, profileId)

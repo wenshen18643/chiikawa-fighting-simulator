@@ -736,7 +736,7 @@ CompanionAnims.SETS = {
 		tremble = {
 			amplitude = 1.1,
 			frequency = 5.5,
-			joints = { earL = 1, earR = 1, root = 0.2 },
+			joints = { earL = 1, earR = 1, head = 0.25, root = 0.2 },
 		},
 		breakDelay = { 4, 9 },
 		breaks = {
@@ -755,6 +755,19 @@ CompanionAnims.SETS = {
 						{ t = 0.46, pitch = -5, yaw = -15, y = 0 },
 						{ t = 0.64, pitch = -4, yaw = 17, y = 0.01 },
 						{ t = 0.86, pitch = -4, yaw = 17, y = 0 },
+					},
+					head = {
+						{ t = 0.00, pitch = 0, yaw = 0 },
+						{ t = 0.30, pitch = 2, yaw = 6 },
+						{ t = 0.46, pitch = 2, yaw = 6 },
+						{ t = 0.64, pitch = 1, yaw = -7 },
+						{ t = 0.86, pitch = 1, yaw = -7 },
+					},
+					tail = {
+						{ t = 0.00, pitch = 0, yaw = 0 },
+						{ t = 0.25, pitch = 3, yaw = 10 },
+						{ t = 0.50, pitch = 0, yaw = 0 },
+						{ t = 0.75, pitch = 3, yaw = -10 },
 					},
 					earL = {
 						{ t = 0.00, pitch = 0, roll = -3 },
@@ -800,6 +813,18 @@ CompanionAnims.SETS = {
 						{ t = 0.50, y = 0.00, pitch = -6, roll = 3 },
 						{ t = 0.75, y = 0.07, pitch = -7, roll = 0 },
 					},
+					head = {
+						{ t = 0.00, pitch = 0, roll = 2 },
+						{ t = 0.25, pitch = -3, roll = 0 },
+						{ t = 0.50, pitch = 0, roll = -2 },
+						{ t = 0.75, pitch = -3, roll = 0 },
+					},
+					tail = {
+						{ t = 0.00, yaw = -9 },
+						{ t = 0.25, yaw = 0 },
+						{ t = 0.50, yaw = 9 },
+						{ t = 0.75, yaw = 0 },
+					},
 					earL = {
 						{ t = 0.00, pitch = 4, roll = -4 },
 						{ t = 0.25, pitch = 16, roll = -7 },
@@ -840,6 +865,17 @@ CompanionAnims.SETS = {
 						{ t = 0.46, y = 0.32, pitch = -6 },
 						{ t = 0.70, y = 0.02, pitch = -12 },
 						{ t = 0.86, y = -0.06, pitch = -14 },
+					},
+					head = {
+						{ t = 0.00, pitch = 4 },
+						{ t = 0.22, pitch = -6 },
+						{ t = 0.46, pitch = -2 },
+						{ t = 0.70, pitch = 3 },
+					},
+					tail = {
+						{ t = 0.00, pitch = -8, yaw = -14 },
+						{ t = 0.30, pitch = -10, yaw = 14 },
+						{ t = 0.70, pitch = -8, yaw = -10 },
 					},
 					earL = {
 						{ t = 0.00, pitch = 12, roll = -5 },
@@ -1107,6 +1143,18 @@ CompanionAnims.SETS = {
 						{ t = 0.44, yaw = 5 },
 						{ t = 1.00, yaw = 0 },
 					},
+					head = {
+						{ t = 0.00, yaw = 0, roll = 0 },
+						{ t = 0.12, yaw = 4, roll = -3 },
+						{ t = 0.30, yaw = -2, roll = 1 },
+						{ t = 1.00, yaw = 0, roll = 0 },
+					},
+					tail = {
+						{ t = 0.00, yaw = 0 },
+						{ t = 0.16, yaw = 12 },
+						{ t = 0.40, yaw = -8 },
+						{ t = 1.00, yaw = 0 },
+					},
 				},
 			},
 			lookAround = {
@@ -1121,6 +1169,22 @@ CompanionAnims.SETS = {
 						{ t = 0.68, yaw = 44, pitch = -6 },
 						{ t = 0.82, yaw = 0, pitch = -4 },
 						{ t = 1.00, yaw = 0, pitch = -4 },
+					},
+					head = {
+						{ t = 0.00, yaw = 0, pitch = 0 },
+						{ t = 0.10, yaw = -16, pitch = -3 },
+						{ t = 0.34, yaw = -16, pitch = -3 },
+						{ t = 0.42, yaw = 17, pitch = -3 },
+						{ t = 0.68, yaw = 17, pitch = -3 },
+						{ t = 0.80, yaw = 0, pitch = 0 },
+						{ t = 1.00, yaw = 0, pitch = 0 },
+					},
+					tail = {
+						{ t = 0.00, yaw = 0 },
+						{ t = 0.14, yaw = -12 },
+						{ t = 0.46, yaw = 12 },
+						{ t = 0.82, yaw = 0 },
+						{ t = 1.00, yaw = 0 },
 					},
 					earL = {
 						{ t = 0.00, pitch = 0, roll = -3 },
@@ -1154,6 +1218,19 @@ CompanionAnims.SETS = {
 						{ t = 0.20, pitch = 52 },
 						{ t = 0.32, pitch = -18 },
 						{ t = 0.48, pitch = 0 },
+						{ t = 1.00, pitch = 0 },
+					},
+					head = {
+						{ t = 0.00, pitch = 0 },
+						{ t = 0.20, pitch = 6 },
+						{ t = 0.34, pitch = -9 },
+						{ t = 0.52, pitch = 2 },
+						{ t = 1.00, pitch = 0 },
+					},
+					tail = {
+						{ t = 0.00, pitch = 0 },
+						{ t = 0.20, pitch = -14 },
+						{ t = 0.36, pitch = 10 },
 						{ t = 1.00, pitch = 0 },
 					},
 					earL = {
