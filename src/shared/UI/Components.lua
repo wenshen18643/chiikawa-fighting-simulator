@@ -1,5 +1,6 @@
 local Motion = require(script.Parent.Motion)
 local Primitives = require(script.Parent.Primitives)
+local Responsive = require(script.Parent.Responsive)
 local Theme = require(script.Parent.Theme)
 local Components = {}
 
@@ -50,14 +51,14 @@ function Components.card(parent: Instance, name: string, config: { [string]: any
 	end
 
 	if options.stroke ~= false then
-		Primitives.stroke(frame, options.strokeColor, options.strokeWidth)
+		Primitives.stroke(frame, options.strokeColor or Theme.color.lineSoft, options.strokeWidth or Theme.stroke.hair)
 	end
 
-	if options.sheen ~= false then
+	if options.sheen == true then
 		Primitives.sheen(frame, options.sheenStrength or 0.3)
 	end
 
-	if options.innerLine ~= false then
+	if options.innerLine == true then
 		Primitives.innerLine(frame)
 	end
 
@@ -129,27 +130,6 @@ function Components.bar(parent: Instance, name: string, fillColor: Color3): (Fra
 	gloss.Parent = fill
 	Primitives.corner(gloss, Theme.radius.bar)
 
-	local shine = Instance.new("Frame")
-	shine.Name = "Shine"
-	shine.Size = UDim2.fromScale(1, 1)
-	shine.BackgroundColor3 = Theme.color.white
-	shine.BackgroundTransparency = 0.78
-	shine.BorderSizePixel = 0
-	shine.ZIndex = 6
-	shine.Parent = fill
-	Primitives.corner(shine, Theme.radius.bar)
-
-	local sweep = Instance.new("UIGradient")
-	sweep.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 1),
-		NumberSequenceKeypoint.new(0.46, 1),
-		NumberSequenceKeypoint.new(0.5, 0.25),
-		NumberSequenceKeypoint.new(0.54, 1),
-		NumberSequenceKeypoint.new(1, 1),
-	})
-	sweep.Parent = shine
-	Motion.shimmer(sweep, 2.6)
-
 	return track, fill
 end
 
@@ -197,7 +177,7 @@ local function laidOut(button: TextButton): boolean
 	return parent:FindFirstChildOfClass("UIListLayout") ~= nil or parent:FindFirstChildOfClass("UIGridLayout") ~= nil
 end
 
-local function attachButtonStates(button: TextButton, base: Color3, config: { [string]: any })
+local function attachButtonStates(button: TextButton, base: Color3, config: { [string]: any }, focusRing: UIStroke)
 	local hovered = false
 	local held = false
 	local home = button.Position
@@ -243,6 +223,24 @@ local function attachButtonStates(button: TextButton, base: Color3, config: { [s
 		held = false
 		paint()
 	end)
+	button.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.KeyCode == Enum.KeyCode.ButtonA then
+			held = true
+			paint()
+		end
+	end)
+	button.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.KeyCode == Enum.KeyCode.ButtonA then
+			held = false
+			paint()
+		end
+	end)
+	button.SelectionGained:Connect(function()
+		focusRing.Transparency = 0
+	end)
+	button.SelectionLost:Connect(function()
+		focusRing.Transparency = 1
+	end)
 
 	if config.onActivated then
 		button.Activated:Connect(function()
@@ -252,6 +250,31 @@ local function attachButtonStates(button: TextButton, base: Color3, config: { [s
 			config.onActivated()
 		end)
 	end
+end
+
+local function attachPressScale(button: TextButton)
+	local scale = Instance.new("UIScale")
+	scale.Parent = button
+
+	local function setHeld(held: boolean)
+		Motion.to(scale, if held then Motion.press else Motion.release, { Scale = if held then 0.96 else 1 })
+	end
+	button.MouseButton1Down:Connect(function()
+		setHeld(true)
+	end)
+	button.MouseButton1Up:Connect(function()
+		setHeld(false)
+	end)
+	button.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.KeyCode == Enum.KeyCode.ButtonA then
+			setHeld(true)
+		end
+	end)
+	button.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.KeyCode == Enum.KeyCode.ButtonA then
+			setHeld(false)
+		end
+	end)
 end
 
 function Components.button(parent: Instance, name: string, config: { [string]: any }): TextButton
@@ -278,10 +301,11 @@ function Components.button(parent: Instance, name: string, config: { [string]: a
 	button.Parent = parent
 
 	Primitives.corner(button, config.radius or Theme.radius.chip)
+	local focusRing = Primitives.focusRing(button, config.focusColor)
 	if config.stroke ~= false then
 		Primitives.stroke(button, config.strokeColor, Theme.stroke.base)
 	end
-	if config.sheen ~= false then
+	if config.sheen == true then
 		Primitives.sheen(button, 0.3)
 	end
 	if config.elevation then
@@ -289,11 +313,22 @@ function Components.button(parent: Instance, name: string, config: { [string]: a
 	end
 
 	if button.AutoButtonColor or config.states == false then
+		if config.states == false then
+			attachPressScale(button)
+		end
 		if config.onActivated then
 			button.Activated:Connect(config.onActivated)
 		end
 	else
-		attachButtonStates(button, base, config)
+		attachButtonStates(button, base, config, focusRing)
+	end
+	if button.AutoButtonColor or config.states == false then
+		button.SelectionGained:Connect(function()
+			focusRing.Transparency = 0
+		end)
+		button.SelectionLost:Connect(function()
+			focusRing.Transparency = 1
+		end)
 	end
 
 	return button
@@ -589,7 +624,11 @@ function Components.tabs(
 	end
 end
 
-function Components.modal(parent: Instance, name: string, config: { [string]: any }): (Frame, Frame, (boolean) -> ())
+function Components.modal(
+	parent: Instance,
+	name: string,
+	config: { [string]: any }
+): (Frame, Frame, (boolean, boolean?) -> ())
 	local extent = config.extent or UDim2.fromScale(0.72, 0.76)
 	local scrim = Instance.new("TextButton")
 	scrim.Name = `{name}_Scrim`
@@ -611,33 +650,97 @@ function Components.modal(parent: Instance, name: string, config: { [string]: an
 	})
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
-	panel.Size = extent
+	panel.Active = true
 
 	local setOpen
+	local openState = false
+	local generation = 0
+	local activeTweens: { Tween } = {}
+
+	local function cancelTweens()
+		for _, tween in activeTweens do
+			tween:Cancel()
+		end
+		table.clear(activeTweens)
+	end
+
+	local function targetSize(): (UDim2, boolean)
+		return Responsive.panelSize(extent, config.maxSize)
+	end
+
+	local function applyLayout()
+		local size, compact = targetSize()
+		if openState then
+			panel.Size = size
+		end
+		local corner = panel:FindFirstChildOfClass("UICorner")
+		if corner then
+			corner.CornerRadius = UDim.new(0, if compact then Theme.radius.well else Theme.radius.card)
+		end
+		if config.onResponsiveChanged then
+			config.onResponsiveChanged(compact, size)
+		end
+	end
 
 	local function close()
-		setOpen(false)
+		if config.onDismiss then
+			config.onDismiss()
+		else
+			setOpen(false)
+		end
 	end
 	scrim.Activated:Connect(close)
 
-	function setOpen(open: boolean)
+	function setOpen(open: boolean, instant: boolean?)
+		generation += 1
+		local request = generation
+		openState = open
+		cancelTweens()
+		local size = targetSize()
 		if open then
 			scrim.Visible = true
-			panel.Size = UDim2.new(extent.X.Scale * 0.92, extent.X.Offset, extent.Y.Scale * 0.92, extent.Y.Offset)
+			panel.Size = UDim2.new(size.X.Scale * 0.96, size.X.Offset * 0.96, size.Y.Scale * 0.96, size.Y.Offset * 0.96)
 			panel.Rotation = -1.5
-			Motion.to(scrim, Motion.settle, { BackgroundTransparency = Theme.opacity.veil })
-			Motion.to(panel, Motion.pop, { Size = extent, Rotation = 0 })
+			if instant then
+				scrim.BackgroundTransparency = Theme.opacity.veil
+				panel.Size = size
+				panel.Rotation = 0
+			else
+				table.insert(activeTweens, Motion.play(scrim, Motion.settle, { BackgroundTransparency = Theme.opacity.veil }))
+				table.insert(activeTweens, Motion.play(panel, Motion.pop, { Size = size, Rotation = 0 }))
+			end
 		else
-			local fade = Motion.play(scrim, Motion.snap, { BackgroundTransparency = 1 })
-			Motion.to(panel, Motion.snap, { Rotation = 1 })
-			fade.Completed:Connect(function()
+			if instant then
+				scrim.BackgroundTransparency = 1
 				scrim.Visible = false
-			end)
+			else
+				local fade = Motion.play(scrim, Motion.snap, { BackgroundTransparency = 1 })
+				table.insert(activeTweens, fade)
+				table.insert(activeTweens, Motion.play(panel, Motion.snap, { Rotation = 1 }))
+				fade.Completed:Connect(function()
+					if generation == request and not openState then
+						scrim.Visible = false
+					end
+				end)
+			end
 		end
 		if config.onToggled then
 			config.onToggled(open)
 		end
 	end
+
+	local camera = workspace.CurrentCamera
+	if camera then
+		camera:GetPropertyChangedSignal("ViewportSize"):Connect(applyLayout)
+	end
+	workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+		local current = workspace.CurrentCamera
+		if current then
+			current:GetPropertyChangedSignal("ViewportSize"):Connect(applyLayout)
+		end
+		applyLayout()
+	end)
+	applyLayout()
 
 	return scrim :: any, panel, setOpen
 end

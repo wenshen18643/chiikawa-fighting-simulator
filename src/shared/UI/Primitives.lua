@@ -19,6 +19,17 @@ function Primitives.stroke(parent: Instance, color: Color3?, thickness: number?)
 	return stroke
 end
 
+function Primitives.focusRing(target: GuiObject, color: Color3?): UIStroke
+	local ring = Instance.new("UIStroke")
+	ring.Name = "SelectionFocus"
+	ring.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	ring.Color = color or Theme.color.info
+	ring.Thickness = Theme.state.focus.thickness
+	ring.Transparency = 1
+	ring.Parent = target
+	return ring
+end
+
 function Primitives.padding(parent: Instance, all: number?, extra: { [string]: number }?): UIPadding
 	local amount = all or Theme.space.base
 	local padding = Instance.new("UIPadding")
@@ -75,40 +86,21 @@ function Primitives.shadow(target: GuiObject, level: (string | number)?, tint: C
 		radius = corner.CornerRadius.Offset
 	end
 
-	local layers: { { frame: Frame, grow: number, drop: number } } = {}
-
 	for index = spec.layers, 1, -1 do
 		local grow = index * spec.spread
 		local drop = math.ceil(index * spec.spread * 0.5)
 		local shade = Instance.new("Frame")
 		shade.Name = `Shadow_{index}`
-		shade.AnchorPoint = target.AnchorPoint
-		shade.Position = target.Position + UDim2.fromOffset(0, drop)
-		shade.Size = target.Size + UDim2.fromOffset(grow, grow)
+		shade.AnchorPoint = Vector2.new(0.5, 0.5)
+		shade.Position = UDim2.new(0.5, 0, 0.5, drop)
+		shade.Size = UDim2.new(1, grow, 1, grow)
 		shade.BackgroundColor3 = tint or Theme.color.shadow
 		shade.BackgroundTransparency = spec.opacity + (1 - spec.opacity) * (index / spec.layers) * 0.92
 		shade.BorderSizePixel = 0
 		shade.ZIndex = target.ZIndex - 1
-		shade.Parent = target.Parent
+		shade.Parent = target
 		Primitives.corner(shade, radius + math.floor(grow / 2))
-		table.insert(layers, { frame = shade, grow = grow, drop = drop })
 	end
-
-	local function sync()
-		local rendered = target.AbsoluteSize
-		local measured = if rendered.X > 0 and rendered.Y > 0
-			then UDim2.fromOffset(rendered.X, rendered.Y)
-			else target.Size
-
-		for _, layer in layers do
-			layer.frame.AnchorPoint = target.AnchorPoint
-			layer.frame.Position = target.Position + UDim2.fromOffset(0, layer.drop)
-			layer.frame.Size = measured + UDim2.fromOffset(layer.grow, layer.grow)
-		end
-	end
-
-	target:GetPropertyChangedSignal("AbsoluteSize"):Connect(sync)
-	target:GetPropertyChangedSignal("Position"):Connect(sync)
 end
 
 function Primitives.sheen(target: GuiObject, strength: number?): Frame

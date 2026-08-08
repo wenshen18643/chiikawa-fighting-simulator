@@ -1,8 +1,10 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GuiService = game:GetService("GuiService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local UI = require(Shared.UI)
+local InputMode = require(script.Parent.InputMode)
 
 export type PullResult = {
 	skinId: string,
@@ -31,8 +33,8 @@ local function addResultCard(parent: Instance, result: PullResult, presentation:
 		color = presentation.rarityColor:Lerp(BACKDROP, 0.78),
 		radius = UI.radius.card,
 		stroke = false,
-		sheen = false,
-		innerLine = false,
+		sheen = true,
+		innerLine = true,
 	})
 	card.LayoutOrder = index
 	card.Visible = false
@@ -139,6 +141,7 @@ function GachaResults.show(
 	onClosed: () -> ()
 ): () -> ()
 	local finished = false
+	local previousSelection = GuiService.SelectedObject
 	local screen = Instance.new("ScreenGui")
 	screen.Name = "GachaPullResults"
 	screen.DisplayOrder = 79
@@ -169,7 +172,6 @@ function GachaResults.show(
 	panel.Size = UDim2.fromScale(0.84, 0.82)
 
 	local constraint = Instance.new("UISizeConstraint")
-	constraint.MinSize = Vector2.new(540, 440)
 	constraint.MaxSize = Vector2.new(980, 720)
 	constraint.Parent = panel
 
@@ -242,7 +244,7 @@ function GachaResults.show(
 		text = "Continue",
 		color = Color3.fromRGB(126, 168, 246),
 		textColor = Color3.fromRGB(17, 24, 43),
-		extent = UDim2.fromOffset(180, 42),
+		extent = UDim2.fromOffset(180, 44),
 		position = UDim2.new(0.5, -90, 1, -58),
 		stroke = false,
 		sheen = false,
@@ -253,6 +255,11 @@ function GachaResults.show(
 			return
 		end
 		finished = true
+		if GuiService.SelectedObject and GuiService.SelectedObject:IsDescendantOf(screen) then
+			GuiService.SelectedObject = if previousSelection and previousSelection:IsDescendantOf(game)
+				then previousSelection
+				else nil
+		end
 		screen:Destroy()
 		if completed then
 			onClosed()
@@ -262,6 +269,13 @@ function GachaResults.show(
 	continueButton.Activated:Connect(function()
 		close(true)
 	end)
+	if InputMode.current() == "gamepad" then
+		task.defer(function()
+			if not finished then
+				GuiService.SelectedObject = continueButton
+			end
+		end)
+	end
 
 	return function()
 		close(false)

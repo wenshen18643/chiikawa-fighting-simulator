@@ -10,8 +10,9 @@ local Remotes = require(Shared.Modules.Remotes)
 local Seasonings = require(Shared.Modules.Config.Seasonings)
 local UI = require(Shared.UI)
 local StateController = require(script.Parent.Parent.Controllers.StateController)
-local WorkController = require(script.Parent.Parent.Controllers.WorkController)
+local UIManager = require(script.Parent.UIManager)
 local InventoryMenu = {}
+local MENU_ID = "inventory"
 local INGREDIENT_CELL = UDim2.fromOffset(160, 96)
 local CONSUMABLE_CELL = UDim2.fromOffset(246, 122)
 local USE_COOLDOWN = 0.5
@@ -27,7 +28,8 @@ local panel: Frame
 local listHolder: ScrollingFrame
 local grid: UIGridLayout
 local emptyLabel: TextLabel
-local setPanelOpen: (boolean) -> ()
+local setPanelOpen: (boolean, boolean?) -> ()
+local closeButton: TextButton
 local eatRemote: RemoteEvent
 local useSeasoningRemote: RemoteEvent
 local currentTab = "ingredients"
@@ -196,7 +198,7 @@ local function buildConsumableCard(config: { [string]: any }, index: number)
 	button = UI.button(card, "Use", {
 		text = config.verb,
 		color = if cooling then UI.color.paperDeep else UI.color.leafDeep,
-		textColor = if cooling then UI.color.inkFaint else UI.color.white,
+		textColor = if cooling then UI.color.inkFaint else UI.readable(UI.color.leafDeep),
 		extent = UDim2.fromOffset(80, 30),
 		position = UDim2.new(1, -94, 1, -44),
 		zIndex = card.ZIndex + 1,
@@ -214,7 +216,7 @@ local function buildConsumableCard(config: { [string]: any }, index: number)
 			task.delay(USE_COOLDOWN, function()
 				if button.Parent then
 					button.BackgroundColor3 = UI.color.leafDeep
-					button.TextColor3 = UI.color.white
+				button.TextColor3 = UI.readable(UI.color.leafDeep)
 				end
 			end)
 		end,
@@ -289,7 +291,10 @@ local function buildPanel(parent: ScreenGui)
 
 		onToggled = function(open)
 			isOpen = open
-			WorkController.setInputLocked("inventory", open)
+		end,
+
+		onDismiss = function()
+			InventoryMenu.setOpen(false)
 		end,
 	})
 	panel = content
@@ -362,14 +367,23 @@ local function buildPanel(parent: ScreenGui)
 	})
 	emptyLabel.Visible = false
 
-	UI.button(panel, "Close", {
+	closeButton = UI.button(panel, "Close", {
 		text = "Close",
-		extent = UDim2.fromOffset(120, 34),
-		position = UDim2.new(0.5, -60, 1, -34),
+		extent = UDim2.fromOffset(120, 44),
+		position = UDim2.new(0.5, -60, 1, -44),
 		zIndex = panel.ZIndex + 1,
 
 		onActivated = function()
-			setPanelOpen(false)
+			InventoryMenu.setOpen(false)
+		end,
+	})
+	UIManager.register(MENU_ID, {
+		setVisible = function(visible, instant)
+			setPanelOpen(visible, instant)
+		end,
+
+		focus = function()
+			return closeButton
 		end,
 	})
 end
@@ -381,7 +395,11 @@ function InventoryMenu.setOpen(open: boolean)
 	if open then
 		render()
 	end
-	setPanelOpen(open)
+	if open then
+		UIManager.open(MENU_ID)
+	else
+		UIManager.close(MENU_ID)
+	end
 end
 
 function InventoryMenu.toggle()

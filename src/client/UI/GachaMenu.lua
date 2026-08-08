@@ -10,6 +10,7 @@ local Remotes = require(Shared.Modules.Remotes)
 local UI = require(Shared.UI)
 local StateController = require(script.Parent.Parent.Controllers.StateController)
 local WorkController = require(script.Parent.Parent.Controllers.WorkController)
+local UIManager = require(script.Parent.UIManager)
 local GachaReveal = require(script.Parent.GachaReveal)
 local GachaResults = require(script.Parent.GachaResults)
 local SkinPreview = require(script.Parent.SkinPreview)
@@ -34,12 +35,13 @@ type PullResult = {
 }
 
 local GachaMenu = {}
-local INPUT_LOCK = "gacha-menu"
+local MENU_ID = "gacha"
 local FLOW_INPUT_LOCK = "gacha-flow"
 local CLOSE_DISTANCE = 24
 local screen: ScreenGui
 local panel: Frame
-local setOpen: (boolean) -> ()
+local setPanelOpen: (boolean, boolean?) -> ()
+local closeButton: TextButton
 local isOpen = false
 local state: GachaState? = nil
 local activePage = "draw"
@@ -65,6 +67,11 @@ local sellRemote: RemoteEvent
 
 local function setPullBusy(busy: boolean)
 	pullBusy = busy
+	if busy then
+		UIManager.beginBlock(FLOW_INPUT_LOCK, MENU_ID)
+	else
+		UIManager.endBlock(FLOW_INPUT_LOCK)
+	end
 	WorkController.setInputLocked(FLOW_INPUT_LOCK, busy)
 	for _, button in drawButtons do
 		button.Active = not busy
@@ -228,7 +235,7 @@ local function drawButton(parent: Instance, drawId: CompanionSkins.DrawId, count
 		text = if count == 1 then `Draw 1  ·  {draw.cost} yen` else `Draw 10  ·  {draw.cost * count} yen`,
 		color = accent,
 		textColor = UI.color.ink,
-		extent = UDim2.new(0.46, 0, 0, 36),
+		extent = UDim2.new(0.46, 0, 0, 44),
 		position = position,
 		stroke = false,
 		sheen = false,
@@ -348,8 +355,8 @@ local function buildDrawTicket(parent: Instance, drawId: CompanionSkins.DrawId, 
 		extent = UDim2.new(1, -36, 0, 16),
 	})
 
-	drawButton(card, drawId, 1, UDim2.new(0.03, 0, 1, -44))
-	drawButton(card, drawId, 10, UDim2.new(0.51, 0, 1, -44))
+	drawButton(card, drawId, 1, UDim2.new(0.03, 0, 1, -52))
+	drawButton(card, drawId, 10, UDim2.new(0.51, 0, 1, -52))
 end
 
 local function sellableCopies(snapshot: GachaState, skin: CompanionSkins.SkinDefinition): number
@@ -764,23 +771,38 @@ local function buildOddsPage(parent: Frame)
 end
 
 local function buildPanel(parent: ScreenGui)
+	local body: ScrollingFrame? = nil
+
+	local function applyBodyLayout(compact: boolean)
+		if not body then
+			return
+		end
+		body.CanvasSize = if compact then UDim2.fromOffset(0, 430) else UDim2.fromOffset(0, 0)
+		body.ScrollBarThickness = if compact then 6 else 0
+		for _, page in pages do
+			page.Size = if compact then UDim2.new(1, -8, 0, 430) else UDim2.fromScale(1, 1)
+		end
+	end
 	local _scrim, content, toggle = UI.modal(parent, "GachaMenu", {
 		extent = UDim2.new(0.74, 0, 0.84, 0),
+		maxSize = Vector2.new(980, 680),
 		zIndex = 30,
+
+		onDismiss = function()
+			GachaMenu.setOpen(false)
+		end,
+
+		onResponsiveChanged = function(compact: boolean)
+			applyBodyLayout(compact)
+		end,
 
 		onToggled = function(open: boolean)
 			isOpen = open
-			WorkController.setInputLocked(INPUT_LOCK, open)
 		end,
 	})
 	panel = content
-	setOpen = toggle
+	setPanelOpen = toggle
 	UI.padding(panel, UI.space.base)
-
-	local constraint = Instance.new("UISizeConstraint")
-	constraint.MinSize = Vector2.new(700, 520)
-	constraint.MaxSize = Vector2.new(980, 680)
-	constraint.Parent = panel
 
 	UI.label(panel, "Title", {
 		text = "Skin Capsule Shop",
@@ -796,15 +818,15 @@ local function buildPanel(parent: ScreenGui)
 		position = UDim2.fromOffset(0, 32),
 		extent = UDim2.new(0.68, 0, 0, 20),
 	})
-	UI.button(panel, "Close", {
+	closeButton = UI.button(panel, "Close", {
 		text = "Close",
-		extent = UDim2.fromOffset(74, 30),
-		position = UDim2.new(1, -74, 0, 2),
+		extent = UDim2.fromOffset(88, 44),
+		position = UDim2.new(1, -88, 0, 0),
 		stroke = false,
 		sheen = false,
 
 		onActivated = function()
-			setOpen(false)
+			GachaMenu.setOpen(false)
 		end,
 	})
 
@@ -835,12 +857,16 @@ local function buildPanel(parent: ScreenGui)
 	buildPityMeter(status, "rare", UI.color.sky, UDim2.new(0.3, 0, 0, 7))
 	buildPityMeter(status, "legendary", UI.color.gold, UDim2.new(0.65, 0, 0, 7))
 
-	local body = Instance.new("Frame")
-	body.Name = "Body"
-	body.BackgroundTransparency = 1
-	body.Position = UDim2.fromOffset(0, 164)
-	body.Size = UDim2.new(1, 0, 1, -164)
-	body.Parent = panel
+	local bodyFrame = Instance.new("ScrollingFrame")
+	bodyFrame.Name = "Body"
+	bodyFrame.BackgroundTransparency = 1
+	bodyFrame.BorderSizePixel = 0
+	bodyFrame.CanvasSize = UDim2.fromOffset(0, 0)
+	bodyFrame.ScrollBarImageColor3 = UI.color.inkSoft
+	bodyFrame.Position = UDim2.fromOffset(0, 164)
+	bodyFrame.Size = UDim2.new(1, 0, 1, -164)
+	bodyFrame.Parent = panel
+	body = bodyFrame
 
 	for _, key in { "draw", "collection", "odds" } do
 		local page = Instance.new("Frame")
@@ -848,9 +874,10 @@ local function buildPanel(parent: ScreenGui)
 		page.BackgroundTransparency = 1
 		page.Size = UDim2.fromScale(1, 1)
 		page.Visible = key == activePage
-		page.Parent = body
+		page.Parent = bodyFrame
 		pages[key] = page
 	end
+	applyBodyLayout(UI.responsive.isCompact())
 
 	buildNavigation(panel)
 
@@ -883,6 +910,20 @@ local function buildPanel(parent: ScreenGui)
 
 	buildOddsPage(pages.odds)
 	paintStatus()
+
+	UIManager.register(MENU_ID, {
+		setVisible = setPanelOpen,
+
+		focus = function()
+			return closeButton
+		end,
+
+		back = function()
+			return pullBusy
+		end,
+		dismissible = true,
+		kind = "ordinary",
+	})
 end
 
 local function acceptState(value: unknown): GachaState?
@@ -959,6 +1000,14 @@ local function isNearNpc(): boolean
 		and (root.Position - anchor.Position).Magnitude <= CLOSE_DISTANCE
 end
 
+function GachaMenu.setOpen(open: boolean)
+	if open then
+		UIManager.open(MENU_ID)
+	else
+		UIManager.close(MENU_ID)
+	end
+end
+
 function GachaMenu.init()
 	local player = Players.LocalPlayer
 	local playerGui = player:WaitForChild("PlayerGui")
@@ -978,7 +1027,7 @@ function GachaMenu.init()
 	Remotes.event("Gacha", "Open").OnClientEvent:Connect(function(value)
 		applyState(value)
 		showPage("draw")
-		setOpen(true)
+		GachaMenu.setOpen(true)
 	end)
 
 	Remotes.event("Gacha", "Event").OnClientEvent:Connect(function(payload)
@@ -1035,7 +1084,7 @@ function GachaMenu.init()
 		end
 		setPullBusy(false)
 		if isOpen then
-			setOpen(false)
+			GachaMenu.setOpen(false)
 		end
 	end)
 
@@ -1043,7 +1092,7 @@ function GachaMenu.init()
 		while screen.Parent do
 			task.wait(0.25)
 			if isOpen and not isNearNpc() then
-				setOpen(false)
+				GachaMenu.setOpen(false)
 			end
 		end
 	end)

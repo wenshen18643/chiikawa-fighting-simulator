@@ -1,17 +1,16 @@
 local ContextActionService = game:GetService("ContextActionService")
-local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local UI = require(Shared.UI)
 local StateController = require(script.Parent.Parent.Controllers.StateController)
+local InputMode = require(script.Parent.InputMode)
 local TutorialContent = require(script.Parent.TutorialContent)
+local UIManager = require(script.Parent.UIManager)
 local ControlsPanel = {}
 local TOGGLE_ACTION = "ToggleControls"
-local COMPACT_WIDTH = 760
+local MENU_ID = "field-guide"
 local PAGE_EDGE_GUTTER = 6
 local PAGE_SCROLLBAR_GUTTER = 16
 local HERO_PADDING = 18
@@ -37,16 +36,9 @@ local closedListeners: { (firstSession: boolean) -> () } = {}
 local pages: { TutorialContent.Page } = {}
 local pageViews: { [string]: ScrollingFrame } = {}
 local pageButtons: { [string]: TextButton } = {}
-
-local function deviceKind(): "keyboard" | "gamepad" | "touch"
-	if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
-		return "touch"
-	end
-	if UserInputService.GamepadEnabled and not UserInputService.KeyboardEnabled then
-		return "gamepad"
-	end
-	return "keyboard"
-end
+local animationGeneration = 0
+local activeTweens: { Tween } = {}
+local applyOpen: (boolean, boolean?) -> ()
 
 local function accentFor(key: string?): Color3
 	if not key then
@@ -219,7 +211,7 @@ local function addTimelineRow(parent: Instance, index: number, rowData: Tutorial
 	check = UI.button(row, "Check", {
 		text = "",
 		color = UI.color.paperDeep,
-		textColor = UI.color.white,
+		textColor = UI.readable(UI.color.paperDeep),
 		textSize = 16,
 		anchor = Vector2.new(1, 0),
 		position = UDim2.new(1, -12, 0, 12),
@@ -416,7 +408,7 @@ local function selectPage(key: string)
 
 		UI.motion.to(button, UI.motion.snap, {
 			BackgroundColor3 = if active then accentFor(pageData.accent) else UI.color.paperDeep,
-			TextColor3 = if active then UI.color.white else UI.color.inkSoft,
+			TextColor3 = if active then UI.readable(accentFor(pageData.accent)) else UI.color.inkSoft,
 		})
 	end
 
@@ -428,6 +420,42 @@ local function selectPage(key: string)
 	end
 end
 
+local function rebuildPages()
+	for _, child in navigation:GetChildren() do
+		if child ~= navigationLayout and not child:IsA("UIPadding") then
+			child:Destroy()
+		end
+	end
+	for _, child in contentHost:GetChildren() do
+		child:Destroy()
+	end
+	pageButtons = {}
+	pageViews = {}
+	pages = TutorialContent.pages(InputMode.current())
+	for index, pageData in pages do
+		local button = UI.button(navigation, pageData.key, {
+			text = pageData.label,
+			color = UI.color.paperDeep,
+			textColor = UI.color.inkSoft,
+			textSize = 12,
+			radius = UI.radius.chip,
+			zIndex = 23,
+
+			onActivated = function()
+				selectPage(pageData.key)
+			end,
+		})
+		button.LayoutOrder = index
+		button.AutoButtonColor = false
+		pageButtons[pageData.key] = button
+		pageViews[pageData.key] = buildPage(contentHost, pageData)
+	end
+	if not pageViews[currentPage] then
+		currentPage = if pageViews.start then "start" else pages[1].key
+	end
+	selectPage(currentPage)
+end
+
 local function viewportSize(): Vector2
 	local camera = Workspace.CurrentCamera
 	return if camera then camera.ViewportSize else Vector2.new(1280, 720)
@@ -435,7 +463,7 @@ end
 
 local function targetPanelSize(): UDim2
 	local view = viewportSize()
-	local compact = view.X < COMPACT_WIDTH
+	local compact = UI.responsive.isCompact(view)
 	local widthShare = if compact then 0.96 else 0.9
 	local heightShare = if compact then 0.92 else 0.88
 	local width = math.clamp(view.X * widthShare, math.min(PANEL_MIN.X, view.X - 16), PANEL_MAX.X)
@@ -448,7 +476,7 @@ local function applyResponsiveLayout()
 		return
 	end
 
-	local compact = viewportSize().X < COMPACT_WIDTH
+	local compact = UI.responsive.isCompact(viewportSize())
 	if open then
 		panel.Size = targetPanelSize()
 	end
@@ -464,7 +492,7 @@ local function applyResponsiveLayout()
 		contentHost.Position = UDim2.fromOffset(PANEL_MARGIN, HEADER_HEIGHT + 50)
 		contentHost.Size = UDim2.new(1, -PANEL_MARGIN * 2, 1, -(HEADER_HEIGHT + 50 + PANEL_MARGIN))
 		closeButton.Text = "CLOSE"
-		closeButton.Size = UDim2.fromOffset(72, 28)
+		closeButton.Size = UDim2.fromOffset(88, 44)
 
 		for _, button in pageButtons do
 			button.Size = UDim2.fromOffset(112, 34)
@@ -481,7 +509,7 @@ local function applyResponsiveLayout()
 		contentHost.Position = UDim2.fromOffset(contentX, HEADER_HEIGHT)
 		contentHost.Size = UDim2.new(1, -(contentX + PANEL_MARGIN), 1, -(HEADER_HEIGHT + PANEL_MARGIN))
 		closeButton.Text = "BACK TO GAME"
-		closeButton.Size = UDim2.fromOffset(124, 30)
+		closeButton.Size = UDim2.fromOffset(132, 44)
 
 		for _, button in pageButtons do
 			button.Size = UDim2.new(1, 0, 0, 40)
@@ -585,74 +613,78 @@ local function buildPanel(parent: ScreenGui)
 	contentHost.ZIndex = 22
 	contentHost.Parent = panel
 
-	pages = TutorialContent.pages(deviceKind())
-	for index, pageData in pages do
-		local button = UI.button(navigation, pageData.key, {
-			text = pageData.label,
-			color = UI.color.paperDeep,
-			textColor = UI.color.inkSoft,
-			textSize = 12,
-			radius = UI.radius.chip,
-			zIndex = 23,
-
-			onActivated = function()
-				selectPage(pageData.key)
-			end,
-		})
-		button.LayoutOrder = index
-		button.AutoButtonColor = false
-		pageButtons[pageData.key] = button
-		pageViews[pageData.key] = buildPage(contentHost, pageData)
-	end
-
+	rebuildPages()
 	applyResponsiveLayout()
-	selectPage(currentPage)
+
+	UIManager.register(MENU_ID, {
+		setVisible = function(shouldOpen: boolean, instant: boolean)
+			applyOpen(shouldOpen, instant)
+		end,
+
+		focus = function()
+			return pageButtons[currentPage] or closeButton
+		end,
+		dismissible = true,
+		kind = "ordinary",
+	})
 end
 
-function ControlsPanel.setOpen(shouldOpen: boolean)
+local function cancelActiveTweens()
+	for _, tween in activeTweens do
+		tween:Cancel()
+	end
+	table.clear(activeTweens)
+end
+
+applyOpen = function(shouldOpen: boolean, instant: boolean?)
 	if not panel or shouldOpen == open then
 		return
 	end
 
+	animationGeneration += 1
+	local generation = animationGeneration
+	cancelActiveTweens()
 	open = shouldOpen
 	if shouldOpen then
 		scrim.Visible = true
 		scrim.BackgroundTransparency = 1
 
 		local goal = targetPanelSize()
-		panel.Size = UDim2.fromOffset(
-			math.floor(goal.X.Offset * 0.96),
-			math.floor(goal.Y.Offset * 0.96)
-		)
-		TweenService:Create(scrim, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			BackgroundTransparency = UI.opacity.veil,
-		}):Play()
-		TweenService:Create(panel, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-			Size = goal,
-		}):Play()
-		if UserInputService.GamepadEnabled then
-			GuiService.SelectedObject = pageButtons[currentPage]
+		if instant or UI.motion.isReducedMotion() then
+			panel.Size = goal
+			scrim.BackgroundTransparency = UI.opacity.veil
+		else
+			panel.Size = UDim2.fromOffset(math.floor(goal.X.Offset * 0.96), math.floor(goal.Y.Offset * 0.96))
+			table.insert(activeTweens, UI.motion.play(scrim, UI.motion.snap, {
+				BackgroundTransparency = UI.opacity.veil,
+			}))
+			table.insert(activeTweens, UI.motion.play(panel, UI.motion.pop, { Size = goal }))
 		end
 	else
-		local fade = TweenService:Create(
-			scrim,
-			TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-			{ BackgroundTransparency = 1 }
-		)
-		fade:Play()
-		fade.Completed:Connect(function()
-			if not open then
-				scrim.Visible = false
-			end
-		end)
+		if instant or UI.motion.isReducedMotion() then
+			scrim.BackgroundTransparency = 1
+			scrim.Visible = false
+		else
+			local fade = UI.motion.play(scrim, UI.motion.snap, { BackgroundTransparency = 1 })
+			table.insert(activeTweens, fade)
+			fade.Completed:Connect(function()
+				if animationGeneration == generation and not open then
+					scrim.Visible = false
+				end
+			end)
+		end
 
 		for _, listener in closedListeners do
 			task.spawn(listener, not acknowledged)
 		end
-		local selected = GuiService.SelectedObject
-		if selected and selected:IsDescendantOf(panel) then
-			GuiService.SelectedObject = nil
-		end
+	end
+end
+
+function ControlsPanel.setOpen(shouldOpen: boolean)
+	if shouldOpen then
+		UIManager.open(MENU_ID)
+	else
+		UIManager.close(MENU_ID)
 	end
 end
 
@@ -685,6 +717,10 @@ function ControlsPanel.init()
 	screen.Parent = playerGui
 
 	buildPanel(screen)
+	InputMode.onChanged(function()
+		rebuildPages()
+		applyResponsiveLayout()
+	end)
 
 	ContextActionService:BindAction(TOGGLE_ACTION, function(_, inputState)
 		if inputState == Enum.UserInputState.Begin then

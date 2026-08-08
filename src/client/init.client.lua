@@ -19,6 +19,8 @@ local BOOT_ORDER = {
 	{ container = script.Controllers, name = "SoundController" },
 	{ container = script.Controllers, name = "WorldController" },
 	{ container = script.Controllers, name = "FarmController" },
+	{ container = script.UI, name = "InputMode" },
+	{ container = script.UI, name = "UIManager" },
 	{ container = script.UI, name = "HUD" },
 	{ container = script.UI, name = "InventoryMenu" },
 	{ container = script.UI, name = "CookingMenu" },

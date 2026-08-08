@@ -13,8 +13,8 @@ Theme.color = {
 	glassDark = rgb(96, 72, 66),
 
 	ink = rgb(74, 56, 52),
-	inkSoft = rgb(133, 110, 104),
-	inkFaint = rgb(178, 158, 152),
+	inkSoft = rgb(108, 86, 80),
+	inkFaint = rgb(128, 105, 99),
 	inkInverse = rgb(255, 252, 248),
 
 	line = rgb(122, 96, 90),
@@ -62,10 +62,10 @@ Theme.surface = {
 
 Theme.elevation = {
 	flat = { layers = 0, spread = 0, opacity = 1 },
-	low = { layers = 3, spread = 2, opacity = 0.74 },
-	base = { layers = 5, spread = 3, opacity = 0.68 },
-	high = { layers = 7, spread = 4, opacity = 0.62 },
-	lifted = { layers = 9, spread = 5, opacity = 0.56 },
+	low = { layers = 1, spread = 2, opacity = 0.78 },
+	base = { layers = 2, spread = 3, opacity = 0.72 },
+	high = { layers = 4, spread = 3, opacity = 0.66 },
+	lifted = { layers = 5, spread = 4, opacity = 0.62 },
 }
 
 Theme.font = {
@@ -100,9 +100,24 @@ function Theme.darken(color: Color3, amount: number): Color3
 	return color:Lerp(Theme.color.glassDark, math.clamp(amount, 0, 1))
 end
 
+local function channel(value: number): number
+	return if value <= 0.04045 then value / 12.92 else ((value + 0.055) / 1.055) ^ 2.4
+end
+
+local function luminance(color: Color3): number
+	return channel(color.R) * 0.2126 + channel(color.G) * 0.7152 + channel(color.B) * 0.0722
+end
+
+local function contrast(first: Color3, second: Color3): number
+	local a = luminance(first)
+	local b = luminance(second)
+	return (math.max(a, b) + 0.05) / (math.min(a, b) + 0.05)
+end
+
 function Theme.readable(background: Color3): Color3
-	local luminance = background.R * 0.299 + background.G * 0.587 + background.B * 0.114
-	return if luminance > 0.6 then Theme.color.ink else Theme.color.inkInverse
+	return if contrast(background, Theme.color.ink) >= contrast(background, Theme.color.inkInverse)
+		then Theme.color.ink
+		else Theme.color.inkInverse
 end
 
 return Theme

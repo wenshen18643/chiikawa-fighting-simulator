@@ -10,6 +10,7 @@ local Remotes = require(Shared.Modules.Remotes)
 local UI = require(Shared.UI)
 local StateController = require(script.Parent.Parent.Controllers.StateController)
 local WorkController = require(script.Parent.Parent.Controllers.WorkController)
+local UIManager = require(script.Parent.UIManager)
 local GachaReveal = require(script.Parent.GachaReveal)
 local GachaResults = require(script.Parent.GachaResults)
 
@@ -31,12 +32,13 @@ type PullResult = {
 }
 
 local WeaponGachaMenu = {}
-local INPUT_LOCK = "weapon-gacha-menu"
+local MENU_ID = "weapon-gacha"
 local FLOW_INPUT_LOCK = "weapon-gacha-flow"
 local CLOSE_DISTANCE = 24
 local WEAPON_ID = "sasumata"
 local screen: ScreenGui
-local setOpen: (boolean) -> ()
+local setPanelOpen: (boolean, boolean?) -> ()
+local closeButton: TextButton
 local isOpen = false
 local state: GachaState? = nil
 local activePage = "draw"
@@ -63,6 +65,11 @@ end
 
 local function setPullBusy(busy: boolean)
 	pullBusy = busy
+	if busy then
+		UIManager.beginBlock(FLOW_INPUT_LOCK, MENU_ID)
+	else
+		UIManager.endBlock(FLOW_INPUT_LOCK)
+	end
 	WorkController.setInputLocked(FLOW_INPUT_LOCK, busy)
 	for _, button in drawButtons do
 		button.Active = not busy
@@ -159,7 +166,7 @@ local function drawButton(parent: Instance, drawId: WeaponSkins.DrawId, count: n
 		text = `Draw {count}  ·  {draw.cost * count} yen`,
 		color = accent,
 		textColor = UI.color.ink,
-		extent = UDim2.new(0.46, 0, 0, 36),
+		extent = UDim2.new(0.46, 0, 0, 44),
 		position = position,
 		stroke = false,
 		sheen = false,
@@ -225,8 +232,8 @@ local function buildDrawTicket(parent: Instance, drawId: WeaponSkins.DrawId, pos
 		extent = UDim2.new(1, -32, 0, 20),
 	})
 
-	drawButton(card, drawId, 1, UDim2.new(0.03, 0, 1, -44))
-	drawButton(card, drawId, 10, UDim2.new(0.51, 0, 1, -44))
+	drawButton(card, drawId, 1, UDim2.new(0.03, 0, 1, -52))
+	drawButton(card, drawId, 10, UDim2.new(0.51, 0, 1, -52))
 end
 
 local function sellableCopies(snapshot: GachaState, skin: WeaponSkins.SkinDefinition): number
@@ -461,22 +468,37 @@ local function buildOddsPage(parent: Frame)
 end
 
 local function buildPanel(parent: ScreenGui)
+	local body: ScrollingFrame? = nil
+
+	local function applyBodyLayout(compact: boolean)
+		if not body then
+			return
+		end
+		body.CanvasSize = if compact then UDim2.fromOffset(0, 360) else UDim2.fromOffset(0, 0)
+		body.ScrollBarThickness = if compact then 6 else 0
+		for _, page in pages do
+			page.Size = if compact then UDim2.new(1, -8, 0, 360) else UDim2.fromScale(1, 1)
+		end
+	end
 	local _scrim, content, toggle = UI.modal(parent, "WeaponGachaMenu", {
 		extent = UDim2.new(0.74, 0, 0.84, 0),
+		maxSize = Vector2.new(780, 650),
 		zIndex = 30,
+
+		onDismiss = function()
+			WeaponGachaMenu.setOpen(false)
+		end,
+
+		onResponsiveChanged = function(compact: boolean)
+			applyBodyLayout(compact)
+		end,
 
 		onToggled = function(open: boolean)
 			isOpen = open
-			WorkController.setInputLocked(INPUT_LOCK, open)
 		end,
 	})
-	setOpen = toggle
+	setPanelOpen = toggle
 	UI.padding(content, UI.space.base)
-
-	local constraint = Instance.new("UISizeConstraint")
-	constraint.MinSize = Vector2.new(620, 500)
-	constraint.MaxSize = Vector2.new(780, 650)
-	constraint.Parent = content
 
 	UI.label(content, "Title", {
 		text = "Weapon Skin Capsule Shop",
@@ -492,15 +514,15 @@ local function buildPanel(parent: ScreenGui)
 		position = UDim2.fromOffset(0, 32),
 		extent = UDim2.new(0.68, 0, 0, 20),
 	})
-	UI.button(content, "Close", {
+	closeButton = UI.button(content, "Close", {
 		text = "Close",
-		extent = UDim2.fromOffset(74, 30),
-		position = UDim2.new(1, -74, 0, 2),
+		extent = UDim2.fromOffset(88, 44),
+		position = UDim2.new(1, -88, 0, 0),
 		stroke = false,
 		sheen = false,
 
 		onActivated = function()
-			setOpen(false)
+			WeaponGachaMenu.setOpen(false)
 		end,
 	})
 
@@ -529,21 +551,26 @@ local function buildPanel(parent: ScreenGui)
 		extent = UDim2.new(0.5, -12, 0, 20),
 	})
 
-	local body = Instance.new("Frame")
-	body.Name = "Body"
-	body.BackgroundTransparency = 1
-	body.Position = UDim2.fromOffset(0, 148)
-	body.Size = UDim2.new(1, 0, 1, -148)
-	body.Parent = content
+	local bodyFrame = Instance.new("ScrollingFrame")
+	bodyFrame.Name = "Body"
+	bodyFrame.BackgroundTransparency = 1
+	bodyFrame.BorderSizePixel = 0
+	bodyFrame.CanvasSize = UDim2.fromOffset(0, 0)
+	bodyFrame.ScrollBarImageColor3 = UI.color.inkSoft
+	bodyFrame.Position = UDim2.fromOffset(0, 148)
+	bodyFrame.Size = UDim2.new(1, 0, 1, -148)
+	bodyFrame.Parent = content
+	body = bodyFrame
 	for _, key in { "draw", "collection", "odds" } do
 		local page = Instance.new("Frame")
 		page.Name = key
 		page.BackgroundTransparency = 1
 		page.Size = UDim2.fromScale(1, 1)
 		page.Visible = key == activePage
-		page.Parent = body
+		page.Parent = bodyFrame
 		pages[key] = page
 	end
+	applyBodyLayout(UI.responsive.isCompact())
 
 	buildNavigation(content)
 	buildDrawTicket(pages.draw, "standard", UDim2.fromScale(0, 0))
@@ -564,6 +591,20 @@ local function buildPanel(parent: ScreenGui)
 	UI.list(collectionList, 7)
 	buildOddsPage(pages.odds)
 	paintStatus()
+
+	UIManager.register(MENU_ID, {
+		setVisible = setPanelOpen,
+
+		focus = function()
+			return closeButton
+		end,
+
+		back = function()
+			return pullBusy
+		end,
+		dismissible = true,
+		kind = "ordinary",
+	})
 end
 
 local function acceptState(value: unknown): GachaState?
@@ -635,6 +676,14 @@ local function isNearNpc(): boolean
 		and (root.Position - anchor.Position).Magnitude <= CLOSE_DISTANCE
 end
 
+function WeaponGachaMenu.setOpen(open: boolean)
+	if open then
+		UIManager.open(MENU_ID)
+	else
+		UIManager.close(MENU_ID)
+	end
+end
+
 function WeaponGachaMenu.init()
 	local player = Players.LocalPlayer
 	local playerGui = player:WaitForChild("PlayerGui")
@@ -652,7 +701,7 @@ function WeaponGachaMenu.init()
 	Remotes.event("WeaponGacha", "Open").OnClientEvent:Connect(function(value)
 		applyState(value)
 		showPage("draw")
-		setOpen(true)
+		WeaponGachaMenu.setOpen(true)
 	end)
 	Remotes.event("WeaponGacha", "Event").OnClientEvent:Connect(function(payload)
 		if type(payload) ~= "table" then
@@ -705,14 +754,14 @@ function WeaponGachaMenu.init()
 		end
 		setPullBusy(false)
 		if isOpen then
-			setOpen(false)
+			WeaponGachaMenu.setOpen(false)
 		end
 	end)
 	task.spawn(function()
 		while screen.Parent do
 			task.wait(0.25)
 			if isOpen and not isNearNpc() then
-				setOpen(false)
+				WeaponGachaMenu.setOpen(false)
 			end
 		end
 	end)

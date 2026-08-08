@@ -13,7 +13,7 @@ local Layout = require(Shared.Modules.Config.Layout)
 local Remotes = require(Shared.Modules.Remotes)
 local UI = require(Shared.UI)
 local StateController = require(script.Parent.Parent.Controllers.StateController)
-local WorkController = require(script.Parent.Parent.Controllers.WorkController)
+local UIManager = require(script.Parent.UIManager)
 
 type CropSnapshot = {
 	id: string,
@@ -38,6 +38,7 @@ type Page = "grid" | "detail"
 
 local FarmMenu = {}
 local ACTION_NAME = "ToggleFarmMenu"
+local MENU_ID = "farm"
 local SOIL = Color3.fromRGB(102, 72, 51)
 local WOOD = Color3.fromRGB(176, 132, 86)
 local AISLE = Color3.fromRGB(224, 205, 165)
@@ -47,7 +48,8 @@ local contentHost: Frame
 local titleLabel: TextLabel
 local subtitleLabel: TextLabel
 local backButton: TextButton
-local setPanelOpen: (boolean) -> ()
+local closeButton: TextButton
+local setPanelOpen: (boolean, boolean?) -> ()
 local snapshots: { [number]: PlotSnapshot } = {}
 local receivedPlots: { [number]: boolean } = {}
 local receivedCount = 0
@@ -478,12 +480,12 @@ local function buildOwnerCard(parent: Instance, snapshot: PlotSnapshot)
 		color = UI.color.sky,
 		textColor = UI.color.ink,
 		position = UDim2.new(1, -154, 0, 44),
-		extent = UDim2.fromOffset(140, 42),
+		extent = UDim2.fromOffset(140, 44),
 		zIndex = 29,
 
 		onActivated = function()
 			teleportRemote:FireServer(snapshot.plotId)
-			setPanelOpen(false)
+			FarmMenu.setOpen(false)
 		end,
 	})
 end
@@ -539,7 +541,7 @@ local function buildPlant(parent: Instance, snapshot: PlotSnapshot)
 		UI.button(crops, `Plant{cropId}`, {
 			text = if isConfirmation then string.format("Confirm · get %d", guaranteed) else "Plant",
 			color = if owned >= Farming.SEED_COST then UI.color.leafDeep else UI.color.paperDeep,
-			textColor = if owned >= Farming.SEED_COST then UI.color.white else UI.color.inkFaint,
+			textColor = if owned >= Farming.SEED_COST then UI.readable(UI.color.leafDeep) else UI.color.inkFaint,
 			position = UDim2.new(1, -146, 0, y),
 			extent = UDim2.fromOffset(132, 38),
 			zIndex = 29,
@@ -691,11 +693,15 @@ end
 local function buildPanel(parent: ScreenGui)
 	local _, content, toggle = UI.modal(parent, "FarmMenu", {
 		extent = UDim2.new(0.94, 0, 0.88, 0),
+		maxSize = Vector2.new(720, 760),
 		zIndex = 24,
+
+		onDismiss = function()
+			FarmMenu.setOpen(false)
+		end,
 
 		onToggled = function(open)
 			isOpen = open
-			WorkController.setInputLocked("farm-menu", open)
 			if not open then
 				page = "grid"
 				selectedPlotId = nil
@@ -709,16 +715,12 @@ local function buildPanel(parent: ScreenGui)
 	})
 	panel = content
 	setPanelOpen = toggle
-	local constraint = Instance.new("UISizeConstraint")
-	constraint.MinSize = Vector2.new(330, 430)
-	constraint.MaxSize = Vector2.new(720, 760)
-	constraint.Parent = panel
 
 	backButton = UI.button(panel, "Back", {
 		text = "‹ Back",
 		color = UI.color.paperDeep,
 		position = UDim2.fromOffset(14, 16),
-		extent = UDim2.fromOffset(76, 34),
+		extent = UDim2.fromOffset(88, 44),
 		zIndex = 27,
 
 		onActivated = function()
@@ -749,15 +751,15 @@ local function buildPanel(parent: ScreenGui)
 		align = Enum.TextXAlignment.Center,
 		zIndex = 26,
 	})
-	UI.button(panel, "Close", {
+	closeButton = UI.button(panel, "Close", {
 		text = "×",
 		color = UI.color.paperDeep,
 		position = UDim2.new(1, -54, 0, 14),
-		extent = UDim2.fromOffset(40, 36),
+		extent = UDim2.fromOffset(44, 44),
 		zIndex = 27,
 
 		onActivated = function()
-			setPanelOpen(false)
+			FarmMenu.setOpen(false)
 		end,
 	})
 
@@ -768,6 +770,31 @@ local function buildPanel(parent: ScreenGui)
 	contentHost.Size = UDim2.new(1, -32, 1, -82)
 	contentHost.ZIndex = 25
 	contentHost.Parent = panel
+
+	UIManager.register(MENU_ID, {
+		setVisible = setPanelOpen,
+
+		focus = function()
+			if backButton.Visible then
+				return backButton
+			end
+			local firstButton = contentHost:FindFirstChildWhichIsA("GuiButton", true)
+			return if firstButton then firstButton :: GuiObject else closeButton
+		end,
+
+		back = function()
+			if page == "detail" then
+				page = "grid"
+				selectedPlotId = nil
+				pendingLateCrop = nil
+				render(true)
+				return true
+			end
+			return false
+		end,
+		dismissible = true,
+		kind = "ordinary",
+	})
 end
 
 function FarmMenu.setOpen(open: boolean)
@@ -779,10 +806,11 @@ function FarmMenu.setOpen(open: boolean)
 		selectedPlotId = nil
 		pendingLateCrop = nil
 		render(true)
-		setPanelOpen(true)
-		requestStateRemote:FireServer()
+		if UIManager.open(MENU_ID) then
+			requestStateRemote:FireServer()
+		end
 	else
-		setPanelOpen(false)
+		UIManager.close(MENU_ID)
 	end
 end
 

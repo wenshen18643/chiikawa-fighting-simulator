@@ -11,12 +11,32 @@ local root: Frame
 local title: TextLabel
 local detail: TextLabel
 local fill: Frame
+local requestedVisible = false
+local suppressed = false
+local compact = false
 
 local function setVisible(visible: boolean)
-	if root.Visible == visible then
+	requestedVisible = visible
+	local renderedVisible = visible and not suppressed
+	if root.Visible == renderedVisible then
 		return
 	end
-	root.Visible = visible
+	root.Visible = renderedVisible
+end
+
+function OrderTracker.setSuppressed(value: boolean)
+	suppressed = value
+	if root then
+		root.Visible = requestedVisible and not suppressed
+	end
+end
+
+function OrderTracker.setCompact(value: boolean)
+	compact = value
+	if root then
+		root.Position = if compact then UDim2.new(1, -8, 0, 88) else UDim2.new(1, -UI.space.base, 0, 120)
+		root.Size = if compact then UDim2.fromOffset(220, HEIGHT) else UDim2.fromOffset(WIDTH, HEIGHT)
+	end
 end
 
 local function show(name: string, summary: string, progress: number, count: number)
@@ -111,6 +131,7 @@ function OrderTracker.init()
 	screen.Parent = playerGui
 
 	build(screen)
+	OrderTracker.setCompact(compact)
 
 	Remotes.event("Order", "Event").OnClientEvent:Connect(function(kind, payload)
 		if type(payload) ~= "table" then

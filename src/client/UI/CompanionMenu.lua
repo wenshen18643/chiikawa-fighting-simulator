@@ -3,7 +3,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared.Modules.Remotes)
 local UI = require(Shared.UI)
+local UIManager = require(script.Parent.UIManager)
 local CompanionMenu = {}
+local MENU_ID = "companion"
 
 type Entry = { id: string, name: string, blurb: string }
 
@@ -11,7 +13,8 @@ local ROW_HEIGHT = 62
 local screen: ScreenGui
 local panel: Frame
 local listHolder: ScrollingFrame
-local setOpen: (boolean) -> ()
+local setPanelOpen: (boolean, boolean?) -> ()
+local closeButton: TextButton
 local selectRemote: RemoteEvent
 
 local function buildRow(entry: Entry, index: number, isSelected: boolean)
@@ -43,7 +46,7 @@ local function buildRow(entry: Entry, index: number, isSelected: boolean)
 		local chip = UI.chip(row, "Current", {
 			text = "Following",
 			color = UI.color.leafDeep,
-			textColor = UI.color.white,
+			textColor = UI.readable(UI.color.leafDeep),
 			extent = UDim2.fromOffset(104, 30),
 			position = UDim2.new(1, -116, 0.5, -15),
 		})
@@ -60,7 +63,7 @@ local function buildRow(entry: Entry, index: number, isSelected: boolean)
 
 		onActivated = function()
 			selectRemote:FireServer(entry.id)
-			setOpen(false)
+			CompanionMenu.setOpen(false)
 		end,
 	})
 end
@@ -83,9 +86,13 @@ local function buildPanel(parent: ScreenGui)
 	local scrim, content, toggle = UI.modal(parent, "CompanionMenu", {
 		extent = UDim2.new(0, 540, 0.82, 0),
 		zIndex = 20,
+
+		onDismiss = function()
+			CompanionMenu.setOpen(false)
+		end,
 	})
 	panel = content
-	setOpen = toggle
+	setPanelOpen = toggle
 
 	UI.padding(panel, UI.space.loose)
 
@@ -123,17 +130,34 @@ local function buildPanel(parent: ScreenGui)
 
 	UI.padding(listHolder, 0, { right = 14 })
 
-	UI.button(panel, "Close", {
+	closeButton = UI.button(panel, "Close", {
 		text = "Close",
-		extent = UDim2.fromOffset(120, 34),
-		position = UDim2.new(0.5, -60, 1, -34),
+		extent = UDim2.fromOffset(120, 44),
+		position = UDim2.new(0.5, -60, 1, -44),
 
 		onActivated = function()
-			setOpen(false)
+			CompanionMenu.setOpen(false)
 		end,
 	})
 
 	scrim.Visible = false
+	UIManager.register(MENU_ID, {
+		setVisible = function(open, instant)
+			setPanelOpen(open, instant)
+		end,
+
+		focus = function()
+			return closeButton
+		end,
+	})
+end
+
+function CompanionMenu.setOpen(open: boolean)
+	if open then
+		UIManager.open(MENU_ID)
+	else
+		UIManager.close(MENU_ID)
+	end
 end
 
 function CompanionMenu.init()
@@ -155,7 +179,7 @@ function CompanionMenu.init()
 			return
 		end
 		render(entries, current)
-		setOpen(true)
+		CompanionMenu.setOpen(true)
 	end)
 end
 

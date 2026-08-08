@@ -1,7 +1,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared.Modules.Remotes)
@@ -9,6 +8,9 @@ local UI = require(Shared.UI)
 local MovementController = require(script.Parent.Parent.Controllers.MovementController)
 local WorkController = require(script.Parent.Parent.Controllers.WorkController)
 local ControlsPanel = require(script.Parent.ControlsPanel)
+local InputMode = require(script.Parent.InputMode)
+local Minimap = require(script.Parent.Minimap)
+local UIManager = require(script.Parent.UIManager)
 local ControlTutorial = {}
 
 type Step = {
@@ -34,9 +36,48 @@ local active = false
 local finished = false
 local transitioning = false
 local acknowledgeRemote: RemoteEvent
+local surfaceSuppressed = false
+local minimapSuppressed = false
+local changedListeners: { (boolean) -> () } = {}
+
+local function refreshEnabled()
+	if screen then
+		screen.Enabled = active and not surfaceSuppressed and not minimapSuppressed
+	end
+end
+
+local function notifyActive()
+	for _, listener in changedListeners do
+		task.spawn(listener, active)
+	end
+end
+
+function ControlTutorial.onChanged(callback: (boolean) -> ()): () -> ()
+	table.insert(changedListeners, callback)
+	return function()
+		local index = table.find(changedListeners, callback)
+		if index then
+			table.remove(changedListeners, index)
+		end
+	end
+end
+
+local function lessonPosition(shown: boolean): UDim2
+	if screen and UI.responsive.isCompact(screen.AbsoluteSize) then
+		return UDim2.new(0.5, 30, 0, if shown then 92 else 80)
+	end
+	return UDim2.new(0.5, 0, 0, if shown then 18 else 5)
+end
+
+local function lessonSize(shown: boolean): UDim2
+	if screen and UI.responsive.isCompact(screen.AbsoluteSize) then
+		return UDim2.new(1, -140, 0, if shown then 136 else 128)
+	end
+	return UDim2.new(0.9, 0, 0, if shown then 150 else 142)
+end
 
 local function stepList(): { Step }
-	if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+	if InputMode.current() == "touch" then
 		return {
 			{
 				id = "move",
@@ -62,7 +103,7 @@ local function stepList(): { Step }
 		}
 	end
 
-	if UserInputService.GamepadEnabled and not UserInputService.KeyboardEnabled then
+	if InputMode.current() == "gamepad" then
 		return {
 			{
 				id = "move",
@@ -154,6 +195,9 @@ local function showCurrent()
 	keycap.BackgroundColor3 = step.accent:Lerp(UI.color.paperDeep, 0.74)
 	keycapText.Text = step.key
 	keycapText.TextColor3 = step.accent
+	keycap.Visible = InputMode.current() ~= "touch"
+	instructionLabel.Position = if keycap.Visible then UDim2.fromOffset(158, 64) else UDim2.fromOffset(20, 64)
+	instructionLabel.Size = if keycap.Visible then UDim2.new(1, -176, 0, 52) else UDim2.new(1, -40, 0, 52)
 	accentRule.BackgroundColor3 = step.accent
 	drawProgress()
 end
@@ -161,7 +205,8 @@ end
 local function hideLesson()
 	active = false
 	transitioning = false
-	screen.Enabled = false
+	refreshEnabled()
+	notifyActive()
 	ControlsPanel.markIntroComplete()
 	acknowledgeRemote:FireServer()
 end
@@ -172,11 +217,10 @@ local function completeStep()
 	end
 	transitioning = true
 
-	local out = TweenService:Create(panel, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-		Position = UDim2.new(0.5, 0, 0, 5),
-		Size = UDim2.new(0.9, 0, 0, 142),
+	local out = UI.motion.play(panel, UI.motion.snap, {
+		Position = lessonPosition(false),
+		Size = lessonSize(false),
 	})
-	out:Play()
 	out.Completed:Connect(function()
 		if not active then
 			return
@@ -191,17 +235,17 @@ local function completeStep()
 		end
 
 		showCurrent()
-		panel.Position = UDim2.new(0.5, 0, 0, 5)
-		panel.Size = UDim2.new(0.9, 0, 0, 142)
+		panel.Position = lessonPosition(false)
+		panel.Size = lessonSize(false)
 		task.delay(0.08, function()
 			if not active then
 				return
 			end
 			panel.Visible = true
-			TweenService:Create(panel, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-				Position = UDim2.new(0.5, 0, 0, 18),
-				Size = UDim2.new(0.9, 0, 0, 150),
-			}):Play()
+			UI.motion.play(panel, UI.motion.pop, {
+				Position = lessonPosition(true),
+				Size = lessonSize(true),
+			})
 			transitioning = false
 		end)
 	end)
@@ -216,16 +260,17 @@ local function startLesson()
 	current = 1
 	active = true
 	transitioning = false
-	screen.Enabled = true
+	refreshEnabled()
+	notifyActive()
 	panel.Visible = true
-	panel.Position = UDim2.new(0.5, 0, 0, 5)
-	panel.Size = UDim2.new(0.9, 0, 0, 142)
+	panel.Position = lessonPosition(false)
+	panel.Size = lessonSize(false)
 	showCurrent()
 
-	TweenService:Create(panel, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Position = UDim2.new(0.5, 0, 0, 18),
-		Size = UDim2.new(0.9, 0, 0, 150),
-	}):Play()
+	UI.motion.play(panel, UI.motion.pop, {
+		Position = lessonPosition(true),
+		Size = lessonSize(true),
+	})
 end
 
 local function build(parent: ScreenGui)
@@ -241,7 +286,6 @@ local function build(parent: ScreenGui)
 	UI.shadow(panel)
 
 	local constraint = Instance.new("UISizeConstraint")
-	constraint.MinSize = Vector2.new(300, 142)
 	constraint.MaxSize = Vector2.new(520, 150)
 	constraint.Parent = panel
 
@@ -279,7 +323,7 @@ local function build(parent: ScreenGui)
 		textSize = 10,
 		anchor = Vector2.new(1, 0),
 		position = UDim2.new(1, -14, 0, 14),
-		extent = UDim2.fromOffset(94, 28),
+		extent = UDim2.fromOffset(104, 44),
 		stroke = true,
 		zIndex = 33,
 
@@ -359,6 +403,39 @@ function ControlTutorial.init()
 	screen.Parent = playerGui
 
 	build(screen)
+	surfaceSuppressed = UIManager.hasSurface()
+	minimapSuppressed = Minimap.isOpen()
+	UIManager.onChanged(function()
+		surfaceSuppressed = UIManager.hasSurface()
+		refreshEnabled()
+	end)
+	Minimap.onChanged(function(open)
+		minimapSuppressed = open
+		refreshEnabled()
+	end)
+	screen:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		if active and not transitioning then
+			panel.Position = lessonPosition(true)
+			panel.Size = lessonSize(true)
+		end
+	end)
+	InputMode.onChanged(function()
+		if not active then
+			return
+		end
+		local previousId = if steps[current] then steps[current].id else nil
+		steps = stepList()
+		current = 1
+		if previousId then
+			for index, step in steps do
+				if step.id == previousId then
+					current = index
+					break
+				end
+			end
+		end
+		showCurrent()
+	end)
 
 	ControlsPanel.onClosed(function(firstSession)
 		if firstSession then
@@ -367,7 +444,7 @@ function ControlTutorial.init()
 	end)
 
 	RunService.RenderStepped:Connect(function()
-		if not active or transitioning or ControlsPanel.isOpen() then
+		if not active or transitioning or surfaceSuppressed or minimapSuppressed or ControlsPanel.isOpen() then
 			return
 		end
 		local step = steps[current]
@@ -383,6 +460,8 @@ function ControlTutorial.init()
 		if
 			active
 			and not transitioning
+			and not surfaceSuppressed
+			and not minimapSuppressed
 			and not ControlsPanel.isOpen()
 			and steps[current]
 			and steps[current].id == "jump"
@@ -395,6 +474,8 @@ function ControlTutorial.init()
 		if
 			active
 			and not transitioning
+			and not surfaceSuppressed
+			and not minimapSuppressed
 			and not ControlsPanel.isOpen()
 			and steps[current]
 			and steps[current].id == "work"

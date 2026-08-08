@@ -1,6 +1,5 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Boosts = require(Shared.Modules.Boosts)
@@ -12,13 +11,17 @@ local UI = require(Shared.UI)
 local StateController = require(script.Parent.Parent.Controllers.StateController)
 local Atlas = require(script.Parent.Atlas)
 local ControlsPanel = require(script.Parent.ControlsPanel)
+local ControlTutorial = require(script.Parent.ControlTutorial)
 local FarmMenu = require(script.Parent.FarmMenu)
 local InventoryMenu = require(script.Parent.InventoryMenu)
 local Minimap = require(script.Parent.Minimap)
+local OrderTracker = require(script.Parent.OrderTracker)
 local SkillBar = require(script.Parent.SkillBar)
 local WorkCore = require(script.Parent.WorkCore)
+local InputMode = require(script.Parent.InputMode)
+local UIManager = require(script.Parent.UIManager)
 local HUD = {}
-local COMPACT_WIDTH = 760
+local CURRENCY_OVERLAY_ID = "compact-currency"
 local skillEntries: { [string]: SkillBar.SkillEntry } = {}
 local screen: ScreenGui
 local identityCard: Frame
@@ -28,11 +31,21 @@ local wageLabel: TextLabel
 local stampLabel: TextLabel
 local seasonChip: Frame
 local toastHolder: Frame
-local buffHolder: Frame
+local buffHolder: ScrollingFrame
 local activeSkill: string? = nil
 local selectedSkill: string? = nil
 local buffChips: { TextLabel } = {}
 local buffKey = ""
+local compactCurrency: TextButton
+local compactYenSet: (string, number?) -> ()
+local currencyScrim: TextButton
+local currencyClose: TextButton
+local sideRail: Frame
+local sideRailButtons: { TextButton } = {}
+local sideRailHints: { Frame } = {}
+local compactLayout = false
+local currencyExpanded = false
+local tutorialActive = false
 
 local function buildBust(parent: Frame)
 	local viewport = Instance.new("ViewportFrame")
@@ -94,6 +107,7 @@ local function buildIdentity(parent: Instance)
 	identityCard = UI.card(parent, "Identity")
 	identityCard.Position = UDim2.fromOffset(18, 18)
 	identityCard.Size = UDim2.fromOffset(268, 116)
+	identityCard.ZIndex = 3
 	UI.padding(identityCard, 14)
 	UI.shadow(identityCard)
 
@@ -165,6 +179,96 @@ local function buildIdentity(parent: Instance)
 		extent = UDim2.new(1, -20, 0, 16),
 		position = UDim2.fromOffset(20, 91),
 	})
+
+	currencyClose = UI.button(identityCard, "Collapse", {
+		text = "Ã—",
+		color = UI.color.paperDeep,
+		anchor = Vector2.new(1, 0),
+		position = UDim2.new(1, -4, 0, 0),
+		extent = UDim2.fromOffset(44, 44),
+		zIndex = 8,
+
+		onActivated = function()
+			UIManager.hideOverlay(CURRENCY_OVERLAY_ID)
+		end,
+	})
+	currencyClose.Visible = false
+end
+
+local function applyCurrencyExpanded(expanded: boolean)
+	currencyExpanded = compactLayout and expanded
+	identityCard.Visible = not compactLayout or currencyExpanded
+	compactCurrency.Visible = compactLayout and not currencyExpanded
+	currencyScrim.Visible = currencyExpanded
+	currencyClose.Visible = currencyExpanded
+	if buffHolder then
+		buffHolder.Position = UDim2.fromOffset(18, if currencyExpanded then 140 else if compactLayout then 64 else 140)
+	end
+end
+
+local function buildCompactCurrency(parent: Instance)
+	currencyScrim = Instance.new("TextButton")
+	currencyScrim.Name = "CurrencyDismiss"
+	currencyScrim.Size = UDim2.fromScale(1, 1)
+	currencyScrim.BackgroundTransparency = 1
+	currencyScrim.Text = ""
+	currencyScrim.AutoButtonColor = false
+	currencyScrim.Visible = false
+	currencyScrim.ZIndex = 2
+	currencyScrim.Parent = parent
+	currencyScrim.Activated:Connect(function()
+		UIManager.hideOverlay(CURRENCY_OVERLAY_ID)
+	end)
+
+	compactCurrency = UI.button(parent, "CompactCurrency", {
+		text = "",
+		color = UI.color.paper,
+		position = UDim2.fromOffset(8, 8),
+		extent = UDim2.fromOffset(176, 52),
+		zIndex = 4,
+
+		onActivated = function()
+			if UIManager.showOverlay(CURRENCY_OVERLAY_ID, {
+				close = function()
+					applyCurrencyExpanded(false)
+				end,
+
+				focus = function()
+					return currencyClose
+				end,
+			}) then
+				applyCurrencyExpanded(true)
+			end
+		end,
+	})
+	compactCurrency.Visible = false
+
+	UI.glyph(compactCurrency, "coin", {
+		color = UI.color.gold,
+		extent = UDim2.fromOffset(24, 24),
+		anchor = Vector2.new(0, 0.5),
+		position = UDim2.new(0, 12, 0.5, 0),
+		zIndex = 6,
+	})
+	local compactYen
+	compactYen, compactYenSet = UI.ticker(compactCurrency, "Yen", {
+		text = "0",
+		font = UI.font.display,
+		size = 22,
+		extent = UDim2.new(1, -62, 1, 0),
+		position = UDim2.fromOffset(44, 0),
+		zIndex = 6,
+	})
+	compactYen.TextTruncate = Enum.TextTruncate.AtEnd
+	UI.label(compactCurrency, "Expand", {
+		text = "+",
+		font = UI.font.display,
+		size = 18,
+		align = Enum.TextXAlignment.Center,
+		position = UDim2.new(1, -30, 0, 0),
+		extent = UDim2.fromOffset(30, 52),
+		zIndex = 6,
+	})
 end
 
 local function buffLabel(boost: any): string
@@ -186,11 +290,16 @@ local function buffColor(boost: any): Color3
 end
 
 local function buildBuffs(parent: Instance)
-	buffHolder = Instance.new("Frame")
+	buffHolder = Instance.new("ScrollingFrame")
 	buffHolder.Name = "Buffs"
 	buffHolder.Position = UDim2.fromOffset(18, 140)
 	buffHolder.Size = UDim2.fromOffset(300, 24)
 	buffHolder.BackgroundTransparency = 1
+	buffHolder.BorderSizePixel = 0
+	buffHolder.AutomaticCanvasSize = Enum.AutomaticSize.X
+	buffHolder.CanvasSize = UDim2.fromOffset(0, 0)
+	buffHolder.ScrollingDirection = Enum.ScrollingDirection.X
+	buffHolder.ScrollBarThickness = 0
 	buffHolder.Visible = false
 	buffHolder.ZIndex = 4
 	buffHolder.Parent = parent
@@ -235,7 +344,7 @@ local function updateBuffs(boosts: { any }?, foodBuffs: { any }?)
 				text = "",
 				textSize = 11,
 				color = isFood and UI.color.leafDeep or buffColor(item.data),
-				textColor = UI.color.paperDeep,
+				textColor = UI.readable(if isFood then UI.color.leafDeep else buffColor(item.data)),
 				extent = UDim2.fromOffset(if isFood then 122 else 96, 24),
 				zIndex = 5,
 			})
@@ -275,31 +384,30 @@ type SideRailButton = {
 }
 
 local function buildSideRail(parent: Instance, buttons: { SideRailButton })
-	local rail = Instance.new("Frame")
-	rail.Name = "SideRail"
-	rail.Position = UDim2.fromOffset(18, 174)
-	rail.Size = UDim2.fromOffset(52, #buttons * 60)
-	rail.BackgroundTransparency = 1
-	rail.ZIndex = 4
-	rail.Parent = parent
+	sideRail = Instance.new("Frame")
+	sideRail.Name = "SideRail"
+	sideRail.Position = UDim2.fromOffset(18, 174)
+	sideRail.Size = UDim2.fromOffset(52, #buttons * 60)
+	sideRail.BackgroundTransparency = 1
+	sideRail.ZIndex = 4
+	sideRail.Parent = parent
 
 	local layout = Instance.new("UIListLayout")
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Padding = UDim.new(0, 8)
-	layout.Parent = rail
+	layout.Parent = sideRail
 
 	for index, spec in buttons do
-		local button = Instance.new("TextButton")
-		button.Name = spec.name or spec.glyph or "Action"
+		local button = UI.button(sideRail, spec.name or spec.glyph or "Action", {
+			text = "",
+			color = UI.color.paper,
+			extent = UDim2.fromOffset(52, 52),
+			radius = UI.radius.pill,
+			zIndex = 5,
+			onActivated = spec.activated,
+		})
 		button.LayoutOrder = index
-		button.Size = UDim2.fromOffset(52, 52)
-		button.BackgroundColor3 = UI.color.paper
-		button.AutoButtonColor = false
-		button.Text = ""
-		button.ZIndex = 5
-		button.Parent = rail
-		UI.corner(button, UI.radius.pill)
-		UI.stroke(button, UI.color.line, UI.Theme.stroke.heavy)
+		table.insert(sideRailButtons, button)
 
 		if spec.emoji then
 			UI.label(button, "Emoji", {
@@ -329,6 +437,8 @@ local function buildSideRail(parent: Instance, buttons: { SideRailButton })
 		hint.BorderSizePixel = 0
 		hint.ZIndex = 7
 		hint.Parent = button
+		hint:SetAttribute("KeyboardHint", spec.hint)
+		table.insert(sideRailHints, hint)
 		UI.corner(hint, UI.radius.pill)
 		UI.stroke(hint, UI.color.line, UI.Theme.stroke.base)
 
@@ -341,8 +451,6 @@ local function buildSideRail(parent: Instance, buttons: { SideRailButton })
 			extent = UDim2.fromScale(1, 1),
 			zIndex = 8,
 		})
-
-		button.Activated:Connect(spec.activated)
 	end
 end
 
@@ -384,7 +492,7 @@ local function showToast(message: string, kind: string)
 	stroke.Transparency = 1
 
 	local glyph = UI.glyph(card, TOAST_GLYPH[kind] or "leaf", {
-		color = if isUnlock then UI.color.white else UI.color.inkSoft,
+		color = if isUnlock then UI.readable(UI.color.leaf) else UI.color.inkSoft,
 		extent = UDim2.fromOffset(16, 16),
 		anchor = Vector2.new(0, 0.5),
 		position = UDim2.new(0, 14, 0.5, 0),
@@ -395,7 +503,7 @@ local function showToast(message: string, kind: string)
 		text = message,
 		font = if isUnlock then UI.font.bold else UI.font.body,
 		size = 13,
-		color = if isUnlock then UI.color.white else UI.color.ink,
+		color = if isUnlock then UI.readable(UI.color.leaf) else UI.color.ink,
 		align = Enum.TextXAlignment.Left,
 		wrapped = true,
 		extent = UDim2.new(1, -50, 1, 0),
@@ -446,6 +554,10 @@ local function update(snapshot: any)
 		yenSet(BigNumber.toString(snapshot.yen), BigNumber.toNumber(snapshot.yen))
 	end
 	wageLabel.Text = `{BigNumber.toString(snapshot.yenPerSecond)} / sec`
+	compactYenSet(
+		if snapshot.unlimitedYen then utf8.char(8734) else BigNumber.toString(snapshot.yen),
+		if snapshot.unlimitedYen then nil else BigNumber.toNumber(snapshot.yen)
+	)
 	stampLabel.Text = `{BigNumber.toString(snapshot.stamps)} stamps`
 
 	updateBuffs(snapshot.boosts, snapshot.foodBuffs)
@@ -485,13 +597,48 @@ local function update(snapshot: any)
 end
 
 local function applyResponsiveLayout()
-	local compact = screen.AbsoluteSize.X < COMPACT_WIDTH
-
-	if skillBarHolder then
-		skillBarHolder.Size = UDim2.fromOffset(if compact then 300 else 4 * 82 + 3 * 10, if compact then 92 else 106)
+	local compact = UI.responsive.isCompact(screen.AbsoluteSize)
+	if compact ~= compactLayout then
+		UIManager.hideOverlay(CURRENCY_OVERLAY_ID)
+		compactLayout = compact
+		applyCurrencyExpanded(false)
 	end
 
-	identityCard.Size = if compact then UDim2.fromOffset(212, 78) else UDim2.fromOffset(268, 116)
+	if skillBarHolder then
+		SkillBar.setInputMode(InputMode.current())
+		SkillBar.setCompact(compact)
+	end
+
+	identityCard.Size = UDim2.fromOffset(268, 116)
+	if sideRail then
+		sideRail.Position = if compact then UDim2.fromOffset(8, 68) else UDim2.fromOffset(18, 174)
+		sideRail.Size = UDim2.fromOffset(if compact then 44 else 52, #sideRailButtons * (if compact then 48 else 60))
+		local layout = sideRail:FindFirstChildWhichIsA("UIListLayout")
+		if layout then
+			layout.Padding = UDim.new(0, if compact then 4 else 8)
+		end
+		for index, button in sideRailButtons do
+			button.Size = UDim2.fromOffset(if compact then 44 else 52, if compact then 44 else 52)
+			local hint = sideRailHints[index]
+			hint.Visible = not compact and InputMode.current() ~= "touch"
+			local label = hint:FindFirstChild("Key")
+			if label and label:IsA("TextLabel") then
+				label.Text = if InputMode.current() == "gamepad"
+					then "A"
+					else (hint:GetAttribute("KeyboardHint") :: string)
+			end
+		end
+	end
+	toastHolder.Position = UDim2.new(0.5, 0, 0, 8)
+	toastHolder.Size = UDim2.fromOffset(
+		if compact then math.max(120, math.min(240, screen.AbsoluteSize.X - 408)) else 420,
+		180
+	)
+	WorkCore.setCompact(compact)
+	Minimap.setCompact(compact)
+	WorkCore.setSuppressed(compact and Minimap.isOpen())
+	OrderTracker.setCompact(compact)
+	OrderTracker.setSuppressed(compact and (Minimap.isOpen() or tutorialActive))
 end
 
 function HUD.init()
@@ -505,6 +652,7 @@ function HUD.init()
 	screen.Parent = playerGui
 
 	buildIdentity(screen)
+	buildCompactCurrency(screen)
 	buildBuffs(screen)
 	buildToasts(screen)
 
@@ -513,6 +661,14 @@ function HUD.init()
 	end)
 	Minimap.build(screen)
 	WorkCore.build(screen)
+	Minimap.onChanged(function(open)
+		WorkCore.setSuppressed(compactLayout and open)
+		OrderTracker.setSuppressed(compactLayout and (open or tutorialActive))
+	end)
+	ControlTutorial.onChanged(function(active)
+		tutorialActive = active
+		OrderTracker.setSuppressed(compactLayout and (Minimap.isOpen() or tutorialActive))
+	end)
 
 	local atlasScreen = Instance.new("ScreenGui")
 	atlasScreen.Name = "Atlas"
@@ -568,7 +724,7 @@ function HUD.init()
 
 	applyResponsiveLayout()
 	screen:GetPropertyChangedSignal("AbsoluteSize"):Connect(applyResponsiveLayout)
-	UserInputService.LastInputTypeChanged:Connect(applyResponsiveLayout)
+	InputMode.onChanged(applyResponsiveLayout)
 
 	StateController.onChanged(update)
 

@@ -27,6 +27,7 @@ export type Board = typeof(setmetatable(
 		title: TextLabel,
 		counter: TextLabel,
 		fill: Frame,
+		authoredTransparency: { [Instance]: { [string]: number } },
 		hideAt: number,
 		visible: boolean,
 	},
@@ -83,6 +84,31 @@ function ProgressBillboard.new(name: string, options: Options?): Board
 	track.Position = UDim2.fromOffset(12, 38)
 	track.Size = UDim2.new(1, -24, 0, 10)
 
+	local authoredTransparency: { [Instance]: { [string]: number } } = {}
+
+	local function remember(instance: Instance)
+		local properties: { [string]: number } = {}
+		if instance:IsA("GuiObject") then
+			properties.BackgroundTransparency = instance.BackgroundTransparency
+		end
+		if instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox") then
+			properties.TextTransparency = instance.TextTransparency
+		end
+		if instance:IsA("ImageLabel") or instance:IsA("ImageButton") then
+			properties.ImageTransparency = instance.ImageTransparency
+		end
+		if instance:IsA("UIStroke") then
+			properties.Transparency = instance.Transparency
+		end
+		if next(properties) then
+			authoredTransparency[instance] = properties
+		end
+	end
+	remember(card)
+	for _, descendant in card:GetDescendants() do
+		remember(descendant)
+	end
+
 	local board: Board = setmetatable({
 		lifetime = config.lifetime or 1.6,
 		fade = config.fade or 0.35,
@@ -94,6 +120,7 @@ function ProgressBillboard.new(name: string, options: Options?): Board
 		title = title,
 		counter = counter,
 		fill = fill,
+		authoredTransparency = authoredTransparency,
 		hideAt = 0,
 		visible = false,
 	}, ProgressBillboard) :: any
@@ -106,14 +133,12 @@ function ProgressBillboard.new(name: string, options: Options?): Board
 end
 
 function ProgressBillboard.setTransparency(self: Board, alpha: number)
-	self.card.BackgroundTransparency = alpha
-	self.title.TextTransparency = alpha
-	self.counter.TextTransparency = alpha
-	for _, descendant in self.card:GetDescendants() do
-		if descendant:IsA("Frame") then
-			descendant.BackgroundTransparency = alpha
-		elseif descendant:IsA("UIStroke") then
-			descendant.Transparency = alpha
+	local hidden = math.clamp(alpha, 0, 1)
+	for instance, properties in self.authoredTransparency do
+		if instance.Parent then
+			for property, authored in properties do
+				(instance :: any)[property] = authored + (1 - authored) * hidden
+			end
 		end
 	end
 end

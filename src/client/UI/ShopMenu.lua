@@ -6,7 +6,9 @@ local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
 local UI = require(Shared.UI)
 local StateController = require(script.Parent.Parent.Controllers.StateController)
+local UIManager = require(script.Parent.UIManager)
 local ShopMenu = {}
+local MENU_ID = "shop"
 
 type Row = {
 	id: string,
@@ -25,7 +27,8 @@ local ROW_TINTS = { UI.color.gold, UI.color.sky }
 local screen: ScreenGui
 local panel: Frame
 local listHolder: ScrollingFrame
-local setOpen: (boolean) -> ()
+local setPanelOpen: (boolean, boolean?) -> ()
+local closeButton: TextButton
 local buyRemote: RemoteEvent
 local built: { [string]: { [string]: any } } = {}
 local order: { string } = {}
@@ -211,9 +214,13 @@ local function buildPanel(parent: ScreenGui)
 	local _scrim, content, toggle = UI.modal(parent, "ShopMenu", {
 		extent = UDim2.new(0, 560, 0, 540),
 		zIndex = 20,
+
+		onDismiss = function()
+			ShopMenu.setOpen(false)
+		end,
 	})
 	panel = content
-	setOpen = toggle
+	setPanelOpen = toggle
 
 	UI.padding(panel, UI.space.loose)
 
@@ -250,16 +257,33 @@ local function buildPanel(parent: ScreenGui)
 	UI.list(listHolder, UI.space.snug)
 	UI.padding(listHolder, 0, { right = 14 })
 
-	UI.button(panel, "Close", {
+	closeButton = UI.button(panel, "Close", {
 		text = "Close",
-		extent = UDim2.fromOffset(120, 34),
-		position = UDim2.new(0.5, -60, 1, -34),
+		extent = UDim2.fromOffset(120, 44),
+		position = UDim2.new(0.5, -60, 1, -44),
 		zIndex = panel.ZIndex + 1,
 
 		onActivated = function()
-			setOpen(false)
+			ShopMenu.setOpen(false)
 		end,
 	})
+	UIManager.register(MENU_ID, {
+		setVisible = function(open, instant)
+			setPanelOpen(open, instant)
+		end,
+
+		focus = function()
+			return closeButton
+		end,
+	})
+end
+
+function ShopMenu.setOpen(open: boolean)
+	if open then
+		UIManager.open(MENU_ID)
+	else
+		UIManager.close(MENU_ID)
+	end
 end
 
 function ShopMenu.init()
@@ -281,7 +305,7 @@ function ShopMenu.init()
 			return
 		end
 		render(payload)
-		setOpen(true)
+		ShopMenu.setOpen(true)
 	end)
 
 	Remotes.event("Shop", "Event").OnClientEvent:Connect(function(payload)

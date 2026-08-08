@@ -40,7 +40,10 @@
     },
     "StarterGui": {
       "$className": "StarterGui",
-      "$path": "src/gui"
+      "$path": "src/gui",
+      "$properties": {
+        "ScreenOrientation": "LandscapeSensor"
+      }
     },
     "Workspace": {
       "$className": "Workspace",

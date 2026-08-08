@@ -7,15 +7,17 @@ local ExamQuestions = require(Shared.Modules.Config.ExamQuestions)
 local Remotes = require(Shared.Modules.Remotes)
 local Skills = require(Shared.Modules.Config.Skills)
 local UI = require(Shared.UI)
-local WorkController = require(script.Parent.Parent.Controllers.WorkController)
+local UIManager = require(script.Parent.UIManager)
 local ExamCounter = {}
+local MENU_ID = "exam"
 local ROW_HEIGHT = 96
 local ROW_TALL = 136
 local GAP = 10
 local screen: ScreenGui
 local scrim: Frame
 local panel: Frame
-local setOpen: (boolean) -> ()
+local setPanelOpen: (boolean, boolean?) -> ()
+local closeButton: TextButton
 local capLabel: TextLabel
 local list: ScrollingFrame
 local quiz: Frame
@@ -160,10 +162,10 @@ local function buildRow(row: any, index: number)
 		text = if row.ready then (if row.quizzed then "SIT QUIZ" else "CERTIFY") else "LOCKED",
 		textSize = UI.text.caption,
 		color = if row.ready then accent else UI.color.paperSunken,
-		textColor = if row.ready then UI.color.paperDeep else UI.color.inkFaint,
+		textColor = if row.ready then UI.readable(accent) else UI.color.inkFaint,
 		anchor = Vector2.new(1, 0.5),
 		position = UDim2.new(1, -12, 0.5, 0),
-		extent = UDim2.fromOffset(110, 34),
+		extent = UDim2.fromOffset(110, 44),
 		zIndex = card.ZIndex + 2,
 		states = row.ready,
 		onActivated = if row.ready
@@ -345,21 +347,28 @@ local function renderResult(payload: any)
 end
 
 function ExamCounter.setOpen(open: boolean)
-	setOpen(open)
+	if open then
+		UIManager.open(MENU_ID)
+	else
+		UIManager.close(MENU_ID)
+	end
 end
 
 function ExamCounter.build(parent: Instance)
-	scrim, panel, setOpen = UI.modal(parent, "ExamCounter", {
+	scrim, panel, setPanelOpen = UI.modal(parent, "ExamCounter", {
 		extent = UDim2.fromScale(0.62, 0.82),
 		zIndex = 32,
 
 		onToggled = function(open)
 			isOpen = open
-			WorkController.setInputLocked("exam-counter", open)
 			if not open then
 				currentQuestion = nil
 				closeRemote:FireServer()
 			end
+		end,
+
+		onDismiss = function()
+			ExamCounter.setOpen(false)
 		end,
 	})
 	UI.padding(panel, UI.space.loose)
@@ -380,11 +389,11 @@ function ExamCounter.build(parent: Instance)
 		position = UDim2.fromOffset(0, 34),
 	})
 
-	UI.button(panel, "Close", {
+	closeButton = UI.button(panel, "Close", {
 		text = "CLOSE",
 		anchor = Vector2.new(1, 0),
 		position = UDim2.new(1, 0, 0, 2),
-		extent = UDim2.fromOffset(88, 28),
+		extent = UDim2.fromOffset(96, 44),
 		zIndex = panel.ZIndex + 1,
 
 		onActivated = function()
@@ -418,6 +427,17 @@ function ExamCounter.build(parent: Instance)
 	quiz.Visible = false
 	quiz.ZIndex = panel.ZIndex + 1
 	quiz.Parent = panel
+
+	UIManager.register(MENU_ID, {
+		setVisible = function(open, instant)
+			setPanelOpen(open, instant)
+		end,
+
+		focus = function()
+			return closeButton
+		end,
+		kind = "critical",
+	})
 
 	return scrim
 end

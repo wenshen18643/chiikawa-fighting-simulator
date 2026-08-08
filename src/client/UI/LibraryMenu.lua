@@ -1,15 +1,12 @@
 --!strict
 
-local ContextActionService = game:GetService("ContextActionService")
-local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared.Modules.Remotes)
 local UI = require(Shared.UI)
-local WorkController = require(script.Parent.Parent.Controllers.WorkController)
+local UIManager = require(script.Parent.UIManager)
 local LibraryMenu = {}
 
 type OpenPayload = {
@@ -17,20 +14,17 @@ type OpenPayload = {
 	closeDistance: number,
 }
 
-local ACTION_NAME = "CloseLibraryMenu"
-local INPUT_LOCK = "library-menu"
+local MENU_ID = "library"
 local DISTANCE_CHECK_SECONDS = 0.25
 local player = Players.LocalPlayer
 local screen: ScreenGui?
-local panel: Frame?
 local closeButton: TextButton?
-local setPanelOpen: ((boolean) -> ())?
+local setPanelOpen: ((boolean, boolean?) -> ())?
 local isOpen = false
 local anchorPosition: Vector3?
 local closeDistance = 32
 local distanceConnection: RBXScriptConnection?
 local characterRemovingConnection: RBXScriptConnection?
-local previousSelection: GuiObject?
 
 local function disconnectOpenConnections()
 	if distanceConnection then
@@ -43,40 +37,8 @@ local function disconnectOpenConnections()
 	end
 end
 
-local function restoreSelection()
-	local currentPanel = panel
-	local selected = GuiService.SelectedObject
-	if selected and currentPanel and selected:IsDescendantOf(currentPanel) then
-		if previousSelection and previousSelection:IsDescendantOf(game) and previousSelection.Visible then
-			GuiService.SelectedObject = previousSelection
-		else
-			GuiService.SelectedObject = nil
-		end
-	end
-	previousSelection = nil
-end
-
 local function closeMenu()
-	if isOpen and setPanelOpen then
-		setPanelOpen(false)
-	end
-end
-
-local function bindCloseAction()
-	ContextActionService:BindActionAtPriority(
-		ACTION_NAME,
-
-		function(_name, state)
-			if state == Enum.UserInputState.Begin then
-				closeMenu()
-			end
-			return Enum.ContextActionResult.Sink
-		end,
-		false,
-		Enum.ContextActionPriority.High.Value,
-		Enum.KeyCode.Escape,
-		Enum.KeyCode.ButtonB
-	)
+	UIManager.close(MENU_ID)
 end
 
 local function startDistanceMonitor()
@@ -110,25 +72,13 @@ local function onToggled(open: boolean)
 		return
 	end
 	isOpen = open
-	WorkController.setInputLocked(INPUT_LOCK, open)
 
 	if open then
-		previousSelection = GuiService.SelectedObject
-		bindCloseAction()
 		startDistanceMonitor()
-		if UserInputService.GamepadEnabled then
-			task.defer(function()
-				if isOpen and closeButton then
-					GuiService.SelectedObject = closeButton
-				end
-			end)
-		end
 		return
 	end
 
-	ContextActionService:UnbindAction(ACTION_NAME)
 	disconnectOpenConnections()
-	restoreSelection()
 	anchorPosition = nil
 end
 
@@ -137,8 +87,8 @@ local function buildPanel(parent: ScreenGui)
 		extent = UDim2.fromScale(0.78, 0.68),
 		zIndex = 30,
 		onToggled = onToggled,
+		onDismiss = closeMenu,
 	})
-	panel = content
 	setPanelOpen = toggle
 	scrim.Visible = false
 	content.Active = true
@@ -170,6 +120,18 @@ local function buildPanel(parent: ScreenGui)
 	})
 	close.AnchorPoint = Vector2.zero
 	closeButton = close
+	UIManager.register(MENU_ID, {
+		setVisible = function(open, instant)
+			local setVisible = setPanelOpen
+			if setVisible then
+				setVisible(open, instant)
+			end
+		end,
+
+		focus = function()
+			return closeButton
+		end,
+	})
 
 	local divider = UI.divider(content, UI.color.blush)
 	divider.Position = UDim2.fromOffset(0, 58)
@@ -228,7 +190,7 @@ local function openFromServer(payload: any)
 		startDistanceMonitor()
 		return
 	end
-	setPanelOpen(true)
+	UIManager.open(MENU_ID)
 end
 
 function LibraryMenu.init()

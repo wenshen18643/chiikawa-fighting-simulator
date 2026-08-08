@@ -7,11 +7,14 @@ local Layout = require(Shared.Modules.Config.Layout)
 local Remotes = require(Shared.Modules.Remotes)
 local UI = require(Shared.UI)
 local StateController = require(script.Parent.Parent.Controllers.StateController)
+local UIManager = require(script.Parent.UIManager)
 local Atlas = {}
 local ACTION_NAME = "Atlas"
+local MENU_ID = "atlas"
 local scrim: Frame
 local panel: Frame
-local setOpen: (boolean) -> ()
+local setPanelOpen: (boolean, boolean?) -> ()
+local closeButton: TextButton
 local pages: { [string]: Frame } = {}
 local isOpen = false
 local travelRemote: RemoteEvent
@@ -106,7 +109,7 @@ local function buildWorldPage(parent: Frame)
 		button.Parent = cell
 		button.Activated:Connect(function()
 			travelRemote:FireServer(area.id)
-			setOpen(false)
+			Atlas.setOpen(false)
 		end)
 
 		areaCells[area.id] = { cell = cell, status = status, button = button }
@@ -244,19 +247,25 @@ function Atlas.toggle()
 end
 
 function Atlas.setOpen(open: boolean)
-	isOpen = open
-	setOpen(open)
 	if open then
 		refresh()
+		UIManager.open(MENU_ID)
+	else
+		UIManager.close(MENU_ID)
 	end
 end
 
 function Atlas.build(parent: Instance)
 	travelRemote = Remotes.event("Region", "RequestTravel")
 
-	scrim, panel, setOpen = UI.modal(parent, "Atlas", {
+	scrim, panel, setPanelOpen = UI.modal(parent, "Atlas", {
 		extent = UDim2.fromScale(0.78, 0.8),
+		maxSize = Vector2.new(960, 680),
 		zIndex = 30,
+
+		onDismiss = function()
+			Atlas.setOpen(false)
+		end,
 
 		onToggled = function(open)
 			isOpen = open
@@ -271,11 +280,11 @@ function Atlas.build(parent: Instance)
 		extent = UDim2.new(1, -120, 0, 32),
 	})
 
-	UI.button(panel, "Close", {
+	closeButton = UI.button(panel, "Close", {
 		text = "CLOSE",
 		anchor = Vector2.new(1, 0),
 		position = UDim2.new(1, 0, 0, 2),
-		extent = UDim2.fromOffset(88, 28),
+		extent = UDim2.fromOffset(96, 44),
 		zIndex = panel.ZIndex + 1,
 
 		onActivated = function()
@@ -323,6 +332,16 @@ function Atlas.build(parent: Instance)
 		end
 		return Enum.ContextActionResult.Sink
 	end, false, Enum.KeyCode.N, Enum.KeyCode.ButtonSelect)
+
+	UIManager.register(MENU_ID, {
+		setVisible = setPanelOpen,
+
+		focus = function()
+			return closeButton
+		end,
+		dismissible = true,
+		kind = "ordinary",
+	})
 
 	return scrim
 end

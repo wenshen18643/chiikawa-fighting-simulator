@@ -11,8 +11,9 @@ local UI = require(Shared.UI)
 local FeedbackController = require(script.Parent.Parent.Controllers.FeedbackController)
 local GestureController = require(script.Parent.Parent.Controllers.GestureController)
 local StateController = require(script.Parent.Parent.Controllers.StateController)
-local WorkController = require(script.Parent.Parent.Controllers.WorkController)
+local UIManager = require(script.Parent.UIManager)
 local CookingMenu = {}
+local MENU_ID = "cooking"
 local COOKING = Constants.COOKING
 local ROW_HEIGHT = 112
 local STIR_DEBOUNCE = 1.05 / COOKING.MAX_CLICKS_PER_SECOND
@@ -31,7 +32,8 @@ local dishNameLabel: TextLabel
 local progressFill: Frame
 local counterLabel: TextLabel
 local stirButton: TextButton
-local setPanelOpen: (boolean) -> ()
+local setPanelOpen: (boolean, boolean?) -> ()
+local closeButton: TextButton
 local selectRemote: RemoteEvent
 local clickRemote: RemoteEvent
 local rowUpdaters: { (any) -> () } = {}
@@ -128,7 +130,7 @@ local function buildRecipeRow(parent: ScrollingFrame, def: Recipes.RecipeDefinit
 			text = "MEAT",
 			textSize = 10,
 			color = UI.color.tobatsu,
-			textColor = UI.color.white,
+			textColor = UI.readable(UI.color.tobatsu),
 			extent = UDim2.fromOffset(42, 20),
 			position = UDim2.new(1, -166, 0, 18),
 			zIndex = row.ZIndex + 1,
@@ -178,7 +180,7 @@ local function buildRecipeRow(parent: ScrollingFrame, def: Recipes.RecipeDefinit
 		stirsText.Text = `~{stirsFor(def, snapshot, usesWild)} stirs`
 
 		cook.BackgroundColor3 = if affordable then UI.color.leafDeep else UI.color.paperDeep
-		cook.TextColor3 = if affordable then UI.color.white else UI.color.inkFaint
+		cook.TextColor3 = if affordable then UI.readable(UI.color.leafDeep) else UI.color.inkFaint
 		cook.AutoButtonColor = affordable
 	end
 end
@@ -298,14 +300,14 @@ local function buildRecipesView(parent: Frame)
 		end
 	end
 
-	UI.button(recipesView, "Close", {
+	closeButton = UI.button(recipesView, "Close", {
 		text = "Close",
-		extent = UDim2.fromOffset(120, 34),
-		position = UDim2.new(0.5, -60, 1, -34),
+		extent = UDim2.fromOffset(120, 44),
+		position = UDim2.new(0.5, -60, 1, -44),
 		zIndex = recipesView.ZIndex + 1,
 
 		onActivated = function()
-			setPanelOpen(false)
+			CookingMenu.setOpen(false)
 		end,
 	})
 end
@@ -370,7 +372,7 @@ local function buildCookingView(parent: Frame)
 		font = UI.font.display,
 		textSize = 30,
 		color = UI.color.leafDeep,
-		textColor = UI.color.white,
+		textColor = UI.readable(UI.color.leafDeep),
 		radius = UI.radius.card,
 		position = UDim2.fromOffset(0, 210),
 		extent = UDim2.new(1, 0, 0, 170),
@@ -380,12 +382,12 @@ local function buildCookingView(parent: Frame)
 
 	UI.button(cookingView, "Close", {
 		text = "Close",
-		extent = UDim2.fromOffset(120, 34),
-		position = UDim2.new(0.5, -60, 1, -34),
+		extent = UDim2.fromOffset(120, 44),
+		position = UDim2.new(0.5, -60, 1, -44),
 		zIndex = cookingView.ZIndex + 1,
 
 		onActivated = function()
-			setPanelOpen(false)
+			CookingMenu.setOpen(false)
 		end,
 	})
 end
@@ -397,10 +399,13 @@ local function buildPanel(parent: ScreenGui)
 
 		onToggled = function(open)
 			isOpen = open
-			WorkController.setInputLocked("cooking-menu", open)
 			if not open then
 				setStatus(nil)
 			end
+		end,
+
+		onDismiss = function()
+			CookingMenu.setOpen(false)
 		end,
 	})
 	panel = content
@@ -410,6 +415,15 @@ local function buildPanel(parent: ScreenGui)
 	UI.padding(panel, UI.space.loose)
 	buildRecipesView(panel)
 	buildCookingView(panel)
+	UIManager.register(MENU_ID, {
+		setVisible = function(open, instant)
+			setPanelOpen(open, instant)
+		end,
+
+		focus = function()
+			return closeButton
+		end,
+	})
 end
 
 local function onCookEvent(kind: string, recipeId: string, a: any, b: any)
@@ -446,7 +460,11 @@ function CookingMenu.setOpen(open: boolean)
 			showRecipes()
 		end
 	end
-	setPanelOpen(open)
+	if open then
+		UIManager.open(MENU_ID)
+	else
+		UIManager.close(MENU_ID)
+	end
 end
 
 function CookingMenu.init()

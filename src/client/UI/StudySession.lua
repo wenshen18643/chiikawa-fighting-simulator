@@ -9,7 +9,9 @@ local Skills = require(Shared.Modules.Config.Skills)
 local UI = require(Shared.UI)
 local StateController = require(script.Parent.Parent.Controllers.StateController)
 local WorkController = require(script.Parent.Parent.Controllers.WorkController)
+local UIManager = require(script.Parent.UIManager)
 local StudySession = {}
+local MENU_ID = "study"
 local BOOK_PAPER = Color3.fromRGB(255, 248, 222)
 local BOOK_PAPER_DEEP = Color3.fromRGB(246, 229, 190)
 local BOOK_INK = Color3.fromRGB(61, 48, 55)
@@ -69,15 +71,22 @@ local function clearPage(page: Frame)
 	end
 end
 
-local function setModalOpen(open: boolean)
+local function applyModalOpen(open: boolean)
 	modalOpen = open
 	scrim.Visible = open
-	WorkController.setInputLocked("study-session", open)
 	if open then
 		bookmark.Visible = false
 	else
 		viewMode = "closed"
 	end
+end
+
+local function setModalOpen(open: boolean): boolean
+	if open then
+		return UIManager.open(MENU_ID)
+	end
+	UIManager.close(MENU_ID)
+	return true
 end
 
 local drawPlant = UI.plant
@@ -619,26 +628,17 @@ local function updateBookmark(snapshot: any)
 end
 
 local function applyResponsiveLayout()
-	local compact = screen.AbsoluteSize.X < 650
+	local compact = UI.responsive.isCompact(screen.AbsoluteSize)
 	bookmark.Size = if compact then UDim2.fromOffset(216, 92) else UDim2.fromOffset(272, 100)
 	bookmark.Position = if compact then UDim2.new(1, -12, 0, 12) else UDim2.new(1, -18, 0.5, -50)
 
-	book.Size = if compact then UDim2.new(1, -24, 1, -48) else UDim2.new(1, -80, 1, -80)
-	if compact then
-		leftPage.Position = UDim2.fromScale(0, 0)
-		leftPage.Size = UDim2.fromScale(1, 0.43)
-		rightPage.Position = UDim2.fromScale(0, 0.43)
-		rightPage.Size = UDim2.fromScale(1, 0.57)
-		seam.Position = UDim2.fromScale(0, 0.43)
-		seam.Size = UDim2.new(1, 0, 0, 4)
-	else
-		leftPage.Position = UDim2.fromScale(0, 0)
-		leftPage.Size = UDim2.fromScale(0.5, 1)
-		rightPage.Position = UDim2.fromScale(0.5, 0)
-		rightPage.Size = UDim2.fromScale(0.5, 1)
-		seam.Position = UDim2.fromScale(0.5, 0)
-		seam.Size = UDim2.new(0, 4, 1, 0)
-	end
+	book.Size = if compact then UDim2.new(1, -16, 1, -16) else UDim2.new(1, -80, 1, -80)
+	leftPage.Position = UDim2.fromScale(0, 0)
+	leftPage.Size = UDim2.fromScale(0.5, 1)
+	rightPage.Position = UDim2.fromScale(0.5, 0)
+	rightPage.Size = UDim2.fromScale(0.5, 1)
+	seam.Position = UDim2.fromScale(0.5, 0)
+	seam.Size = UDim2.new(0, 4, 1, 0)
 end
 
 local function buildBookmark(parent: ScreenGui)
@@ -701,6 +701,18 @@ local function buildBookmark(parent: ScreenGui)
 	bookmark.Visible = false
 end
 
+local function dismissStudy()
+	dismissed = true
+	renderSerial += 1
+	currentQuestionPayload = nil
+	closeRemote:FireServer()
+	setModalOpen(false)
+	local snapshot = StateController.getSnapshot()
+	if snapshot then
+		updateBookmark(snapshot)
+	end
+end
+
 local function buildBook(parent: ScreenGui)
 	scrim = Instance.new("TextButton")
 	scrim.Name = "StudyScrim"
@@ -727,7 +739,6 @@ local function buildBook(parent: ScreenGui)
 
 	local size = Instance.new("UISizeConstraint")
 	size.MaxSize = Vector2.new(1400, 900)
-	size.MinSize = Vector2.new(300, 330)
 	size.Parent = book
 
 	leftPage = Instance.new("Frame")
@@ -769,7 +780,7 @@ local function buildBook(parent: ScreenGui)
 		text = "X",
 		font = UI.font.display,
 		textSize = 25,
-		textColor = Color3.new(1, 1, 1),
+		textColor = UI.readable(BOOK_RED),
 		color = BOOK_RED,
 		extent = UDim2.fromOffset(42, 42),
 		anchor = Vector2.new(1, 0),
@@ -778,21 +789,28 @@ local function buildBook(parent: ScreenGui)
 		zIndex = 61,
 		stroke = true,
 
-		onActivated = function()
-			dismissed = true
-			renderSerial += 1
-			currentQuestionPayload = nil
-			closeRemote:FireServer()
-			setModalOpen(false)
-			local snapshot = StateController.getSnapshot()
-			if snapshot then
-				updateBookmark(snapshot)
-			end
-		end,
+		onActivated = dismissStudy,
 	})
 	closeButton.Visible = true
 
 	scrim.Visible = false
+
+	UIManager.register(MENU_ID, {
+		setVisible = function(open: boolean)
+			applyModalOpen(open)
+		end,
+
+		focus = function()
+			return closeButton
+		end,
+
+		back = function()
+			dismissStudy()
+			return true
+		end,
+		dismissible = false,
+		kind = "critical",
+	})
 end
 
 local function onStudyEvent(payload: any)

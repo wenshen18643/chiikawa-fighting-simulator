@@ -24,6 +24,8 @@ local stripCells: { [number]: Frame } = {}
 local stripMarker: Frame
 local builtArea: number? = nil
 local accumulator = 0
+local rootScale: UIScale
+local changedListeners: { (boolean) -> () } = {}
 
 local function toLocalFraction(area: Areas.AreaDefinition, offsetX: number, offsetZ: number): Vector2
 	local span = area.terrain.islandSize
@@ -305,6 +307,28 @@ function Minimap.setOpen(open: boolean)
 	if root then
 		root.Visible = open
 	end
+	for _, listener in changedListeners do
+		task.spawn(listener, open)
+	end
+end
+
+function Minimap.isOpen(): boolean
+	return isOpen
+end
+
+function Minimap.onChanged(callback: (boolean) -> ()): () -> ()
+	table.insert(changedListeners, callback)
+	return function()
+		local index = table.find(changedListeners, callback)
+		if index then
+			table.remove(changedListeners, index)
+		end
+	end
+end
+
+function Minimap.setCompact(compact: boolean)
+	root.Position = if compact then UDim2.new(1, -8, 0, 8) else UDim2.new(1, -18, 0, 18)
+	rootScale.Scale = if compact then 0.72 else 1
 end
 
 function Minimap.toggle()
@@ -319,6 +343,8 @@ function Minimap.build(parent: Instance): Frame
 	root.Visible = isOpen
 	UI.padding(root, 12)
 	UI.shadow(root)
+	rootScale = Instance.new("UIScale")
+	rootScale.Parent = root
 
 	ContextActionService:BindAction(ACTION_NAME, function(_name, state)
 		if state == Enum.UserInputState.Begin then

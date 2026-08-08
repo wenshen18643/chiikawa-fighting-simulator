@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared.Modules.Remotes)
 local UI = require(Shared.UI)
+local UIManager = require(script.Parent.UIManager)
 local OrderBoard = {}
 
 type Entry = {
@@ -19,11 +20,13 @@ type Entry = {
 
 local ROW_HEIGHT = 108
 local TEMPLATE = "OrderBoard"
+local MENU_ID = "order-board"
 local screen: ScreenGui
 local panel: Frame
 local listHolder: ScrollingFrame
 local emptyLabel: TextLabel
-local setOpen: (boolean) -> ()
+local setPanelOpen: (boolean, boolean?) -> ()
+local closeButton: GuiButton? = nil
 local acceptRemote: RemoteEvent
 local turnInRemote: RemoteEvent
 
@@ -126,7 +129,7 @@ local function buildRow(entry: Entry, index: number)
 			else
 				acceptRemote:FireServer(entry.id)
 			end
-			setOpen(false)
+			OrderBoard.setOpen(false)
 		end,
 	})
 end
@@ -158,9 +161,19 @@ local function buildPanel(parent: ScreenGui)
 				emptyLabel = empty
 				panel.Visible = false
 
-				setOpen = function(open: boolean)
+				setPanelOpen = function(open: boolean)
 					panel.Visible = open
 				end
+				closeButton = panel:FindFirstChildWhichIsA("GuiButton", true)
+				UIManager.register(MENU_ID, {
+					setVisible = setPanelOpen,
+
+					focus = function()
+						return closeButton
+					end,
+					dismissible = true,
+					kind = "ordinary",
+				})
 				return
 			end
 			warn(`[OrderBoard] template "{TEMPLATE}" is missing a List or Empty child; using the built panel`)
@@ -170,10 +183,15 @@ local function buildPanel(parent: ScreenGui)
 
 	local _scrim, content, toggle = UI.modal(parent, "OrderBoard", {
 		extent = UDim2.new(0, 560, 0.78, 0),
+		maxSize = Vector2.new(720, 680),
 		zIndex = 20,
+
+		onDismiss = function()
+			OrderBoard.setOpen(false)
+		end,
 	})
 	panel = content
-	setOpen = toggle
+	setPanelOpen = toggle
 
 	UI.padding(panel, UI.space.loose)
 
@@ -220,16 +238,34 @@ local function buildPanel(parent: ScreenGui)
 	})
 	emptyLabel.Visible = false
 
-	UI.button(panel, "Close", {
+	closeButton = UI.button(panel, "Close", {
 		text = "Close",
-		extent = UDim2.fromOffset(120, 34),
-		position = UDim2.new(0.5, -60, 1, -34),
+		extent = UDim2.fromOffset(120, 44),
+		position = UDim2.new(0.5, -60, 1, -44),
 		zIndex = panel.ZIndex + 1,
 
 		onActivated = function()
-			setOpen(false)
+			OrderBoard.setOpen(false)
 		end,
 	})
+
+	UIManager.register(MENU_ID, {
+		setVisible = setPanelOpen,
+
+		focus = function()
+			return closeButton
+		end,
+		dismissible = true,
+		kind = "ordinary",
+	})
+end
+
+function OrderBoard.setOpen(open: boolean)
+	if open then
+		UIManager.open(MENU_ID)
+	else
+		UIManager.close(MENU_ID)
+	end
 end
 
 function OrderBoard.init()
@@ -252,7 +288,7 @@ function OrderBoard.init()
 			return
 		end
 		render(payload)
-		setOpen(true)
+		OrderBoard.setOpen(true)
 	end)
 
 	Remotes.event("Order", "Event").OnClientEvent:Connect(function(kind, payload)

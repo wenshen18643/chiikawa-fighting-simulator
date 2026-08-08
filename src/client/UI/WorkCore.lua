@@ -1,14 +1,16 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Skills = require(Shared.Modules.Config.Skills)
 local UI = require(Shared.UI)
+local InputMode = require(script.Parent.InputMode)
 local WorkCore = {}
 local RING_SIZE = 84
 local LOW_HEALTH_RATIO = 0.3
 local root: Frame
+local healthRing: Frame
+local detailColumn: Frame
 local setRing: (number) -> ()
 local ringGlyph: Frame
 local ringValue: TextLabel
@@ -20,6 +22,9 @@ local actionLabel: TextLabel
 local currentSkill: string? = nil
 local ringGlyphSkill: string? = nil
 local healthConnections: { RBXScriptConnection } = {}
+local lastSnapshot: any = nil
+local compact = false
+local suppressed = false
 
 local function showHealth(humanoid: Humanoid)
 	local max = humanoid.MaxHealth
@@ -80,6 +85,7 @@ function WorkCore.build(parent: Instance): Frame
 	})
 	ring.AnchorPoint = Vector2.new(0, 0.5)
 	ring.Position = UDim2.new(0, 0, 0.5, 0)
+	healthRing = ring
 
 	ringGlyph = UI.glyph(ring, "leaf", {
 		color = UI.color.leafDeep,
@@ -110,15 +116,15 @@ function WorkCore.build(parent: Instance): Frame
 		zIndex = 6,
 	})
 
-	local column = Instance.new("Frame")
-	column.Name = "Detail"
-	column.Position = UDim2.fromOffset(RING_SIZE + 16, 4)
-	column.Size = UDim2.new(1, -(RING_SIZE + 16), 1, -8)
-	column.BackgroundTransparency = 1
-	column.ZIndex = 3
-	column.Parent = root
+	detailColumn = Instance.new("Frame")
+	detailColumn.Name = "Detail"
+	detailColumn.Position = UDim2.fromOffset(RING_SIZE + 16, 4)
+	detailColumn.Size = UDim2.new(1, -(RING_SIZE + 16), 1, -8)
+	detailColumn.BackgroundTransparency = 1
+	detailColumn.ZIndex = 3
+	detailColumn.Parent = root
 
-	titleLabel = UI.label(column, "Title", {
+	titleLabel = UI.label(detailColumn, "Title", {
 		text = "",
 		font = UI.font.display,
 		size = 20,
@@ -126,7 +132,7 @@ function WorkCore.build(parent: Instance): Frame
 		position = UDim2.fromOffset(0, 2),
 	})
 
-	detailLabel = UI.label(column, "Detail", {
+	detailLabel = UI.label(detailColumn, "Detail", {
 		text = "",
 		font = UI.font.body,
 		size = 13,
@@ -143,20 +149,25 @@ function WorkCore.build(parent: Instance): Frame
 	actionPill.BackgroundColor3 = UI.color.leaf
 	actionPill.BorderSizePixel = 0
 	actionPill.ZIndex = 4
-	actionPill.Parent = column
+	actionPill.Parent = detailColumn
 	UI.corner(actionPill, UI.radius.pill)
 
 	actionLabel = UI.label(actionPill, "Action", {
 		text = "",
 		font = UI.font.bold,
 		size = 13,
-		color = UI.color.white,
+		color = UI.readable(UI.color.leaf),
 		align = Enum.TextXAlignment.Center,
 		extent = UDim2.fromScale(1, 1),
 		zIndex = 5,
 	})
 
 	bindHealth()
+	InputMode.onChanged(function()
+		if lastSnapshot then
+			WorkCore.update(lastSnapshot)
+		end
+	end)
 
 	return root
 end
@@ -169,20 +180,28 @@ local function showTraining(snapshot: any)
 	local studying = selected ~= nil and Skills.canonicalize(selected) == "examprep"
 	local gain = snapshot.gainPerAction
 	local rate = if gain then BigNumber.toString(gain) else "0"
+	local mode = InputMode.current()
+	local workNoun = if mode == "touch" then "tap" else if mode == "gamepad" then "press" else "click"
 
 	titleLabel.Text = if definition then `Training {definition.name}` else "Training"
 
 	detailLabel.Text = if studying then `+{rate} a page` else `+{rate} a click  ·  press 1-4 to switch skill`
 	detailLabel.TextColor3 = UI.color.inkSoft
+	detailLabel.Text = if studying
+		then `+{rate} a page`
+		else `+{rate} a {workNoun}  -  {if mode == "keyboard" then "press 1-4" else "select a skill"}`
 
 	actionPill.BackgroundColor3 = if definition and definition.color
 		then definition.color
 		else (UI.color.leaf or Color3.fromRGB(126, 190, 104))
 	actionLabel.Text = if studying
-		then string.upper(if UserInputService.TouchEnabled then "tap skill 4 to open book" else "press 4 to open book")
+		then string.upper(if mode == "touch" then "tap skill 4 to open book" else "press 4 to open book")
 		else string.upper(
-			`{if UserInputService.TouchEnabled then "tap" else "click"} to {definition and definition.verb or "work"}`
+			`{if mode == "touch" then "tap" else "click"} to {definition and definition.verb or "work"}`
 		)
+	if mode == "gamepad" then
+		actionLabel.Text = string.upper(if studying then "select exam prep to open book" else `press R2 to {definition and definition.verb or "work"}`)
+	end
 end
 
 function WorkCore.update(snapshot: any)
@@ -190,9 +209,10 @@ function WorkCore.update(snapshot: any)
 		return
 	end
 
+	lastSnapshot = snapshot
 	showTraining(snapshot)
 
-	actionLabel.TextColor3 = UI.color.white
+	actionLabel.TextColor3 = UI.readable(actionPill.BackgroundColor3)
 
 	local glyphSkill = currentSkill
 	if glyphSkill and glyphSkill ~= ringGlyphSkill then
@@ -207,6 +227,31 @@ function WorkCore.update(snapshot: any)
 			position = UDim2.fromScale(0.5, 0.34),
 			zIndex = 6,
 		})
+	end
+end
+
+function WorkCore.setCompact(value: boolean)
+	compact = value
+	root.AnchorPoint = if compact then Vector2.new(1, 0) else Vector2.new(1, 1)
+	root.Position = if compact then UDim2.new(1, -8, 0, 8) else UDim2.new(1, -18, 1, -18)
+	root.Size = if compact then UDim2.fromOffset(196, 72) else UDim2.fromOffset(320, 108)
+	healthRing.Size = if compact then UDim2.fromOffset(56, 56) else UDim2.fromOffset(RING_SIZE, RING_SIZE)
+	detailColumn.Position = UDim2.fromOffset(if compact then 64 else RING_SIZE + 16, if compact then 0 else 4)
+	detailColumn.Size = UDim2.new(1, -(if compact then 64 else RING_SIZE + 16), 1, if compact then 0 else -8)
+	titleLabel.TextSize = if compact then 15 else 20
+	titleLabel.Size = UDim2.new(1, 0, 0, if compact then 20 else 26)
+	detailLabel.Visible = not compact
+	actionPill.Size = UDim2.new(1, 0, 0, if compact then 28 else 30)
+	actionLabel.TextSize = if compact then 11 else 13
+	ringValue.TextSize = if compact then 15 else 19
+	ringCaption.Visible = not compact
+	root.Visible = not suppressed
+end
+
+function WorkCore.setSuppressed(value: boolean)
+	suppressed = value
+	if root then
+		root.Visible = not suppressed
 	end
 end
 

@@ -1,5 +1,5 @@
-local ContextActionService = game:GetService("ContextActionService")
 local CollectionService = game:GetService("CollectionService")
+local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -18,6 +18,7 @@ local performRemote: RemoteEvent
 local selectRemote: RemoteEvent
 local lastSend = 0
 local inputLocks: { [string]: boolean } = {}
+local actionGeneration = 0
 local MIN_GESTURE = 0.12
 local startListeners: { (skillId: string?, duration: number) -> () } = {}
 local completeListeners: { (skillId: string?) -> () } = {}
@@ -100,6 +101,7 @@ local function tryPerform()
 	local authored = if feedbackEntry and feedbackEntry.gesture then feedbackEntry.gesture.duration else 0.38
 	local duration = math.min(authored, math.max(interval, MIN_GESTURE))
 	lastSend = now
+	local generation = actionGeneration
 
 	if clipId then
 		for _, listener in startListeners do
@@ -108,6 +110,9 @@ local function tryPerform()
 	end
 
 	task.delay(duration, function()
+		if generation ~= actionGeneration or next(inputLocks) ~= nil then
+			return
+		end
 		performRemote:FireServer()
 		if clipId then
 			for _, listener in completeListeners do
@@ -119,6 +124,9 @@ end
 
 function WorkController.setInputLocked(owner: string, locked: boolean)
 	if locked then
+		if not inputLocks[owner] then
+			actionGeneration += 1
+		end
 		inputLocks[owner] = true
 	else
 		inputLocks[owner] = nil

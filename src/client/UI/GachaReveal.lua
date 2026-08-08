@@ -1,9 +1,10 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
+local GuiService = game:GetService("GuiService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local UI = require(Shared.UI)
+local InputMode = require(script.Parent.InputMode)
 
 export type PullResult = {
 	skinId: string,
@@ -34,14 +35,7 @@ local function corner(parent: GuiObject, radius: UDim)
 end
 
 local function tween(instance: Instance, duration: number, style: Enum.EasingStyle, goal: { [string]: any }): Tween
-	local info = TweenInfo.new(
-		if UI.motion.isReducedMotion() then 0.01 else duration,
-		style,
-		Enum.EasingDirection.Out
-	)
-	local animation = TweenService:Create(instance, info, goal)
-	animation:Play()
-	return animation
+	return UI.motion.play(instance, TweenInfo.new(duration, style, Enum.EasingDirection.Out), goal)
 end
 
 local function makeStar(parent: Instance, rng: Random): Frame
@@ -225,6 +219,7 @@ function GachaReveal.play(
 	onComplete: () -> ()
 ): () -> ()
 	local rng = Random.new()
+	local previousSelection = GuiService.SelectedObject
 	local finished = false
 	local sceneGeneration = 0
 	local activeScene: Frame? = nil
@@ -273,7 +268,7 @@ function GachaReveal.play(
 	skipButton.BorderSizePixel = 0
 	skipButton.Font = UI.font.bold
 	skipButton.Position = UDim2.new(1, -24, 1, -22)
-	skipButton.Size = UDim2.fromOffset(128, 38)
+	skipButton.Size = UDim2.fromOffset(128, 44)
 	skipButton.Text = "Skip all"
 	skipButton.TextColor3 = WHITE
 	skipButton.TextSize = UI.text.small
@@ -287,6 +282,11 @@ function GachaReveal.play(
 		end
 		finished = true
 		sceneGeneration += 1
+		if GuiService.SelectedObject and GuiService.SelectedObject:IsDescendantOf(screen) then
+			GuiService.SelectedObject = if previousSelection and previousSelection:IsDescendantOf(game)
+				then previousSelection
+				else nil
+		end
 		screen:Destroy()
 		if completed then
 			onComplete()
@@ -441,6 +441,13 @@ function GachaReveal.play(
 	skipButton.Activated:Connect(function()
 		close(true)
 	end)
+	if InputMode.current() == "gamepad" then
+		task.defer(function()
+			if not finished then
+				GuiService.SelectedObject = skipButton
+			end
+		end)
+	end
 	tween(overlay, 0.18, Enum.EasingStyle.Quad, { BackgroundTransparency = 0 })
 	task.defer(playNext)
 
