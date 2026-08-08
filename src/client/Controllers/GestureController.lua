@@ -5,7 +5,8 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Clip = require(Shared.Modules.Anim.Clip)
 local Feedback = require(Shared.Modules.Config.Feedback)
 local PlayerAnims = require(Shared.Modules.Config.PlayerAnims)
-local WeaponSkins = require(Shared.Modules.Config.WeaponSkins)
+local WeaponLook = require(Shared.Modules.WeaponLook)
+local WeaponLooks = require(Shared.Modules.Config.WeaponLooks)
 local Skeleton = require(Shared.Modules.Anim.Skeleton)
 local WorkController = require(script.Parent.WorkController)
 local GestureController = {}
@@ -24,7 +25,7 @@ local BOOK_FLIP_TIME = 0.22
 local SASUMATA_SKILLS = { tobatsu = true, subjugation = true, strength = true }
 local BOOK_SKILLS = { examprep = true, special = true, craft = true }
 local KUSATORI_SKILLS = { kusatori = true, weeding = true, agility = true }
-local PROP_NAMES = { "EquippedSasumata", "EquippedOpenBook", "EquippedWeedTuft" }
+local PROP_NAMES = { "EquippedWeapon", "EquippedOpenBook", "EquippedWeedTuft" }
 local TUFT_SHOW_T = 0.55
 local TUFT_HIDE_T = 0.98
 
@@ -232,110 +233,12 @@ local function decorate(part: BasePart, parent: Instance)
 	part.Parent = parent
 end
 
-local SASUMATA_PINK = Color3.fromRGB(243, 167, 193)
-local SASUMATA_BARB = Color3.fromRGB(226, 124, 158)
-local SASUMATA_CREAM = Color3.fromRGB(252, 247, 240)
-local PRONG_SPLAY = 13
-local BARBS_PER_PRONG = 3
-
-local function buildSasumata(scale: number, skin: WeaponSkins.SkinDefinition?): Model
-	local model = Instance.new("Model")
-	model.Name = "EquippedSasumata"
-	model:SetAttribute("WeaponSkinId", if skin then skin.id else nil)
-	local primary = if skin then skin.primary else SASUMATA_PINK
-	local secondary = if skin then skin.secondary else SASUMATA_BARB
-	local accent = if skin then skin.accent else SASUMATA_CREAM
-	local material = if skin then skin.material else Enum.Material.SmoothPlastic
-	local accentMaterial = if skin then skin.accentMaterial else Enum.Material.SmoothPlastic
-	local shaft = Instance.new("Part")
-	shaft.Name = "Shaft"
-	shaft.Size = Vector3.new(0.2, 3.4, 0.2) * scale
-	shaft.Color = primary
-	shaft.Material = material
-	shaft.CFrame = CFrame.new()
-	decorate(shaft, model)
-	model.PrimaryPart = shaft
-
-	local function attach(part: BasePart, offset: CFrame)
-		part.CFrame = shaft.CFrame * offset
-		decorate(part, model)
-		local weld = Instance.new("WeldConstraint")
-		weld.Part0 = shaft
-		weld.Part1 = part
-		weld.Parent = shaft
-	end
-
-	local neck = Instance.new("Part")
-	neck.Name = "ForkNeck"
-	neck.Size = Vector3.new(0.86, 0.2, 0.2) * scale
-	neck.Color = primary
-	neck.Material = material
-	attach(neck, CFrame.new(0, 1.66 * scale, 0))
-
-	local prongLength = 1.3
-	local splay = math.rad(PRONG_SPLAY)
-
-	for _, side in { -1, 1 } do
-		local lean = splay * side
-		local baseX = 0.43 * side * scale
-		local baseY = 1.66 * scale
-		local prong = Instance.new("Part")
-		prong.Name = if side < 0 then "LeftProng" else "RightProng"
-		prong.Size = Vector3.new(0.18 * scale, prongLength * scale, 0.2 * scale)
-		prong.Color = primary
-		prong.Material = material
-		attach(
-			prong,
-			CFrame.new(
-				baseX + math.sin(lean) * prongLength * scale / 2,
-				baseY + math.cos(lean) * prongLength * scale / 2,
-				0
-			) * CFrame.Angles(0, 0, -lean)
-		)
-
-		local tip = Instance.new("Part")
-		tip.Name = if side < 0 then "LeftTip" else "RightTip"
-		tip.Shape = Enum.PartType.Ball
-		tip.Size = Vector3.new(0.22, 0.22, 0.22) * scale
-		tip.Color = primary
-		tip.Material = material
-		attach(
-			tip,
-			CFrame.new(baseX + math.sin(lean) * prongLength * scale, baseY + math.cos(lean) * prongLength * scale, 0)
-		)
-
-		for index = 1, BARBS_PER_PRONG do
-			local along = (index - 0.35) / BARBS_PER_PRONG * prongLength * scale
-			local barb = Instance.new("Part")
-			barb.Name = "Barb"
-			barb.Shape = Enum.PartType.Wedge
-			barb.Size = Vector3.new(0.14, 0.26, 0.3) * scale
-			barb.Color = secondary
-			barb.Material = material
-			attach(
-				barb,
-				CFrame.new(baseX + math.sin(lean) * along - 0.16 * side * scale, baseY + math.cos(lean) * along, 0)
-					* CFrame.Angles(0, math.rad(90) * side, -lean)
-			)
-		end
-	end
-
-	local band = Instance.new("Part")
-	band.Name = "GripBand"
-	band.Size = Vector3.new(0.26, 0.8, 0.26) * scale
-	band.Color = accent
-	band.Material = accentMaterial
-	attach(band, CFrame.new(0, -0.85 * scale, 0))
-
-	local butt = Instance.new("Part")
-	butt.Name = "ButtCap"
-	butt.Shape = Enum.PartType.Ball
-	butt.Size = Vector3.new(0.26, 0.26, 0.26) * scale
-	butt.Color = secondary
-	butt.Material = material
-	attach(butt, CFrame.new(0, -1.7 * scale, 0))
-
-	return model
+local function buildWeapon(scale: number, skinId: string?): (Model, CFrame)
+	local look = if skinId then WeaponLooks.get(skinId) else nil
+	local model, grip = WeaponLook.build(look, scale)
+	model.Name = "EquippedWeapon"
+	model:SetAttribute("WeaponSkinId", skinId)
+	return model, grip
 end
 
 local function buildWeedTuft(scale: number): Model
@@ -544,7 +447,7 @@ end
 local function attachSkillProp(character: Model, skillId: string)
 	local targetName: string? = nil
 	if SASUMATA_SKILLS[skillId] then
-		targetName = "EquippedSasumata"
+		targetName = "EquippedWeapon"
 	elseif BOOK_SKILLS[skillId] then
 		targetName = "EquippedOpenBook"
 	elseif KUSATORI_SKILLS[skillId] then
@@ -565,7 +468,7 @@ local function attachSkillProp(character: Model, skillId: string)
 
 	local scale = 1
 	local existing = character:FindFirstChild(targetName)
-	if existing and targetName == "EquippedSasumata" then
+	if existing and targetName == "EquippedWeapon" then
 		local equippedId = character:GetAttribute("WeaponSkinId")
 		local expectedId = if type(equippedId) == "string" then equippedId else nil
 		if existing:GetAttribute("WeaponSkinId") ~= expectedId then
@@ -584,11 +487,9 @@ local function attachSkillProp(character: Model, skillId: string)
 
 	local model: Model
 	local grip: CFrame
-	if targetName == "EquippedSasumata" then
+	if targetName == "EquippedWeapon" then
 		local skinId = character:GetAttribute("WeaponSkinId")
-		local skin = if type(skinId) == "string" then WeaponSkins.get(skinId) else nil
-		model = buildSasumata(scale, skin)
-		grip = CFrame.new(0, -0.35, -0.3) * CFrame.Angles(math.rad(-100), 0, 0)
+		model, grip = buildWeapon(scale, if type(skinId) == "string" then skinId else nil)
 	elseif targetName == "EquippedOpenBook" then
 		model = buildOpenBook(scale)
 		grip = CFrame.new(0, -0.25, -0.45) * CFrame.Angles(math.rad(-70), math.rad(90), 0)
@@ -615,6 +516,17 @@ local function attachSkillProp(character: Model, skillId: string)
 	weld.Part1 = model.PrimaryPart
 	weld.C0 = grip
 	weld.Parent = hand
+end
+
+local function watchWeaponSkin(character: Model)
+	character:GetAttributeChangedSignal("WeaponSkinId"):Connect(function()
+		local existing = character:FindFirstChild("EquippedWeapon")
+		if not existing then
+			return
+		end
+		existing:Destroy()
+		attachSkillProp(character, "tobatsu")
+	end)
 end
 
 function GestureController.play(skillId: string?, duration: number?)
@@ -810,6 +722,7 @@ function GestureController.init()
 		localCharacter = character
 		localRig = nil
 		playing = nil
+		watchWeaponSkin(character)
 		bindRig(character, function(rig)
 			localRig = rig
 		end)
@@ -833,6 +746,7 @@ function GestureController.init()
 			local stamp = character:GetAttribute(FORAGE_STAMP_ATTRIBUTE)
 			forageStamps[character] = if type(stamp) == "number" then stamp else nil
 			forageShots[character] = nil
+			watchWeaponSkin(character)
 			bindRig(character, function(rig)
 				remoteRigs[character] = rig
 				remotePhase[character] = math.random() * 1000

@@ -14,7 +14,6 @@ type ProfileState = WeaponSkins.ProfileState
 type SkinDefinition = WeaponSkins.SkinDefinition
 
 local WeaponGachaService = {}
-local WEAPON_ID = "sasumata"
 local ATTRIBUTE = "WeaponSkinId"
 local playerConnections: { [Player]: RBXScriptConnection } = {}
 
@@ -45,7 +44,7 @@ local function applyAppearance(player: Player, profile: any?)
 		return
 	end
 	local loadedProfile = profile or DataService.get(player)
-	local skin = loadedProfile and WeaponSkins.equippedSkin(loadedProfile, WEAPON_ID)
+	local skin = loadedProfile and WeaponSkins.equippedSkin(loadedProfile)
 	character:SetAttribute(ATTRIBUTE, if skin then skin.id else nil)
 end
 
@@ -65,39 +64,25 @@ local function parseEquip(request: unknown): any
 	if type(request) ~= "table" then
 		return nil
 	end
-	local payload = request :: { [string]: unknown }
-	local weaponId = payload.weaponId
-	local skinId = payload.skinId
-	if
-		type(weaponId) ~= "string"
-		or not WeaponSkins.WEAPONS[weaponId]
-		or (skinId ~= nil and type(skinId) ~= "string")
-	then
+	local skinId = (request :: { [string]: unknown }).skinId
+	if skinId ~= nil and type(skinId) ~= "string" then
 		return nil
 	end
-	return { weaponId = weaponId, skinId = skinId }
+	return { skinId = skinId }
 end
 
 local function equip(_profile: any, state: ProfileState, request: any): (boolean, string?)
-	local weaponId = request.weaponId
-	local skinId = request.skinId
-	if skinId then
-		local skin = WeaponSkins.get(skinId)
-		if not skin or skin.weaponId ~= weaponId or (state.copies[skinId] or 0) <= 0 then
-			return false, "You do not own that skin for this weapon."
-		end
-		state.equipped[weaponId] = skinId
-	else
-		state.equipped[weaponId] = nil
+	local skinId = request.skinId or WeaponSkins.DEFAULT_SKIN_ID
+	if not WeaponSkins.get(skinId) or (state.copies[skinId] or 0) <= 0 then
+		return false, "You do not own that weapon yet."
 	end
+	state.equipped[WeaponSkins.SLOT] = skinId
 	return true, nil
 end
 
 local function sellableCopies(state: ProfileState, item: GachaMachine.ItemDefinition): number
 	local skin = (item :: any) :: SkinDefinition
-	local owned = state.copies[skin.id] or 0
-	local reserved = if state.equipped[skin.weaponId] == skin.id then 1 else 0
-	return math.max(owned - reserved, 0)
+	return WeaponSkins.sellableCopies(state, skin.id)
 end
 
 function WeaponGachaService.init()
@@ -107,10 +92,10 @@ function WeaponGachaService.init()
 		npcName = "WeaponsGachaGuy",
 		npcDisplayName = "Weapons Gacha Guy",
 		promptName = "WeaponGachaPrompt",
-		promptAction = "Draw weapon skins",
-		signTitle = "Weapon Skins",
+		promptAction = "Draw weapons",
+		signTitle = "Weapon Capsules",
 		signSubtitle = "draw · equip · trade back",
-		itemNoun = "weapon skin",
+		itemNoun = "weapon",
 		capacity = WeaponSkins.CAPACITY,
 		rarePlusPity = WeaponSkins.RARE_PLUS_PITY,
 		legendaryPity = WeaponSkins.LEGENDARY_PITY,

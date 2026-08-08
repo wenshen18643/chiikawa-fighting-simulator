@@ -1,3 +1,4 @@
+<?xml version='1.0' encoding='utf-8'?>
 <roblox xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
 	<Meta name="ExplicitAutoJoints">true</Meta>
 	<External>null</External>
@@ -143,7 +144,7 @@
 				</Vector3>
 				<token name="ModelStreamingMode">0</token>
 				<bool name="NeedsPivotMigration">false</bool>
-				<Ref name="PrimaryPart">null</Ref>
+				<Ref name="PrimaryPart">RBXA25606BD17264ACE9C6D5177A655E499</Ref>
 				<float name="ScaleFactor">1</float>
 				<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 				<OptionalCoordinateFrame name="WorldPivotData">
@@ -173,7 +174,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -481,7 +482,7 @@
 						<BinaryString name="AttributesSerialize" />
 						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
 						<bool name="DefinesCapabilities">false</bool>
-						<string name="Name">Body</string>
+						<string name="Name">RootJoint</string>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
@@ -491,7 +492,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -768,7 +769,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -895,7 +896,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -1022,7 +1023,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -1352,30 +1353,30 @@
 					<float name="TopParamB">0.5</float>
 					<token name="TopSurface">0</token>
 					<token name="TopSurfaceInput">0</token>
-					<float name="Transparency">0</float>
+					<float name="Transparency">1</float>
 					<Vector3 name="Velocity">
 						<X>0</X>
 						<Y>0</Y>
 						<Z>0</Z>
 					</Vector3>
 					<Vector3 name="size">
-						<X>0.141530797</X>
-						<Y>2</Y>
-						<Z>0.506169558</Z>
+						<X>0.1</X>
+						<Y>0.1</Y>
+						<Z>0.1</Z>
 					</Vector3>
 					<BinaryString name="AttributesSerialize" />
 					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
 					<bool name="DefinesCapabilities">false</bool>
-					<string name="Name">RightHead</string>
+					<string name="Name">RightEarBone</string>
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 				</Properties>
-			</Item>
+			<Item class="Weld" referent="RBXUSAGIRERIG0000000000000000004"><Properties><CoordinateFrame name="C0"><X>-0.39035389798245745</X><Y>0.2884408638569482</Y><Z>0.1001679019647761</Z><R00>-0.135996059</R00><R01>-0.44133833658831534</R01><R02>-0.8869755872435201</R02><R10>-0.650186837</R10><R11>0.715271104076354</R11><R12>-0.25621181967859774</R12><R20>0.747503996</R20><R21>0.5418560784369846</R21><R22>-0.3842264047609366</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">36</Ref><Ref name="Part1">30</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000010"><Properties><CoordinateFrame name="C0"><X>-0.37523247065132637</X><Y>0.3510108265547629</Y><Z>0.16742192415692925</Z><R00>-0.15099160653847862</R00><R01>-0.41950805871486246</R01><R02>-0.8951060787515527</R02><R10>-0.625375789483865</R10><R11>0.7417963255137476</R11><R12>-0.24216454772941262</R12><R20>0.7655761551085523</R20><R21>0.5232128419161294</R21><R22>-0.3743551618862709</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">36</Ref><Ref name="Part1">34</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000011"><Properties><CoordinateFrame name="C0"><X>-0.41348179260636186</X><Y>0.2885193478778536</Y><Z>0.2221296645690929</Z><R00>-0.12602500341780806</R00><R01>-0.3921591576268985</R01><R02>-0.9112240464822352</R02><R10>-0.6723871466141497</R10><R11>0.709133245495585</R11><R12>-0.2121930716997875</R12><R20>0.7293925034634713</R20><R21>0.5859536726123419</R21><R22>-0.3530512616796002</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">36</Ref><Ref name="Part1">32</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000012"><Properties><CoordinateFrame name="C0"><X>-0.41316985055341604</X><Y>0.46270463993732314</Y><Z>0.1028448826339039</Z><R00>-0.1458517991422418</R00><R01>-0.35234139637540185</R01><R02>-0.9244365215563133</R02><R10>-0.6339952045344767</R10><R11>0.750619929544487</R11><R12>-0.18606471490278048</R12><R20>0.759458700650969</R20><R21>0.5589504995288411</R21><R22>-0.3328619474414816</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">36</Ref><Ref name="Part1">2</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000013"><Properties><CoordinateFrame name="C0"><X>-0.5124456258170369</X><Y>0.5311250407643815</Y><Z>0.28328810915283453</Z><R00>-0.1509915254638503</R00><R01>-0.18172391827853154</R01><R02>-0.9716882505145632</R02><R10>-0.6253759210653169</R10><R11>0.7788166289884865</R11><R12>-0.04847550468632549</R12><R20>0.7655760554078164</R20><R21>0.6003510777745055</R21><R22>-0.23124043199051705</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">36</Ref><Ref name="Part1">28</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000057"><Properties><CoordinateFrame name="C0"><X>-0.48125732899031703</X><Y>0.5137231516287013</Y><Z>0.2781790316666535</Z><R00>-0.15099161315481197</R00><R01>-0.18172389245287993</R01><R02>-0.9716883032473198</R02><R10>-0.6253757787405368</R10><R11>0.7788167524589669</R11><R12>-0.04847546817639516</R12><R20>0.765576163249479</R20><R21>0.6003509358234966</R21><R22>-0.23124048209483386</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">36</Ref><Ref name="Part1">26</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item></Item>
 			<Item class="Part" referent="37">
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -1626,7 +1627,7 @@
 					<BinaryString name="AttributesSerialize" />
 					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
 					<bool name="DefinesCapabilities">false</bool>
-					<string name="Name">Body</string>
+					<string name="Name">Torso</string>
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 				</Properties>
@@ -1696,7 +1697,7 @@
 						<BinaryString name="AttributesSerialize" />
 						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
 						<bool name="DefinesCapabilities">false</bool>
-						<string name="Name">BaseEar</string>
+						<string name="Name">LeftEarJoint</string>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
@@ -1739,7 +1740,7 @@
 						<BinaryString name="AttributesSerialize" />
 						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
 						<bool name="DefinesCapabilities">false</bool>
-						<string name="Name">BaseEar2</string>
+						<string name="Name">RightEarJoint</string>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
@@ -1782,7 +1783,7 @@
 						<BinaryString name="AttributesSerialize" />
 						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
 						<bool name="DefinesCapabilities">false</bool>
-						<string name="Name">RightArm</string>
+						<string name="Name">Right Shoulder</string>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
@@ -1825,7 +1826,7 @@
 						<BinaryString name="AttributesSerialize" />
 						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
 						<bool name="DefinesCapabilities">false</bool>
-						<string name="Name">LeftArm</string>
+						<string name="Name">Left Shoulder</string>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
@@ -1868,7 +1869,7 @@
 						<BinaryString name="AttributesSerialize" />
 						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
 						<bool name="DefinesCapabilities">false</bool>
-						<string name="Name">LeftLeg</string>
+						<string name="Name">Left Hip</string>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
@@ -1911,17 +1912,17 @@
 						<BinaryString name="AttributesSerialize" />
 						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
 						<bool name="DefinesCapabilities">false</bool>
-						<string name="Name">RightLeg</string>
+						<string name="Name">Right Hip</string>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
 				</Item>
-			</Item>
+			<Item class="Motor6D" referent="RBXUSAGIRERIG0000000000000000001"><Properties><float name="DesiredAngle">0</float><float name="MaxVelocity">0</float><CoordinateFrame name="C0"><X>0.0001964569088</X><Y>0.24241105767208637</Y><Z>-0.0037905053602393934</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0000000473884323</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>-0.2750000190318218</Y><Z>-3.552713678800501e-15</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0000000473884323</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0000000473884323</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">37</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">Neck</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Motor6D" referent="RBXUSAGIRERIG0000000000000000002"><Properties><float name="DesiredAngle">0</float><float name="MaxVelocity">0</float><CoordinateFrame name="C0"><X>-0.0193672180602</X><Y>-0.2470597183958212</Y><Z>0.2744398261574794</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0000000473884323</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>-3.552713678800501e-15</Y><Z>-0.060047711345564636</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0000000473884323</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0000000473884323</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">99</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">TailJoint</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000014"><Properties><CoordinateFrame name="C0"><X>-0.1553173066602</X><Y>-0.20729817387100624</Y><Z>0.37783103382934513</Z><R00>0.358039528</R00><R01>-0.893047035</R01><R02>-0.272533774</R02><R10>0.7846381100329127</R10><R11>0.4459905347025847</R11><R12>-0.4306224466266514</R12><R20>0.5061136358290298</R20><R21>-0.05966051723668448</R21><R22>0.8604009213140511</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">42</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000015"><Properties><CoordinateFrame name="C0"><X>-0.1924114226602</X><Y>-0.1929612794182347</Y><Z>0.3722773175040075</Z><R00>0.304045051</R00><R01>-0.91284281</R01><R02>-0.272533596</R02><R10>0.8098819742233233</R10><R11>0.3983157735023132</R11><R12>-0.4306224466266514</R12><R20>0.5016450350798116</R20><R21>-0.08979142834390713</R21><R22>0.8604009213140511</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">60</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000016"><Properties><CoordinateFrame name="C0"><X>0.1393070223398</X><Y>-0.2012863079924898</Y><Z>0.38368090649233366</Z><R00>0.206394404</R00><R01>0.978468895</R01><R02>0.0</R02><R10>-0.9784689450095164</R10><R11>0.2063944134634763</R11><R12>0.0</R12><R20>-3.261960090927829e-09</R20><R21>-4.6134297077005115e-10</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">77</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000017"><Properties><CoordinateFrame name="C0"><X>0.12283515933979999</X><Y>-0.15084509883851283</Y><Z>0.38670117428475237</Z><R00>0.632647634</R00><R01>0.774439752</R01><R02>0.0</R02><R10>-0.7744397965952992</R10><R11>0.632647643763494</R11><R12>0.0</R12><R20>-9.511236520598487e-10</R20><R21>4.85298336239115e-09</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">79</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000018"><Properties><CoordinateFrame name="C0"><X>0.09161567683979999</X><Y>-0.12351564744770371</Y><Z>0.3949437812189345</Z><R00>0.777528644</R00><R01>0.628847539</R01><R02>0.0</R02><R10>-0.6288475875531777</R10><R11>0.7775287032935512</R11><R12>0.0</R12><R20>3.429686423750411e-09</R20><R21>-5.574719422196672e-09</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">81</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000019"><Properties><CoordinateFrame name="C0"><X>0.0417003631398</X><Y>-0.11008741620073437</Y><Z>0.4115803483566829</Z><R00>0.942566574</R00><R01>0.334018439</R01><R02>0.0</R02><R10>-0.3340184646281754</R10><R11>0.9425666325216827</R11><R12>0.0</R12><R20>6.125141296942083e-10</R20><R21>2.284291505949554e-09</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">83</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000020"><Properties><CoordinateFrame name="C0"><X>0.1017780303398</X><Y>-0.21541747687312096</Y><Z>0.38452211407885883</Z><R00>0.331091315</R00><R01>0.943598807</R01><R02>0.0</R02><R10>-0.943598871393806</R10><R11>0.33109133414709413</R11><R12>0.0</R12><R20>2.5833731542856953e-09</R20><R21>-4.759669325338223e-10</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">85</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000021"><Properties><CoordinateFrame name="C0"><X>-0.0039863586401999995</X><Y>-0.10123883160577307</Y><Z>0.42508993819039276</Z><R00>0.960740328</R00><R01>0.0519953854</R01><R02>-0.272533804</R02><R10>-0.17012448964838112</R10><R11>0.8863532790958868</R11><R12>-0.4306224392714863</R12><R20>0.21917084818352078</R20><R21>0.460080898764988</R21><R22>0.8604009798537958</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">87</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000022"><Properties><CoordinateFrame name="C0"><X>-0.0004291534422</X><Y>-0.13776535013895952</Y><Z>0.408902595925305</Z><R00>0.959405005</R00><R01>-0.0725769699</R01><R02>-0.272533774</R02><R10>-0.054173364133734886</R10><R11>0.9009049241110187</R11><R12>-0.430622497811231</R12><R20>0.2767802713981436</R20><R21>0.4279054168486163</R21><R22>0.8604009872089609</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">89</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000023"><Properties><CoordinateFrame name="C0"><X>0.09335327143979999</X><Y>-0.1780907617937615</Y><Z>0.3875408728853671</Z><R00>0.585248947</R00><R01>0.810853779</R01><R02>0.0</R02><R10>-0.8108538140125587</R10><R11>0.5852489874274703</R11><R12>0.0</R12><R20>-2.9511339344479026e-09</R20><R21>-4.575861647926338e-09</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">91</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000024"><Properties><CoordinateFrame name="C0"><X>0.0718746185398</X><Y>-0.14521132041267393</Y><Z>0.39856932929416544</Z><R00>0.777518809</R00><R01>0.628859878</R01><R02>0.0</R02><R10>-0.6288599035025304</R10><R11>0.7775188522209948</R11><R12>0.0</R12><R20>-3.5717729329753922e-09</R20><R21>6.460371265726295e-10</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">93</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000025"><Properties><CoordinateFrame name="C0"><X>-0.0448493957602</X><Y>-0.0989170008278748</Y><Z>0.4289428463968967</Z><R00>0.960740209</R00><R01>0.0519953854</R01><R02>-0.272533804</R02><R10>-0.17012446349765986</R10><R11>0.8863532790958868</R11><R12>-0.4306224392714863</R12><R20>0.21917081566983346</R20><R21>0.460080898764988</R21><R22>0.8604009798537958</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">44</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000026"><Properties><CoordinateFrame name="C0"><X>0.0325775146398</X><Y>-0.13950319368969843</Y><Z>0.40752539862783976</Z><R00>0.942566574</R00><R01>0.334018439</R01><R02>0.0</R02><R10>-0.3340184646281754</R10><R11>0.9425666325216827</R11><R12>0.0</R12><R20>6.125141296942083e-10</R20><R21>2.284291505949554e-09</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">95</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000027"><Properties><CoordinateFrame name="C0"><X>-0.2008113856602</X><Y>-0.23239177021767432</Y><Z>0.35946129509545344</Z><R00>0.111128703</R00><R01>-0.955707014</R01><R02>-0.272533745</R02><R10>0.8741784278988001</R10><R11>0.2244469332400011</R11><R12>-0.4306225721781688</R12><R20>0.4727183244461266</R20><R21>-0.19038857285096522</R21><R22>0.8604008766171014</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">97</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000028"><Properties><CoordinateFrame name="C0"><X>-0.1739902496602</X><Y>-0.2420145390903734</Y><Z>0.36736012476112734</Z><R00>0.11114376</R00><R01>-0.955705166</R01><R02>-0.272533774</R02><R10>0.8741748878057948</R10><R11>0.22446069029719884</R11><R12>-0.4306225646983399</R12><R20>0.4727212324529196</R20><R21>-0.19038115499151434</R21><R22>0.8604009361490451</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">101</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000029"><Properties><CoordinateFrame name="C0"><X>0.1096744533398</X><Y>-0.24514739522636475</Y><Z>0.3790225569878025</Z><R00>-0.070877701</R00><R01>0.997485042</R01><R02>0.0</R02><R10>-0.997485079844384</R10><R11>-0.0708777018754642</R11><R12>0.0</R12><R20>2.586391628645046e-09</R20><R21>-4.479854074507239e-10</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">103</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000030"><Properties><CoordinateFrame name="C0"><X>0.1497268673398</X><Y>-0.2470826574282583</Y><Z>0.3781853833674482</Z><R00>-0.199167669</R00><R01>0.979965508</R01><R02>0.0</R02><R10>-0.9799655506843007</R10><R11>-0.19916767300194005</R11><R12>0.0</R12><R20>-6.776722377699329e-10</R20><R21>-1.346013300818072e-09</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">105</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000031"><Properties><CoordinateFrame name="C0"><X>-0.1608505246602</X><Y>-0.2802696260859179</Y><Z>0.3627817336674042</Z><R00>-0.213485777</R00><R01>-0.938162744</R01><R02>-0.272533745</R02><R10>0.8990253292148274</R10><R11>-0.07948512560178178</R11><R12>-0.4306224392714863</R12><R20>0.3823314989023551</R20><R21>-0.3369465229167447</R21><R22>0.8604009798537958</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">107</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000032"><Properties><CoordinateFrame name="C0"><X>0.11451149033979999</X><Y>-0.27860487138906365</Y><Z>0.37795909737743827</Z><R00>-0.306443334</R00><R01>0.951888919</R01><R02>0.0</R02><R10>-0.9518889835569663</R10><R11>-0.3064433594157668</R11><R12>0.0</R12><R20>1.535259475105022e-09</R20><R21>2.6767149885476016e-09</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">109</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000033"><Properties><CoordinateFrame name="C0"><X>-0.1905727386602</X><Y>-0.28556556464585015</Y><Z>0.3554233428518465</Z><R00>-0.213485777</R00><R01>-0.938162744</R01><R02>-0.272533745</R02><R10>0.8990253292148274</R10><R11>-0.07948512560178178</R11><R12>-0.4306224392714863</R12><R20>0.3823314989023551</R20><R21>-0.3369465229167447</R21><R22>0.8604009798537958</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">111</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000034"><Properties><CoordinateFrame name="C0"><X>0.1529541013398</X><Y>-0.29002316200234546</Y><Z>0.3771215109805155</Z><R00>-0.426867187</R00><R01>0.904314399</R01><R02>0.0</R02><R10>-0.9043144339555582</R10><R11>-0.42686720932941785</R11><R12>0.0</R12><R20>-4.0776928639241206e-09</R20><R21>-4.1157217217646647e-10</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">113</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000035"><Properties><CoordinateFrame name="C0"><X>0.1023159023398</X><Y>-0.31330323838241014</Y><Z>0.35557501006874404</Z><R00>-0.469572902</R00><R01>0.882893741</R01><R02>0.0</R02><R10>-0.8828938049912933</R10><R11>-0.4695729100417356</R11><R12>0.0</R12><R20>3.783794694234288e-09</R20><R21>-2.204804554206685e-09</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">119</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000036"><Properties><CoordinateFrame name="C0"><X>-0.0412920750602</X><Y>-0.13544353182744118</Y><Z>0.41275540491190554</Z><R00>0.959404886</R00><R01>-0.0725773871</R01><R02>-0.272533923</R02><R10>-0.0541730793869178</R10><R11>0.9009048655712739</R11><R12>-0.43062257953333394</R12><R20>0.2767805651924051</R20><R21>0.4279054242037814</R21><R22>0.8604008180773567</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">46</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000037"><Properties><CoordinateFrame name="C0"><X>-0.1869258876602</X><Y>-0.3247562256900203</Y><Z>0.3544765137396908</Z><R00>-0.117925622</R00><R01>-0.949903905</R01><R02>0.289441109</R02><R10>0.9501525402201317</R10><R11>-0.19265295315773906</R11><R12>-0.24514303352082917</R12><R20>0.2886240577795265</R20><R21>0.24610452443560477</R21><R22>0.9252723481319408</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">121</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000038"><Properties><CoordinateFrame name="C0"><X>-0.1497497556602</X><Y>-0.31153988816402034</Y><Z>0.3472565922694386</Z><R00>-0.239673316</R00><R01>-0.926704049</R01><R02>0.289441198</R02><R10>0.9172953137669428</R10><R11>-0.313806423335525</R11><R12>-0.24514294521511254</R12><R20>0.318003540661836</R20><R21>0.2067487729241403</R21><R22>0.9252723370368613</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">123</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000039"><Properties><CoordinateFrame name="C0"><X>0.13813781733980002</X><Y>-0.33132483011392466</Y><Z>0.3547367107805499</Z><R00>-0.579714537</R00><R01>0.814819694</R01><R02>0.0</R02><R10>-0.8148197310274023</R10><R11>-0.5797145569869201</R11><R12>0.0</R12><R20>-2.626990625032022e-09</R20><R21>6.076363023854725e-11</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">125</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000040"><Properties><CoordinateFrame name="C0"><X>-0.1263065336602</X><Y>-0.3402910485127286</Y><Z>0.34134571074200437</Z><R00>-0.553746819</R00><R01>-0.832685113</R01><R02>0.0</R02><R10>0.8326851628770615</R10><R11>-0.55374686230668</R11><R12>0.0</R12><R20>1.8353562974970927e-09</R20><R21>9.354000629624437e-10</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">127</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000041"><Properties><CoordinateFrame name="C0"><X>0.09516906733979999</X><Y>-0.3375219842717776</Y><Z>0.35731075167528203</Z><R00>-0.648889899</R00><R01>0.760882378</R01><R02>0.0</R02><R10>-0.7608824596825285</R10><R11>-0.6488898945046646</R11><R12>0.0</R12><R20>1.8097189719012974e-09</R20><R21>1.5425358074194762e-09</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">129</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000042"><Properties><CoordinateFrame name="C0"><X>-0.08749771116020001</X><Y>-0.3989586805934522</Y><Z>0.3284208143171625</Z><R00>-0.767643213</R00><R01>-0.640877366</R01><R02>0.0</R02><R10>0.640877381133665</R10><R11>-0.7676432265118537</R11><R12>0.0</R12><R20>-5.979345629736343e-10</R20><R21>2.428247047880916e-10</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">131</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000043"><Properties><CoordinateFrame name="C0"><X>-0.1591873166602</X><Y>-0.36324616838940216</Y><Z>0.3339991732020593</Z><R00>-0.441514492</R00><R01>-0.897254109</R01><R02>0.0</R02><R10>0.8972541412203876</R10><R11>-0.4415145146519809</R11><R12>0.0</R12><R20>3.180457286422467e-11</R20><R21>1.673940985824629e-10</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">133</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000044"><Properties><CoordinateFrame name="C0"><X>-0.06676292416020001</X><Y>-0.36463548462221596</Y><Z>0.3292602020171991</Z><R00>-0.844015598</R00><R01>-0.53631866</R01><R02>0.0</R02><R10>0.5363187041192521</R10><R11>-0.8440156421734545</R11><R12>0.0</R12><R20>-4.175567253072998e-09</R20><R21>2.909589610911034e-09</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">135</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000045"><Properties><CoordinateFrame name="C0"><X>-0.0368518829602</X><Y>-0.3718131042665682</Y><Z>0.33475636691682453</Z><R00>-0.987595499</R00><R01>-0.157019883</R01><R02>0.0</R02><R10>0.15701988773432488</R10><R11>-0.9875955175953284</R11><R12>0.0</R12><R20>7.980068134072482e-10</R20><R21>-5.980663284055332e-09</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">137</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000046"><Properties><CoordinateFrame name="C0"><X>-5.722045899999998e-06</X><Y>-0.3821349481749827</Y><Z>0.33777951079236246</Z><R00>-0.991554856</R00><R01>0.129688501</R01><R02>0.0</R02><R10>-0.12968853008078568</R10><R11>-0.991554826531476</R11><R12>0.0</R12><R20>5.598293460751247e-10</R20><R21>-1.411666950001944e-09</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">139</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000047"><Properties><CoordinateFrame name="C0"><X>-0.0921440124602</X><Y>-0.11189137077677103</Y><Z>0.4334834015736675</Z><R00>0.954843521</R00><R01>-0.118318297</R01><R02>-0.272533715</R02><R10>-0.011081486365437529</R10><R11>0.9024641728305016</R11><R12>-0.4306223870947077</R12><R20>0.2969024354548336</R20><R21>0.41419704416771624</R21><R22>0.8604009138342222</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">48</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000048"><Properties><CoordinateFrame name="C0"><X>0.0391292572398</X><Y>-0.3788598894480941</Y><Z>0.3488060473317951</Z><R00>-0.922773898</R00><R01>0.385341853</R01><R02>0.0</R02><R10>-0.3853418577756544</R10><R11>-0.9227739301763966</R11><R12>0.0</R12><R20>-8.132982481923179e-10</R20><R21>-3.963989803068557e-09</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">141</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000049"><Properties><CoordinateFrame name="C0"><X>0.09784698483979999</X><Y>-0.383901605164926</Y><Z>0.36181555376922603</Z><R00>-0.741763353</R00><R01>0.670661688</R01><R02>0.0</R02><R10>-0.6706617110372094</R10><R11>-0.741763359410329</R11><R12>0.0</R12><R20>2.0261156363776678e-09</R20><R21>-2.3893897277416087e-09</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">143</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000050"><Properties><CoordinateFrame name="C0"><X>0.0762996673398</X><Y>-0.36189676359454026</Y><Z>0.357758900513371</Z><R00>-0.741763353</R00><R01>0.670661688</R01><R02>0.0</R02><R10>-0.6706617110372094</R10><R11>-0.741763359410329</R11><R12>0.0</R12><R20>2.0261156363776678e-09</R20><R21>-2.3893897277416087e-09</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">145</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000051"><Properties><CoordinateFrame name="C0"><X>-0.1268138886602</X><Y>-0.3813954256102221</Y><Z>0.32735590470804965</Z><R00>-0.592886508</R00><R01>-0.805286109</R01><R02>0.0</R02><R10>0.8052861623064616</R10><R11>-0.5928865236854302</R11><R12>0.0</R12><R20>-1.413533012861734e-09</R20><R21>-3.1221923518787165e-09</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">147</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000052"><Properties><CoordinateFrame name="C0"><X>-0.0985031127602</X><Y>-0.3529965501115271</Y><Z>0.32819765922800315</Z><R00>-0.691966772</R00><R01>-0.721929431</R01><R02>0.0</R02><R10>0.721929446265547</R10><R11>-0.69196681879383</R11><R12>0.0</R12><R20>1.5446357248816156e-09</R20><R21>2.415214875317595e-09</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">149</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000053"><Properties><CoordinateFrame name="C0"><X>0.1262664793398</X><Y>-0.36284434751321015</Y><Z>0.3564747120000398</Z><R00>-0.741763353</R00><R01>0.670661747</R01><R02>0.0</R02><R10>-0.6706617110372094</R10><R11>-0.741763359410329</R11><R12>0.0</R12><R20>2.0261156363776678e-09</R20><R21>-2.3893897277416087e-09</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">151</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000054"><Properties><CoordinateFrame name="C0"><X>-0.0422496795602</X><Y>-0.4115491874440913</Y><Z>0.33392049780254496</Z><R00>-0.959028482</R00><R01>-0.283309788</R01><R02>0.0</R02><R10>0.2833098022146455</R10><R11>-0.9590285125519002</R11><R12>0.0</R12><R20>-1.9883692609079517e-10</R20><R21>-3.6253645363526488e-09</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">153</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000055"><Properties><CoordinateFrame name="C0"><X>0.048841476439800004</X><Y>-0.4065398021282576</Y><Z>0.34517883485528955</Z><R00>-0.922767818</R00><R01>0.385356426</R01><R02>0.0</R02><R10>-0.3853564554256986</R10><R11>-0.9227678623935379</R11><R12>0.0</R12><R20>9.995016689301472e-10</R20><R21>-3.6886822762927096e-10</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">155</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000056"><Properties><CoordinateFrame name="C0"><X>0.0099601745598</X><Y>-0.42102355312776396</Y><Z>0.33694097098039677</Z><R00>-0.982035398</R00><R01>0.188696936</R01><R02>0.0</R02><R10>-0.18869694672222065</R10><R11>-0.9820354352361631</R11><R12>0.0</R12><R20>1.1514760984987493e-09</R20><R21>-4.011059290265351e-09</R21><R22>1.0000000473884323</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">157</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000058"><Properties><CoordinateFrame name="C0"><X>-0.0818729400602</X><Y>-0.14808803160817519</Y><Z>0.41958449000229336</Z><R00>0.931551695</R00><R01>-0.240700886</R01><R02>-0.272533715</R02><R10>0.10561792021823427</R10><R11>0.896330978056472</R11><R12>-0.4306224392714863</R12><R20>0.3479316389119518</R20><R21>0.3723625947185659</R21><R22>0.8604009798537958</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">50</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000059"><Properties><CoordinateFrame name="C0"><X>-0.1256847376602</X><Y>-0.1311129928436685</Y><Z>0.41447969458293343</Z><R00>0.899174333</R00><R01>-0.342360914</R01><R02>-0.272533596</R02><R10>0.20420884658215388</R10><R11>0.8791264063824821</R11><R12>-0.4306224466266514</R12><R20>0.38701975324471255</R20><R21>0.33155091791875435</R21><R22>0.8604009213140511</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">52</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000060"><Properties><CoordinateFrame name="C0"><X>-0.1068820956602</X><Y>-0.16507724201201768</Y><Z>0.4044102557256153</Z><R00>0.847400665</R00><R01>-0.455672592</R01><R02>-0.272533804</R02><R10>0.3160881854582084</R10><R11>0.8453713408444671</R11><R12>-0.4306224614616454</R12><R20>0.42661513363129905</R20><R21>0.2787650784749686</R21><R22>0.8604008032423627</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">54</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000061"><Properties><CoordinateFrame name="C0"><X>-0.1590557096602</X><Y>-0.15921252519872908</Y><Z>0.3962223641773086</Z><R00>0.689260006</R00><R01>-0.671301663</R01><R02>-0.272533715</R02><R10>0.5365496967187444</R10><R11>0.7257263752140003</R11><R12>-0.4306224392714863</R12><R20>0.4868625429566167</R20><R21>0.15058293578255577</R21><R22>0.8604009798537958</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">56</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000062"><Properties><CoordinateFrame name="C0"><X>-0.1284790036602</X><Y>-0.18508276882776187</Y><Z>0.39394800505105465</Z><R00>0.59674418</R00><R01>-0.754732907</R01><R02>-0.272533774</R02><R10>0.6258223366189679</R10><R11>0.6503160412591732</R11><R12>-0.430622327562764</R12><R20>0.5022380114025504</R20><R21>0.08641362952568829</R21><R22>0.8604009063543933</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">40</Ref><Ref name="Part1">58</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item></Item>
 			<Item class="Part" referent="42">
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -2048,7 +2049,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -2175,7 +2176,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -2302,7 +2303,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -2429,7 +2430,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -2556,7 +2557,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -2683,7 +2684,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -2810,7 +2811,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -2937,7 +2938,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -3064,7 +3065,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -3191,7 +3192,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -3318,7 +3319,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -3445,7 +3446,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -3699,7 +3700,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -3826,7 +3827,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -4029,25 +4030,25 @@
 					<float name="TopParamB">0.5</float>
 					<token name="TopSurface">0</token>
 					<token name="TopSurfaceInput">0</token>
-					<float name="Transparency">0</float>
+					<float name="Transparency">1</float>
 					<Vector3 name="Velocity">
 						<X>0</X>
 						<Y>0</Y>
 						<Z>0</Z>
 					</Vector3>
 					<Vector3 name="size">
-						<X>0.141530797</X>
-						<Y>2</Y>
-						<Z>0.506169558</Z>
+						<X>0.1</X>
+						<Y>0.1</Y>
+						<Z>0.1</Z>
 					</Vector3>
 					<BinaryString name="AttributesSerialize" />
 					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
 					<bool name="DefinesCapabilities">false</bool>
-					<string name="Name">LeftHead</string>
+					<string name="Name">LeftEarBone</string>
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 				</Properties>
-			</Item>
+			<Item class="Weld" referent="RBXUSAGIRERIG0000000000000000003"><Properties><CoordinateFrame name="C0"><X>-0.40273337532021714</X><Y>0.14863175775848525</Y><Z>0.21764333260027646</Z><R00>-0.135996059</R00><R01>-0.44133833658831534</R01><R02>-0.8869755872435201</R02><R10>-0.650186837</R10><R11>0.715271104076354</R11><R12>-0.25621181967859774</R12><R20>0.747503996</R20><R21>0.5418560784369846</R21><R22>-0.3842264047609366</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">74</Ref><Ref name="Part1">66</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000005"><Properties><CoordinateFrame name="C0"><X>-0.5248244812435487</X><Y>0.391314525565825</Y><Z>0.40076242728476275</Z><R00>-0.1509915254638503</R00><R01>-0.18172391827853154</R01><R02>-0.9716882505145632</R02><R10>-0.6253759210653169</R10><R11>0.7788166289884865</R11><R12>-0.04847550468632549</R12><R20>0.7655760554078164</R20><R21>0.6003510777745055</R21><R22>-0.23124043199051705</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">74</Ref><Ref name="Part1">62</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000006"><Properties><CoordinateFrame name="C0"><X>-0.3876112653024819</X><Y>0.2112004020238416</Y><Z>0.2848963322096003</Z><R00>-0.15099161019566507</R00><R01>-0.41950762882672427</R01><R02>-0.8951069937131049</R02><R10>-0.625375882471884</R10><R11>0.7417957510301771</R11><R12>-0.24216492276928206</R12><R20>0.7655762327577159</R20><R21>0.5232123855191522</R21><R22>-0.37435565775544827</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">74</Ref><Ref name="Part1">68</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000007"><Properties><CoordinateFrame name="C0"><X>-0.4258605872575245</X><Y>0.1487089233469323</Y><Z>0.3396040726217624</Z><R00>-0.12602501839024877</R00><R01>-0.3921591591500544</R01><R02>-0.9112241552388088</R02><R10>-0.6723872267304203</R10><R11>0.7091332382134924</R11><R12>-0.21219309637304942</R12><R20>0.7293925902499924</R20><R21>0.5859536809843867</R21><R22>-0.3530513038635886</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">74</Ref><Ref name="Part1">72</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000008"><Properties><CoordinateFrame name="C0"><X>-0.4255492671158123</X><Y>0.32289562450649</Y><Z>0.22032040319014512</Z><R00>-0.14585185112998228</R00><R01>-0.35234152148250075</R01><R02>-0.9244365265911622</R02><R10>-0.6339954319684322</R10><R11>0.7506201890158961</R11><R12>-0.18606470460668598</R12><R20>0.7594589722954497</R20><R21>0.5589507123582383</R21><R22>-0.3328619378500069</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">74</Ref><Ref name="Part1">70</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item><Item class="Weld" referent="RBXUSAGIRERIG0000000000000000009"><Properties><CoordinateFrame name="C0"><X>-0.49363683892424604</X><Y>0.37391412034358673</Y><Z>0.39565452010746904</Z><R00>-0.15099161315481197</R00><R01>-0.1817238894065682</R01><R02>-0.9716881747707472</R02><R10>-0.6253757787405368</R10><R11>0.7788167670231521</R11><R12>-0.048475539281541406</R12><R20>0.765576163249479</R20><R21>0.6003509190794072</R21><R22>-0.23124044830145568</R22></CoordinateFrame><CoordinateFrame name="C1"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><bool name="Enabled">true</bool><Ref name="Part0">74</Ref><Ref name="Part1">64</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RigWeld</string><int64 name="SourceAssetId">-1</int64></Properties></Item></Item>
 			<Item class="Part" referent="75">
 				<Properties>
 					<token name="shape">1</token>
@@ -4179,7 +4180,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -4306,7 +4307,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -4433,7 +4434,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -4560,7 +4561,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -4687,7 +4688,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -4814,7 +4815,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -4941,7 +4942,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -5068,7 +5069,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -5195,7 +5196,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -5322,7 +5323,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -5449,7 +5450,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -5576,7 +5577,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -5703,7 +5704,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -5830,7 +5831,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -5957,7 +5958,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -6084,7 +6085,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -6211,7 +6212,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -6338,7 +6339,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -6465,7 +6466,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -6846,7 +6847,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -6973,7 +6974,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -7100,7 +7101,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -7227,7 +7228,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -7354,7 +7355,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -7481,7 +7482,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -7608,7 +7609,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -7735,7 +7736,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -7862,7 +7863,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -7989,7 +7990,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -8116,7 +8117,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -8243,7 +8244,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -8370,7 +8371,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -8497,7 +8498,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -8624,7 +8625,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -8751,7 +8752,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -8878,7 +8879,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -9005,7 +9006,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -9132,7 +9133,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
@@ -9259,7 +9260,7 @@
 				<Properties>
 					<token name="shape">1</token>
 					<token name="formFactorRaw">1</token>
-					<bool name="Anchored">true</bool>
+					<bool name="Anchored">false</bool>
 					<bool name="AudioCanCollide">true</bool>
 					<float name="BackParamA">-0.5</float>
 					<float name="BackParamB">0.5</float>
