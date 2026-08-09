@@ -7,6 +7,7 @@ local Remotes = require(Shared.Modules.Remotes)
 local Seasonings = require(Shared.Modules.Config.Seasonings)
 local DataService = require(script.Parent.DataService)
 local NotifyService = require(script.Parent.NotifyService)
+local ReplicationService = require(script.Parent.ReplicationService)
 local InventoryService = {}
 
 local function spend(counts: { [string]: number }, id: string): boolean
@@ -51,6 +52,7 @@ local function onEat(player: Player, dishId: any)
 	end
 
 	NotifyService.send(player, `You eat {def.name}. {desc} for {durationStr}s.`, "reward")
+	ReplicationService.pushTo(player)
 end
 
 local function onUseSeasoning(player: Player, seasoningId: any)
@@ -68,6 +70,7 @@ local function onUseSeasoning(player: Player, seasoningId: any)
 
 	Boosts.apply(profile, def.buff)
 	NotifyService.send(player, `A pinch of {def.name}. {Boosts.describe(def.buff)} for {def.buff.duration}s.`, "reward")
+	ReplicationService.pushTo(player)
 end
 
 function InventoryService.init()

@@ -16,6 +16,7 @@ local Sections = require(Shared.Modules.Config.Sections)
 local AirdropService = require(script.Parent.AirdropService)
 local AssetService = require(script.Parent.AssetService)
 local CurrencyService = require(script.Parent.CurrencyService)
+local DataService = require(script.Parent.DataService)
 local ForagingService = require(script.Parent.ForagingService)
 local NotifyService = require(script.Parent.NotifyService)
 local SafeZoneService = require(script.Parent.SafeZoneService)
@@ -30,16 +31,29 @@ type Food = {
 	model: Model,
 	center: Vector3,
 	progress: number,
+	bites: { [Player]: number },
 	expiresAt: number,
 	landed: boolean,
 	home: Instance?,
 	readyAt: number?,
 }
 
+local FOOTPRINT = {
+	Vector2.new(1, 0),
+	Vector2.new(-1, 0),
+	Vector2.new(0, 1),
+	Vector2.new(0, -1),
+	Vector2.new(0.7, 0.7),
+	Vector2.new(-0.7, -0.7),
+	Vector2.new(0.7, -0.7),
+	Vector2.new(-0.7, 0.7),
+}
+
 local alive: { Food } = {}
 local props: { Food } = {}
 local reserved: { Layout.Zone } = {}
 local overlapParams = OverlapParams.new()
+local groundParams = RaycastParams.new()
 local rng = Random.new()
 local feastEvent: RemoteEvent
 local workFeedback: RemoteEvent
@@ -54,7 +68,32 @@ local function farFromOtherFood(x: number, z: number): boolean
 	return true
 end
 
-local function findSpot(height: number): Vector3?
+local function groundAt(x: number, z: number): number?
+	local top = Constants.WORLD.TERRAIN_TOP + Feast.GROUND_SCAN
+	local hit = Workspace:Raycast(Vector3.new(x, top, z), Vector3.new(0, -Feast.GROUND_SCAN * 2, 0), groundParams)
+	return if hit then hit.Position.Y else nil
+end
+
+local function footing(x: number, z: number, radius: number): number?
+	local high = groundAt(x, z)
+	if not high then
+		return nil
+	end
+
+	local low = high
+	for _, offset in FOOTPRINT do
+		local sample = groundAt(x + offset.X * radius, z + offset.Y * radius)
+		if not sample then
+			return nil
+		end
+		high = math.max(high, sample)
+		low = math.min(low, sample)
+	end
+
+	return if high - low <= Feast.GROUND_FLATNESS then high else nil
+end
+
+local function findSpot(height: number, radius: number): Vector3?
 	local cells = Sections.cells()
 	local margin = Feast.CELL_MARGIN + height / 2
 
@@ -67,8 +106,8 @@ local function findSpot(height: number): Vector3?
 			continue
 		end
 
-		local ground = ForagingService.groundAt(x, z)
-		if SafeZoneService.containsPosition(Vector3.new(x, ground + height / 2, z)) then
+		local ground = footing(x, z, radius)
+		if not ground or SafeZoneService.containsPosition(Vector3.new(x, ground + height / 2, z)) then
 			continue
 		end
 
@@ -102,11 +141,12 @@ local function spawnOne()
 		return
 	end
 
-	ModelUtil.standUpright(model)
 	ModelUtil.scaleToLongest(model, def.height)
 	model.PrimaryPart = model.PrimaryPart or ModelUtil.firstPart(model)
 
-	local spot = if model.PrimaryPart then findSpot(def.height) else nil
+	local _, size = ModelUtil.worldBox(model)
+	local radius = math.max(size.X, size.Z) / 2
+	local spot = if model.PrimaryPart then findSpot(def.height, radius) else nil
 	if not spot then
 		model:Destroy()
 		return
@@ -121,6 +161,7 @@ local function spawnOne()
 		model = model,
 		center = spot + Vector3.new(0, def.height / 2, 0),
 		progress = 0,
+		bites = {},
 		expiresAt = os.clock() + Feast.LIFETIME,
 		landed = false,
 	}
@@ -155,6 +196,7 @@ local function adopt(model: Model)
 		model = model,
 		center = model:GetBoundingBox().Position,
 		progress = 0,
+		bites = {},
 		expiresAt = math.huge,
 		landed = true,
 		home = model.Parent,
@@ -164,6 +206,7 @@ end
 local function park(food: Food)
 	food.model.Parent = nil
 	food.progress = 0
+	table.clear(food.bites)
 	food.readyAt = os.clock() + Feast.PROP_RESPAWN
 end
 
@@ -195,21 +238,37 @@ local function awardResilience(player: Player, profile: any, clicks: number)
 	return gain
 end
 
-local function finish(player: Player, profile: any, food: Food)
+local function payout(food: Food, player: Player, profile: any, share: number)
 	local def = food.def
-	local yen = BigNumber.mulNumber(Formulas.yenPerSecond(profile), def.wageSeconds)
+	local yen = BigNumber.mulNumber(Formulas.yenPerSecond(profile), def.wageSeconds * share)
 	CurrencyService.award(profile, "yen", yen)
 	Boosts.applyFood(profile, def.buff, Constants.FOOD.DURATION_TIER)
 
-	local gain = awardResilience(player, profile, def.clicks * Feast.FINISH_XP_PER_CLICK)
+	local gain = awardResilience(player, profile, def.clicks * Feast.FINISH_XP_PER_CLICK * share)
 
 	NotifyService.send(
 		player,
-		`You finished the {def.name}! +{BigNumber.toString(yen)} yen, +{BigNumber.toString(gain)} Resilience, and {Boosts.describeFood(
-			def.buff
-		)}.`,
+		`The {def.name} is gone! You ate {math.round(share * 100)}% of it: +{BigNumber.toString(
+			yen
+		)} yen, +{BigNumber.toString(gain)} Resilience, and {Boosts.describeFood(def.buff)}.`,
 		"reward"
 	)
+end
+
+local function finish(food: Food)
+	local total = 0
+	for _, count in food.bites do
+		total += count
+	end
+
+	if total > 0 then
+		for player, count in food.bites do
+			local profile = DataService.get(player)
+			if profile then
+				payout(food, player, profile, count / total)
+			end
+		end
+	end
 
 	tell(food, "done")
 
@@ -251,11 +310,12 @@ function FeastService.bite(player: Player, profile: any): boolean
 	end
 
 	food.progress += 1
+	food.bites[player] = (food.bites[player] or 0) + 1
 	food.expiresAt = os.clock() + Feast.LIFETIME
 	awardResilience(player, profile, Feast.XP_PER_BITE)
 
 	if food.progress >= food.def.clicks then
-		finish(player, profile, food)
+		finish(food)
 	else
 		tell(food, "progress")
 	end
@@ -294,6 +354,17 @@ function FeastService.init()
 	end
 
 	reserved = Layout.reservedZones(area)
+
+	groundParams.FilterType = Enum.RaycastFilterType.Include
+	groundParams.FilterDescendantsInstances = { Workspace.Terrain }
+
+	Players.PlayerRemoving:Connect(function(player)
+		for _, list in { alive, props } do
+			for _, food in list do
+				food.bites[player] = nil
+			end
+		end
+	end)
 
 	folder = Instance.new("Folder")
 	folder.Name = "Feast"

@@ -1,6 +1,7 @@
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Boosts = require(Shared.Modules.Boosts)
 local Constants = require(Shared.Modules.Constants)
@@ -13,6 +14,7 @@ local StateController = require(script.Parent.Parent.Controllers.StateController
 local UIManager = require(script.Parent.UIManager)
 local InventoryMenu = {}
 local MENU_ID = "inventory"
+local TOGGLE_ACTION = "InventoryToggle"
 local INGREDIENT_CELL = UDim2.fromOffset(160, 96)
 local CONSUMABLE_CELL = UDim2.fromOffset(246, 122)
 local USE_COOLDOWN = 0.5
@@ -185,9 +187,9 @@ local function buildConsumableCard(config: { [string]: any }, index: number)
 
 	UI.label(card, "Effect", {
 		text = effectText,
-		font = UI.font.light,
+		font = UI.font.body,
 		size = UI.text.small,
-		color = UI.color.inkSoft,
+		color = UI.color.ink,
 		wrapped = true,
 		extent = UDim2.new(1, -110, 0, 44),
 		position = UDim2.fromOffset(14, 56),
@@ -307,14 +309,15 @@ local function buildPanel(parent: ScreenGui)
 		text = "Inventory",
 		font = UI.font.display,
 		size = UI.text.title,
+		color = UI.color.ink,
 		extent = UDim2.new(1, 0, 0, 30),
 	})
 
 	UI.label(panel, "Subtitle", {
 		text = "Forage out in the world. Cook at the kitchen. Eat before a long shift.",
-		font = UI.font.light,
+		font = UI.font.body,
 		size = UI.text.small,
-		color = UI.color.inkSoft,
+		color = UI.color.ink,
 		position = UDim2.fromOffset(0, 32),
 		extent = UDim2.new(1, 0, 0, 20),
 	})
@@ -345,7 +348,7 @@ local function buildPanel(parent: ScreenGui)
 	listHolder.Size = UDim2.new(1, 0, 1, -152)
 	listHolder.ScrollingDirection = Enum.ScrollingDirection.Y
 	listHolder.ScrollBarThickness = 8
-	listHolder.ScrollBarImageColor3 = UI.color.inkSoft
+	listHolder.ScrollBarImageColor3 = UI.color.ink
 	listHolder.ScrollBarImageTransparency = 0.2
 	listHolder.CanvasSize = UDim2.fromOffset(0, 0)
 	listHolder.AutomaticCanvasSize = Enum.AutomaticSize.Y
@@ -356,9 +359,9 @@ local function buildPanel(parent: ScreenGui)
 
 	emptyLabel = UI.label(panel, "Empty", {
 		text = EMPTY_TEXT.ingredients,
-		font = UI.font.light,
-		size = UI.text.body,
-		color = UI.color.inkFaint,
+		font = UI.font.bold,
+		size = 16,
+		color = UI.color.ink,
 		align = Enum.TextXAlignment.Center,
 		wrapped = true,
 		position = UDim2.fromOffset(0, 106),
@@ -430,8 +433,8 @@ function InventoryMenu.init()
 		end
 	end)
 
-	ContextActionService:BindAction("ToggleInventory", function(_action, inputState)
-		if inputState == Enum.UserInputState.Begin then
+	ContextActionService:BindAction(TOGGLE_ACTION, function(_, inputState)
+		if inputState == Enum.UserInputState.Begin and not UserInputService:GetFocusedTextBox() then
 			InventoryMenu.toggle()
 		end
 		return Enum.ContextActionResult.Sink
