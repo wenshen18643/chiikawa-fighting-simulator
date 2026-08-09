@@ -276,7 +276,7 @@ local function refresh()
 	if surfaceLayer then
 		surfaceLayer.Visible = true
 	end
-	localTitle.Text = string.upper(area.name)
+	localTitle.Text = string.upper(if Layout.isHomePosition(area, position) then "Home" else area.name)
 
 	local offset = position - area.origin
 	local fraction = toLocalFraction(area, offset.X, offset.Z)

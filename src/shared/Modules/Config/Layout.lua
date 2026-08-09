@@ -264,6 +264,10 @@ function Layout.isTownPosition(area: Areas.AreaDefinition, position: Vector3, pa
 	return Layout.isTownPoint(localPosition.X, localPosition.Z, padding)
 end
 
+function Layout.isHomePosition(area: Areas.AreaDefinition, position: Vector3): boolean
+	return Layout.isTownPosition(area, position)
+end
+
 local function addBuildingZones(zones: { Zone }, area: Areas.AreaDefinition, frame: CFrame, footprint: Vector2)
 	local offset = frame.Position - area.origin
 	local halfWidth, halfDepth = footprint.X / 2, footprint.Y / 2

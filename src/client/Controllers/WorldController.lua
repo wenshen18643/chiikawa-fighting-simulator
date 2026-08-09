@@ -1,19 +1,24 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Areas = require(Shared.Areas)
+local Layout = require(Shared.Modules.Config.Layout)
 local Remotes = require(Shared.Modules.Remotes)
 local UI = require(Shared.UI)
 local StateController = require(script.Parent.StateController)
 local WorldController = {}
 local CARD_HOLD = 1.5
+local LOCATION_CHECK_INTERVAL = 0.25
+local HOME_NAME = "Home"
+local HOME_FLAVOUR = "Your peaceful place inside the wall."
 local screen: ScreenGui
 local card: Frame
 local cardTitle: TextLabel
 local cardSubtitle: TextLabel
 local cardRule: Frame
 local cardToken = 0
+local currentLocationName: string? = nil
 
 local function showCard(title: string, subtitle: string)
 	cardToken += 1
@@ -52,6 +57,23 @@ local function showCard(title: string, subtitle: string)
 			end
 		end)
 	end)
+end
+
+local function locationAt(position: Vector3): (string, string)
+	local area = Layout.areaAt(position)
+	if Layout.isHomePosition(area, position) then
+		return HOME_NAME, HOME_FLAVOUR
+	end
+	return area.name, area.flavour
+end
+
+local function refreshLocation(position: Vector3)
+	local name, flavour = locationAt(position)
+	if currentLocationName == name then
+		return
+	end
+	currentLocationName = name
+	showCard(name, flavour)
 end
 
 local function refreshGates(snapshot: any)
@@ -135,19 +157,45 @@ function WorldController.init()
 	})
 	cardSubtitle.TextStrokeTransparency = 0.7
 
-	Remotes.event("Region", "Entered").OnClientEvent:Connect(function(regionId)
-		local area = Areas.get(regionId)
-		if area then
-			showCard(area.name, area.flavour)
+	Remotes.event("Region", "Entered").OnClientEvent:Connect(function(_regionId)
+		local character = Players.LocalPlayer.Character
+		local rootPart = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if rootPart then
+			refreshLocation(rootPart.Position)
 		end
 	end)
 
 	Remotes.event("SafeZone", "Changed").OnClientEvent:Connect(function(isInside)
 		if isInside then
-			showCard("Home", "Nothing can reach you here.")
-		else
-			local town = Areas.BY_ID[Areas.STARTING_AREA]
-			showCard(town.name, town.flavour)
+			return
+		end
+
+		local character = Players.LocalPlayer.Character
+		local rootPart = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if not rootPart then
+			return
+		end
+
+		local position = rootPart.Position
+		local area = Layout.areaAt(position)
+		if Layout.isHomePosition(area, position) then
+			currentLocationName = HOME_NAME
+			showCard(HOME_NAME, HOME_FLAVOUR)
+		end
+	end)
+
+	local locationAccumulator = 0
+	RunService.Heartbeat:Connect(function(deltaTime)
+		locationAccumulator += deltaTime
+		if locationAccumulator < LOCATION_CHECK_INTERVAL then
+			return
+		end
+		locationAccumulator = 0
+
+		local character = Players.LocalPlayer.Character
+		local rootPart = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if rootPart then
+			refreshLocation(rootPart.Position)
 		end
 	end)
 
