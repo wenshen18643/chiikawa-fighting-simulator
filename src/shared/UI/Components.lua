@@ -686,7 +686,9 @@ function Components.modal(
 			setOpen(false)
 		end
 	end
-	scrim.Activated:Connect(close)
+	if config.dismissOnBackground ~= false then
+		scrim.Activated:Connect(close)
+	end
 
 	function setOpen(open: boolean, instant: boolean?)
 		generation += 1

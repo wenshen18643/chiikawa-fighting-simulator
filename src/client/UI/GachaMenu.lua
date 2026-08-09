@@ -788,6 +788,7 @@ local function buildPanel(parent: ScreenGui)
 		extent = UDim2.new(0.74, 0, 0.84, 0),
 		maxSize = Vector2.new(980, 680),
 		zIndex = 30,
+		dismissOnBackground = false,
 
 		onDismiss = function()
 			GachaMenu.setOpen(false)
@@ -867,6 +868,7 @@ local function buildPanel(parent: ScreenGui)
 	bodyFrame.Position = UDim2.fromOffset(0, 164)
 	bodyFrame.Size = UDim2.new(1, 0, 1, -164)
 	bodyFrame.Parent = panel
+	UI.padding(bodyFrame, 2)
 	body = bodyFrame
 
 	for _, key in { "draw", "collection", "odds" } do
@@ -897,6 +899,7 @@ local function buildPanel(parent: ScreenGui)
 	collectionList.ScrollBarThickness = 6
 	collectionList.ScrollBarImageColor3 = UI.color.inkSoft
 	collectionList.Parent = pages.collection
+	UI.padding(collectionList, 2)
 	UI.list(collectionList, 6)
 
 	detailPane = UI.card(pages.collection, "Detail", {
