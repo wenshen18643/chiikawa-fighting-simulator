@@ -226,7 +226,7 @@ local function buildPanel(parent: ScreenGui)
 	listHolder.ZIndex = panel.ZIndex + 1
 	listHolder.Parent = panel
 	UI.list(listHolder, UI.space.snug)
-	UI.padding(listHolder, 0, { right = 14 })
+	UI.padding(listHolder, UI.strokeClearance, { right = 14 })
 
 	emptyLabel = UI.label(panel, "Empty", {
 		text = "Yoroi-san has nothing on the counter. Try again in a moment.",

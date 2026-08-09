@@ -128,7 +128,7 @@ local function buildPanel(parent: ScreenGui)
 	listHolder.Parent = panel
 	UI.list(listHolder, UI.space.snug)
 
-	UI.padding(listHolder, 0, { right = 14 })
+	UI.padding(listHolder, UI.strokeClearance, { right = 14 })
 
 	closeButton = UI.button(panel, "Close", {
 		text = "Close",

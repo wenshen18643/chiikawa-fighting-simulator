@@ -461,6 +461,22 @@ local TOAST_GLYPH = {
 	info = "leaf",
 }
 
+local MAX_TOASTS = 3
+local TOAST_LIFETIME = 3.6
+
+type Toast = {
+	card: CanvasGroup,
+	text: TextLabel,
+	channel: string,
+	message: string,
+	count: number,
+	token: number,
+	dying: boolean,
+}
+
+local toasts: { Toast } = {}
+local toastSerial = 0
+
 local function buildToasts(parent: Instance)
 	toastHolder = Instance.new("Frame")
 	toastHolder.Name = "Toasts"
@@ -478,21 +494,72 @@ local function buildToasts(parent: Instance)
 	layout.Parent = toastHolder
 end
 
-local function showToast(message: string, kind: string)
+local function dismissToast(toast: Toast)
+	if toast.dying then
+		return
+	end
+	toast.dying = true
+
+	local index = table.find(toasts, toast)
+	if index then
+		table.remove(toasts, index)
+	end
+
+	local out = UI.motion.play(toast.card, UI.motion.wipe, { GroupTransparency = 1 })
+	out.Completed:Once(function()
+		toast.card:Destroy()
+	end)
+end
+
+local function armToast(toast: Toast)
+	toast.token += 1
+	local token = toast.token
+	task.delay(TOAST_LIFETIME, function()
+		if toast.token == token then
+			dismissToast(toast)
+		end
+	end)
+end
+
+local function refreshToast(toast: Toast, message: string)
+	toast.count = if toast.message == message then toast.count + 1 else 1
+	toast.message = message
+	toast.text.Text = if toast.count > 1 then `{message}  x{toast.count}` else message
+	armToast(toast)
+end
+
+local function showToast(message: string, kind: string, key: string?)
+	local channel = key or message
+
+	for _, toast in toasts do
+		if toast.channel == channel then
+			refreshToast(toast, message)
+			return
+		end
+	end
+
+	while #toasts >= MAX_TOASTS do
+		dismissToast(toasts[1])
+	end
+
 	local isUnlock = kind == "unlock"
-	local card = Instance.new("Frame")
+	local fill = UI.fill(if isUnlock then UI.color.leaf else UI.color.paper)
+	toastSerial += 1
+
+	local card = Instance.new("CanvasGroup")
 	card.Size = UDim2.new(1, 0, 0, 44)
-	card.BackgroundColor3 = if isUnlock then UI.color.leaf else UI.color.paper
-	card.BackgroundTransparency = 1
+	card.BackgroundColor3 = fill
+	card.BackgroundTransparency = 0.02
+	card.GroupTransparency = 1
 	card.BorderSizePixel = 0
+	card.LayoutOrder = toastSerial
 	card.ZIndex = 11
 	card.Parent = toastHolder
 	UI.corner(card, UI.radius.card)
-	local stroke = UI.stroke(card, if isUnlock then UI.color.leafDeep else UI.color.line)
-	stroke.Transparency = 1
+	UI.stroke(card, if isUnlock then UI.color.leafDeep else UI.color.line).Transparency = 0.35
 
-	local glyph = UI.glyph(card, TOAST_GLYPH[kind] or "leaf", {
-		color = if isUnlock then UI.readable(UI.color.leaf) else UI.color.inkSoft,
+	UI.glyph(card, TOAST_GLYPH[kind] or "leaf", {
+		color = if isUnlock then UI.legible(fill) else UI.color.inkSoft,
 		extent = UDim2.fromOffset(16, 16),
 		anchor = Vector2.new(0, 0.5),
 		position = UDim2.new(0, 14, 0.5, 0),
@@ -503,27 +570,27 @@ local function showToast(message: string, kind: string)
 		text = message,
 		font = if isUnlock then UI.font.bold else UI.font.body,
 		size = 13,
-		color = if isUnlock then UI.readable(UI.color.leaf) else UI.color.ink,
+		color = UI.legible(fill),
 		align = Enum.TextXAlignment.Left,
 		wrapped = true,
 		extent = UDim2.new(1, -50, 1, 0),
 		position = UDim2.fromOffset(38, 0),
 		zIndex = 12,
 	})
-	text.TextTransparency = 1
 
-	UI.motion.to(card, UI.motion.settle, { BackgroundTransparency = 0.02 })
-	UI.motion.to(stroke, UI.motion.settle, { Transparency = 0.35 })
-	UI.motion.to(text, UI.motion.settle, { TextTransparency = 0 })
+	local toast: Toast = {
+		card = card,
+		text = text,
+		channel = channel,
+		message = message,
+		count = 1,
+		token = 0,
+		dying = false,
+	}
+	table.insert(toasts, toast)
 
-	task.delay(3.6, function()
-		UI.motion.to(text, UI.motion.wipe, { TextTransparency = 1 })
-		UI.motion.to(glyph, UI.motion.wipe, { BackgroundTransparency = 1 })
-		UI.motion.to(stroke, UI.motion.wipe, { Transparency = 1 })
-		local out = UI.motion.play(card, UI.motion.wipe, { BackgroundTransparency = 1 })
-		out.Completed:Wait()
-		card:Destroy()
-	end)
+	UI.motion.to(card, UI.motion.settle, { GroupTransparency = 0 })
+	armToast(toast)
 end
 
 local function gradeProgress(value: any): (number, number)

@@ -214,6 +214,7 @@ function GachaResults.show(
 	resultList.ScrollBarThickness = 5
 	resultList.Size = UDim2.new(1, -48, 1, -180)
 	resultList.Parent = panel
+	UI.padding(resultList, UI.strokeClearance)
 
 	local cards: { { result: PullResult, presentation: Presentation } } = {}
 	local withPreview = false

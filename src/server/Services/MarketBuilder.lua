@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Market = require(Shared.Modules.Config.Market)
+local Sections = require(Shared.Modules.Config.Sections)
 local Streets = require(Shared.Modules.Config.Streets)
 local MarketBuilder = {}
 
@@ -33,16 +34,16 @@ local PEACH_DARK = Color3.fromRGB(220, 132, 118)
 local WOOD = Color3.fromRGB(153, 108, 76)
 local WOOD_DARK = Color3.fromRGB(100, 69, 55)
 local WARM = Color3.fromRGB(255, 225, 177)
-local CANVAS = Color3.fromRGB(238, 226, 210)
 local SURFACE_Y = Streets.SURFACE_Y
-local HALF = Market.HALF.X
+local HALF_X = Market.HALF.X
+local HALF_Z = Market.HALF.Y
 local TERRACE_WIDTH = Market.TERRACE
-local ARCADE_INSET = 7
-local POST_SPACING = 12.5
+local ARCADE_INSET = 3
+local POST_SPACING = 16
 local POST_HEIGHT = 11
 local POST_THICK = 1.5
 local BEAM_HEIGHT = 1.3
-local ROOF_DEPTH = 9
+local ROOF_DEPTH = 7
 local ROOF_PITCH = 11
 local ENTRANCE_GAP = 20
 local ARCH_HEIGHT = 15
@@ -73,10 +74,12 @@ end
 
 local function buildTerrace(parent: Instance, origin: Vector3)
 	local rise = (SURFACE_Y - Constants.WORLD.TERRAIN_TOP) / 2
+	local spanX = (HALF_X + TERRACE_WIDTH) * 2
+	local spanZ = (HALF_Z + TERRACE_WIDTH) * 2
 
 	makePart(parent, {
 		name = "TerraceStep",
-		size = Vector3.new((HALF + TERRACE_WIDTH) * 2, 4, (HALF + TERRACE_WIDTH) * 2),
+		size = Vector3.new(spanX, 4, spanZ),
 		cframe = at(origin, 0, -rise - 2, 0),
 		color = PAPER,
 		material = Enum.Material.Slate,
@@ -84,7 +87,7 @@ local function buildTerrace(parent: Instance, origin: Vector3)
 
 	makePart(parent, {
 		name = "TerraceLip",
-		size = Vector3.new((HALF + TERRACE_WIDTH) * 2 + 0.6, 0.4, (HALF + TERRACE_WIDTH) * 2 + 0.6),
+		size = Vector3.new(spanX + 0.6, 0.4, spanZ + 0.6),
 		cframe = at(origin, 0, -rise - 0.2, 0),
 		color = PEACH_LIGHT,
 		material = Enum.Material.Slate,
@@ -97,10 +100,10 @@ end
 local function buildPlaza(parent: Instance, origin: Vector3)
 	local band = 5
 	local runs = {
-		{ x = 0, z = HALF - band / 2, sx = HALF * 2, sz = band },
-		{ x = 0, z = -HALF + band / 2, sx = HALF * 2, sz = band },
-		{ x = -HALF + band / 2, z = 0, sx = band, sz = HALF * 2 },
-		{ x = HALF - band / 2, z = 0, sx = band, sz = HALF * 2 },
+		{ x = 0, z = HALF_Z - band / 2, sx = HALF_X * 2, sz = band },
+		{ x = 0, z = -HALF_Z + band / 2, sx = HALF_X * 2, sz = band },
+		{ x = -HALF_X + band / 2, z = 0, sx = band, sz = HALF_Z * 2 },
+		{ x = HALF_X - band / 2, z = 0, sx = band, sz = HALF_Z * 2 },
 	}
 
 	for index, run in runs do
@@ -118,8 +121,8 @@ local function buildPlaza(parent: Instance, origin: Vector3)
 
 	makePart(parent, {
 		name = "PlazaMedallion",
-		size = Vector3.new(26, 0.3, 26),
-		cframe = at(origin, 0, 0.06, -6) * CFrame.Angles(0, math.rad(45), 0),
+		size = Vector3.new(27, 0.3, 27),
+		cframe = at(origin, 0, 0.06, 0) * CFrame.Angles(0, math.rad(45), 0),
 		color = PAPER,
 		material = Enum.Material.Slate,
 		canCollide = false,
@@ -130,7 +133,7 @@ local function buildPlaza(parent: Instance, origin: Vector3)
 	makePart(parent, {
 		name = "PlazaMedallionInner",
 		size = Vector3.new(14, 0.3, 14),
-		cframe = at(origin, 0, 0.08, -6) * CFrame.Angles(0, math.rad(45), 0),
+		cframe = at(origin, 0, 0.08, 0) * CFrame.Angles(0, math.rad(45), 0),
 		color = PEACH,
 		material = Enum.Material.Slate,
 		canCollide = false,
@@ -139,7 +142,7 @@ local function buildPlaza(parent: Instance, origin: Vector3)
 	})
 end
 
-local function buildPost(parent: Instance, origin: Vector3, x: number, z: number, index: number)
+local function buildPost(parent: Instance, origin: Vector3, x: number, z: number, index: string)
 	makePart(parent, {
 		name = `ArcadePost_{index}`,
 		size = Vector3.new(POST_THICK, POST_HEIGHT, POST_THICK),
@@ -176,7 +179,7 @@ local function buildArcadeRun(
 		local slide = config.from + span * ((index - 1) / (count - 1))
 		local x = if alongX then slide else config.fixed
 		local z = if alongX then config.fixed else slide
-		buildPost(parent, origin, x, z, index)
+		buildPost(parent, origin, x, z, `{config.tag}_{index}`)
 	end
 
 	local midSlide = (config.from + config.to) / 2
@@ -232,12 +235,14 @@ local function buildArcadeRun(
 end
 
 local function buildArcade(parent: Instance, origin: Vector3)
-	local edge = HALF - ARCADE_INSET
+	local reach = HALF_X - ARCADE_INSET
+	local north = HALF_Z - ARCADE_INSET
+	local south = -north
 
 	buildArcadeRun(parent, origin, {
 		along = "x",
-		fixed = edge,
-		from = -edge,
+		fixed = north,
+		from = -reach,
 		to = -ENTRANCE_GAP / 2,
 		inward = -1,
 		tag = "NorthWest",
@@ -245,27 +250,37 @@ local function buildArcade(parent: Instance, origin: Vector3)
 
 	buildArcadeRun(parent, origin, {
 		along = "x",
-		fixed = edge,
+		fixed = north,
 		from = ENTRANCE_GAP / 2,
-		to = edge,
+		to = reach,
 		inward = -1,
 		tag = "NorthEast",
 	})
+
+	buildArcadeRun(parent, origin, {
+		along = "x",
+		fixed = south,
+		from = -reach,
+		to = reach,
+		inward = 1,
+		tag = "South",
+	})
 end
 
-local STALL_STANDOFF = 12
+local STALL = Market.STALL
+local STALL_STANDOFF = 10
 local NOREN_WIDTH = 9
 local NOREN_POST = 6.5
 
-local function buildStallFront(parent: Instance, origin: Vector3, index: number, x: number, z: number, facing: number)
-	local frame = at(origin, x, 0, z) * CFrame.Angles(0, math.rad(facing), 0) * CFrame.new(0, 0, -STALL_STANDOFF)
+local function buildNoren(parent: Instance, frame: CFrame, style: Market.StallStyle, index: number)
+	local base = frame * CFrame.new(0, 0, -STALL_STANDOFF)
 
 	for _, side in { -1, 1 } do
 		makePart(parent, {
 			name = `NorenPost_{index}`,
 			size = Vector3.new(0.42, NOREN_POST, 0.42),
-			cframe = frame * CFrame.new(side * NOREN_WIDTH / 2, NOREN_POST / 2, 0),
-			color = WOOD,
+			cframe = base * CFrame.new(side * NOREN_WIDTH / 2, NOREN_POST / 2, 0),
+			color = style.timber,
 			material = Enum.Material.Wood,
 		})
 	end
@@ -273,7 +288,7 @@ local function buildStallFront(parent: Instance, origin: Vector3, index: number,
 	makePart(parent, {
 		name = `NorenRail_{index}`,
 		size = Vector3.new(NOREN_WIDTH + 1, 0.36, 0.36),
-		cframe = frame * CFrame.new(0, NOREN_POST, 0),
+		cframe = base * CFrame.new(0, NOREN_POST, 0),
 		color = WOOD_DARK,
 		material = Enum.Material.Wood,
 		canCollide = false,
@@ -283,8 +298,8 @@ local function buildStallFront(parent: Instance, origin: Vector3, index: number,
 	makePart(parent, {
 		name = `NorenCloth_{index}`,
 		size = Vector3.new(NOREN_WIDTH, 2.1, 0.2),
-		cframe = frame * CFrame.new(0, NOREN_POST - 1.05, 0),
-		color = if index % 2 == 0 then PEACH_DARK else CANVAS,
+		cframe = base * CFrame.new(0, NOREN_POST - 1.05, 0),
+		color = style.canopy,
 		material = Enum.Material.Fabric,
 		canCollide = false,
 		canQuery = false,
@@ -293,25 +308,303 @@ local function buildStallFront(parent: Instance, origin: Vector3, index: number,
 	makePart(parent, {
 		name = `StallCrate_{index}`,
 		size = Vector3.new(2.8, 2.2, 2.8),
-		cframe = frame * CFrame.new(NOREN_WIDTH / 2 + 1.8, 1.1, 0.6) * CFrame.Angles(0, math.rad(16), 0),
+		cframe = base * CFrame.new(NOREN_WIDTH / 2 + 1.8, 1.1, 0.6) * CFrame.Angles(0, math.rad(16), 0),
 		color = WOOD_DARK,
 		material = Enum.Material.WoodPlanks,
 	})
 end
 
-local function buildStallDressing(parent: Instance, origin: Vector3)
-	local index = 0
-	for _, row in Market.stalls do
-		if not row.faceEntrance or row.name ~= nil then
-			continue
+local function buildGable(
+	parent: Instance,
+	frame: CFrame,
+	style: Market.StallStyle,
+	eaveY: number,
+	span: number,
+	depth: number,
+	rise: number
+)
+	local half = depth / 2
+	local pitch = math.atan2(rise, half)
+	local slope = math.sqrt(half * half + rise * rise)
+
+	for _, side in { -1, 1 } do
+		makePart(parent, {
+			name = "RoofSlope",
+			size = Vector3.new(span, STALL.roofThickness, slope),
+			cframe = frame * CFrame.new(0, eaveY + rise / 2, side * half / 2) * CFrame.Angles(side * pitch, 0, 0),
+			color = style.tile,
+			material = Enum.Material.Slate,
+			canCollide = false,
+			canQuery = false,
+		})
+	end
+
+	makePart(parent, {
+		name = "RoofRidge",
+		size = Vector3.new(span + 0.6, 0.5, 1.3),
+		cframe = frame * CFrame.new(0, eaveY + rise + 0.2, 0),
+		color = style.trim,
+		material = Enum.Material.Slate,
+		canCollide = false,
+		canQuery = false,
+	})
+end
+
+local function buildArch(
+	parent: Instance,
+	frame: CFrame,
+	style: Market.StallStyle,
+	eaveY: number,
+	span: number,
+	depth: number
+)
+	local segments = STALL.roofSegments
+	local spread = math.rad(120)
+	local radius = (depth / 2) / math.sin(spread / 2)
+	local seat = radius * math.cos(spread / 2)
+	local slab = radius * spread / segments + 0.3
+
+	for index = 1, segments do
+		local angle = -spread / 2 + spread * ((index - 0.5) / segments)
+		makePart(parent, {
+			name = `RoofArch_{index}`,
+			size = Vector3.new(span, STALL.roofThickness, slab),
+			cframe = frame
+				* CFrame.new(0, eaveY + radius * math.cos(angle) - seat, radius * math.sin(angle))
+				* CFrame.Angles(angle, 0, 0),
+			color = if index % 2 == 0 then style.trim else style.tile,
+			material = Enum.Material.Slate,
+			canCollide = false,
+			canQuery = false,
+		})
+	end
+end
+
+local function buildRoof(parent: Instance, frame: CFrame, style: Market.StallStyle): number
+	local eaveY = STALL.plinth + STALL.postHeight
+	local span = STALL.width + STALL.roofOverhang * 2
+	local depth = STALL.depth + STALL.roofOverhang * 2
+	local rise = STALL.roofRise
+
+	if style.roof == "arch" then
+		buildArch(parent, frame, style, eaveY, span, depth)
+		return eaveY + (depth / 2) / math.sin(math.rad(60)) * (1 - math.cos(math.rad(60)))
+	end
+
+	if style.roof == "pagoda" then
+		buildGable(parent, frame, style, eaveY, span, depth, rise * 0.55)
+
+		for _, side in { -1, 1 } do
+			makePart(parent, {
+				name = "EaveUpturn",
+				size = Vector3.new(2.4, 0.5, 1.6),
+				cframe = frame * CFrame.new(side * (span / 2 - 1.2), eaveY + 0.45, -depth / 2 + 1)
+					* CFrame.Angles(0, 0, side * math.rad(20)),
+				color = style.trim,
+				material = Enum.Material.Slate,
+				canCollide = false,
+				canQuery = false,
+			})
 		end
-		index += 1
-		buildStallFront(parent, origin, index, row.x, row.z, Market.yawFor(row) - Market.STALL_FRONT_OFFSET)
+
+		local upper = eaveY + rise * 0.55 + 0.8
+		buildGable(parent, frame, style, upper, span * 0.62, depth * 0.62, rise * 0.6)
+		return upper + rise * 0.6 + 0.45
+	end
+
+	buildGable(parent, frame, style, eaveY, span, depth, rise)
+	return eaveY + rise + 0.45
+end
+
+local function buildTopper(parent: Instance, frame: CFrame, style: Market.StallStyle, peakY: number)
+	local span = STALL.width + STALL.roofOverhang * 2
+	local lip = -(STALL.depth + STALL.roofOverhang * 2) / 2
+
+	if style.topper == "lantern" then
+		for _, side in { -1, 1 } do
+			makePart(parent, {
+				name = "StallLantern",
+				shape = Enum.PartType.Ball,
+				size = Vector3.new(2.1, 2.1, 2.1),
+				cframe = frame * CFrame.new(side * (span / 2 - 1.4), peakY - 2.6, lip + 0.6),
+				color = WARM,
+				material = Enum.Material.Neon,
+				canCollide = false,
+				canQuery = false,
+				castShadow = false,
+			})
+		end
+		return
+	end
+
+	if style.topper == "ball" then
+		makePart(parent, {
+			name = "RidgeFinial",
+			shape = Enum.PartType.Ball,
+			size = Vector3.new(2.4, 2.4, 2.4),
+			cframe = frame * CFrame.new(0, peakY + 0.9, 0),
+			color = style.trim,
+			material = Enum.Material.SmoothPlastic,
+			canCollide = false,
+			canQuery = false,
+		})
+
+		for _, side in { -1, 1 } do
+			makePart(parent, {
+				name = "CornerFinial",
+				shape = Enum.PartType.Ball,
+				size = Vector3.new(1.3, 1.3, 1.3),
+				cframe = frame * CFrame.new(side * (span / 2 - 0.7), peakY - 2.2, lip + 0.5),
+				color = style.canopy,
+				material = Enum.Material.SmoothPlastic,
+				canCollide = false,
+				canQuery = false,
+				castShadow = false,
+			})
+		end
+		return
+	end
+
+	local flags = 7
+	local step = (span - 1.6) / (flags - 1)
+
+	for index = 1, flags do
+		makePart(parent, {
+			name = `Pennant_{index}`,
+			size = Vector3.new(1.5, 1.7, 0.16),
+			cframe = frame * CFrame.new(-span / 2 + 0.8 + step * (index - 1), peakY - 1.9, lip + 0.4)
+				* CFrame.Angles(0, 0, math.rad(if index % 2 == 0 then 12 else -12)),
+			color = if index % 2 == 0 then style.canopy else style.trim,
+			material = Enum.Material.Fabric,
+			canCollide = false,
+			canQuery = false,
+			castShadow = false,
+		})
+	end
+end
+
+local function buildAwning(parent: Instance, frame: CFrame, style: Market.StallStyle, lip: number)
+	local pitch = math.rad(STALL.awningPitch)
+	local drop = math.sin(pitch) * STALL.awningDepth / 2
+	local width = STALL.width + 1.6
+	local stripe = width / STALL.awningStripes
+	local y = STALL.plinth + STALL.postHeight + 0.5 - drop
+	local z = lip + 0.9 - STALL.awningDepth / 2
+
+	for index = 1, STALL.awningStripes do
+		makePart(parent, {
+			name = `Awning_{index}`,
+			size = Vector3.new(stripe, 0.45, STALL.awningDepth),
+			cframe = frame * CFrame.new(-width / 2 + stripe * (index - 0.5), y, z) * CFrame.Angles(-pitch, 0, 0),
+			color = if index % 2 == 0 then style.stripe else style.canopy,
+			material = Enum.Material.Fabric,
+			canCollide = false,
+			canQuery = false,
+		})
+	end
+
+	makePart(parent, {
+		name = "AwningFascia",
+		size = Vector3.new(width + 0.4, 0.75, 0.5),
+		cframe = frame * CFrame.new(0, y - drop - 0.15, z - STALL.awningDepth / 2),
+		color = WHITE,
+		material = Enum.Material.SmoothPlastic,
+		canCollide = false,
+		canQuery = false,
+	})
+end
+
+local function buildStall(origin: Vector3, row: Market.Stall, index: number): Model
+	local model = Instance.new("Model")
+	model.Name = row.name or `Stall_{index}`
+
+	local style = Market.STALL_STYLES[row.style]
+	local frame = at(origin, row.x, 0, row.z) * CFrame.Angles(0, math.rad(row.yaw), 0)
+	local halfWidth = STALL.width / 2
+	local halfDepth = STALL.depth / 2
+	local lip = -halfDepth
+
+	local base = makePart(model, {
+		name = "Base",
+		size = Vector3.new(STALL.width + 1.6, STALL.plinth, STALL.depth + 1.6),
+		cframe = frame * CFrame.new(0, STALL.plinth / 2, 0),
+		color = PAPER,
+		material = Enum.Material.Slate,
+	})
+
+	makePart(model, {
+		name = "BackPanel",
+		size = Vector3.new(STALL.width, STALL.backHeight, 0.9),
+		cframe = frame * CFrame.new(0, STALL.plinth + STALL.backHeight / 2, halfDepth - 0.45),
+		color = style.timber,
+		material = Enum.Material.WoodPlanks,
+	})
+
+	makePart(model, {
+		name = "SignBoard",
+		size = Vector3.new(STALL.width * 0.62, STALL.signHeight, 0.4),
+		cframe = frame * CFrame.new(0, STALL.plinth + STALL.backHeight - STALL.signHeight, halfDepth - 1.1),
+		color = style.trim,
+		material = Enum.Material.Wood,
+		canCollide = false,
+		canQuery = false,
+	})
+
+	for _, side in { -1, 1 } do
+		makePart(model, {
+			name = "SidePanel",
+			size = Vector3.new(0.9, STALL.sideHeight, STALL.depth),
+			cframe = frame * CFrame.new(side * (halfWidth - 0.45), STALL.plinth + STALL.sideHeight / 2, 0),
+			color = style.timber,
+			material = Enum.Material.WoodPlanks,
+		})
+
+		makePart(model, {
+			name = "Post",
+			size = Vector3.new(STALL.postThickness, STALL.postHeight, STALL.postThickness),
+			cframe = frame
+				* CFrame.new(side * (halfWidth - 0.45), STALL.plinth + STALL.postHeight / 2, lip + 0.45),
+			color = WOOD_DARK,
+			material = Enum.Material.Wood,
+		})
+	end
+
+	makePart(model, {
+		name = "Counter",
+		size = Vector3.new(STALL.width, STALL.counterHeight, STALL.counterDepth),
+		cframe = frame * CFrame.new(0, STALL.plinth + STALL.counterHeight / 2, lip + STALL.counterDepth / 2),
+		color = style.timber,
+		material = Enum.Material.WoodPlanks,
+	})
+
+	makePart(model, {
+		name = "CounterTop",
+		size = Vector3.new(STALL.width + 1.6, 0.5, STALL.counterDepth + 1.4),
+		cframe = frame
+			* CFrame.new(0, STALL.plinth + STALL.counterHeight + 0.25, lip + STALL.counterDepth / 2 - 0.3),
+		color = PAPER,
+		material = Enum.Material.WoodPlanks,
+	})
+
+	buildAwning(model, frame, style, lip)
+	buildTopper(model, frame, style, buildRoof(model, frame, style))
+
+	if row.name == nil then
+		buildNoren(model, frame, style, index)
+	end
+
+	model.PrimaryPart = base
+	return model
+end
+
+function MarketBuilder.stalls(parent: Instance, origin: Vector3)
+	for index, row in Market.STALLS do
+		buildStall(origin, row, index).Parent = parent
 	end
 end
 
 local function buildEntranceArch(parent: Instance, origin: Vector3)
-	local z = HALF - ARCADE_INSET
+	local z = HALF_Z - ARCADE_INSET
 	local halfGap = ENTRANCE_GAP / 2
 
 	for _, side in { -1, 1 } do
@@ -357,7 +650,7 @@ local function buildSign(parent: Instance, origin: Vector3)
 	local sign = makePart(parent, {
 		name = "MarketSign",
 		size = Vector3.new(ENTRANCE_GAP + 3, 4.2, 0.6),
-		cframe = at(origin, 0, ARCH_HEIGHT + 1.1, HALF - ARCADE_INSET + 1.3),
+		cframe = at(origin, 0, ARCH_HEIGHT + 1.1, HALF_Z - ARCADE_INSET + 1.3),
 		color = PAPER,
 		material = Enum.Material.Wood,
 		canCollide = false,
@@ -385,32 +678,22 @@ local function buildSign(parent: Instance, origin: Vector3)
 	label.Parent = surface
 end
 
-local function buildApproach(parent: Instance, origin: Vector3)
-	for index = 1, 7 do
-		makePart(parent, {
-			name = "ApproachStone",
-			size = Vector3.new(12, 0.35, 4),
-			cframe = at(origin, 0, 0.1, HALF + 2 + (index - 1) * 4.5),
-			color = if index % 2 == 0 then WHITE else PEACH_LIGHT,
-			material = Enum.Material.Slate,
-			canCollide = false,
-			canQuery = false,
-			castShadow = false,
-		})
-	end
-end
+local LAMP_SPACING = 52
 
 local function buildLighting(parent: Instance, origin: Vector3)
-	local under = HALF - ARCADE_INSET - 4
+	local under = HALF_Z - ARCADE_INSET - 1.5
+	local reach = HALF_X - ARCADE_INSET - 8
+	local count = math.max(2, math.round(reach * 2 / LAMP_SPACING) + 1)
+	local spots: { Vector3 } = {}
 
-	local spots = {
-		Vector3.new(-34, POST_HEIGHT - 1.4, under),
-		Vector3.new(-16, POST_HEIGHT - 1.4, under),
-		Vector3.new(16, POST_HEIGHT - 1.4, under),
-		Vector3.new(34, POST_HEIGHT - 1.4, under),
-		Vector3.new(-ENTRANCE_GAP / 2, ARCH_HEIGHT - 0.8, HALF - ARCADE_INSET),
-		Vector3.new(ENTRANCE_GAP / 2, ARCH_HEIGHT - 0.8, HALF - ARCADE_INSET),
-	}
+	for index = 1, count do
+		local x = -reach + reach * 2 * ((index - 1) / (count - 1))
+		table.insert(spots, Vector3.new(x, POST_HEIGHT - 1.4, under))
+		table.insert(spots, Vector3.new(x, POST_HEIGHT - 1.4, -under))
+	end
+
+	table.insert(spots, Vector3.new(-ENTRANCE_GAP / 2, ARCH_HEIGHT - 0.8, HALF_Z - ARCADE_INSET))
+	table.insert(spots, Vector3.new(ENTRANCE_GAP / 2, ARCH_HEIGHT - 0.8, HALF_Z - ARCADE_INSET))
 
 	for index, spot in spots do
 		local lamp = makePart(parent, {
@@ -437,15 +720,14 @@ end
 function MarketBuilder.build(parent: Instance, origin: Vector3): BuildResult
 	local model = Instance.new("Model")
 	model.Name = "MarketHall"
-	model:SetAttribute("Cell", "C3")
+	local cell = Sections.cellAt(Market.CENTRE.X, Market.CENTRE.Y)
+	model:SetAttribute("Cell", if cell then cell.coord else "")
 
 	buildTerrace(model, origin)
 	buildPlaza(model, origin)
 	buildArcade(model, origin)
-	buildStallDressing(model, origin)
 	buildEntranceArch(model, origin)
 	buildSign(model, origin)
-	buildApproach(model, origin)
 	buildLighting(model, origin)
 
 	model.Parent = parent

@@ -59,7 +59,7 @@ end
 local function tintFor(row: Row, index: number): Color3
 	local definition = row.skill and Skills.get(row.skill)
 	if definition then
-		return definition.color
+		return UI.fill(definition.color)
 	end
 	return ROW_TINTS[(index - 1) % #ROW_TINTS + 1]
 end
@@ -68,8 +68,9 @@ local function buildRow(row: Row, index: number)
 	local tint = tintFor(row, index)
 
 	local card = UI.card(listHolder, row.id, {
-		color = UI.color.paper,
+		surface = "card",
 		radius = UI.radius.chip,
+		strokeWidth = UI.Theme.stroke.base,
 	})
 	card.Size = UDim2.new(1, 0, 0, ROW_HEIGHT)
 	card.LayoutOrder = index
@@ -103,7 +104,6 @@ local function buildRow(row: Row, index: number)
 	local costChip = UI.chip(card, "Cost", {
 		text = "",
 		color = UI.color.paperSunken,
-		textColor = UI.color.gold,
 		extent = UDim2.fromOffset(150, 22),
 		position = UDim2.new(1, -166, 0, UI.space.snug),
 	})
@@ -181,7 +181,8 @@ local function paintRow(row: Row)
 
 	button.Text = `{BigNumber.toString(row.cost)} yen`
 	button.BackgroundColor3 = if parts.enabled then parts.tint else UI.color.paperSunken
-	button.TextColor3 = if parts.enabled then UI.color.paperDeep else UI.color.inkFaint
+	button.TextColor3 =
+		UI.legible(button.BackgroundColor3, if parts.enabled then UI.color.paperDeep else UI.color.inkFaint)
 	button.Active = parts.enabled
 end
 
@@ -255,7 +256,7 @@ local function buildPanel(parent: ScreenGui)
 	listHolder.ZIndex = panel.ZIndex + 1
 	listHolder.Parent = panel
 	UI.list(listHolder, UI.space.snug)
-	UI.padding(listHolder, 0, { right = 14 })
+	UI.padding(listHolder, UI.strokeClearance, { right = 14 })
 
 	closeButton = UI.button(panel, "Close", {
 		text = "Close",

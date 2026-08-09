@@ -204,28 +204,51 @@ function BigNumber.toNumber(a: BigNum?): number
 	return a.m * 10 ^ a.e
 end
 
+local PLAIN_DIGITS = 4
+
+local function grouped(value: number): string
+	local text = string.format("%d", value)
+	local sign, digits = text:match("^(-?)(%d+)$")
+	if not digits then
+		return text
+	end
+
+	local spaced = digits:reverse():gsub("(%d%d%d)", "%1,"):reverse()
+	return sign .. (spaced:gsub("^,", ""))
+end
+
 function BigNumber.toString(a: BigNum?): string
 	if not a or type(a) ~= "table" or not a.m or a.m == 0 then
 		return "0"
 	end
 
-	if a.e < 3 then
-		local value = a.m * 10 ^ a.e
-		if a.e < 0 then
-			return string.format("%.2f", value)
-		end
-		return string.format("%d", math.floor(value))
+	if a.e < 0 then
+		return string.format("%.2f", a.m * 10 ^ a.e)
+	end
+
+	if a.e < PLAIN_DIGITS then
+		return grouped(math.floor(a.m * 10 ^ a.e + 0.5))
 	end
 
 	local tier = math.floor(a.e / 3)
-	local suffix = SUFFIXES[tier]
 	local scaled = a.m * 10 ^ (a.e - tier * 3)
 
+	if scaled >= 999.995 then
+		tier += 1
+		scaled /= 1000
+	end
+
+	local suffix = SUFFIXES[tier]
 	if not suffix then
 		return string.format("%.2fe%d", a.m, a.e)
 	end
 
-	return string.format("%.2f%s", scaled, suffix)
+	if scaled < 9.9995 then
+		return string.format("%.2f%s", scaled, suffix)
+	elseif scaled < 99.995 then
+		return string.format("%.1f%s", scaled, suffix)
+	end
+	return string.format("%.0f%s", scaled, suffix)
 end
 
 return BigNumber

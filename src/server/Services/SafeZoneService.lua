@@ -8,6 +8,7 @@ local Areas = require(Shared.Areas)
 local Assets = require(Shared.Modules.Config.Assets)
 local Remotes = require(Shared.Modules.Remotes)
 local SafeZone = require(Shared.Modules.Config.SafeZone)
+local Streets = require(Shared.Modules.Config.Streets)
 local UI = require(Shared.UI)
 local AssetService = require(script.Parent.AssetService)
 local WeedService = require(script.Parent.WeedService)
@@ -699,25 +700,34 @@ end
 
 local function buildFence()
 	local garden = SafeZone.garden
-	local halfX = SafeZone.VOLUME.size.X / 2 - garden.fenceInset
-	local frontZ = SafeZone.VOLUME.centreOffset.Z + SafeZone.VOLUME.size.Z / 2 - garden.fenceInset
-	local backZ = SafeZone.VOLUME.centreOffset.Z - SafeZone.VOLUME.size.Z / 2 + garden.fenceInset
+	local halfX = garden.halfX
+	local frontZ = garden.frontZ
+	local backZ = garden.backZ
+	local footY = garden.baseY
+	local capSize = garden.fencePost * 1.45
+	local placed: { [string]: boolean } = {}
 
 	local function post(x: number, z: number)
+		local key = `{math.round(x * 10)}:{math.round(z * 10)}`
+		if placed[key] then
+			return
+		end
+		placed[key] = true
+
 		piece({
 			name = "FencePost",
-			size = Vector3.new(1.1, garden.fenceHeight, 1.1),
+			size = Vector3.new(garden.fencePost, garden.fenceHeight, garden.fencePost),
 			color = palette.linen,
-			cframe = toWorld(x, garden.fenceHeight / 2, z),
+			cframe = toWorld(x, footY + garden.fenceHeight / 2, z),
 		})
 		piece({
 			name = "FenceCap",
 			shape = Enum.PartType.Ball,
-			size = Vector3.new(1.5, 1.5, 1.5),
+			size = Vector3.new(capSize, capSize, capSize),
 			color = palette.trim,
 			collide = false,
 			castShadow = false,
-			cframe = toWorld(x, garden.fenceHeight, z),
+			cframe = toWorld(x, footY + garden.fenceHeight, z),
 		})
 	end
 
@@ -726,16 +736,20 @@ local function buildFence()
 		local span = Vector2.new(run.toX, run.toZ) - from
 		local length = span.Magnitude
 		local direction = span.Unit
-		return from, direction, length, (Vector2.new(run.gateX, run.gateZ) - from):Dot(direction)
+		return from,
+			direction,
+			length,
+			(Vector2.new(run.gateX, run.gateZ) - from):Dot(direction),
+			run.gateGap or garden.gateGap
 	end
 
 	local function rails(run: { [string]: any })
-		local from, direction, length, gateAt = geometry(run)
+		local from, direction, length, gateAt, gateGap = geometry(run)
 		local yaw = math.atan2(direction.X, direction.Y)
 
 		local halves = {
-			{ start = 0, finish = gateAt - garden.gateGap },
-			{ start = gateAt + garden.gateGap, finish = length },
+			{ start = 0, finish = gateAt - gateGap },
+			{ start = gateAt + gateGap, finish = length },
 		}
 
 		for _, height in { garden.fenceHeight * 0.35, garden.fenceHeight * 0.72 } do
@@ -748,7 +762,7 @@ local function buildFence()
 						size = Vector3.new(0.5, 0.5, run_),
 						color = palette.linen,
 						castShadow = false,
-						cframe = toWorld(centre.X, height, centre.Y) * CFrame.Angles(0, yaw, 0),
+						cframe = toWorld(centre.X, footY + height, centre.Y) * CFrame.Angles(0, yaw, 0),
 					})
 				end
 			end
@@ -756,27 +770,31 @@ local function buildFence()
 	end
 
 	local runs = {
-		{ fromX = -halfX, fromZ = frontZ, toX = halfX, toZ = frontZ, gateX = 0, gateZ = frontZ },
+		{
+			fromX = -halfX,
+			fromZ = frontZ,
+			toX = halfX,
+			toZ = frontZ,
+			gateX = 0,
+			gateZ = frontZ,
+			gateGap = garden.frontGateGap,
+		},
 		{ fromX = -halfX, fromZ = backZ, toX = halfX, toZ = backZ, gateX = 0, gateZ = backZ },
-		{ fromX = -halfX, fromZ = backZ, toX = -halfX, toZ = frontZ, gateX = -halfX, gateZ = 90 },
-		{ fromX = halfX, fromZ = backZ, toX = halfX, toZ = frontZ, gateX = halfX, gateZ = 90 },
+		{ fromX = -halfX, fromZ = backZ, toX = -halfX, toZ = frontZ, gateX = -halfX, gateZ = garden.sideGateZ },
+		{ fromX = halfX, fromZ = backZ, toX = halfX, toZ = frontZ, gateX = halfX, gateZ = garden.sideGateZ },
 	}
 
 	for _, run in runs do
-		local from, direction, length, gateAt = geometry(run)
-		local count = math.max(1, math.floor(length / garden.postSpacing))
+		local from, direction, length, gateAt, gateGap = geometry(run)
 
-		for index = 0, count do
-			local at = from + direction * (length * index / count)
-			if math.abs(length * index / count - gateAt) >= garden.gateGap then
-				post(at.X, at.Y)
-			end
-		end
-
-		for _, edge in { gateAt - garden.gateGap, gateAt + garden.gateGap } do
-			if edge > 0.5 and edge < length - 0.5 then
-				local at = from + direction * edge
-				post(at.X, at.Y)
+		for _, half in { { 0, gateAt - gateGap }, { gateAt + gateGap, length } } do
+			local span = half[2] - half[1]
+			if span > 0.5 then
+				local count = math.max(1, math.round(span / garden.postSpacing))
+				for index = 0, count do
+					local at = from + direction * (half[1] + span * index / count)
+					post(at.X, at.Y)
+				end
 			end
 		end
 
@@ -784,8 +802,10 @@ local function buildFence()
 	end
 end
 
+local GRASS_ROAD_MARGIN = SafeZone.garden.grassFit[2] / 2
+
 local function isClear(x: number, z: number): boolean
-	return Vector2.new(x, z).Magnitude >= dome.radius + 2
+	return Vector2.new(x, z).Magnitude >= dome.radius + 2 and not Streets.isPaved(x, z, GRASS_ROAD_MARGIN)
 end
 
 local function scatterGrass(rng: Random, occupied: { Footprint })
@@ -800,9 +820,9 @@ local function scatterGrass(rng: Random, occupied: { Footprint })
 		return true
 	end
 
-	local halfX = SafeZone.VOLUME.size.X / 2 - garden.fenceInset - 5
-	local frontZ = SafeZone.VOLUME.centreOffset.Z + SafeZone.VOLUME.size.Z / 2 - garden.fenceInset - 5
-	local backZ = SafeZone.VOLUME.centreOffset.Z - SafeZone.VOLUME.size.Z / 2 + garden.fenceInset + 5
+	local halfX = garden.halfX - garden.grassInset
+	local frontZ = garden.frontZ - garden.grassInset
+	local backZ = garden.backZ + garden.grassInset
 	local spacing = garden.grassSpacing
 	local columns = math.floor((halfX * 2) / spacing)
 	local rows = math.floor((frontZ - backZ) / spacing)

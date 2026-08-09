@@ -412,6 +412,7 @@ function ExamCounter.build(parent: Instance)
 	list.CanvasSize = UDim2.fromOffset(0, 0)
 	list.ZIndex = panel.ZIndex + 1
 	list.Parent = panel
+	UI.padding(list, UI.strokeClearance)
 
 	local layout = Instance.new("UIListLayout")
 	layout.FillDirection = Enum.FillDirection.Vertical

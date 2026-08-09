@@ -140,7 +140,6 @@ local function buildPanel(parent: ScreenGui)
 
 	local emptyContent = UI.card(content, "MinigameContent", {
 		color = UI.color.paperRaised,
-		gradient = false,
 		strokeColor = UI.color.blush,
 		strokeWidth = 3,
 		zIndex = content.ZIndex + 1,

@@ -352,7 +352,7 @@ local function buildPanel(parent: ScreenGui)
 	listHolder.ZIndex = panel.ZIndex + 1
 	listHolder.Parent = panel
 	grid = UI.grid(listHolder, INGREDIENT_CELL, UDim2.fromOffset(UI.space.snug, UI.space.snug))
-	UI.padding(listHolder, 0, { right = 14 })
+	UI.padding(listHolder, UI.strokeClearance, { right = 14 })
 
 	emptyLabel = UI.label(panel, "Empty", {
 		text = EMPTY_TEXT.ingredients,

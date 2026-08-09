@@ -472,20 +472,6 @@ local function buildSign(parent: Instance, frame: CFrame)
 	label.Parent = surface
 end
 
-local function buildApproach(parent: Instance, frame: CFrame)
-	for index = 1, 8 do
-		localPart(parent, frame, {
-			name = "ApproachStone",
-			size = Vector3.new(12, 0.35, 4),
-			cframe = CFrame.new(0, 0.18, -(SIZE.Z / 2 + 3 + (index - 1) * 4.5)),
-			color = if index % 2 == 0 then WHITE else PEACH_LIGHT,
-			material = Enum.Material.Slate,
-			canCollide = false,
-			canQuery = false,
-		})
-	end
-end
-
 function LibraryBuilder.build(parent: Instance, configuredFrame: CFrame): BuildResult
 	local groundY = groundYAt(configuredFrame.Position)
 	local frame = CFrame.new(configuredFrame.Position.X, groundY, configuredFrame.Position.Z) * configuredFrame.Rotation
@@ -498,7 +484,6 @@ function LibraryBuilder.build(parent: Instance, configuredFrame: CFrame): BuildR
 	local stationRoots = buildTable(library, frame)
 	buildLighting(library, frame)
 	buildSign(library, frame)
-	buildApproach(library, frame)
 
 	library.PrimaryPart = foundation
 	library.Parent = parent

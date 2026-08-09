@@ -714,6 +714,7 @@ local function buildOddsPage(parent: Frame)
 	scroll.ScrollBarImageColor3 = UI.color.inkSoft
 	scroll.Parent = parent
 	UI.list(scroll, 8)
+	UI.padding(scroll, UI.strokeClearance)
 
 	UI.label(scroll, "Intro", {
 		text = `Every capsule uses the odds below. A capsule first picks a rarity, then picks evenly from the looks in that rarity. Showcase looks are viewable in the Collection tab but never drop. A rare or better is guaranteed every {CompanionSkins.RARE_PLUS_PITY} pulls, and a legendary every {CompanionSkins.LEGENDARY_PITY}.`,

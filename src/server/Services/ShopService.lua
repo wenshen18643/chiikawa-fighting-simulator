@@ -137,7 +137,7 @@ function ShopService.buy(player: Player, id: any): boolean
 		profile.upgrades = {}
 	end
 	profile.upgrades[id] = level + 1
-	NotifyService.send(player, `{definition.name} is now level {level + 1}.`, "reward")
+	NotifyService.send(player, `{definition.name} is now level {level + 1}.`, "reward", `upgrade:{id}`)
 	eventRemote:FireClient(player, { kind = "bought", id = id, board = board(profile) })
 	ReplicationService.pushTo(player)
 	return true

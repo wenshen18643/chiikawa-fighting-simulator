@@ -19,7 +19,7 @@ export type LabelConfig = {
 	scaled: boolean?,
 }
 
-local function surfaceOf(key: string?): { fill: Color3, top: Color3, bottom: Color3 }
+local function surfaceOf(key: string?): { fill: Color3 }
 	return (Theme.surface :: any)[key or "canvas"] or Theme.surface.canvas
 end
 
@@ -46,12 +46,8 @@ function Components.card(parent: Instance, name: string, config: { [string]: any
 	local radius = options.radius or Theme.radius.card
 	Primitives.corner(frame, radius)
 
-	if options.gradient ~= false and not options.color then
-		Primitives.gradient(frame, surface.top, surface.bottom, 90)
-	end
-
 	if options.stroke ~= false then
-		Primitives.stroke(frame, options.strokeColor or Theme.color.lineSoft, options.strokeWidth or Theme.stroke.hair)
+		Primitives.stroke(frame, options.strokeColor or Theme.color.lineCard, options.strokeWidth or Theme.stroke.hair)
 	end
 
 	if options.sheen == true then
@@ -134,9 +130,10 @@ function Components.bar(parent: Instance, name: string, fillColor: Color3): (Fra
 end
 
 function Components.chip(parent: Instance, name: string, config: { [string]: any }): Frame
+	local base = Theme.fill(config.color or Theme.color.paperDeep)
 	local chip = Instance.new("Frame")
 	chip.Name = name
-	chip.BackgroundColor3 = config.color or Theme.color.paperDeep
+	chip.BackgroundColor3 = base
 	chip.BorderSizePixel = 0
 	chip.ZIndex = config.zIndex or 3
 	if config.position then
@@ -160,7 +157,7 @@ function Components.chip(parent: Instance, name: string, config: { [string]: any
 		text = config.text,
 		font = config.font or Theme.font.bold,
 		size = config.textSize or Theme.text.small,
-		color = config.textColor or Theme.readable(config.color or Theme.color.paperDeep),
+		color = Theme.legible(base, config.textColor),
 		align = Enum.TextXAlignment.Center,
 		extent = UDim2.fromScale(1, 1),
 		zIndex = (config.zIndex or 3) + 2,
@@ -278,7 +275,7 @@ local function attachPressScale(button: TextButton)
 end
 
 function Components.button(parent: Instance, name: string, config: { [string]: any }): TextButton
-	local base = config.color or Theme.color.paperRaised
+	local base = Theme.fill(config.color or Theme.color.paperRaised)
 	local button = Instance.new("TextButton")
 	button.Name = name
 	button.BackgroundColor3 = base
@@ -287,7 +284,7 @@ function Components.button(parent: Instance, name: string, config: { [string]: a
 	button.Font = config.font or Theme.font.bold
 	button.Text = config.text or ""
 	button.TextSize = config.textSize or Theme.text.small
-	button.TextColor3 = config.textColor or Theme.readable(base)
+	button.TextColor3 = Theme.legible(base, config.textColor)
 	button.ZIndex = config.zIndex or 3
 	if config.position then
 		button.Position = config.position

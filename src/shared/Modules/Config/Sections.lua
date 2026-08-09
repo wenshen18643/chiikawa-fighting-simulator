@@ -1,4 +1,7 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SafeZone = require(ReplicatedStorage.Shared.Modules.Config.SafeZone)
 local Sections = {}
+local TABLE_TOP = SafeZone.SURFACE.lowTable
 
 Sections.SIZE = 212
 Sections.GRID = 6
@@ -41,7 +44,7 @@ local MAP = {
 	{ "sakura", "sakura", "sakura", "bare", "bare", "meadow" },
 	{ "flower", "ramen", "farm", "bare", "bare", "flower" },
 	{ "meadow", "berry", "kitchen", "library", "bare", "grove" },
-	{ "meadow", "bramble", "market", "bare", "bare", "grove" },
+	{ "meadow", "bramble", "market", "teaCorner", "bare", "grove" },
 	{ "meadow", "sausage", "sausage", "mushroom", "snow", "lake" },
 	{ "meadow", "sausage", "sausage", "grove", "quarry", "meadowQuiet" },
 }
@@ -194,22 +197,67 @@ Sections.THEMES = {
 		sub = "spend it while you have it",
 		material = "Grass",
 		arch = false,
+
+		layout = {
+			{ key = "sakuraTree", x = -52, z = 20, h = 19 },
+			{ key = "sakuraTree", x = -52, z = 92, h = 21 },
+			{ key = "sakuraTree", x = -12, z = 100, h = 17 },
+
+			{ fn = "stoneLantern", x = -12, z = 26, r = 3 },
+			{ fn = "stoneLantern", x = -12, z = 56, r = 3 },
+			{ fn = "stoneLantern", x = -12, z = 78, r = 3 },
+
+			{ fn = "pond", x = -34, z = 30, r = 10 },
+
+			{ key = "picnicTable", x = -34, z = 60, fit = 12, yaw = 12 },
+			{ key = "picnicTable", x = -34, z = 82, fit = 12, yaw = -22 },
+
+			{ key = "flowerBed1", x = -18, z = 46, h = 2.2 },
+			{ key = "flowerBed2", x = -50, z = 48, h = 2.2 },
+			{ key = "flowerBed3", x = -24, z = 88, h = 2.2 },
+		},
+
 		recipe = {
-			{ kind = "prop", key = "sakuraTree", count = 7, h = { 15, 21 } },
-			{ kind = "tree", count = 5, h = { 10, 15 }, canopy = { 9, 13 } },
-			{ kind = "prop", key = "lantern", count = 10, h = { 4.4, 4.6 } },
-			{ kind = "prop", key = "lanternTall", count = 4, h = { 6.5, 6.5 } },
-			{ kind = "prop", key = "picnicTable", count = 2, h = { 3.4, 3.4 }, faceOrigin = true },
-			{ kind = "prop", key = "shopStall", count = 2, h = { 7, 7 } },
-			{ kind = "coded", fn = "berryCrate", count = 6 },
-			{ kind = "coded", fn = "stoneLantern", count = 4 },
-			{ kind = "prop", key = "mailBox", count = 1, h = { 3.6, 3.6 } },
-			{ kind = "bush", count = 10, s = { 3, 5.5 } },
-			{ kind = "flower", count = 14 },
-			{ kind = "coded", fn = "tulip", count = 14 },
-			{ kind = "grassPatch", count = 9, h = { 1.6, 2.4 } },
-			{ kind = "grass", count = 20 },
-			{ kind = "stone", count = 4, s = { 3, 5 } },
+			{ kind = "flower", count = 5 },
+			{ kind = "grassPatch", count = 6, h = { 1.6, 2.4 } },
+			{ kind = "stone", count = 3, s = { 3, 4.5 } },
+		},
+	},
+	teaCorner = {
+		name = "Tea Corner",
+		sub = "steep a while, the stalls can wait",
+		material = "Grass",
+		arch = false,
+
+		layout = {
+			{ key = "sakuraTree", x = 52, z = 20, h = 19 },
+			{ key = "sakuraTree", x = 52, z = 92, h = 21 },
+			{ key = "sakuraTree", x = 12, z = 100, h = 17 },
+
+			{ fn = "stoneLantern", x = 12, z = 26, r = 3 },
+			{ fn = "stoneLantern", x = 12, z = 56, r = 3 },
+			{ fn = "stoneLantern", x = 12, z = 78, r = 3 },
+
+			{ fn = "sandDisc", x = 34, z = 30, r = 8 },
+
+			{ key = "lowTable", x = 34, z = 60, fit = 13 },
+			{ key = "floorCushion", x = 24, z = 60, fit = 5, yaw = -90 },
+			{ key = "floorCushion", x = 44, z = 60, fit = 5, yaw = 90 },
+			{ key = "floorCushion", x = 34, z = 50, fit = 5, yaw = 180 },
+			{ key = "floorCushion", x = 34, z = 70, fit = 5, yaw = 0 },
+
+			{ key = "teaPot", x = 30, z = 63, fit = 4.5, y = TABLE_TOP },
+			{ key = "teaCup", x = 38, z = 63, fit = 2.4, y = TABLE_TOP },
+			{ key = "teaCup", x = 38, z = 57, fit = 2.4, y = TABLE_TOP },
+
+			{ key = "flowerBed2", x = 18, z = 40, h = 2.2 },
+			{ key = "flowerBed3", x = 48, z = 76, h = 2.2 },
+		},
+
+		recipe = {
+			{ kind = "flower", count = 4 },
+			{ kind = "grassPatch", count = 6, h = { 1.6, 2.4 } },
+			{ kind = "stone", count = 3, s = { 3, 4.5 } },
 		},
 	},
 	bare = {

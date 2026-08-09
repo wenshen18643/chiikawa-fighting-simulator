@@ -9,15 +9,81 @@ local SectionDressing = {}
 local SIZE = Sections.SIZE
 local LIMIT = Sections.SCATTER_LIMIT
 
-local function samplePoint(ctx, cell, inset)
-	for _ = 1, 14 do
-		local x = ctx.rng:NextNumber(cell.minX + inset, cell.maxX - inset)
-		local z = ctx.rng:NextNumber(cell.minZ + inset, cell.maxZ - inset)
-		if math.abs(x) <= LIMIT and math.abs(z) <= LIMIT and not ctx.isReserved(x, z) then
-			return x, z
+local function standsClear(ctx, x, z, reach)
+	if math.abs(x) > LIMIT or math.abs(z) > LIMIT or ctx.isReserved(x, z) then
+		return false
+	end
+	if reach <= 0 then
+		return true
+	end
+	local diagonal = reach * 0.7071
+	return not ctx.isReserved(x + reach, z)
+		and not ctx.isReserved(x - reach, z)
+		and not ctx.isReserved(x, z + reach)
+		and not ctx.isReserved(x, z - reach)
+		and not ctx.isReserved(x + diagonal, z + diagonal)
+		and not ctx.isReserved(x - diagonal, z + diagonal)
+		and not ctx.isReserved(x + diagonal, z - diagonal)
+		and not ctx.isReserved(x - diagonal, z - diagonal)
+end
+
+local OCCUPIED_GRID = 32
+local OCCUPIED_STRIDE = 4096
+local MIN_GAP = 2.5
+local PLACEMENT_ATTEMPTS = 32
+local FALLBACK_RADIUS = { key = 4, fn = 8 }
+
+local function bucketOf(occupied, gx, gz)
+	return occupied[gx * OCCUPIED_STRIDE + gz]
+end
+
+local function occupy(occupied, x, z, radius)
+	local key = math.floor(x / OCCUPIED_GRID) * OCCUPIED_STRIDE + math.floor(z / OCCUPIED_GRID)
+	local bucket = occupied[key]
+	if not bucket then
+		bucket = {}
+		occupied[key] = bucket
+	end
+	table.insert(bucket, { x = x, z = z, r = radius })
+end
+
+local function crowded(occupied, x, z, reach)
+	local gx, gz = math.floor(x / OCCUPIED_GRID), math.floor(z / OCCUPIED_GRID)
+	for ox = -1, 1 do
+		for oz = -1, 1 do
+			local bucket = bucketOf(occupied, gx + ox, gz + oz)
+			if bucket then
+				for _, at in bucket do
+					local dx, dz = x - at.x, z - at.z
+					local gap = at.r + reach + MIN_GAP
+					if dx * dx + dz * dz < gap * gap then
+						return true
+					end
+				end
+			end
 		end
 	end
-	return nil
+	return false
+end
+
+local function gridFor(ctx)
+	local grid = ctx.occupied
+	if not grid then
+		grid = {}
+		ctx.occupied = grid
+	end
+	return grid
+end
+
+local function footprintOf(made, fallback: number): number
+	if made then
+		local size = if made:IsA("BasePart") then made.Size else made:GetExtentsSize()
+		local span = math.max(size.X, size.Z) / 2
+		if span > 0.01 then
+			return span
+		end
+	end
+	return fallback
 end
 
 local function range(ctx, bounds, fallback)
@@ -28,6 +94,26 @@ local function range(ctx, bounds, fallback)
 end
 
 local CLEARANCE = { bush = 7, stone = 6, log = 8, prop = 5, coded = 10, tree = 9, house = 14 }
+
+local function reachOf(entry): number
+	local kind = entry.kind
+	if kind == "tree" then
+		return (if entry.canopy then entry.canopy[2] else 12) * 0.85
+	elseif kind == "bush" or kind == "stone" then
+		return (if entry.s then entry.s[2] else 5) / 2
+	elseif kind == "log" then
+		return (if entry.l then entry.l[2] else 8) / 2
+	elseif kind == "house" then
+		return 11
+	elseif kind == "prop" then
+		return (if entry.h then entry.h[2] else 4) * 0.4
+	elseif kind == "coded" then
+		return 7
+	elseif kind == "desk" then
+		return 6
+	end
+	return 3
+end
 
 local function facingOrigin(x: number, z: number): number
 	if math.abs(x) < 0.01 and math.abs(z) < 0.01 then
@@ -49,27 +135,15 @@ local function solidify(instance)
 	end
 end
 
-local function dressRecipe(ctx, cell, entry, placed)
+local function dressRecipe(ctx, cell, entry, occupied, solid)
 	local inset = if entry.kind == "tree" or entry.kind == "prop" then 16 else 10
-	local clearance = placed and CLEARANCE[entry.kind]
+	local reach = reachOf(entry)
 
 	local function openSpot()
-		for _ = 1, 6 do
-			local x, z = samplePoint(ctx, cell, inset)
-			if not x then
-				return nil
-			end
-			if not clearance then
-				return x, z
-			end
-			local near = false
-			for _, at in placed do
-				if (at - Vector2.new(x, z)).Magnitude < clearance then
-					near = true
-					break
-				end
-			end
-			if not near then
+		for _ = 1, PLACEMENT_ATTEMPTS do
+			local x = ctx.rng:NextNumber(cell.minX + inset, cell.maxX - inset)
+			local z = ctx.rng:NextNumber(cell.minZ + inset, cell.maxZ - inset)
+			if standsClear(ctx, x, z, reach) and not crowded(occupied, x, z, reach) then
 				return x, z
 			end
 		end
@@ -102,15 +176,16 @@ local function dressRecipe(ctx, cell, entry, placed)
 			elseif entry.kind == "log" then
 				made = ctx.helpers.log(ctx, x, z, range(ctx, entry.l, 8))
 			elseif entry.kind == "grass" then
-				ctx.helpers.bush(ctx, x, z, ctx.rng:NextNumber(3, 6))
+				made = ctx.helpers.bush(ctx, x, z, ctx.rng:NextNumber(3, 6))
 			elseif entry.kind == "flower" then
-				if not ctx.helpers.prop(ctx, `flowerBed{ctx.rng:NextInteger(1, 3)}`, x, z, { height = 2.1 }) then
-					ctx.helpers.bush(ctx, x, z, ctx.rng:NextNumber(3, 5))
+				made = ctx.helpers.prop(ctx, `flowerBed{ctx.rng:NextInteger(1, 3)}`, x, z, { height = 2.1 })
+				if not made then
+					made = ctx.helpers.bush(ctx, x, z, ctx.rng:NextNumber(3, 5))
 				end
 			elseif entry.kind == "grassPatch" then
-				ctx.helpers.prop(ctx, "grassPatch", x, z, { height = range(ctx, entry.h, 2) })
+				made = ctx.helpers.prop(ctx, "grassPatch", x, z, { height = range(ctx, entry.h, 2) })
 			elseif entry.kind == "desk" then
-				ctx.helpers.studyDesk(ctx, { x = x, z = z, y = 3.2 })
+				made = ctx.helpers.studyDesk(ctx, { x = x, z = z, y = 3.2 })
 			elseif entry.kind == "house" then
 				made = ctx.helpers.prop(
 					ctx,
@@ -125,11 +200,39 @@ local function dressRecipe(ctx, cell, entry, placed)
 					build(ctx, x, z)
 				end
 			end
-			if clearance then
-				table.insert(placed, Vector2.new(x, z))
+			occupy(occupied, x, z, math.max(footprintOf(made, reach), reach))
+			if solid and CLEARANCE[entry.kind] then
 				solidify(made)
 			end
 		end
+	end
+end
+
+local function dressLayout(ctx, cell, layout, occupied)
+	for _, item in layout do
+		local x, z = cell.cx + item.x, cell.cz + item.z
+
+		if math.abs(x) > LIMIT or math.abs(z) > LIMIT or ctx.isReserved(x, z) then
+			continue
+		end
+
+		local made
+		if item.fn then
+			local build = Props[item.fn]
+			if build then
+				made = build(ctx, x, z)
+			end
+		else
+			made = ctx.helpers.prop(ctx, item.key, x, z, {
+				height = item.h,
+				fit = item.fit,
+				y = item.y,
+				upright = item.upright,
+				rotation = if item.yaw then math.rad(item.yaw) else nil,
+			})
+		end
+
+		occupy(occupied, x, z, item.r or footprintOf(made, if item.fn then FALLBACK_RADIUS.fn else FALLBACK_RADIUS.key))
 	end
 end
 
@@ -144,7 +247,10 @@ local function towardPlaza(cell, distance)
 	return at.X, at.Y
 end
 
-local function dressEntrance(ctx, cell, theme)
+local ENTRANCE_REACH = 4
+local ARCH_REACH = 7
+
+local function dressEntrance(ctx, cell, theme, occupied)
 	for _, distance in { SIZE / 2 - 26, SIZE / 2 - 60, 30, -30, -(SIZE / 2 - 40) } do
 		local x, z = towardPlaza(cell, distance)
 		if math.abs(x) <= LIMIT and math.abs(z) <= LIMIT and not ctx.isReserved(x, z) then
@@ -152,13 +258,17 @@ local function dressEntrance(ctx, cell, theme)
 			for _, side in { -1, 1 } do
 				local fx = x - dir.Y * side * 6
 				local fz = z + dir.X * side * 6
-				if not ctx.isReserved(fx, fz) then
-					ctx.helpers.prop(ctx, `flowerBed{ctx.rng:NextInteger(1, 3)}`, fx, fz, { height = 2.2 })
+				if not ctx.isReserved(fx, fz) and not crowded(occupied, fx, fz, ENTRANCE_REACH) then
+					local made = ctx.helpers.prop(ctx, `flowerBed{ctx.rng:NextInteger(1, 3)}`, fx, fz, { height = 2.2 })
+					occupy(occupied, fx, fz, footprintOf(made, ENTRANCE_REACH))
 				end
 			end
 			if theme.arch then
-				local yaw = math.atan2(-dir.X, -dir.Y)
-				Props.gardenArch(ctx, x + dir.X * 7, z + dir.Y * 7, yaw, Color3.fromRGB(244, 186, 190))
+				local ax, az = x + dir.X * 7, z + dir.Y * 7
+				if not crowded(occupied, ax, az, ARCH_REACH) then
+					Props.gardenArch(ctx, ax, az, math.atan2(-dir.X, -dir.Y), Color3.fromRGB(244, 186, 190))
+					occupy(occupied, ax, az, ARCH_REACH)
+				end
 			end
 			return
 		end
@@ -174,13 +284,18 @@ local function dressCell(ctx, cell)
 		return
 	end
 
-	local placed = if theme.wild then {} else nil
-	for _, entry in theme.recipe do
-		dressRecipe(ctx, cell, entry, placed)
+	local occupied = gridFor(ctx)
+	local solid = theme.wild == true or theme.layout ~= nil
+	if theme.layout then
+		dressLayout(ctx, cell, theme.layout, occupied)
 	end
 
-	if not theme.wild then
-		dressEntrance(ctx, cell, theme)
+	for _, entry in theme.recipe do
+		dressRecipe(ctx, cell, entry, occupied, solid)
+	end
+
+	if not solid then
+		dressEntrance(ctx, cell, theme, occupied)
 	end
 end
 
@@ -226,6 +341,10 @@ local function dressBorder(ctx, i, j, vertical)
 	else
 		Props.miniFence(ctx, minX + 6, minZ, minX + SIZE - 6, minZ)
 	end
+end
+
+function SectionDressing.claim(ctx, x: number, z: number, radius: number, made: Instance?)
+	occupy(gridFor(ctx), x, z, math.max(footprintOf(made, radius), radius))
 end
 
 function SectionDressing.dress(ctx)

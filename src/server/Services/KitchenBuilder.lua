@@ -102,7 +102,8 @@ local function placeAsset(
 	frame: CFrame,
 	offset: Vector3,
 	rotation: number?,
-	solid: boolean?
+	solid: boolean?,
+	fit: number?
 ): Model?
 	local model = AssetService.clone(key)
 	if not model then
@@ -121,6 +122,14 @@ local function placeAsset(
 				descendant.CanQuery = solid
 			end
 			descendant.CanTouch = false
+		end
+	end
+
+	if fit then
+		local extents = model:GetExtentsSize()
+		local largest = math.max(extents.X, extents.Y, extents.Z)
+		if largest > 0.01 then
+			model:ScaleTo(model:GetScale() * (fit / largest))
 		end
 	end
 
@@ -404,48 +413,8 @@ local function buildShell(parent: Instance, frame: CFrame)
 	})
 end
 
-local function buildSign(parent: Instance, frame: CFrame)
-	local sign = localPart(parent, frame, {
-		name = "KitchenSign",
-		size = Vector3.new(10, 4.5, 0.8),
-		cframe = CFrame.new(-13, 6.2, -(SIZE.Z / 2 + 4.5)),
-		color = PEACH,
-		material = Enum.Material.WoodPlanks,
-		canCollide = false,
-		canQuery = false,
-	})
-	localPart(parent, frame, {
-		name = "KitchenSignPost",
-		size = Vector3.new(1, 6, 1),
-		cframe = CFrame.new(-13, 3, -(SIZE.Z / 2 + 4.5)),
-		color = WOOD,
-		material = Enum.Material.Wood,
-		canCollide = false,
-		canQuery = false,
-	})
-
-	local surface = Instance.new("SurfaceGui")
-	surface.Name = "Label"
-	surface.Face = Enum.NormalId.Front
-	surface.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	surface.PixelsPerStud = 40
-	surface.LightInfluence = 0
-	surface.Parent = sign
-
-	local label = Instance.new("TextLabel")
-	label.BackgroundTransparency = 1
-	label.Size = UDim2.fromScale(1, 1)
-	label.Font = Enum.Font.GothamBold
-	label.Text = "KITCHEN"
-	label.TextColor3 = WHITE
-	label.TextScaled = true
-	label.TextStrokeColor3 = WOOD_DARK
-	label.TextStrokeTransparency = 0.55
-	label.Parent = surface
-end
-
 local function cabinetDetail(parent: Instance, frame: CFrame)
-	for _, x in { -17, -11, -5, 1, 7 } do
+	for _, x in { -17, -11, 1, 7 } do
 		localPart(parent, frame, {
 			name = "CabinetSeam",
 			size = Vector3.new(0.18, 3.3, 0.18),
@@ -570,8 +539,8 @@ local function buildNativeFurniture(parent: Instance, frame: CFrame)
 
 	localPart(furniture, frame, {
 		name = "Oven",
-		size = Vector3.new(6, 4.6, 4.8),
-		cframe = CFrame.new(-4, 3.3, 16.8),
+		size = Vector3.new(6, 4, 4.8),
+		cframe = CFrame.new(-4, 3, 16.8),
 		color = CREAM,
 		material = Enum.Material.Metal,
 	})
@@ -696,10 +665,15 @@ local function buildImportedFurniture(parent: Instance, frame: CFrame): boolean
 	return true
 end
 
+local TABLE_FIT = 11
+local CUSHION_FIT = 4.6
+local SEAT_GAP = 1.2
+
 local function buildStationTable(parent: Instance, frame: CFrame): Vector3
 	local tableOffset = Vector3.new(3, FLOOR_HEIGHT, -3)
-	local table_ = placeAsset(parent, "lowTable", frame, tableOffset, nil, false)
+	local table_ = placeAsset(parent, "lowTable", frame, tableOffset, nil, false, TABLE_FIT)
 	local tabletopY: number
+	local halfDepth: number
 	if table_ then
 		local extents = table_:GetExtentsSize()
 		local proxySize = Vector3.new(
@@ -716,6 +690,7 @@ local function buildStationTable(parent: Instance, frame: CFrame): Vector3
 			castShadow = false,
 		})
 		tabletopY = FLOOR_HEIGHT + extents.Y
+		halfDepth = extents.Z / 2
 	else
 		local fallbackHeight = 2.5
 		localPart(parent, frame, {
@@ -726,19 +701,21 @@ local function buildStationTable(parent: Instance, frame: CFrame): Vector3
 			material = Enum.Material.WoodPlanks,
 		})
 		tabletopY = FLOOR_HEIGHT + fallbackHeight
+		halfDepth = 4.25
 	end
 
-	placeAsset(parent, "kettle", frame, Vector3.new(8, 5.65, 17), nil, false)
-	placeAsset(parent, "floorCushion", frame, Vector3.new(tableOffset.X, FLOOR_HEIGHT, -9), math.pi, false)
-	placeAsset(parent, "floorCushion", frame, Vector3.new(tableOffset.X, FLOOR_HEIGHT, 3), 0, false)
+	local seat = halfDepth + CUSHION_FIT / 2 + SEAT_GAP
+	placeAsset(parent, "kettle", frame, Vector3.new(6, 5.65, 17.4), nil, false, 3.4)
+	placeAsset(parent, "floorCushion", frame, tableOffset - Vector3.new(0, 0, seat), math.pi, false, CUSHION_FIT)
+	placeAsset(parent, "floorCushion", frame, tableOffset + Vector3.new(0, 0, seat), 0, false, CUSHION_FIT)
 	return Vector3.new(tableOffset.X, tabletopY, tableOffset.Z)
 end
 
 local function buildLighting(parent: Instance, frame: CFrame)
 	localPart(parent, frame, {
 		name = "KitchenRug",
-		size = Vector3.new(13, 0.16, 10),
-		cframe = CFrame.new(3, FLOOR_HEIGHT + 0.09, -5),
+		size = Vector3.new(14, 0.16, 18),
+		cframe = CFrame.new(3, FLOOR_HEIGHT + 0.09, -3),
 		color = PEACH_LIGHT,
 		material = Enum.Material.Fabric,
 		canCollide = false,
@@ -791,7 +768,6 @@ function KitchenBuilder.build(parent: Instance, configuredFrame: CFrame): BuildR
 	kitchen.Name = "Kitchen"
 
 	buildShell(kitchen, frame)
-	buildSign(kitchen, frame)
 	if not buildImportedFurniture(kitchen, frame) then
 		buildNativeFurniture(kitchen, frame)
 	end

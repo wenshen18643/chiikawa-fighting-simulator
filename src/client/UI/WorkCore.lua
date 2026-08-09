@@ -191,9 +191,7 @@ local function showTraining(snapshot: any)
 		then `+{rate} a page`
 		else `+{rate} a {workNoun}  -  {if mode == "keyboard" then "press 1-4" else "select a skill"}`
 
-	actionPill.BackgroundColor3 = if definition and definition.color
-		then definition.color
-		else (UI.color.leaf or Color3.fromRGB(126, 190, 104))
+	actionPill.BackgroundColor3 = UI.fill(if definition and definition.color then definition.color else UI.color.leaf)
 	actionLabel.Text = if studying
 		then string.upper(if mode == "touch" then "tap skill 4 to open book" else "press 4 to open book")
 		else string.upper(
@@ -212,7 +210,7 @@ function WorkCore.update(snapshot: any)
 	lastSnapshot = snapshot
 	showTraining(snapshot)
 
-	actionLabel.TextColor3 = UI.readable(actionPill.BackgroundColor3)
+	actionLabel.TextColor3 = UI.legible(actionPill.BackgroundColor3)
 
 	local glyphSkill = currentSkill
 	if glyphSkill and glyphSkill ~= ringGlyphSkill then

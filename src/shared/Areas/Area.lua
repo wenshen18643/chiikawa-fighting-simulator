@@ -35,6 +35,7 @@ export type DecorateContext = {
 	model: ((key: string) -> Model?)?,
 	groundY: ((x: number, z: number) -> number)?,
 	step: (() -> ())?,
+	occupied: { [number]: { { x: number, z: number, r: number } } }?,
 }
 
 local function step(ctx: DecorateContext)
@@ -80,7 +81,13 @@ local function placeAsset(ctx: DecorateContext, key: string, x: number, z: numbe
 		model:ScaleTo(model:GetScale() * scale)
 	end
 
-	if options.height then
+	if options.fit then
+		local extents = model:GetExtentsSize()
+		local largest = math.max(extents.X, extents.Y, extents.Z)
+		if largest > 0.01 then
+			model:ScaleTo(model:GetScale() * (options.fit / largest))
+		end
+	elseif options.height then
 		local extents = model:GetExtentsSize()
 		if extents.Y > 0.01 then
 			model:ScaleTo(model:GetScale() * (options.height / extents.Y))
@@ -428,6 +435,7 @@ function Area.helpers.prop(ctx: DecorateContext, key: string, x: number, z: numb
 	local options = config or {}
 	return placeAsset(ctx, key, x, z, {
 		height = options.height,
+		fit = options.fit,
 		rotation = options.rotation or ctx.rng:NextNumber() * math.pi * 2,
 		y = options.y,
 		parent = options.parent,
@@ -462,67 +470,117 @@ function Area.helpers.paving(
 	return part
 end
 
-function Area.helpers.hedge(ctx: DecorateContext, verge: { [string]: any }, style: { [string]: any })
+local function hedgePiece(
+	ctx: DecorateContext,
+	style: { [string]: any },
+	piece: { x: number, z: number, length: number, yaw: number, crownWidth: number }
+)
+	step(ctx)
+
+	local top = style.SURFACE_Y + style.HEDGE_HEIGHT
+	local bodyHeight = style.HEDGE_HEIGHT + style.HEDGE_SKIRT
+	local spin = CFrame.Angles(0, piece.yaw, 0)
+	local body = Instance.new("Part")
+	body.Name = "Hedge"
+	body.Size = Vector3.new(style.HEDGE_WIDTH, bodyHeight, piece.length)
+	body.CFrame = CFrame.new(ctx.origin + Vector3.new(piece.x, top - bodyHeight / 2, piece.z)) * spin
+	body.Color = style.HEDGE_COLOR
+	body.Material = Enum.Material.Grass
+	body.Anchored = true
+	body.CanCollide = true
+	body.CanTouch = false
+	body.CastShadow = false
+	body.Parent = ctx.parent
+
+	local crown = Instance.new("Part")
+	crown.Name = "HedgeCrown"
+	crown.Size = Vector3.new(piece.crownWidth, 0.5, piece.length)
+	crown.CFrame = CFrame.new(ctx.origin + Vector3.new(piece.x, top + 0.15, piece.z)) * spin
+	crown.Color = style.HEDGE_CROWN
+	crown.Material = Enum.Material.Grass
+	crown.Anchored = true
+	crown.CanCollide = false
+	crown.CanQuery = false
+	crown.CanTouch = false
+	crown.CastShadow = false
+	crown.Parent = ctx.parent
+end
+
+function Area.helpers.hedge(
+	ctx: DecorateContext,
+	verge: { [string]: any },
+	style: { [string]: any },
+	trimFrom: number?,
+	trimTo: number?
+)
 	local from = Vector2.new(verge.fromX, verge.fromZ)
 	local span = Vector2.new(verge.toX, verge.toZ) - from
-	local length = span.Magnitude
-	if length < 1 then
+	local full = span.Magnitude
+	if full < 1 then
 		return
 	end
 
 	local direction = span.Unit
+	local head = trimFrom or 0
+	local length = full - head - (trimTo or 0)
+	if length < 1 then
+		return
+	end
+
 	local yaw = math.atan2(direction.X, direction.Y)
 	local count = math.max(1, math.round(length / style.HEDGE_SEGMENT))
 	local piece = length / count
-	local top = style.SURFACE_Y + style.HEDGE_HEIGHT
-	local bodyHeight = style.HEDGE_HEIGHT + style.HEDGE_SKIRT
-	local segments = if verge.hedge == false then 0 else count
 
-	for index = 1, segments do
-		step(ctx)
-
-		local at = from + direction * ((index - 0.5) * piece)
-		local body = Instance.new("Part")
-		body.Name = "Hedge"
-		body.Size = Vector3.new(style.HEDGE_WIDTH, bodyHeight, piece + 0.2)
-		body.CFrame = CFrame.new(ctx.origin + Vector3.new(at.X, top - bodyHeight / 2, at.Y)) * CFrame.Angles(0, yaw, 0)
-		body.Color = style.HEDGE_COLOR
-		body.Material = Enum.Material.Grass
-		body.Anchored = true
-		body.CanCollide = true
-		body.CanTouch = false
-		body.CastShadow = false
-		body.Parent = ctx.parent
-
-		local crown = Instance.new("Part")
-		crown.Name = "HedgeCrown"
-		crown.Size = Vector3.new(style.HEDGE_WIDTH * 0.72, 0.5, piece + 0.2)
-		crown.CFrame = CFrame.new(ctx.origin + Vector3.new(at.X, top + 0.15, at.Y)) * CFrame.Angles(0, yaw, 0)
-		crown.Color = style.HEDGE_CROWN
-		crown.Material = Enum.Material.Grass
-		crown.Anchored = true
-		crown.CanCollide = false
-		crown.CanQuery = false
-		crown.CanTouch = false
-		crown.CastShadow = false
-		crown.Parent = ctx.parent
+	for index = 1, count do
+		local at = from + direction * (head + (index - 0.5) * piece)
+		hedgePiece(ctx, style, {
+			x = at.X,
+			z = at.Y,
+			length = piece + 0.2,
+			yaw = yaw,
+			crownWidth = style.HEDGE_WIDTH * 0.72,
+		})
 	end
+end
 
-	local inward = Vector2.new(math.sin(math.rad(verge.facing)), math.cos(math.rad(verge.facing)))
+local function junctionKey(x: number, z: number): string
+	return `{math.round(x * 100)}:{math.round(z * 100)}`
+end
 
-	local function alongRun(spacing: number, inset: number, place: (x: number, z: number, y: number) -> ())
-		local slots = math.floor(length / spacing)
-		for index = 1, slots do
-			local at = from + direction * (index * spacing - spacing / 2)
-			local x, z = at.X + inward.X * inset, at.Y + inward.Y * inset
-			place(x, z, style.SURFACE_Y - groundAt(ctx, x, z))
+function Area.helpers.hedges(ctx: DecorateContext, verges: { { [string]: any } }, style: { [string]: any })
+	local shared: { [string]: number } = {}
+	for _, verge in verges do
+		for _, key in { junctionKey(verge.fromX, verge.fromZ), junctionKey(verge.toX, verge.toZ) } do
+			shared[key] = (shared[key] or 0) + 1
 		end
 	end
 
-	if verge.lamps then
-		alongRun(style.LAMP_SPACING, style.LAMP_INSET, function(x, z, y)
-			ctx.helpers.prop(ctx, "lantern", x, z, { height = 4.6, y = y, rotation = math.rad(verge.facing) })
-		end)
+	local trim = style.HEDGE_WIDTH / 2
+	local capped: { [string]: boolean } = {}
+
+	for _, verge in verges do
+		local head = junctionKey(verge.fromX, verge.fromZ)
+		local tail = junctionKey(verge.toX, verge.toZ)
+		Area.helpers.hedge(
+			ctx,
+			verge,
+			style,
+			if (shared[head] or 0) > 1 then trim else 0,
+			if (shared[tail] or 0) > 1 then trim else 0
+		)
+
+		for _, corner in { { key = head, x = verge.fromX, z = verge.fromZ }, { key = tail, x = verge.toX, z = verge.toZ } } do
+			if (shared[corner.key] or 0) > 1 and not capped[corner.key] then
+				capped[corner.key] = true
+				hedgePiece(ctx, style, {
+					x = corner.x,
+					z = corner.z,
+					length = style.HEDGE_WIDTH,
+					yaw = 0,
+					crownWidth = style.HEDGE_WIDTH,
+				})
+			end
+		end
 	end
 end
 

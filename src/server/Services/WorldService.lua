@@ -496,16 +496,17 @@ end
 local function configureLighting()
 	local surface = Cave.SURFACE_LIGHT
 
-	Lighting.ClockTime = 15.5
+	Lighting.ClockTime = 14
+	Lighting.GeographicLatitude = 12
 	Lighting.Brightness = surface.brightness
-	Lighting.ExposureCompensation = -0.1
+	Lighting.ExposureCompensation = 0
 	Lighting.GlobalShadows = true
 	Lighting.Ambient = surface.ambient
 	Lighting.OutdoorAmbient = surface.outdoorAmbient
-	Lighting.EnvironmentDiffuseScale = 0.35
-	Lighting.EnvironmentSpecularScale = 0.15
+	Lighting.EnvironmentDiffuseScale = 0.55
+	Lighting.EnvironmentSpecularScale = 0.2
 	Lighting.FogEnd = surface.fogEnd
-	Lighting.FogStart = 2200
+	Lighting.FogStart = 3200
 	Lighting.FogColor = surface.fogColor
 
 	local existingAtmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
@@ -513,12 +514,12 @@ local function configureLighting()
 		existingAtmosphere:Destroy()
 	end
 	local atmosphere = Instance.new("Atmosphere")
-	atmosphere.Density = 0.22
-	atmosphere.Offset = 0.2
-	atmosphere.Haze = 0.8
+	atmosphere.Density = 0.12
+	atmosphere.Offset = 0.3
+	atmosphere.Haze = 0.35
 	atmosphere.Glare = 0.05
-	atmosphere.Color = Color3.fromRGB(190, 198, 204)
-	atmosphere.Decay = Color3.fromRGB(140, 155, 170)
+	atmosphere.Color = Color3.fromRGB(232, 238, 244)
+	atmosphere.Decay = Color3.fromRGB(184, 204, 222)
 	atmosphere.Parent = Lighting
 
 	local existingSky = Lighting:FindFirstChildOfClass("Sky")
@@ -547,9 +548,9 @@ local function configureLighting()
 	local grade = Instance.new("ColorCorrectionEffect")
 	grade.Name = "WarmGrade"
 	grade.Brightness = 0.01
-	grade.Contrast = 0.02
-	grade.Saturation = 0.02
-	grade.TintColor = Color3.fromRGB(250, 242, 235)
+	grade.Contrast = 0.03
+	grade.Saturation = 0.09
+	grade.TintColor = Color3.fromRGB(253, 248, 242)
 	grade.Parent = Lighting
 end
 

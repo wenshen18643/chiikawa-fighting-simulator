@@ -64,25 +64,20 @@ local function place(row: Market.Placement): Model?
 	return model
 end
 
-local function boothStation(): (Vector3?, number?)
+local function boothStation(): (CFrame?, number?)
 	local booth = folder:FindFirstChild(Market.YOROI.booth)
 	if not (booth and booth:IsA("Model")) then
 		return nil, nil
 	end
 
-	local spot = Market.YOROI
-	local box, size = booth:GetBoundingBox()
-	local front = box:VectorToWorldSpace(spot.boothFront)
-	front = Vector3.new(front.X, 0, front.Z)
-	if front.Magnitude < 0.01 then
+	local base = booth.PrimaryPart
+	if not base then
 		return nil, nil
 	end
-	front = front.Unit
 
-	local depth = math.abs(spot.boothFront.X) * size.X + math.abs(spot.boothFront.Z) * size.Z
-	local across = Vector3.new(-front.Z, 0, front.X)
-	local station = box.Position - front * (depth / 2 + spot.standoff) + across * spot.alongCounter
-	return station, math.deg(math.atan2(-front.X, -front.Z))
+	local spot = Market.YOROI
+	local floor = base.CFrame * CFrame.new(0, base.Size.Y / 2, 0)
+	return floor * CFrame.new(spot.alongCounter, 0, spot.insideDepth), floor.Y
 end
 
 local function prompt(parent: BasePart, name: string, objectText: string, actionText: string)
@@ -120,7 +115,7 @@ local function buildCounter()
 		name = "UpgradeSign",
 		title = "Upgrades",
 		subtitle = "per-stat training and wages",
-		offset = Vector3.new(0, 10, 0),
+		offset = Vector3.new(0, 15, 0),
 		extent = UDim2.fromScale(16, 4.5),
 		maxDistance = 140,
 	})
@@ -141,17 +136,16 @@ local function buildYoroi()
 		return
 	end
 
-	local station, facing = boothStation()
-	if not (station and facing) then
-		warn("[MarketService] job booth is not placed; the attendant has nothing to stand beside")
+	local station, floorY = boothStation()
+	if not (station and floorY) then
+		warn("[MarketService] job booth is not placed; the attendant has nowhere to stand")
 		model:Destroy()
 		return
 	end
 
-	model:PivotTo(CFrame.new(station) * CFrame.Angles(0, math.rad(facing), 0))
+	model:PivotTo(station)
 	local box, size = model:GetBoundingBox()
-	local lift = (groundAt(station.X - origin.X, station.Z - origin.Z) + size.Y / 2) - box.Position.Y
-	model:PivotTo(model:GetPivot() + Vector3.new(0, lift, 0))
+	model:PivotTo(model:GetPivot() + Vector3.new(0, (floorY + size.Y / 2) - box.Position.Y, 0))
 
 	model.Parent = folder
 
@@ -159,7 +153,7 @@ local function buildYoroi()
 		name = "BoothSign",
 		title = "Weeding — apply here",
 		subtitle = "certification raises the rate",
-		offset = Vector3.new(0, 9, 0),
+		offset = Vector3.new(0, 12, 0),
 		extent = UDim2.fromScale(16, 4.5),
 		maxDistance = 140,
 	})
@@ -185,8 +179,9 @@ function MarketService.init()
 	folder.Parent = Workspace
 
 	MarketBuilder.build(folder, origin)
+	MarketBuilder.stalls(folder, origin)
 
-	for _, row in Market.stalls do
+	for _, row in Market.props do
 		place(row)
 	end
 	place(Market.beast)

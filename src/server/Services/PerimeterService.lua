@@ -4,6 +4,7 @@ local Budget = require(Shared.Modules.Budget)
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
 local Perimeter = require(Shared.Modules.Config.Perimeter)
+local Streets = require(Shared.Modules.Config.Streets)
 local UI = require(Shared.UI)
 local WorldService = require(script.Parent.WorldService)
 local PerimeterService = {}
@@ -162,7 +163,7 @@ local function buildGatehouse(parent: Folder)
 	for _, side in { -1, 1 } do
 		local x = gate.x + side * pillarOffset
 
-		slab(parent, "GatePillar", x, BASE_Y, z, Vector3.new(16, 54, 30), {
+		slab(parent, "GatePillar", x, BASE_Y, z, Vector3.new(16, 54, Streets.GATEHOUSE_DEPTH), {
 			color = PALETTE.stone,
 			material = Enum.Material.Slate,
 		})

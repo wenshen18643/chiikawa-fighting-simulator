@@ -14,20 +14,24 @@ local Farming = require(Shared.Modules.Config.Farming)
 local Layout = {}
 local WORLD = Constants.WORLD
 
+Layout.BUILDING_MARGIN = 10
+Layout.APPROACH_LENGTH = 38
+Layout.APPROACH_WIDTH = 20
+
+local BRANCH_END = Streets.RING.halfX + Streets.BRANCH_LENGTH
+
 Layout.KITCHEN_CELL = "C4"
-Layout.KITCHEN_OFFSET = Vector3.new(-150, 0, 90)
 Layout.KITCHEN_FACING = Vector3.new(1, 0, 0)
 Layout.KITCHEN_FOOTPRINT = Vector2.new(52, 42)
 Layout.KITCHEN_SIZE = Vector3.new(Layout.KITCHEN_FOOTPRINT.X, 30, Layout.KITCHEN_FOOTPRINT.Y)
+Layout.KITCHEN_OFFSET =
+	Vector3.new(-(BRANCH_END + Layout.KITCHEN_FOOTPRINT.Y / 2), 0, Streets.RING.gateZ)
 
 Layout.LIBRARY_CELL = "D4"
-Layout.LIBRARY_OFFSET = Vector3.new(150, 0, 90)
 Layout.LIBRARY_FACING = Vector3.new(-1, 0, 0)
 Layout.LIBRARY_FOOTPRINT = Vector2.new(84, 62)
 Layout.LIBRARY_SIZE = Vector3.new(Layout.LIBRARY_FOOTPRINT.X, 27, Layout.LIBRARY_FOOTPRINT.Y)
-Layout.LIBRARY_RESERVED_RADIUS = 66
-Layout.LIBRARY_APPROACH_LENGTH = 38
-Layout.LIBRARY_APPROACH_WIDTH = 20
+Layout.LIBRARY_OFFSET = Vector3.new(BRANCH_END + Layout.LIBRARY_FOOTPRINT.Y / 2, 0, Streets.RING.gateZ)
 
 export type Zone = {
 	kind: string,
@@ -260,6 +264,31 @@ function Layout.isTownPosition(area: Areas.AreaDefinition, position: Vector3, pa
 	return Layout.isTownPoint(localPosition.X, localPosition.Z, padding)
 end
 
+local function addBuildingZones(zones: { Zone }, area: Areas.AreaDefinition, frame: CFrame, footprint: Vector2)
+	local offset = frame.Position - area.origin
+	local halfWidth, halfDepth = footprint.X / 2, footprint.Y / 2
+
+	table.insert(zones, {
+		kind = "circle",
+		x = offset.X,
+		z = offset.Z,
+		radius = math.sqrt(halfWidth * halfWidth + halfDepth * halfDepth) + Layout.BUILDING_MARGIN,
+	})
+
+	local direction = frame.LookVector
+	local approach = frame:PointToWorldSpace(Vector3.new(0, 0, -(halfDepth + Layout.APPROACH_LENGTH / 2)))
+		- area.origin
+	table.insert(zones, {
+		kind = "strip",
+		x = approach.X,
+		z = approach.Z,
+		dirX = direction.X,
+		dirZ = direction.Z,
+		halfLength = Layout.APPROACH_LENGTH / 2,
+		halfWidth = Layout.APPROACH_WIDTH / 2,
+	})
+end
+
 local reservedCache: { [number]: { Zone } } = {}
 
 function Layout.reservedZones(area: Areas.AreaDefinition): { Zone }
@@ -311,49 +340,8 @@ function Layout.reservedZones(area: Areas.AreaDefinition): { Zone }
 	})
 
 	if area.id == Areas.STARTING_AREA then
-		local kitchenFrame = Layout.kitchenCFrame(area)
-		local kitchenOffset = kitchenFrame.Position - area.origin
-		local half = Layout.KITCHEN_SIZE / 2
-		table.insert(zones, {
-			kind = "circle",
-			x = kitchenOffset.X,
-			z = kitchenOffset.Z,
-
-			radius = math.sqrt(half.X * half.X + half.Z * half.Z) + 10,
-		})
-
-		local approach = kitchenFrame:PointToWorldSpace(Vector3.new(0, 0, -44.5)) - area.origin
-		table.insert(zones, {
-			kind = "circle",
-			x = approach.X,
-			z = approach.Z,
-			radius = 20,
-		})
-	end
-
-	if area.id == Areas.STARTING_AREA then
-		local libraryFrame = Layout.libraryCFrame(area)
-		local libraryOffset = libraryFrame.Position - area.origin
-		table.insert(zones, {
-			kind = "circle",
-			x = libraryOffset.X,
-			z = libraryOffset.Z,
-			radius = Layout.LIBRARY_RESERVED_RADIUS,
-		})
-
-		local direction = libraryFrame.LookVector
-		local approachCentre = libraryFrame:PointToWorldSpace(
-			Vector3.new(0, 0, -(Layout.LIBRARY_FOOTPRINT.Y / 2 + Layout.LIBRARY_APPROACH_LENGTH / 2))
-		) - area.origin
-		table.insert(zones, {
-			kind = "strip",
-			x = approachCentre.X,
-			z = approachCentre.Z,
-			dirX = direction.X,
-			dirZ = direction.Z,
-			halfLength = Layout.LIBRARY_APPROACH_LENGTH / 2,
-			halfWidth = Layout.LIBRARY_APPROACH_WIDTH / 2,
-		})
+		addBuildingZones(zones, area, Layout.kitchenCFrame(area), Layout.KITCHEN_FOOTPRINT)
+		addBuildingZones(zones, area, Layout.libraryCFrame(area), Layout.LIBRARY_FOOTPRINT)
 	end
 	for _, entry in SausageForest.CELLS do
 		local cell = Sections.byCoord(entry.coord)

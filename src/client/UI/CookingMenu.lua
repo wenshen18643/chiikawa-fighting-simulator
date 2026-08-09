@@ -291,7 +291,7 @@ local function buildRecipesView(parent: Frame)
 	list.ZIndex = recipesView.ZIndex + 1
 	list.Parent = recipesView
 	UI.list(list, UI.space.snug)
-	UI.padding(list, 0, { right = 14 })
+	UI.padding(list, UI.strokeClearance, { right = 14 })
 
 	for index, id in Recipes.ORDER do
 		local def = Recipes.get(id)

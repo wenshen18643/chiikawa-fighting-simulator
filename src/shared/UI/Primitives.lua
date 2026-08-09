@@ -74,9 +74,18 @@ local function elevationOf(level: (string | number)?): { layers: number, spread:
 	return (Theme.elevation :: any)[level or "base"] or Theme.elevation.base
 end
 
+local function layoutManaged(host: Instance): boolean
+	return host:FindFirstChildWhichIsA("UIGridStyleLayout") ~= nil
+end
+
 function Primitives.shadow(target: GuiObject, level: (string | number)?, tint: Color3?)
 	local spec = elevationOf(level)
 	if spec.layers <= 0 then
+		return
+	end
+
+	local host = target.Parent
+	if not host or layoutManaged(host) then
 		return
 	end
 
@@ -86,21 +95,43 @@ function Primitives.shadow(target: GuiObject, level: (string | number)?, tint: C
 		radius = corner.CornerRadius.Offset
 	end
 
+	local shades: { { frame: Frame, grow: number, drop: number } } = {}
+
 	for index = spec.layers, 1, -1 do
 		local grow = index * spec.spread
-		local drop = math.ceil(index * spec.spread * 0.5)
 		local shade = Instance.new("Frame")
-		shade.Name = `Shadow_{index}`
-		shade.AnchorPoint = Vector2.new(0.5, 0.5)
-		shade.Position = UDim2.new(0.5, 0, 0.5, drop)
-		shade.Size = UDim2.new(1, grow, 1, grow)
+		shade.Name = `{target.Name}_Shadow_{index}`
 		shade.BackgroundColor3 = tint or Theme.color.shadow
 		shade.BackgroundTransparency = spec.opacity + (1 - spec.opacity) * (index / spec.layers) * 0.92
 		shade.BorderSizePixel = 0
 		shade.ZIndex = target.ZIndex - 1
-		shade.Parent = target
+		shade.Parent = host
 		Primitives.corner(shade, radius + math.floor(grow / 2))
+		table.insert(shades, { frame = shade, grow = grow, drop = math.ceil(grow * 0.5) })
 	end
+
+	local function follow()
+		local anchor = target.AnchorPoint
+		for _, entry in shades do
+			entry.frame.AnchorPoint = anchor
+			entry.frame.Size = target.Size + UDim2.fromOffset(entry.grow, entry.grow)
+			entry.frame.Position = target.Position
+				+ UDim2.fromOffset(entry.grow * (anchor.X - 0.5), entry.grow * (anchor.Y - 0.5) + entry.drop)
+			entry.frame.Visible = target.Visible
+		end
+	end
+
+	follow()
+
+	for _, property in { "Size", "Position", "AnchorPoint", "Visible" } do
+		target:GetPropertyChangedSignal(property):Connect(follow)
+	end
+
+	target.Destroying:Connect(function()
+		for _, entry in shades do
+			entry.frame:Destroy()
+		end
+	end)
 end
 
 function Primitives.sheen(target: GuiObject, strength: number?): Frame

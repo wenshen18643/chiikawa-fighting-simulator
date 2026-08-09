@@ -1,9 +1,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Sections = require(ReplicatedStorage.Shared.Modules.Config.Sections)
+local Streets = require(ReplicatedStorage.Shared.Modules.Config.Streets)
 local Perimeter = {}
 
 Perimeter.CELLS = { "C3", "D3", "C4", "D4" }
-Perimeter.GATE_HALF_WIDTH = 17
+Perimeter.GATE_HALF_WIDTH = Streets.NORTH_ROAD_HALF
 Perimeter.BAND = 44
 Perimeter.BLOCK_HEIGHT = 260
 
@@ -49,6 +50,11 @@ end
 Perimeter.MIN, Perimeter.MAX = computeBounds()
 Perimeter.CENTRE = (Perimeter.MIN + Perimeter.MAX) / 2
 Perimeter.SIZE = Perimeter.MAX - Perimeter.MIN
+
+assert(
+	Perimeter.MAX.Y == Streets.GATEHOUSE_Z,
+	`Perimeter: wall sits at z={Perimeter.MAX.Y} but Streets.GATEHOUSE_Z is {Streets.GATEHOUSE_Z}`
+)
 
 Perimeter.GATE = {
 	x = Perimeter.CENTRE.X,

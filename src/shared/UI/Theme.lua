@@ -19,6 +19,7 @@ Theme.color = {
 
 	line = rgb(122, 96, 90),
 	lineSoft = rgb(214, 194, 186),
+	lineCard = rgb(196, 172, 163),
 	lineBright = rgb(255, 255, 255),
 
 	tobatsu = rgb(246, 132, 124),
@@ -54,10 +55,11 @@ Theme.color = {
 }
 
 Theme.surface = {
-	canvas = { fill = Theme.color.paper, top = Theme.color.paperRaised, bottom = Theme.color.paperDeep },
-	raised = { fill = Theme.color.paperRaised, top = Theme.color.white, bottom = Theme.color.paper },
-	sunken = { fill = Theme.color.paperSunken, top = Theme.color.paperDeep, bottom = Theme.color.paperSunken },
-	overlay = { fill = Theme.color.paper, top = Theme.color.white, bottom = Theme.color.paperDeep },
+	canvas = { fill = Theme.color.paper },
+	raised = { fill = Theme.color.paperRaised },
+	sunken = { fill = Theme.color.paperSunken },
+	overlay = { fill = Theme.color.paperDeep },
+	card = { fill = Theme.color.paperRaised },
 }
 
 Theme.elevation = {
@@ -78,6 +80,8 @@ Theme.font = {
 Theme.radius = { card = 22, pill = 999, bar = 12, chip = 14, tile = 18, well = 16 }
 
 Theme.space = { hair = 3, tight = 6, snug = 10, base = 14, loose = 22, wide = 32 }
+
+Theme.STROKE_CLEARANCE = 4
 
 Theme.text = { caption = 11, small = 13, body = 15, subtitle = 18, title = 22, display = 30, hero = 42 }
 
@@ -114,10 +118,51 @@ local function contrast(first: Color3, second: Color3): number
 	return (math.max(a, b) + 0.05) / (math.min(a, b) + 0.05)
 end
 
+Theme.MIN_CONTRAST = 4.5
+
+Theme.contrast = contrast
+
 function Theme.readable(background: Color3): Color3
 	return if contrast(background, Theme.color.ink) >= contrast(background, Theme.color.inkInverse)
 		then Theme.color.ink
 		else Theme.color.inkInverse
+end
+
+function Theme.fill(color: Color3): Color3
+	if
+		contrast(color, Theme.color.ink) >= Theme.MIN_CONTRAST
+		or contrast(color, Theme.color.inkInverse) >= Theme.MIN_CONTRAST
+	then
+		return color
+	end
+
+	for step = 1, 16 do
+		local lifted = color:Lerp(Theme.color.white, step / 16)
+		if contrast(lifted, Theme.color.ink) >= Theme.MIN_CONTRAST then
+			return lifted
+		end
+	end
+	return Theme.color.white
+end
+
+function Theme.legible(background: Color3, preferred: Color3?): Color3
+	if preferred and contrast(background, preferred) >= Theme.MIN_CONTRAST then
+		return preferred
+	end
+
+	local choice = Theme.readable(background)
+	if contrast(background, choice) >= Theme.MIN_CONTRAST then
+		return choice
+	end
+
+	local pole = if luminance(choice) > luminance(background) then Color3.new(1, 1, 1) else Color3.new(0, 0, 0)
+	for step = 1, 8 do
+		local pushed = choice:Lerp(pole, step / 8)
+		if contrast(background, pushed) >= Theme.MIN_CONTRAST then
+			return pushed
+		end
+	end
+	return pole
 end
 
 return Theme

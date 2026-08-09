@@ -15,7 +15,10 @@ local PAGE_EDGE_GUTTER = 6
 local PAGE_SCROLLBAR_GUTTER = 16
 local HERO_PADDING = 18
 local HERO_ACCENT_INSET = 4
-local HERO_ACCENT_END_INSET = 10
+local HERO_ACCENT_WIDTH = 6
+local HERO_ACCENT_GAP = 12
+local HERO_ACCENT_BLEED = 2
+local HERO_TEXT_INSET = HERO_ACCENT_INSET + HERO_ACCENT_WIDTH + HERO_ACCENT_GAP
 local PANEL_MARGIN = UI.space.loose
 local PANEL_MIN = Vector2.new(640, 420)
 local PANEL_MAX = Vector2.new(960, 680)
@@ -355,12 +358,12 @@ local function buildPage(parent: Frame, pageData: TutorialContent.Page): Scrolli
 	hero.Size = UDim2.new(1, 0, 0, 0)
 	hero.AutomaticSize = Enum.AutomaticSize.Y
 	hero.LayoutOrder = 1
-	UI.padding(hero, HERO_PADDING)
+	UI.padding(hero, HERO_PADDING, { left = HERO_TEXT_INSET })
 
 	local rule = Instance.new("Frame")
 	rule.Name = "Accent"
-	rule.Position = UDim2.fromOffset(HERO_ACCENT_INSET - HERO_PADDING, HERO_ACCENT_END_INSET - HERO_PADDING)
-	rule.Size = UDim2.new(0, 6, 1, HERO_PADDING * 2 - HERO_ACCENT_END_INSET * 2)
+	rule.Position = UDim2.fromOffset(HERO_ACCENT_INSET - HERO_TEXT_INSET, -HERO_ACCENT_BLEED)
+	rule.Size = UDim2.new(0, HERO_ACCENT_WIDTH, 1, HERO_ACCENT_BLEED * 2)
 	rule.BackgroundColor3 = accent
 	rule.BorderSizePixel = 0
 	rule.ZIndex = 24
@@ -600,7 +603,7 @@ local function buildPanel(parent: ScreenGui)
 	navigation.ScrollBarThickness = 0
 	navigation.ZIndex = 22
 	navigation.Parent = panel
-	UI.padding(navigation, 2)
+	UI.padding(navigation, UI.strokeClearance)
 
 	navigationLayout = Instance.new("UIListLayout")
 	navigationLayout.SortOrder = Enum.SortOrder.LayoutOrder

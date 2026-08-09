@@ -1,4 +1,9 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Constants = require(ReplicatedStorage.Shared.Modules.Constants)
+local Streets = require(ReplicatedStorage.Shared.Modules.Config.Streets)
 local SafeZone = {}
+local FENCE_POST = 1.3
+local FENCE_KERB = FENCE_POST / 2
 
 SafeZone.DOME = {
 	radius = 56,
@@ -128,9 +133,10 @@ SafeZone.interior = {
 } :: { Placement }
 
 SafeZone.exterior = {
-	{ asset = "sakuraTree", x = -62, z = 70, fit = 54, yaw = 25 },
-	{ asset = "sakuraTree", x = 62, z = 70, fit = 50, yaw = -40 },
-	{ asset = "sakuraTree", x = -34, z = -72, fit = 44, yaw = 150 },
+	{ asset = "sakuraTree", x = -58, z = 72, fit = 46, yaw = 25 },
+	{ asset = "sakuraTree", x = 58, z = 72, fit = 46, yaw = -40 },
+	{ asset = "sakuraTree", x = -60, z = -54, fit = 40, yaw = 150 },
+	{ asset = "sakuraTree", x = 60, z = -54, fit = 40, yaw = -150 },
 
 	{ asset = "lanternTall", x = -13, z = 99, fit = 22 },
 	{ asset = "lanternTall", x = 13, z = 99, fit = 22 },
@@ -151,11 +157,19 @@ SafeZone.exterior = {
 } :: { Placement }
 
 SafeZone.garden = {
-	fenceInset = 8,
-	fenceHeight = 5.5,
-	postSpacing = 7.5,
-	gateGap = 11,
+	halfX = Streets.RING.halfX - Streets.WIDTH - FENCE_KERB,
+	backZ = Streets.RING.southZ + Streets.WIDTH + FENCE_KERB,
+	frontZ = Streets.RING.northZ - FENCE_KERB,
+	sideGateZ = Streets.RING.gateZ,
 
+	baseY = Constants.WORLD.TERRAIN_TOP - Constants.WORLD.PLATFORM_TOP,
+	fenceHeight = 7.5,
+	fencePost = FENCE_POST,
+	postSpacing = 9,
+	gateGap = Streets.HALF_WIDTH + FENCE_KERB,
+	frontGateGap = Streets.NORTH_ROAD_HALF + FENCE_KERB,
+
+	grassInset = 5,
 	grassSpacing = 16,
 	grassJitter = 5,
 	grassFit = { 14, 20 },
