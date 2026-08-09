@@ -11,7 +11,7 @@ SausageForest.CELLS = {
 }
 
 SausageForest.SPECIES = {
-	{ id = "pinkSausage", weight = 6 },
+	{ id = "pinkSausage", weight = 24 },
 	{ id = "goldSausage", weight = 1 },
 }
 
@@ -29,13 +29,13 @@ SausageForest.FALLEN = {
 	yield = 1,
 }
 
-SausageForest.TREES_PER_CELL = 120
-SausageForest.FALLEN_PER_CELL = 110
-SausageForest.GROVES_PER_CELL = 16
-SausageForest.GROVE_GAP = 34
-SausageForest.GROVE_SPREAD = { 10, 22 }
-SausageForest.GROVE_TREES = { 5, 11 }
-SausageForest.MIN_GAP = 9
+SausageForest.TREES_PER_CELL = 55
+SausageForest.FALLEN_PER_CELL = 45
+SausageForest.GROVES_PER_CELL = 10
+SausageForest.GROVE_GAP = 44
+SausageForest.GROVE_SPREAD = { 12, 26 }
+SausageForest.GROVE_TREES = { 4, 8 }
+SausageForest.MIN_GAP = 13
 SausageForest.EDGE_FADE = 26
 SausageForest.EDGE_DENSITY = 0.45
 SausageForest.CLEARING_FADE = 16

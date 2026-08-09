@@ -27,6 +27,9 @@ Feast.ANNOUNCE_RADIUS = 140
 Feast.PROP_TAG = "FeastProp"
 Feast.PROP_RESPAWN = 600
 
+Feast.GROUND_SCAN = 240
+Feast.GROUND_FLATNESS = 1.5
+
 Feast.XP_PER_BITE = 1
 Feast.FINISH_XP_PER_CLICK = 2
 
@@ -39,7 +42,7 @@ Feast.DEFINITIONS = {
 		asset = "onigiri",
 		height = 18,
 		clicks = 40,
-		wageSeconds = 480,
+		wageSeconds = 60,
 		weight = 5,
 		buff = { id = "feast_onigiri", skill = "resilience", bonus = Constants.FOOD.BONUS_MEAT },
 	},
@@ -49,7 +52,7 @@ Feast.DEFINITIONS = {
 		asset = "dango",
 		height = 20,
 		clicks = 55,
-		wageSeconds = 720,
+		wageSeconds = 90,
 		weight = 5,
 		buff = { id = "feast_dango", skill = "kusatori", bonus = Constants.FOOD.BONUS_MEAT },
 	},
@@ -59,7 +62,7 @@ Feast.DEFINITIONS = {
 		asset = "pancakes",
 		height = 22,
 		clicks = 70,
-		wageSeconds = 1080,
+		wageSeconds = 130,
 		weight = 4,
 		buff = { id = "feast_pancakes", skill = "tobatsu", bonus = Constants.FOOD.BONUS_MEAT },
 	},
@@ -69,7 +72,7 @@ Feast.DEFINITIONS = {
 		asset = "yogurtBerry",
 		height = 22,
 		clicks = 70,
-		wageSeconds = 1080,
+		wageSeconds = 130,
 		weight = 4,
 		buff = { id = "feast_yogurt_berry", skill = "examprep", bonus = Constants.FOOD.BONUS_MEAT },
 	},
@@ -79,7 +82,7 @@ Feast.DEFINITIONS = {
 		asset = "yogurtVanilla",
 		height = 24,
 		clicks = 85,
-		wageSeconds = 1500,
+		wageSeconds = 180,
 		weight = 3,
 		buff = { id = "feast_yogurt_vanilla", skill = "resilience", bonus = Constants.FOOD.BONUS_MEAT },
 	},
@@ -89,7 +92,7 @@ Feast.DEFINITIONS = {
 		asset = "dangoPlatter",
 		height = 26,
 		clicks = 110,
-		wageSeconds = 2400,
+		wageSeconds = 280,
 		weight = 2,
 		buff = { id = "feast_dango_platter", skill = "tobatsu", bonus = Constants.FOOD.BONUS_MEAT },
 	},
@@ -99,7 +102,7 @@ Feast.DEFINITIONS = {
 		asset = "ramen",
 		height = 28,
 		clicks = 140,
-		wageSeconds = 3600,
+		wageSeconds = 420,
 		weight = 1,
 		buff = { id = "feast_ramen", stat = "yen", bonus = Constants.FOOD.BONUS_MEAT },
 	},

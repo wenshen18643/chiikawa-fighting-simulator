@@ -570,24 +570,51 @@ function Components.tabs(
 		radius = Theme.radius.pill,
 	})
 
-	Primitives.padding(bar, 4)
+	local container = Instance.new("Frame")
+	container.Name = "TabContainer"
+	container.Size = UDim2.fromScale(1, 1)
+	container.BackgroundTransparency = 1
+	container.ZIndex = bar.ZIndex + 2
+	container.Parent = bar
+
+	Primitives.padding(container, 4)
 
 	local layout = Instance.new("UIListLayout")
 	layout.FillDirection = Enum.FillDirection.Horizontal
-	layout.Padding = UDim.new(0, 4)
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Parent = bar
+	layout.Parent = container
 
 	local buttons: { [string]: TextButton } = {}
+	local pills: { [string]: Frame } = {}
 	local activate
 
 	for index, entry in entries do
-		local button = Components.button(bar, entry.key, {
+		local slot = Instance.new("Frame")
+		slot.Name = `{entry.key}Slot`
+		slot.BackgroundTransparency = 1
+		slot.Size = UDim2.new(1 / #entries, 0, 1, 0)
+		slot.LayoutOrder = index
+		slot.ZIndex = container.ZIndex
+		slot.Parent = container
+
+		local pill = Instance.new("Frame")
+		pill.Name = "Pill"
+		pill.AnchorPoint = Vector2.new(0.5, 0.5)
+		pill.Position = UDim2.fromScale(0.5, 0.5)
+		pill.Size = UDim2.new(1, -4, 1, 0)
+		pill.BackgroundColor3 = Theme.color.paperSunken
+		pill.BorderSizePixel = 0
+		pill.ZIndex = slot.ZIndex + 1
+		pill.Parent = slot
+		Primitives.corner(pill, Theme.radius.pill)
+		pills[entry.key] = pill
+
+		local button = Components.button(slot, entry.key, {
 			text = entry.label,
 			textSize = Theme.text.small,
-			extent = UDim2.new(1 / #entries, -4, 1, 0),
+			extent = UDim2.fromScale(1, 1),
 			radius = Theme.radius.pill,
-			zIndex = bar.ZIndex + 2,
+			zIndex = slot.ZIndex + 2,
 			color = Theme.color.paperSunken,
 			stroke = false,
 			sheen = false,
@@ -597,7 +624,7 @@ function Components.tabs(
 				activate(entry.key)
 			end,
 		})
-		button.LayoutOrder = index
+		button.BackgroundTransparency = 1
 		buttons[entry.key] = button
 	end
 
@@ -605,8 +632,10 @@ function Components.tabs(
 		current = key
 		for entryKey, button in buttons do
 			local active = entryKey == key
-			Motion.to(button, Motion.settle, {
+			Motion.to(pills[entryKey], Motion.settle, {
 				BackgroundColor3 = if active then accent else Theme.color.paperSunken,
+			})
+			Motion.to(button, Motion.settle, {
 				TextColor3 = if active then Theme.color.ink else Theme.color.inkSoft,
 			})
 		end
@@ -639,6 +668,17 @@ function Components.modal(
 	scrim.ZIndex = config.zIndex or 30
 	scrim.Parent = parent
 
+	local blocker = Instance.new("TextButton")
+	blocker.Name = "PanelBlocker"
+	blocker.AnchorPoint = Vector2.new(0.5, 0.5)
+	blocker.Position = UDim2.fromScale(0.5, 0.5)
+	blocker.BackgroundTransparency = 1
+	blocker.BorderSizePixel = 0
+	blocker.AutoButtonColor = false
+	blocker.Text = ""
+	blocker.ZIndex = scrim.ZIndex
+	blocker.Parent = scrim
+
 	local panel = Components.card(scrim, "Panel", {
 		zIndex = scrim.ZIndex + 1,
 		radius = Theme.radius.card,
@@ -648,6 +688,10 @@ function Components.modal(
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
 	panel.Active = true
+	blocker.Size = panel.Size
+	panel:GetPropertyChangedSignal("Size"):Connect(function()
+		blocker.Size = panel.Size
+	end)
 
 	local setOpen
 	local openState = false
