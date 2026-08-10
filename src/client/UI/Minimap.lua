@@ -2,18 +2,27 @@ local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Areas = require(Shared.Areas)
 local Cave = require(Shared.Modules.Config.Cave)
 local Layout = require(Shared.Modules.Config.Layout)
+local Market = require(Shared.Modules.Config.Market)
+local Perimeter = require(Shared.Modules.Config.Perimeter)
+local Quarry = require(Shared.Modules.Config.Quarry)
+local Remotes = require(Shared.Modules.Remotes)
+local SausageForest = require(Shared.Modules.Config.SausageForest)
 local Sections = require(Shared.Modules.Config.Sections)
+local Streets = require(Shared.Modules.Config.Streets)
+local SafeZone = require(Shared.Modules.Config.SafeZone)
 local UI = require(Shared.UI)
 local StateController = require(script.Parent.Parent.Controllers.StateController)
 local Minimap = {}
 local LOCAL_SIZE = 186
 local STRIP_HEIGHT = 34
 local REFRESH_INTERVAL = 0.25
+local DISCOVER_REACH = 48
+local FOG_FADE = TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local root: Frame
 local localView: Frame
 local localTitle: TextLabel
@@ -26,10 +35,213 @@ local builtArea: number? = nil
 local accumulator = 0
 local rootScale: UIScale
 local changedListeners: { (boolean) -> () } = {}
+local fogCells: { [string]: Frame } = {}
+local discovered: { [string]: boolean } = {}
+local pending: { string } = {}
+local reportRemote: RemoteEvent?
 
-local function toLocalFraction(area: Areas.AreaDefinition, offsetX: number, offsetZ: number): Vector2
-	local span = area.terrain.islandSize
-	return Vector2.new(0.5 + offsetX / span, 0.5 + offsetZ / span)
+local THEME_TINT: { [string]: Color3 } = {
+	meadow = UI.color.leaf,
+	meadowQuiet = UI.color.leaf,
+	grove = UI.color.leafDeep,
+	bramble = UI.color.leafDeep,
+	sausage = UI.color.blush,
+	sakura = UI.color.blush,
+	flower = UI.color.lavender,
+	berry = UI.color.lavender,
+	mushroom = UI.color.sand,
+	ramen = UI.color.rest,
+	kitchen = UI.color.warning,
+	library = UI.color.sky,
+	market = UI.color.gold,
+	teaCorner = UI.color.mint,
+	snow = UI.color.white,
+	lake = UI.color.info,
+	quarry = UI.color.inkFaint,
+	farm = UI.color.sand,
+}
+
+local function spanOf(area: Areas.AreaDefinition): number
+	return area.terrain.islandSize
+end
+
+local function toFraction(area: Areas.AreaDefinition, x: number, z: number): Vector2
+	local span = spanOf(area)
+	return Vector2.new(0.5 + x / span, 0.5 + z / span)
+end
+
+local function pixels(area: Areas.AreaDefinition, studs: number): number
+	return studs / spanOf(area) * LOCAL_SIZE
+end
+
+local function patch(parent: Instance, config: { [string]: any }): Frame
+	local frame = Instance.new("Frame")
+	frame.Name = config.name or "Patch"
+	frame.AnchorPoint = Vector2.new(0.5, 0.5)
+	frame.Position = UDim2.fromScale(config.at.X, config.at.Y)
+	frame.Size = UDim2.fromOffset(math.max(config.width, 1), math.max(config.height, 1))
+	frame.BackgroundColor3 = config.color
+	frame.BackgroundTransparency = config.transparency or 0
+	frame.BorderSizePixel = 0
+	frame.ZIndex = config.zIndex or 4
+	frame.Parent = parent
+	if config.radius then
+		UI.corner(frame, config.radius)
+	end
+	return frame
+end
+
+local function rect(parent: Instance, area: Areas.AreaDefinition, config: { [string]: any }): Frame
+	local minX, maxX = config.minX, config.maxX
+	local minZ, maxZ = config.minZ, config.maxZ
+	return patch(parent, {
+		name = config.name,
+		at = toFraction(area, (minX + maxX) / 2, (minZ + maxZ) / 2),
+		width = pixels(area, maxX - minX),
+		height = pixels(area, maxZ - minZ),
+		color = config.color,
+		transparency = config.transparency,
+		zIndex = config.zIndex,
+		radius = config.radius,
+	})
+end
+
+local function marker(parent: Instance, area: Areas.AreaDefinition, config: { [string]: any })
+	local disc = patch(parent, {
+		name = config.name,
+		at = toFraction(area, config.x, config.z),
+		width = 13,
+		height = 13,
+		color = config.color,
+		zIndex = 6,
+		radius = 999,
+	})
+	UI.stroke(disc, UI.color.paper, 1.5)
+
+	UI.glyph(disc, config.glyph, {
+		color = UI.legible(config.color),
+		extent = UDim2.fromOffset(9, 9),
+		anchor = Vector2.new(0.5, 0.5),
+		position = UDim2.fromScale(0.5, 0.5),
+		zIndex = 7,
+	})
+end
+
+local function landmarksOf(area: Areas.AreaDefinition): { { [string]: any } }
+	local points = {
+		{ name = "Home", glyph = "home", x = 0, z = 0, color = UI.color.leafDeep },
+		{
+			name = "Kitchen",
+			glyph = "pot",
+			x = Layout.KITCHEN_OFFSET.X,
+			z = Layout.KITCHEN_OFFSET.Z,
+			color = UI.color.warning,
+		},
+		{
+			name = "Library",
+			glyph = "book",
+			x = Layout.LIBRARY_OFFSET.X,
+			z = Layout.LIBRARY_OFFSET.Z,
+			color = UI.color.sky,
+		},
+		{ name = "Market", glyph = "coin", x = Market.CENTRE.X, z = Market.CENTRE.Y, color = UI.color.gold },
+		{ name = "Gate", glyph = "pin", x = Perimeter.GATE.x, z = Perimeter.GATE.z, color = UI.color.blush },
+	}
+
+	local farm = Layout.farmAnchor(area) - area.origin
+	table.insert(points, { name = "Farm", glyph = "carrot", x = farm.X, z = farm.Z, color = UI.color.rest })
+
+	local pit = Quarry.centre()
+	if pit then
+		table.insert(points, { name = "Quarry", glyph = "ore", x = pit.X, z = pit.Y, color = UI.color.inkFaint })
+	end
+
+	local forest = Sections.byCoord(SausageForest.CELLS[1].coord)
+	if forest then
+		local arena = SausageForest.arena(forest)
+		table.insert(
+			points,
+			{ name = "SausageForest", glyph = "sausage", x = arena.X, z = arena.Y, color = UI.color.blush }
+		)
+	end
+
+	local level = Cave.LEVELS[1]
+	local mouth = if level then Cave.first(level, Cave.ENTRANCE) else nil
+	if level and mouth then
+		local at = Cave.cellPosition(level, mouth.row, mouth.col)
+		if at then
+			table.insert(points, { name = "Cave", glyph = "mushroom", x = at.X, z = at.Z, color = UI.color.lavender })
+		end
+	end
+
+	return points
+end
+
+local function buildTownDetail(layer: Frame, area: Areas.AreaDefinition)
+	local paved = { Streets.SQUARE }
+	for _, road in Streets.PAVING do
+		table.insert(paved, road)
+	end
+
+	for _, road in paved do
+		rect(layer, area, {
+			name = road.name,
+			minX = road.minX,
+			maxX = road.maxX,
+			minZ = road.minZ,
+			maxZ = road.maxZ,
+			color = UI.color.paperDeep,
+			zIndex = 5,
+		})
+	end
+
+	local wall = rect(layer, area, {
+		name = "TownWall",
+		minX = Perimeter.MIN.X,
+		maxX = Perimeter.MAX.X,
+		minZ = Perimeter.MIN.Y,
+		maxZ = Perimeter.MAX.Y,
+		color = UI.color.paper,
+		transparency = 1,
+		zIndex = 5,
+		radius = 4,
+	})
+	UI.stroke(wall, UI.color.lineCard, 1.5)
+
+	local dome = math.max(pixels(area, SafeZone.DOME.radius * 2), 8)
+	patch(layer, {
+		name = "SafeHouse",
+		at = toFraction(area, 0, 0),
+		width = dome,
+		height = dome,
+		color = UI.color.paperRaised,
+		zIndex = 5,
+		radius = 999,
+	})
+
+	for _, point in landmarksOf(area) do
+		marker(layer, area, point)
+	end
+end
+
+local function buildFog(layer: Frame, area: Areas.AreaDefinition)
+	local side = pixels(area, Sections.SIZE)
+
+	for _, cell in Sections.cells() do
+		local key = `{area.key}:{cell.coord}`
+		local tile = patch(layer, {
+			name = key,
+			at = toFraction(area, cell.cx, cell.cz),
+			width = side + 1,
+			height = side + 1,
+			color = UI.color.paperSunken,
+			zIndex = 8,
+		})
+		local edge = UI.stroke(tile, UI.color.lineSoft, 1)
+		edge.Transparency = 0.55
+		tile.BackgroundTransparency = if discovered[key] then 1 else 0
+		fogCells[key] = tile
+	end
 end
 
 local function buildLocalView(area: Areas.AreaDefinition)
@@ -42,6 +254,7 @@ local function buildLocalView(area: Areas.AreaDefinition)
 		layer:Destroy()
 	end
 	table.clear(areaLayers)
+	table.clear(fogCells)
 
 	local layer = Instance.new("Frame")
 	layer.Name = `Area_{area.id}`
@@ -54,40 +267,64 @@ local function buildLocalView(area: Areas.AreaDefinition)
 	UI.corner(layer, UI.radius.chip)
 	areaLayers[area.id] = layer
 
-	local road = Instance.new("Frame")
-	road.Name = "Road"
-	road.AnchorPoint = Vector2.new(0.5, 0.5)
-	road.Position = UDim2.fromScale(0.5, 0.5)
-	road.Size = UDim2.new(1, 0, 0, 5)
-	road.BackgroundColor3 = UI.color.paperDeep
-	road.BackgroundTransparency = 0.25
-	road.BorderSizePixel = 0
-	road.ZIndex = 4
-	road.Parent = layer
-
-	local plaza = Instance.new("Frame")
-	plaza.Name = "Plaza"
-	plaza.AnchorPoint = Vector2.new(0.5, 0.5)
-	plaza.Position = UDim2.fromScale(0.5, 0.5)
-	local plazaSize = math.max(10, Layout.plazaDiameter(area) / area.terrain.islandSize * LOCAL_SIZE)
-	plaza.Size = UDim2.fromOffset(plazaSize, plazaSize)
-	plaza.BackgroundColor3 = UI.color.paper
-	plaza.BorderSizePixel = 0
-	plaza.ZIndex = 6
-	plaza.Parent = layer
-	UI.corner(plaza, 999)
-
-	if area.id == Areas.STARTING_AREA then
-		UI.glyph(layer, "home", {
-			color = UI.color.leafDeep,
-			extent = UDim2.fromOffset(15, 15),
-			anchor = Vector2.new(0.5, 0.5),
-			position = UDim2.fromScale(0.5, 0.5),
-			zIndex = 7,
+	local side = pixels(area, Sections.SIZE)
+	for _, cell in Sections.cells() do
+		local accent = THEME_TINT[cell.theme]
+		patch(layer, {
+			name = cell.coord,
+			at = toFraction(area, cell.cx, cell.cz),
+			width = side + 1,
+			height = side + 1,
+			color = if accent then area.palette.ground:Lerp(accent, 0.55) else area.palette.ground,
+			zIndex = 4,
 		})
 	end
 
+	if area.id == Areas.STARTING_AREA then
+		buildTownDetail(layer, area)
+	end
+
+	buildFog(layer, area)
 	localTitle.Text = string.upper(area.name)
+end
+
+local function reveal(key: string)
+	if discovered[key] then
+		return
+	end
+	discovered[key] = true
+	table.insert(pending, key)
+
+	local tile = fogCells[key]
+	if tile then
+		TweenService:Create(tile, FOG_FADE, { BackgroundTransparency = 1 }):Play()
+	end
+end
+
+local function discoverAround(area: Areas.AreaDefinition, x: number, z: number)
+	local here = Sections.cellAt(x, z)
+	if not here then
+		return
+	end
+
+	for i = here.i - 1, here.i + 1 do
+		for j = here.j - 1, here.j + 1 do
+			local cell = Sections.cell(i, j)
+			if not cell then
+				continue
+			end
+			local gapX = math.max(cell.minX - x, x - cell.maxX, 0)
+			local gapZ = math.max(cell.minZ - z, z - cell.maxZ, 0)
+			if gapX <= DISCOVER_REACH and gapZ <= DISCOVER_REACH then
+				reveal(`{area.key}:{cell.coord}`)
+			end
+		end
+	end
+
+	if #pending > 0 and reportRemote then
+		reportRemote:FireServer(pending)
+		table.clear(pending)
+	end
 end
 
 local REVEAL_RADIUS = 34
@@ -279,14 +516,10 @@ local function refresh()
 	localTitle.Text = string.upper(if Layout.isHomePosition(area, position) then "Home" else area.name)
 
 	local offset = position - area.origin
-	local fraction = toLocalFraction(area, offset.X, offset.Z)
-	playerMarker.Position = UDim2.fromScale(math.clamp(fraction.X, 0, 1), math.clamp(fraction.Y, 0, 1))
+	discoverAround(area, offset.X, offset.Z)
 
-	local camera = Workspace.CurrentCamera
-	if camera then
-		local look = camera.CFrame.LookVector
-		playerMarker.Rotation = math.deg(math.atan2(look.Z, look.X))
-	end
+	local fraction = toFraction(area, offset.X, offset.Z)
+	playerMarker.Position = UDim2.fromScale(math.clamp(fraction.X, 0, 1), math.clamp(fraction.Y, 0, 1))
 
 	local worldFraction = Layout.toMapFraction(position)
 	stripMarker.Position = UDim2.fromScale(worldFraction.X, 0.5)
@@ -369,12 +602,16 @@ function Minimap.build(parent: Instance): Frame
 	localView.ZIndex = 3
 	localView.Parent = root
 
-	playerMarker = UI.glyph(localView, "arrow", {
+	playerMarker = patch(localView, {
+		name = "You",
+		at = Vector2.new(0.5, 0.5),
+		width = 9,
+		height = 9,
 		color = UI.color.ink,
-		extent = UDim2.fromOffset(15, 15),
-		anchor = Vector2.new(0.5, 0.5),
 		zIndex = 9,
+		radius = 999,
 	})
+	UI.stroke(playerMarker, UI.color.paper, 1.5)
 
 	strip = Instance.new("Frame")
 	strip.Name = "World"
@@ -397,6 +634,24 @@ function Minimap.build(parent: Instance): Frame
 	})
 
 	buildStrip()
+
+	reportRemote = Remotes.event("Discovery", "Report")
+
+	StateController.onChanged(function(snapshot)
+		local saved = snapshot and snapshot.discovered
+		if type(saved) ~= "table" then
+			return
+		end
+		for key in saved do
+			if not discovered[key] then
+				discovered[key] = true
+				local tile = fogCells[key]
+				if tile then
+					tile.BackgroundTransparency = 1
+				end
+			end
+		end
+	end)
 
 	RunService.RenderStepped:Connect(function(delta)
 		accumulator += delta

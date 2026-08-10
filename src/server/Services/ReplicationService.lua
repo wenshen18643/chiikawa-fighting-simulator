@@ -51,6 +51,7 @@ local function buildSnapshot(player: Player, profile: any)
 		yenPerSecond = Formulas.yenPerSecond(profile),
 		regionId = RegionService.getCurrentRegion(player),
 		unlockedRegions = profile.unlockedRegions,
+		discovered = profile.discovered,
 		highestUnlockedRegion = RegionService.getHighestUnlocked(profile),
 		showIntro = profile.meta.introShown ~= true,
 	}

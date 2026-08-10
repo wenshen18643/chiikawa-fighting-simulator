@@ -11,6 +11,7 @@ local SafeZone = require(Shared.Modules.Config.SafeZone)
 local Streets = require(Shared.Modules.Config.Streets)
 local UI = require(Shared.UI)
 local AssetService = require(script.Parent.AssetService)
+local SafeZoneFurniture = require(script.Parent.SafeZoneFurniture)
 local WeedService = require(script.Parent.WeedService)
 local WorldService = require(script.Parent.WorldService)
 local SafeZoneService = {}
@@ -380,25 +381,34 @@ local function buildLoft(): number
 	end
 
 	local railHalf = math.sqrt(math.max(radius * radius - (math.abs(loft.frontZ) + 1) ^ 2, 0))
+	local gapMin, gapMax = SafeZone.stairGap()
+	local runs = { { -railHalf, math.min(gapMin, railHalf) }, { math.max(gapMax, -railHalf), railHalf } }
 
-	piece({
-		name = "LoftRail",
-		size = Vector3.new(railHalf * 2, 0.7, 0.7),
-		color = palette.timber,
-		material = Enum.Material.Wood,
-		cframe = toWorld(0, deckY + loft.railHeight, loft.frontZ),
-	})
+	for index, run in runs do
+		local span = run[2] - run[1]
+		if span < 1 then
+			continue
+		end
 
-	local posts = 9
-	for index = 0, posts do
 		piece({
-			name = `LoftPost_{index}`,
-			size = Vector3.new(0.5, loft.railHeight, 0.5),
+			name = `LoftRail_{index}`,
+			size = Vector3.new(span, 0.7, 0.7),
 			color = palette.timber,
 			material = Enum.Material.Wood,
-			collide = false,
-			cframe = toWorld(-railHalf + (railHalf * 2) * (index / posts), deckY + loft.railHeight / 2, loft.frontZ),
+			cframe = toWorld((run[1] + run[2]) / 2, deckY + loft.railHeight, loft.frontZ),
 		})
+
+		local posts = math.max(1, math.round(span / loft.postSpacing))
+		for step = 0, posts do
+			piece({
+				name = `LoftPost_{index}_{step}`,
+				size = Vector3.new(0.5, loft.railHeight, 0.5),
+				color = palette.timber,
+				material = Enum.Material.Wood,
+				collide = false,
+				cframe = toWorld(run[1] + span * (step / posts), deckY + loft.railHeight / 2, loft.frontZ),
+			})
+		end
 	end
 
 	return deckY
@@ -406,20 +416,69 @@ end
 
 local function buildStair(deckY: number)
 	local stair = SafeZone.STAIR
+	local headZ = SafeZone.LOFT.frontZ
+	local run = (headZ - stair.footZ) / stair.steps
+	local rise = (deckY - SafeZone.FLOOR_Y) / stair.steps
+	local half = stair.width / 2
 
 	for index = 1, stair.steps do
-		local fraction = index / stair.steps
-		local azimuth = math.rad(stair.fromAzimuth + stair.sweep * fraction)
-		local top = deckY * fraction
-
 		piece({
 			name = `Step_{index}`,
-			size = Vector3.new(stair.length, 1.7, stair.width),
+			size = Vector3.new(stair.width, stair.tread, math.abs(run) + 0.3),
 			color = palette.timber,
 			material = Enum.Material.Wood,
-			cframe = CFrame.new(origin)
-				* CFrame.Angles(0, azimuth, 0)
-				* CFrame.new(0, top - 0.85 + SafeZone.FLOOR_Y, stair.radius),
+			cframe = toWorld(
+				stair.x,
+				SafeZone.FLOOR_Y + rise * index - stair.tread / 2,
+				stair.footZ + run * (index - 0.5)
+			),
+		})
+	end
+
+	local climb = deckY - SafeZone.FLOOR_Y
+	local reach = stair.footZ - headZ
+	local pitch = math.atan2(climb, reach)
+	local slope = math.sqrt(climb * climb + reach * reach)
+	local midY = (SafeZone.FLOOR_Y + deckY) / 2
+	local midZ = (stair.footZ + headZ) / 2
+
+	for _, side in { -1, 1 } do
+		piece({
+			name = "Stringer",
+			size = Vector3.new(stair.stringer, 2.8, slope),
+			color = palette.timberDark,
+			material = Enum.Material.Wood,
+			collide = false,
+			cframe = toWorld(stair.x + side * (half - stair.stringer / 2), midY - 1.1, midZ)
+				* CFrame.Angles(pitch, 0, 0),
+		})
+	end
+
+	local inward = if stair.x < 0 then 1 else -1
+	local railX = stair.x + inward * (half - 0.4)
+
+	piece({
+		name = "StairRail",
+		size = Vector3.new(0.6, 0.6, slope),
+		color = palette.timber,
+		material = Enum.Material.Wood,
+		collide = false,
+		cframe = toWorld(railX, midY + stair.railHeight, midZ) * CFrame.Angles(pitch, 0, 0),
+	})
+
+	for index = 0, stair.railPosts do
+		local fraction = index / stair.railPosts
+		piece({
+			name = `StairPost_{index}`,
+			size = Vector3.new(0.45, stair.railHeight, 0.45),
+			color = palette.timber,
+			material = Enum.Material.Wood,
+			collide = false,
+			cframe = toWorld(
+				railX,
+				SafeZone.FLOOR_Y + climb * fraction + stair.railHeight / 2,
+				stair.footZ - reach * fraction
+			),
 		})
 	end
 end
@@ -550,6 +609,21 @@ local function buildLamps(deckY: number)
 		light.Shadows = false
 		light.Parent = bulb
 	end
+end
+
+local function buildFurniture(deckY: number)
+	local folder = Instance.new("Folder")
+	folder.Name = "Furniture"
+	folder.Parent = houseFolder
+
+	SafeZoneFurniture.build({
+		piece = piece,
+		toWorld = toWorld,
+		surfaceFrame = surfaceFrame,
+		parent = folder,
+		floorY = SafeZone.FLOOR_Y,
+		deckY = deckY,
+	})
 end
 
 local function worldHeight(cframe: CFrame, size: Vector3): number
@@ -955,6 +1029,7 @@ local function build(rng: Random)
 	buildCertificateBoard()
 	buildFuton(deckY)
 	buildLamps(deckY)
+	buildFurniture(deckY)
 
 	buildFence()
 

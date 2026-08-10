@@ -12,8 +12,6 @@ export type Objective = {
 
 export type Reward = {
 	yen: number?,
-	skill: string?,
-	skillAmount: number?,
 	ingredients: { { id: string, count: number } }?,
 	unlock: { kind: string, id: string, label: string }?,
 }
@@ -35,14 +33,14 @@ WorkOrders.CHAIN = {
 		name = "Mushroom Run",
 		blurb = "There is a hole in the Mushroom Hollow. Things grow down there. Bring some back.",
 		objective = { kind = "collect", target = "brownMushroom", count = 10 },
-		reward = { yen = 1200, skill = "kusatori", skillAmount = 260 },
+		reward = { yen = 300 },
 	},
 	{
 		id = "spore_cull",
 		name = "Spore Cull",
 		blurb = "The little ones puff at anybody who walks past. Thin them out.",
 		objective = { kind = "defeat", target = "cave_sporeling", count = 8 },
-		reward = { yen = 2400, skill = "tobatsu", skillAmount = 520 },
+		reward = { yen = 600 },
 	},
 
 	{
@@ -51,7 +49,7 @@ WorkOrders.CHAIN = {
 		blurb = "There is a second floor under the first. Go and stand on it, then come back and tell me.",
 		objective = { kind = "reach", target = "2", count = 1 },
 		reward = {
-			yen = 3000,
+			yen = 750,
 			unlock = { kind = "tool", id = "lantern", label = "Lantern" },
 		},
 	},
@@ -61,9 +59,7 @@ WorkOrders.CHAIN = {
 		blurb = "The lights down there run from you. Catch two. Do not ask me what they are.",
 		objective = { kind = "defeat", target = "cave_wisp", count = 2 },
 		reward = {
-			yen = 4200,
-			skill = "tobatsu",
-			skillAmount = 900,
+			yen = 1000,
 			ingredients = { { id = "whiteMushroom", count = 6 } },
 		},
 	},
@@ -73,7 +69,7 @@ WorkOrders.CHAIN = {
 		blurb = "The cook wants the ones that shine. Fifteen. Do not eat them on the way up.",
 		objective = { kind = "collect", target = "whiteMushroom", count = 15 },
 		reward = {
-			yen = 5400,
+			yen = 1350,
 			unlock = { kind = "recipe", id = "glowcapStew", label = "Glowcap Stew" },
 		},
 	},
@@ -83,9 +79,7 @@ WorkOrders.CHAIN = {
 		blurb = "Something is holding the bottom floor. It has been there longer than the town has.",
 		objective = { kind = "defeat", target = "cave_mycelia", count = 1 },
 		reward = {
-			yen = 20000,
-			skill = "tobatsu",
-			skillAmount = 6000,
+			yen = 5000,
 			ingredients = { { id = "moonlightCap", count = 3 } },
 			unlock = { kind = "companion", id = "sporeling", label = "Sporeling" },
 		},
@@ -95,7 +89,7 @@ WorkOrders.CHAIN = {
 		name = "First Seam",
 		blurb = "You came up in my quarry, so you can work it. Chalk. Twenty lumps. Start at the top step.",
 		objective = { kind = "collect", target = "chalkStone", count = 20 },
-		reward = { yen = 6500, skill = "tobatsu", skillAmount = 1200 },
+		reward = { yen = 1600 },
 	},
 	{
 		id = "shore_up",
@@ -103,7 +97,7 @@ WorkOrders.CHAIN = {
 		blurb = "The east face is soft. I need iron for the braces before it comes down on somebody.",
 		objective = { kind = "collect", target = "ironOre", count = 15 },
 		reward = {
-			yen = 9000,
+			yen = 2250,
 			unlock = { kind = "tool", id = "pickaxe2", label = "Steel Pick" },
 		},
 	},
@@ -113,9 +107,7 @@ WorkOrders.CHAIN = {
 		blurb = "Copper sits under the chalk, one terrace down. Mind the drop on your way back up.",
 		objective = { kind = "collect", target = "copperOre", count = 12 },
 		reward = {
-			yen = 16000,
-			skill = "tobatsu",
-			skillAmount = 5200,
+			yen = 4000,
 			unlock = { kind = "tool", id = "pickaxe3", label = "Quarryman's Pick" },
 		},
 	},
@@ -125,9 +117,7 @@ WorkOrders.CHAIN = {
 		blurb = "Bottom step, where the pit meets her old floor. It only shines down there. Four will do.",
 		objective = { kind = "collect", target = "moonOre", count = 4 },
 		reward = {
-			yen = 60000,
-			skill = "tobatsu",
-			skillAmount = 26000,
+			yen = 15000,
 			unlock = { kind = "tool", id = "pickaxe4", label = "Moonstone Pick" },
 		},
 	},
@@ -211,14 +201,13 @@ WorkOrders.GRADES = {
 
 WorkOrders.BOARD_SIZE = 3
 
-local YEN_BASE = 1800
-local SKILL_BASE = 420
+local YEN_BASE = 450
 local GROWTH = 1.11
 
 local VERBS = {
-	collect = { weight = 1, skill = "kusatori" },
-	defeat = { weight = 1.2, skill = "tobatsu" },
-	reach = { weight = 0.7, skill = "resilience" },
+	collect = { weight = 1 },
+	defeat = { weight = 1.2 },
+	reach = { weight = 0.7 },
 }
 
 local BLURBS = {
@@ -328,8 +317,6 @@ function WorkOrders.generate(rank: number, slot: number): OrderDefinition?
 
 	local reward: Reward = {
 		yen = math.max(100, math.floor(YEN_BASE * scale / 100) * 100),
-		skill = verb.skill,
-		skillAmount = math.max(10, math.floor(SKILL_BASE * scale / 10) * 10),
 	}
 
 	if rng:NextNumber() < 0.3 then

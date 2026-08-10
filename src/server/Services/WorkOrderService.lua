@@ -14,7 +14,6 @@ local ForagingService = require(script.Parent.ForagingService)
 local HarvestNodes = require(script.Parent.HarvestNodes)
 local MobService = require(script.Parent.MobService)
 local NotifyService = require(script.Parent.NotifyService)
-local SkillService = require(script.Parent.SkillService)
 local WorkOrderService = {}
 local LEVEL_ATTRIBUTE = "CaveLevel"
 local LANTERN_ATTRIBUTE = "HasLantern"
@@ -206,10 +205,6 @@ local function grant(player: Player, profile: any, order: WorkOrders.OrderDefini
 
 	if reward.yen then
 		CurrencyService.award(profile, "yen", BigNumber.fromNumber(reward.yen))
-	end
-
-	if reward.skill and reward.skillAmount then
-		SkillService.award(player, profile, reward.skill, BigNumber.fromNumber(reward.skillAmount))
 	end
 
 	local payout: { { id: string, count: number } } = reward.ingredients or {}

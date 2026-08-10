@@ -34,16 +34,26 @@ SafeZone.LOFT = {
 	inset = 2.6,
 	strips = 28,
 	railHeight = 4.2,
+	postSpacing = 10,
 }
 
 SafeZone.STAIR = {
-	steps = 25,
-	fromAzimuth = 128,
-	sweep = 132,
-	radius = 41,
-	width = 7.5,
-	length = 6.4,
+	steps = 24,
+	x = -30,
+	footZ = 38,
+	width = 9,
+	tread = 1.1,
+	stringer = 0.9,
+	railHeight = 3.4,
+	railPosts = 7,
+	clearance = 1.2,
 }
+
+function SafeZone.stairGap(): (number, number)
+	local stair = SafeZone.STAIR
+	local reach = stair.width / 2 + stair.clearance
+	return stair.x - reach, stair.x + reach
+end
 
 SafeZone.palette = {
 	shell = Color3.fromRGB(250, 247, 242),
@@ -126,11 +136,57 @@ SafeZone.interior = {
 	{ asset = "teaCup", x = 6, z = -19.5, fit = 2.4, y = SafeZone.SURFACE.cloth },
 
 	{ asset = "dangoPlatter", x = 24, z = 10, fit = SafeZone.FOOD.dangoPlatter },
-	{ asset = "onigiri", x = -22, z = 14, fit = SafeZone.FOOD.onigiri },
-	{ asset = "kettle", x = -28, z = 3, fit = 5 },
+	{ asset = "onigiri", x = -16, z = 18, fit = SafeZone.FOOD.onigiri },
+	{ asset = "kettle", x = 10, z = -40, fit = 5, yaw = 150 },
 	{ asset = "gachaGuy", x = 34, z = -8, fit = 10, yaw = 90, name = "GachaGuy" },
 	{ asset = "weaponsGachaGuy", x = 34, z = 8, fit = 10, yaw = 90, name = "WeaponsGachaGuy" },
 } :: { Placement }
+
+export type Furnishing = {
+	kind: string,
+
+	azimuth: number?,
+	inset: number?,
+
+	x: number?,
+	z: number?,
+	yaw: number?,
+	y: number?,
+
+	span: number?,
+	from: number?,
+	to: number?,
+	on: string?,
+	seed: number?,
+}
+
+SafeZone.FURNITURE = {
+	{ kind = "hearth", azimuth = 150, inset = 2, span = 18, y = 16 },
+	{ kind = "counter", azimuth = 250, inset = 2.5, span = 26, y = 15 },
+	{ kind = "bookcase", azimuth = 197, inset = 2, span = 16, seed = 11, y = 14 },
+	{ kind = "wardrobe", azimuth = 116, inset = 2, y = 18 },
+	{ kind = "dresser", azimuth = 58, inset = 2, span = 14, y = 11 },
+	{ kind = "genkan", x = 0, z = 45, span = 30 },
+	{ kind = "crates", x = -44, z = 8, yaw = 285 },
+
+	{ kind = "planter", x = 21, z = 33 },
+	{ kind = "planter", x = -21, z = 33 },
+	{ kind = "planter", x = 44, z = 10 },
+	{ kind = "planter", x = -26, z = -40 },
+
+	{ kind = "loftRug", x = -4, z = -26, span = 22, on = "loft" },
+	{ kind = "sideTable", x = 4, z = -33, yaw = -90, on = "loft" },
+	{ kind = "bookcase", x = -24, z = -30, yaw = 200, span = 12, seed = 29, y = 8, on = "loft" },
+	{ kind = "plushPile", x = 9, z = -20, on = "loft" },
+} :: { Furnishing }
+
+SafeZone.WALL_ART = {
+	{ kind = "frames", azimuth = -42, y = 13 },
+	{ kind = "frames", azimuth = 42, y = 13 },
+	{ kind = "clock", azimuth = 180, y = 21 },
+	{ kind = "garland", from = -58, to = 58, y = 27 },
+	{ kind = "garland", from = 122, to = 238, y = 19 },
+} :: { Furnishing }
 
 SafeZone.exterior = {
 	{ asset = "sakuraTree", x = -58, z = 72, fit = 46, yaw = 25 },

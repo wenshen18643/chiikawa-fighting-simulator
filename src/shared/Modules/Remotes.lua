@@ -16,6 +16,9 @@ local REMOTE_TREE = {
 	SafeZone = {
 		Changed = "RemoteEvent",
 	},
+	Discovery = {
+		Report = "RemoteEvent",
+	},
 	Notify = {
 		Message = "RemoteEvent",
 	},

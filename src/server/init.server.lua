@@ -49,6 +49,7 @@ local BOOT_ORDER = {
 
 	"WorkOrderService",
 	"ShopService",
+	"DiscoveryService",
 	"ReplicationService",
 	"GachaService",
 	"WeaponGachaService",

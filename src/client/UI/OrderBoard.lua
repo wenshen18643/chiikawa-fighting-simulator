@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared.Modules.Remotes)
+local Ingredients = require(Shared.Modules.Config.Ingredients)
 local UI = require(Shared.UI)
 local UIManager = require(script.Parent.UIManager)
 local OrderBoard = {}
@@ -18,7 +19,11 @@ type Entry = {
 	accepted: boolean,
 }
 
-local ROW_HEIGHT = 108
+local ROW_HEIGHT = 120
+local ROW_PAD = UI.space.base
+local ACTION_WIDTH = 116
+local ACTION_HEIGHT = 36
+local TEXT_INSET = ROW_PAD * 3 + ACTION_WIDTH
 local TEMPLATE = "OrderBoard"
 local MENU_ID = "order-board"
 local screen: ScreenGui
@@ -30,6 +35,11 @@ local closeButton: GuiButton? = nil
 local acceptRemote: RemoteEvent
 local turnInRemote: RemoteEvent
 
+local function ingredientName(id: string): string
+	local definition = Ingredients.get(id)
+	return if definition then definition.name else id
+end
+
 local function rewardText(reward: { [string]: any }): string
 	local parts = {}
 	if reward.unlock then
@@ -38,20 +48,18 @@ local function rewardText(reward: { [string]: any }): string
 	if reward.yen then
 		table.insert(parts, `{reward.yen} yen`)
 	end
-	if reward.skill and reward.skillAmount then
-		table.insert(parts, `{reward.skillAmount} {reward.skill}`)
-	end
 	for _, entry in reward.ingredients or {} do
-		table.insert(parts, `{entry.count}x {entry.id}`)
+		table.insert(parts, `{entry.count}x {ingredientName(entry.id)}`)
 	end
 	return table.concat(parts, "  •  ")
 end
 
 local function buildRow(entry: Entry, index: number)
 	local done = entry.progress >= entry.objective.count
+	local surface = if entry.accepted then UI.color.paperDeep else UI.color.paper
 
 	local row = UI.card(listHolder, entry.id, {
-		color = if entry.accepted then UI.color.paperDeep else UI.color.paper,
+		color = surface,
 		radius = UI.radius.chip,
 	})
 	row.Size = UDim2.new(1, 0, 0, ROW_HEIGHT)
@@ -61,17 +69,16 @@ local function buildRow(entry: Entry, index: number)
 		text = entry.name,
 		font = UI.font.display,
 		size = UI.text.title,
-		position = UDim2.fromOffset(UI.space.base, UI.space.snug),
-		extent = UDim2.new(1, -160, 0, 26),
+		position = UDim2.fromOffset(ROW_PAD, 12),
+		extent = UDim2.new(1, -(ROW_PAD * 3 + 64), 0, 24),
 	})
 
 	if entry.grade then
 		UI.chip(row, "Grade", {
 			text = entry.grade,
 			color = UI.color.sky,
-			textColor = UI.color.paperDeep,
 			extent = UDim2.fromOffset(64, 22),
-			position = UDim2.new(1, -80, 0, UI.space.snug),
+			position = UDim2.new(1, -(ROW_PAD + 64), 0, 13),
 		})
 	end
 
@@ -80,8 +87,8 @@ local function buildRow(entry: Entry, index: number)
 		font = UI.font.light,
 		size = UI.text.small,
 		color = UI.color.inkSoft,
-		position = UDim2.fromOffset(UI.space.base, UI.space.snug + 28),
-		extent = UDim2.new(1, -UI.space.base * 2, 0, 34),
+		position = UDim2.fromOffset(ROW_PAD, 40),
+		extent = UDim2.new(1, -TEXT_INSET, 0, 32),
 	})
 
 	local requirement = if entry.accepted
@@ -91,27 +98,29 @@ local function buildRow(entry: Entry, index: number)
 		text = requirement,
 		font = UI.font.body,
 		size = UI.text.small,
-		color = if done then UI.color.leaf else UI.color.ink,
-		position = UDim2.fromOffset(UI.space.base, ROW_HEIGHT - 32),
-		extent = UDim2.new(0.55, 0, 0, 20),
+		color = if done then UI.accentInk(surface, UI.color.leafDeep) else UI.color.ink,
+		position = UDim2.fromOffset(ROW_PAD, 78),
+		extent = UDim2.new(1, -TEXT_INSET, 0, 18),
 	})
 
 	UI.label(row, "Reward", {
 		text = rewardText(entry.reward),
-		font = UI.font.light,
+		font = UI.font.body,
 		size = UI.text.caption,
-		color = UI.color.gold,
-		position = UDim2.fromOffset(UI.space.base, ROW_HEIGHT - 14),
-		extent = UDim2.new(0.7, 0, 0, 14),
+		color = UI.accentInk(surface, UI.color.gold),
+		position = UDim2.fromOffset(ROW_PAD, 97),
+		extent = UDim2.new(1, -TEXT_INSET, 0, 16),
 	})
+
+	local actionExtent = UDim2.fromOffset(ACTION_WIDTH, ACTION_HEIGHT)
+	local actionPosition = UDim2.new(1, -(ROW_PAD + ACTION_WIDTH), 1, -(ACTION_HEIGHT + 18))
 
 	if entry.accepted and not done then
 		UI.chip(row, "InProgress", {
 			text = "In hand",
 			color = UI.color.rest,
-			textColor = UI.color.paperDeep,
-			extent = UDim2.fromOffset(112, 32),
-			position = UDim2.new(1, -128, 1, -46),
+			extent = actionExtent,
+			position = actionPosition,
 		})
 		return
 	end
@@ -119,9 +128,8 @@ local function buildRow(entry: Entry, index: number)
 	UI.button(row, if done then "TurnIn" else "Accept", {
 		text = if done then "Hand it in" else "Take it",
 		color = if done then UI.color.leafDeep else UI.color.sky,
-		textColor = UI.color.paperDeep,
-		extent = UDim2.fromOffset(112, 32),
-		position = UDim2.new(1, -128, 1, -46),
+		extent = actionExtent,
+		position = actionPosition,
 
 		onActivated = function()
 			if done then
