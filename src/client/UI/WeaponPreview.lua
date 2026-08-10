@@ -34,7 +34,8 @@ type Entry = {
 local CACHE_LIMIT = 12
 local BASE_PITCH = 8
 local BASE_YAW = 24
-local BASE_ZOOM = 1.25
+local BASE_ZOOM = 1.2
+local MIN_HALF_ANGLE = math.rad(4)
 local SPIN_RATE = 32
 local cache: { [string]: Model } = {}
 local cacheOrder: { string } = {}
@@ -112,6 +113,17 @@ local function onScreen(viewport: ViewportFrame): boolean
 	return false
 end
 
+local function fitDistance(viewport: ViewportFrame, camera: Camera, radius: number, margin: number): number
+	local extent = viewport.AbsoluteSize
+	local vertical = math.rad(camera.FieldOfView) * 0.5
+	local horizontal = vertical
+	if extent.X > 0 and extent.Y > 0 then
+		horizontal = math.atan(math.tan(vertical) * (extent.X / extent.Y))
+	end
+	local half = math.max(math.min(vertical, horizontal), MIN_HALF_ANGLE)
+	return radius / math.sin(half) * margin
+end
+
 local function realize(entry: Entry)
 	entry.built = true
 
@@ -122,12 +134,15 @@ local function realize(entry: Entry)
 	model.Parent = entry.viewport
 
 	local options = entry.options
+	local viewport = entry.viewport
 	local camera = entry.camera
 	local pivot, size = model:GetBoundingBox()
-	local reach = math.max(size.X, size.Y, size.Z) * (options.zoom or BASE_ZOOM)
+	local radius = size.Magnitude * 0.5
+	local margin = options.zoom or BASE_ZOOM
 	local pitch = math.rad(options.pitch or BASE_PITCH)
 	local facing = math.rad(options.yaw or BASE_YAW)
 	local focus = pivot.Position
+	local reach = fitDistance(viewport, camera, radius, margin)
 
 	local function aim(spun: number)
 		local turn = facing + spun
@@ -135,8 +150,13 @@ local function realize(entry: Entry)
 		camera.CFrame = CFrame.lookAt(focus + offset.Position, focus)
 	end
 
+	viewport:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		reach = fitDistance(viewport, camera, radius, margin)
+		aim(entry.turn)
+	end)
+
 	entry.aim = aim
-	aim(0)
+	aim(entry.turn)
 end
 
 local function step(delta: number)

@@ -13,6 +13,7 @@ local WorkController = require(script.Parent.Parent.Controllers.WorkController)
 local UIManager = require(script.Parent.UIManager)
 local GachaReveal = require(script.Parent.GachaReveal)
 local GachaResults = require(script.Parent.GachaResults)
+local GachaTicket = require(script.Parent.GachaTicket)
 local WeaponPreview = require(script.Parent.WeaponPreview)
 
 type GachaState = {
@@ -104,8 +105,8 @@ local function presentResult(result: PullResult): GachaReveal.Presentation?
 				parent,
 				skin.id,
 				if hero
-					then { spin = true, backdrop = 1, zoom = 1.35 }
-					else { backdrop = 1, zoom = 1.45, radius = UI.radius.chip }
+					then { spin = true, backdrop = 1, zoom = 1.15 }
+					else { backdrop = 1, zoom = 1.3, radius = UI.radius.chip }
 			)
 			return preview
 		end,
@@ -218,19 +219,19 @@ local function buildNavigation(parent: Frame)
 	showPage(activePage)
 end
 
-local function drawButton(parent: Instance, drawId: WeaponSkins.DrawId, count: number, position: UDim2)
-	local draw = WeaponSkins.DRAWS[drawId]
-	local accent = if drawId == "premium" then UI.color.gold else UI.color.sky
-	local button = UI.button(parent, `Draw{count}`, {
-		text = if count == 1 then `Draw 1  ·  {draw.cost} yen` else `Draw 10  ·  {draw.cost * count} yen`,
-		color = accent,
-		textColor = UI.color.ink,
-		extent = UDim2.new(0.46, 0, 0, 44),
+local function buildDrawTicket(parent: Instance, drawId: WeaponSkins.DrawId, position: UDim2)
+	local featured = WeaponSkins.rollSkin(if drawId == "premium" then "legendary" else "epic", Random.new())
+	GachaTicket.build(parent, {
+		catalog = WeaponSkins :: any,
+		drawId = drawId,
 		position = position,
-		stroke = false,
-		sheen = false,
+		featuredName = featured.name,
 
-		onActivated = function()
+		mountFeatured = function(stage: Frame)
+			WeaponPreview.mount(stage, featured.id, { spin = true, radius = UI.radius.tile })
+		end,
+
+		onDraw = function(count: number)
 			if pullBusy then
 				return
 			end
@@ -242,112 +243,11 @@ local function drawButton(parent: Instance, drawId: WeaponSkins.DrawId, count: n
 				end
 			end)
 		end,
+
+		onButton = function(button: TextButton)
+			table.insert(drawButtons, button)
+		end,
 	})
-	table.insert(drawButtons, button)
-end
-
-local function buildDrawTicket(parent: Instance, drawId: WeaponSkins.DrawId, position: UDim2)
-	local draw = WeaponSkins.DRAWS[drawId]
-	local premium = drawId == "premium"
-	local card = UI.card(parent, drawId, {
-		color = if premium then UI.color.sand else UI.color.paperRaised,
-		radius = UI.radius.card,
-		position = position,
-		stroke = false,
-		sheen = false,
-		innerLine = false,
-	})
-	card.Size = UDim2.new(0.485, 0, 1, 0)
-
-	local accent = Instance.new("Frame")
-	accent.Name = "Accent"
-	accent.BackgroundColor3 = if premium then UI.color.gold else UI.color.sky
-	accent.BorderSizePixel = 0
-	accent.Position = UDim2.fromOffset(0, 14)
-	accent.Size = UDim2.fromOffset(5, 48)
-	accent.Parent = card
-	UI.corner(accent, 3)
-
-	UI.label(card, "Eyebrow", {
-		text = if premium then "LUCKY WEAPON CAPSULE" else "EVERYDAY WEAPON CAPSULE",
-		font = UI.font.bold,
-		size = UI.text.caption,
-		color = if premium then UI.color.gold else UI.color.sky,
-		position = UDim2.fromOffset(18, 10),
-		extent = UDim2.new(1, -32, 0, 18),
-	})
-	UI.label(card, "Title", {
-		text = draw.name,
-		font = UI.font.display,
-		size = UI.text.title,
-		position = UDim2.fromOffset(18, 27),
-		extent = UDim2.new(1, -32, 0, 28),
-	})
-
-	local pips = Instance.new("Frame")
-	pips.Name = "Odds"
-	pips.BackgroundTransparency = 1
-	pips.Position = UDim2.fromOffset(18, 58)
-	pips.Size = UDim2.new(1, -36, 0, 26)
-	pips.Parent = card
-
-	for index, rarityId in WeaponSkins.RARITY_ORDER do
-		local rarity = WeaponSkins.RARITIES[rarityId]
-		local weight = draw.weights[rarityId]
-		local pip = Instance.new("Frame")
-		pip.Name = rarityId
-		pip.BackgroundColor3 = rarity.color
-		pip.BorderSizePixel = 0
-		pip.Position = UDim2.new((index - 1) / 5, 2, 0, 0)
-		pip.Size = UDim2.new(1 / 5, -4, 0, 5)
-		pip.Parent = pips
-		UI.corner(pip, UI.radius.pill)
-
-		UI.label(pips, `{rarityId}Rate`, {
-			text = `{weight}%`,
-			font = UI.font.bold,
-			size = UI.text.caption,
-			color = rarity.color,
-			align = Enum.TextXAlignment.Center,
-			position = UDim2.new((index - 1) / 5, 2, 0, 8),
-			extent = UDim2.new(1 / 5, -4, 0, 16),
-		})
-	end
-
-	local featured = WeaponSkins.rollSkin(if premium then "legendary" else "epic", Random.new())
-	local stage = Instance.new("Frame")
-	stage.Name = "Featured"
-	stage.BackgroundTransparency = 1
-	stage.Position = UDim2.fromOffset(18, 92)
-	stage.Size = UDim2.new(1, -36, 1, -178)
-	stage.Parent = card
-	WeaponPreview.mount(stage, featured.id, {
-		spin = true,
-		zoom = 1.35,
-		radius = UI.radius.tile,
-	})
-
-	UI.label(card, "FeaturedName", {
-		text = `Featured · {featured.name}`,
-		font = UI.font.bold,
-		size = UI.text.caption,
-		color = UI.color.inkSoft,
-		align = Enum.TextXAlignment.Center,
-		position = UDim2.new(0, 18, 1, -82),
-		extent = UDim2.new(1, -36, 0, 16),
-	})
-	UI.label(card, "Cost", {
-		text = `{draw.cost} yen per capsule`,
-		font = UI.font.light,
-		size = UI.text.caption,
-		color = UI.color.inkFaint,
-		align = Enum.TextXAlignment.Center,
-		position = UDim2.new(0, 18, 1, -66),
-		extent = UDim2.new(1, -36, 0, 16),
-	})
-
-	drawButton(card, drawId, 1, UDim2.new(0.03, 0, 1, -52))
-	drawButton(card, drawId, 10, UDim2.new(0.51, 0, 1, -52))
 end
 
 local function sellableCopies(snapshot: GachaState, skin: WeaponSkins.SkinDefinition): number
@@ -501,7 +401,7 @@ function renderDetail()
 		text = `{string.upper(rarity.name)}  ·  {if weapon then weapon.name else skin.weaponId}`,
 		font = UI.font.bold,
 		size = UI.text.caption,
-		color = rarity.color,
+		color = UI.accentInk(UI.color.paperRaised, rarity.color),
 		align = Enum.TextXAlignment.Center,
 		position = UDim2.fromOffset(0, 26),
 		extent = UDim2.new(1, 0, 0, 16),
@@ -693,83 +593,16 @@ local function buildCollectionFilters(parent: Frame)
 	end
 end
 
-local function percent(value: number): string
-	if value <= 0 then
-		return "0%"
-	end
-	if value < 0.01 then
-		return "<0.01%"
-	end
-	return `{string.format("%.2f", value)}%`
-end
-
 local function buildOddsPage(parent: Frame)
-	local scroll = Instance.new("ScrollingFrame")
-	scroll.Name = "OddsScroll"
-	scroll.BackgroundTransparency = 1
-	scroll.BorderSizePixel = 0
-	scroll.Size = UDim2.fromScale(1, 1)
-	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	scroll.CanvasSize = UDim2.fromOffset(0, 0)
-	scroll.ScrollBarThickness = 6
-	scroll.ScrollBarImageColor3 = UI.color.inkSoft
-	scroll.Parent = parent
-	UI.list(scroll, 8)
-	UI.padding(scroll, UI.strokeClearance)
+	GachaTicket.oddsPage(parent, {
+		catalog = WeaponSkins :: any,
+		noun = "weapon",
+		intro = `Every capsule uses the odds below. A capsule first picks a rarity, then picks evenly from the weapons in that rarity. A rare or better is guaranteed every {WeaponSkins.RARE_PLUS_PITY} pulls, and a legendary every {WeaponSkins.LEGENDARY_PITY}. Weapons are looks only - none of them change how fast you work.`,
 
-	UI.label(scroll, "Intro", {
-		text = `Every capsule uses the odds below. A capsule first picks a rarity, then picks evenly from the weapons in that rarity. A rare or better is guaranteed every {WeaponSkins.RARE_PLUS_PITY} pulls, and a legendary every {WeaponSkins.LEGENDARY_PITY}. Weapons are looks only - none of them change how fast you work.`,
-		font = UI.font.body,
-		size = UI.text.small,
-		color = UI.color.inkSoft,
-		extent = UDim2.new(1, -10, 0, 60),
-		wrapped = true,
+		resale = function(rarity)
+			return `Sells for {rarity.resaleYen} yen`
+		end,
 	})
-
-	for index, rarityId in WeaponSkins.RARITY_ORDER do
-		local rarity = WeaponSkins.RARITIES[rarityId]
-		local standard = WeaponSkins.DRAWS.standard.weights[rarityId]
-		local premium = WeaponSkins.DRAWS.premium.weights[rarityId]
-		local card = UI.card(scroll, rarityId, {
-			color = UI.color.paperRaised,
-			radius = UI.radius.chip,
-			stroke = false,
-			sheen = false,
-			innerLine = false,
-		})
-		card.Size = UDim2.new(1, -10, 0, 58)
-		card.LayoutOrder = index
-		local outline = UI.stroke(card, rarity.color, 2)
-		outline.Transparency = 0.25
-		UI.label(card, "Name", {
-			text = rarity.name,
-			font = UI.font.display,
-			size = UI.text.body,
-			color = rarity.color,
-			position = UDim2.fromOffset(14, 8),
-			extent = UDim2.new(0.3, 0, 0, 22),
-		})
-		UI.label(card, "Bonus", {
-			text = `Sells for {rarity.resaleYen} yen`,
-			font = UI.font.light,
-			size = UI.text.caption,
-			color = UI.color.inkSoft,
-			position = UDim2.fromOffset(14, 31),
-			extent = UDim2.new(0.56, 0, 0, 18),
-		})
-		local pool = math.max(WeaponSkins.poolSize(rarityId), 1)
-		UI.label(card, "Rates", {
-			text = `Standard {standard}%  ·  Premium {premium}%\n{pool} weapon{if pool == 1 then "" else "s"} · each {percent(
-				standard / pool
-			)} / {percent(premium / pool)}`,
-			font = UI.font.bold,
-			size = UI.text.caption,
-			color = UI.color.ink,
-			align = Enum.TextXAlignment.Right,
-			position = UDim2.new(1, -244, 0, 8),
-			extent = UDim2.fromOffset(230, 42),
-		})
-	end
 end
 
 local function buildPanel(parent: ScreenGui)
@@ -779,15 +612,15 @@ local function buildPanel(parent: ScreenGui)
 		if not body then
 			return
 		end
-		body.CanvasSize = if compact then UDim2.fromOffset(0, 360) else UDim2.fromOffset(0, 0)
+		body.CanvasSize = if compact then UDim2.fromOffset(0, 430) else UDim2.fromOffset(0, 0)
 		body.ScrollBarThickness = if compact then 6 else 0
 		for _, page in pages do
-			page.Size = if compact then UDim2.new(1, -8, 0, 360) else UDim2.fromScale(1, 1)
+			page.Size = if compact then UDim2.new(1, -8, 0, 430) else UDim2.fromScale(1, 1)
 		end
 	end
 	local _scrim, content, toggle = UI.modal(parent, "WeaponGachaMenu", {
 		extent = UDim2.new(0.74, 0, 0.84, 0),
-		maxSize = Vector2.new(780, 650),
+		maxSize = Vector2.new(980, 680),
 		zIndex = 30,
 		dismissOnBackground = false,
 
@@ -865,8 +698,8 @@ local function buildPanel(parent: ScreenGui)
 	bodyFrame.BorderSizePixel = 0
 	bodyFrame.CanvasSize = UDim2.fromOffset(0, 0)
 	bodyFrame.ScrollBarImageColor3 = UI.color.inkSoft
-	bodyFrame.Position = UDim2.fromOffset(0, 148)
-	bodyFrame.Size = UDim2.new(1, 0, 1, -148)
+	bodyFrame.Position = UDim2.fromOffset(0, 164)
+	bodyFrame.Size = UDim2.new(1, 0, 1, -164)
 	bodyFrame.Parent = content
 	UI.padding(bodyFrame, 2)
 	body = bodyFrame

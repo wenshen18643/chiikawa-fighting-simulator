@@ -165,4 +165,19 @@ function Theme.legible(background: Color3, preferred: Color3?): Color3
 	return pole
 end
 
+function Theme.accentInk(background: Color3, accent: Color3): Color3
+	if contrast(background, accent) >= Theme.MIN_CONTRAST then
+		return accent
+	end
+
+	local pole = if luminance(accent) > luminance(background) then Color3.new(1, 1, 1) else Color3.new(0, 0, 0)
+	for step = 1, 12 do
+		local pushed = accent:Lerp(pole, step / 12)
+		if contrast(background, pushed) >= Theme.MIN_CONTRAST then
+			return pushed
+		end
+	end
+	return Theme.legible(background)
+end
+
 return Theme

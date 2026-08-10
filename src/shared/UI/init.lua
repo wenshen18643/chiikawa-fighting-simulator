@@ -21,6 +21,7 @@ UI.lighten = Theme.lighten
 UI.readable = Theme.readable
 UI.fill = Theme.fill
 UI.legible = Theme.legible
+UI.accentInk = Theme.accentInk
 UI.contrast = Theme.contrast
 UI.strokeClearance = Theme.STROKE_CLEARANCE
 UI.motion = Motion
