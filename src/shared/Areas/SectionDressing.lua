@@ -1,7 +1,6 @@
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Farming = require(Shared.Modules.Config.Farming)
 local Feast = require(Shared.Modules.Config.Feast)
 local Sections = require(Shared.Modules.Config.Sections)
 local Props = require(Shared.Modules.Props)
@@ -276,9 +275,6 @@ local function dressEntrance(ctx, cell, theme, occupied)
 end
 
 local function dressCell(ctx, cell)
-	if cell.coord == Farming.CELL_COORD then
-		return
-	end
 	local theme = Sections.THEMES[cell.theme]
 	if not theme or theme.bare then
 		return
@@ -300,11 +296,6 @@ local function dressCell(ctx, cell)
 end
 
 local function dressBorder(ctx, i, j, vertical)
-	local cellA = Sections.cell(i, j)
-	local cellB = if vertical then Sections.cell(i + 1, j) else Sections.cell(i, j + 1)
-	if (cellA and cellA.coord == Farming.CELL_COORD) or (cellB and cellB.coord == Farming.CELL_COORD) then
-		return
-	end
 	local themeA = Sections.themeAt(i, j)
 	local themeB = if vertical then Sections.themeAt(i + 1, j) else Sections.themeAt(i, j + 1)
 	if not themeA or not themeB or themeA == themeB then

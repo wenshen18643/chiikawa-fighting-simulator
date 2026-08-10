@@ -12,14 +12,15 @@ local ready = false
 local readySignal = Instance.new("BindableEvent")
 local filled = 0
 local MASK_FADE = 70
-
+local LEGACY_HALF = Sections.SIZE * 3
+local OUTER_SCALE = Sections.HALF / LEGACY_HALF
 local MOUNTAINS = {
-	{ x = -540, z = 540, h = 42, r = 150 },
-	{ x = -520, z = -545, h = 48, r = 160 },
-	{ x = 520, z = -540, h = 30, r = 110 },
-	{ x = 0, z = 595, h = 22, r = 130 },
-	{ x = -605, z = 60, h = 26, r = 120 },
-	{ x = 610, z = -40, h = 24, r = 110 },
+	{ x = -540 * OUTER_SCALE, z = 540 * OUTER_SCALE, h = 42, r = 150 },
+	{ x = -520 * OUTER_SCALE, z = -545 * OUTER_SCALE, h = 48, r = 160 },
+	{ x = 520 * OUTER_SCALE, z = -540 * OUTER_SCALE, h = 30, r = 110 },
+	{ x = 0, z = 595 * OUTER_SCALE, h = 22, r = 130 },
+	{ x = -605 * OUTER_SCALE, z = 60 * OUTER_SCALE, h = 26, r = 120 },
+	{ x = 610 * OUTER_SCALE, z = -40 * OUTER_SCALE, h = 24, r = 110 },
 }
 
 local function edgeDistance(zones: { Layout.Zone }, x: number, z: number): number

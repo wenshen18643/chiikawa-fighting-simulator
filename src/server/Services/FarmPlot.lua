@@ -87,6 +87,7 @@ local function makeSign(parent: Instance, baseCFrame: CFrame, plotId: number): B
 		Color3.fromRGB(136, 100, 72)
 	)
 	post.Material = Enum.Material.Wood
+	post.CanQuery = false
 
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "PlotStatus"
@@ -112,13 +113,8 @@ local function makeSign(parent: Instance, baseCFrame: CFrame, plotId: number): B
 	end
 
 	label("Title", 0, 0.34, string.format("%02d", plotId), Enum.Font.FredokaOne)
-	local status = label(
-		"Status",
-		0.34,
-		0.34,
-		'<font transparency="0.5">Vacant</font> · Rent ¥20',
-		Enum.Font.GothamBold
-	)
+	local status =
+		label("Status", 0.34, 0.34, '<font transparency="0.5">Vacant</font> · Rent ¥20', Enum.Font.GothamBold)
 	status.RichText = true
 	label("Auction", 0.68, 0.32, "", Enum.Font.Gotham)
 	return post
@@ -130,12 +126,7 @@ local function cancelThread(owned: thread?)
 	end
 end
 
-function FarmPlot.new(
-	plotId: number,
-	cframe: CFrame,
-	parent: Instance,
-	dependencies: Dependencies
-): FarmPlot
+function FarmPlot.new(plotId: number, cframe: CFrame, parent: Instance, dependencies: Dependencies): FarmPlot
 	local model = Instance.new("Model")
 	model.Name = `FarmPlot_{string.format("%02d", plotId)}`
 
@@ -157,15 +148,19 @@ function FarmPlot.new(
 		Color3.fromRGB(102, 72, 51)
 	)
 	soil.Material = Enum.Material.Ground
+	soil.CanQuery = false
 
 	local edge = Farming.PLOT_SIZE / 2 - 0.5
-	for _, spec in {
-		{ size = Vector3.new(Farming.PLOT_SIZE, 0.8, 0.7), offset = Vector3.new(0, 1.35, -edge) },
-		{ size = Vector3.new(Farming.PLOT_SIZE, 0.8, 0.7), offset = Vector3.new(0, 1.35, edge) },
-		{ size = Vector3.new(0.7, 0.8, Farming.PLOT_SIZE), offset = Vector3.new(-edge, 1.35, 0) },
-		{ size = Vector3.new(0.7, 0.8, Farming.PLOT_SIZE), offset = Vector3.new(edge, 1.35, 0) },
-	} do
-		local border = makePart(model, "Border", spec.size, cframe * CFrame.new(spec.offset), Color3.fromRGB(176, 132, 86))
+	for _, spec in
+		{
+			{ size = Vector3.new(Farming.PLOT_SIZE, 0.8, 0.7), offset = Vector3.new(0, 1.35, -edge) },
+			{ size = Vector3.new(Farming.PLOT_SIZE, 0.8, 0.7), offset = Vector3.new(0, 1.35, edge) },
+			{ size = Vector3.new(0.7, 0.8, Farming.PLOT_SIZE), offset = Vector3.new(-edge, 1.35, 0) },
+			{ size = Vector3.new(0.7, 0.8, Farming.PLOT_SIZE), offset = Vector3.new(edge, 1.35, 0) },
+		}
+	do
+		local border =
+			makePart(model, "Border", spec.size, cframe * CFrame.new(spec.offset), Color3.fromRGB(176, 132, 86))
 		border.Material = Enum.Material.WoodPlanks
 		border.CanQuery = false
 	end
@@ -183,24 +178,27 @@ function FarmPlot.new(
 	model.Parent = parent
 	CollectionService:AddTag(model, "FarmPlot")
 
-	local self = setmetatable({
-		_id = plotId,
-		_model = model,
-		_base = base,
-		_cropFolder = cropFolder,
-		_cropCFrame = cframe * CFrame.new(0, Farming.PLOT_THICKNESS / 2 + 0.52, 0),
-		_dependencies = dependencies,
-		_ownerUserId = nil,
-		_ownerName = nil,
-		_leaseEndsAt = nil,
-		_bid = nil,
-		_crop = nil,
-		_leaseGeneration = 0,
-		_cropGeneration = 0,
-		_leaseTask = nil,
-		_cropTasks = {},
-		_destroyed = false,
-	} :: Fields, FarmPlot)
+	local self = setmetatable(
+		{
+			_id = plotId,
+			_model = model,
+			_base = base,
+			_cropFolder = cropFolder,
+			_cropCFrame = cframe * CFrame.new(0, Farming.PLOT_THICKNESS / 2 + 0.52, 0),
+			_dependencies = dependencies,
+			_ownerUserId = nil,
+			_ownerName = nil,
+			_leaseEndsAt = nil,
+			_bid = nil,
+			_crop = nil,
+			_leaseGeneration = 0,
+			_cropGeneration = 0,
+			_leaseTask = nil,
+			_cropTasks = {},
+			_destroyed = false,
+		} :: Fields,
+		FarmPlot
+	)
 
 	return self
 end
@@ -303,10 +301,7 @@ function FarmPlot.renderCrop(self: FarmPlot, now: number)
 	local elapsed = math.max(0, now - crop.plantedAt)
 	local growthSeconds = Farming.growthSeconds(crop.id)
 	assert(growthSeconds, `Missing farming definition for {crop.id}`)
-	local stage = if elapsed >= growthSeconds
-		then 3
-		elseif elapsed >= growthSeconds / 2 then 2
-		else 1
+	local stage = if elapsed >= growthSeconds then 3 elseif elapsed >= growthSeconds / 2 then 2 else 1
 	self._model:SetAttribute("VisualStage", if stage == 3 then "ready" elseif stage == 2 then "growing" else "planted")
 	self._dependencies.renderCrop(self._cropFolder, crop.id, stage, self._cropCFrame)
 end
@@ -328,11 +323,14 @@ function FarmPlot.plant(self: FarmPlot, crop: CropState)
 	for _, threshold in { growthSeconds / 2, growthSeconds } do
 		local waitFor = crop.plantedAt + threshold - self._dependencies.clock()
 		if waitFor > 0 then
-			table.insert(self._cropTasks, task.delay(waitFor, function()
-				if not self._destroyed and generation == self._cropGeneration then
-					self:renderCrop(self._dependencies.clock())
-				end
-			end))
+			table.insert(
+				self._cropTasks,
+				task.delay(waitFor, function()
+					if not self._destroyed and generation == self._cropGeneration then
+						self:renderCrop(self._dependencies.clock())
+					end
+				end)
+			)
 		end
 	end
 end

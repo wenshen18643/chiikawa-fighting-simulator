@@ -5,7 +5,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Areas = require(Shared.Areas)
 local BigNumber = require(Shared.Modules.BigNumber)
-local Constants = require(Shared.Modules.Constants)
 local Formulas = require(Shared.Modules.Formulas)
 local ModelUtil = require(Shared.Modules.ModelUtil)
 local RateLimiter = require(Shared.Modules.RateLimiter)
@@ -15,6 +14,7 @@ local Ingredients = require(Shared.Modules.Config.Ingredients)
 local Layout = require(Shared.Modules.Config.Layout)
 local AssetService = require(script.Parent.AssetService)
 local CurrencyService = require(script.Parent.CurrencyService)
+local FarmEnvironmentBuilder = require(script.Parent.FarmEnvironmentBuilder)
 local DataService = require(script.Parent.DataService)
 local FarmMailboxService = require(script.Parent.FarmMailboxService)
 local FarmPlotModule = require(script.Parent.FarmPlot)
@@ -48,11 +48,7 @@ local function now(): number
 end
 
 local function validInteger(value: any): boolean
-	return type(value) == "number"
-		and value == value
-		and value ~= math.huge
-		and value ~= -math.huge
-		and value % 1 == 0
+	return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge and value % 1 == 0
 end
 
 local function plotFromArgument(value: any): FarmPlot?
@@ -292,7 +288,10 @@ local function handleRent(player: Player, rawPlotId: any)
 			return
 		end
 		if not canTakePosition(player.UserId, lockedPlot:getId()) then
-			reject(player, string.format("You may hold or lead bids on at most %d plots.", Farming.MAX_POSITIONS_PER_USER))
+			reject(
+				player,
+				string.format("You may hold or lead bids on at most %d plots.", Farming.MAX_POSITIONS_PER_USER)
+			)
 			return
 		end
 		if not CurrencyService.spend(profile, "yen", BigNumber.fromNumber(Farming.RENT_PRICE)) then
@@ -341,7 +340,10 @@ local function handleBid(player: Player, rawPlotId: any, rawAmount: any)
 			return
 		end
 		if not canTakePosition(player.UserId, lockedPlot:getId()) then
-			reject(player, string.format("You may hold or lead bids on at most %d plots.", Farming.MAX_POSITIONS_PER_USER))
+			reject(
+				player,
+				string.format("You may hold or lead bids on at most %d plots.", Farming.MAX_POSITIONS_PER_USER)
+			)
 			return
 		end
 
@@ -367,7 +369,11 @@ local function handleBid(player: Player, rawPlotId: any, rawAmount: any)
 			if oldPlayer then
 				NotifyService.send(
 					oldPlayer,
-					string.format("You were outbid on Plot %02d; Yen %d was returned.", lockedPlot:getId(), oldBid.amount)
+					string.format(
+						"You were outbid on Plot %02d; Yen %d was returned.",
+						lockedPlot:getId(),
+						oldBid.amount
+					)
 				)
 			end
 		end
@@ -427,10 +433,8 @@ local function handleTeleport(player: Player, rawPlotId: any)
 		local entrancePosition = Layout.farmEntranceCFrame(area).Position
 		root.AssemblyLinearVelocity = Vector3.zero
 		root.AssemblyAngularVelocity = Vector3.zero
-		root.CFrame = CFrame.lookAt(
-			targetPosition,
-			Vector3.new(entrancePosition.X, targetPosition.Y, entrancePosition.Z)
-		)
+		root.CFrame =
+			CFrame.lookAt(targetPosition, Vector3.new(entrancePosition.X, targetPosition.Y, entrancePosition.Z))
 		NotifyService.send(player, string.format("Teleported to Plot %02d.", lockedPlot:getId()), "travel")
 	end)
 end
@@ -544,108 +548,6 @@ local function makePart(
 	return part
 end
 
-local function addTitleSign(parent: Instance, entrance: CFrame)
-	local postColor = Color3.fromRGB(148, 104, 70)
-	for _, x in { -7, 7 } do
-		makePart(
-			parent,
-			"EntrancePost",
-			Vector3.new(1.2, 8, 1.2),
-			entrance * CFrame.new(x, 4, 0),
-			postColor,
-			Enum.Material.WoodPlanks
-		)
-	end
-	local beam = makePart(
-		parent,
-		"EntranceBeam",
-		Vector3.new(16, 2.2, 1.4),
-		entrance * CFrame.new(0, 8, 0),
-		postColor,
-		Enum.Material.WoodPlanks
-	)
-
-	local gui = Instance.new("BillboardGui")
-	gui.Name = "FarmTitle"
-	gui.Size = UDim2.fromOffset(260, 64)
-	gui.StudsOffsetWorldSpace = Vector3.new(0, 2.4, 0)
-	gui.MaxDistance = 220
-	gui.Parent = beam
-	local label = Instance.new("TextLabel")
-	label.BackgroundTransparency = 1
-	label.Size = UDim2.fromScale(1, 1)
-	label.Font = Enum.Font.FredokaOne
-	label.Text = "C5 COMMUNITY FARM"
-	label.TextColor3 = Color3.fromRGB(255, 249, 218)
-	label.TextScaled = true
-	label.TextStrokeTransparency = 0.2
-	label.Parent = gui
-end
-
-local function addFieldDressing(parent: Instance, area: Areas.AreaDefinition)
-	local field = Layout.farmFieldCFrame(area)
-	local entrance = Layout.farmEntranceCFrame(area)
-	local topY = Constants.WORLD.PLATFORM_TOP + 0.16
-	local pathColor = Color3.fromRGB(224, 205, 165)
-
-	for column = 1, Farming.COLUMNS - 1 do
-		local x = (column - Farming.COLUMNS / 2) * Farming.PLOT_STRIDE
-		makePart(
-			parent,
-			"Aisle",
-			Vector3.new(Farming.AISLE_SIZE, 0.32, Farming.FIELD_LENGTH),
-			CFrame.new(field.Position.X + x, topY, field.Position.Z),
-			pathColor,
-			Enum.Material.Ground
-		).CanCollide = false
-	end
-	for row = 1, Farming.ROWS - 1 do
-		local z = (row - Farming.ROWS / 2) * Farming.PLOT_STRIDE
-		makePart(
-			parent,
-			"Aisle",
-			Vector3.new(Farming.FIELD_WIDTH, 0.32, Farming.AISLE_SIZE),
-			CFrame.new(field.Position.X, topY, field.Position.Z + z),
-			pathColor,
-			Enum.Material.Ground
-		).CanCollide = false
-	end
-
-	local borderColor = Color3.fromRGB(150, 111, 73)
-	local halfWidth = Farming.FIELD_WIDTH / 2 + Farming.FIELD_MARGIN
-	local halfLength = Farming.FIELD_LENGTH / 2 + Farming.FIELD_MARGIN
-	for _, side in { -1, 1 } do
-		makePart(
-			parent,
-			"FieldBorder",
-			Vector3.new(1, 2, Farming.FIELD_LENGTH + 5),
-			CFrame.new(field.Position.X + side * halfWidth, topY + 0.8, field.Position.Z),
-			borderColor,
-			Enum.Material.WoodPlanks
-		)
-	end
-	makePart(
-		parent,
-		"FieldBorder",
-		Vector3.new(Farming.FIELD_WIDTH + 5, 2, 1),
-		CFrame.new(field.Position.X, topY + 0.8, field.Position.Z + halfLength),
-		borderColor,
-		Enum.Material.WoodPlanks
-	)
-	local southSegment = (Farming.FIELD_WIDTH - 14) / 2
-	for side in { -1, 1 } do
-		makePart(
-			parent,
-			"FieldBorder",
-			Vector3.new(southSegment, 2, 1),
-			CFrame.new(field.Position.X + side * (7 + southSegment / 2), topY + 0.8, field.Position.Z - halfLength),
-			borderColor,
-			Enum.Material.WoodPlanks
-		)
-	end
-	addTitleSign(parent, entrance)
-end
-
 local function cropVisualColor(cropId: string, color: Color3): Color3
 	local definition = Farming.cropDefinition(cropId)
 	if not definition then
@@ -693,9 +595,11 @@ end
 local function renderCrop(parent: Folder, cropId: string, stage: number, baseCFrame: CFrame)
 	local definition = Ingredients.get(cropId)
 	local farmDefinition = Farming.cropDefinition(cropId)
-	local targetHeight = (if definition and definition.height then definition.height else 2.2) * ({ 0.4, 0.7, 1 })[stage]
+	local targetHeight = (if definition and definition.height then definition.height else 2.2)
+		* ({ 0.4, 0.7, 1 })[stage]
 	local spacing = if farmDefinition then farmDefinition.plotSpacing else 8
 	local offsets = { -spacing, 0, spacing }
+	local baseYaw = math.atan2(-baseCFrame.LookVector.X, -baseCFrame.LookVector.Z)
 	for row, z in offsets do
 		for column, x in offsets do
 			local position = baseCFrame:PointToWorldSpace(Vector3.new(x, 0, z))
@@ -715,7 +619,7 @@ local function renderCrop(parent: Folder, cropId: string, stage: number, baseCFr
 					ModelUtil.seat(
 						model,
 						position,
-						math.rad((row * 47 + column * 83) % 360),
+						baseYaw + math.rad((row * 47 + column * 83) % 360),
 						nil,
 						if definition and definition.ground then 0.18 else 0
 					)
@@ -744,11 +648,24 @@ local function buildFarm()
 		return
 	end
 
+	for plotId, plot in plots do
+		plot:Destroy()
+		plots[plotId] = nil
+	end
+	if farmFolder then
+		farmFolder:Destroy()
+		farmFolder = nil
+	end
+	local stale = regionFolder:FindFirstChild("CommunityFarm")
+	if stale then
+		stale:Destroy()
+	end
+
 	local folder = Instance.new("Folder")
-	folder.Name = "C5Farm"
+	folder.Name = "CommunityFarm"
 	folder.Parent = regionFolder
 	farmFolder = folder
-	addFieldDressing(folder, area)
+	FarmEnvironmentBuilder.build(area, folder)
 
 	for plotId = 1, Farming.PLOT_COUNT do
 		local cframe = Layout.farmPlotCFrame(area, plotId)

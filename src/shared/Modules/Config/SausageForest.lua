@@ -4,10 +4,10 @@ local Sections = require(script.Parent.Sections)
 local SausageForest = {}
 
 SausageForest.CELLS = {
-	{ coord = "C2", tier = 1 },
-	{ coord = "B2", tier = 2 },
-	{ coord = "C1", tier = 3 },
-	{ coord = "B1", tier = 4 },
+	{ coord = "D3", tier = 1 },
+	{ coord = "C3", tier = 2 },
+	{ coord = "D2", tier = 3 },
+	{ coord = "C2", tier = 4 },
 }
 
 SausageForest.SPECIES = {

@@ -225,6 +225,14 @@ function Mob._setDestination(self: MobActor, destination: Vector3): boolean
 	end
 
 	local waypoints = path:GetWaypoints()
+	if area then
+		for _, waypoint in waypoints do
+			if Layout.isFarmPosition(area, waypoint.Position, 8) then
+				self._pathDone = true
+				return false
+			end
+		end
+	end
 	if #waypoints < 2 then
 		self._pathDone = true
 		return true
@@ -273,7 +281,7 @@ function Mob._validTarget(self: MobActor): (Model?, BasePart?, Humanoid?)
 		return nil, nil, nil
 	end
 	local area = Areas.get(self._definition.regionId)
-	if area and Layout.isTownPosition(area, root.Position) then
+	if area and (Layout.isFarmPosition(area, root.Position) or Layout.isTownPosition(area, root.Position)) then
 		return nil, nil, nil
 	end
 	return character, root, humanoid
@@ -354,10 +362,12 @@ function Mob._thinkRoot(self: MobActor, now: number)
 				continue
 			end
 			local _, root, humanoid = characterParts(player)
+			local area = Areas.get(definition.regionId)
 			if
 				root
 				and humanoid
 				and humanoid.Health > 0
+				and (not area or not Layout.isFarmPosition(area, root.Position))
 				and planarDistance(root.Position, self._root.Position) <= definition.attackRange
 			then
 				self._target = player
@@ -471,13 +481,7 @@ function Mob._think(self: MobActor, now: number)
 end
 
 function Mob.TakeHit(self: MobActor, player: Player, damage: number): boolean
-	if
-		self._destroyed
-		or self._humanoid.Health <= 0
-		or damage ~= damage
-		or damage <= 0
-		or player.Parent ~= Players
-	then
+	if self._destroyed or self._humanoid.Health <= 0 or damage ~= damage or damage <= 0 or player.Parent ~= Players then
 		return false
 	end
 
@@ -639,11 +643,8 @@ spawnSlot = function(definition: Mobs.MobDefinition, slot: number)
 
 	model.Name = `{definition.modelName}_{slot}`
 	model:SetAttribute("MobSlot", slot)
-	local root, humanoid, healthFill = MobRig.rig(
-		model,
-		definition,
-		if collisionGroupReady then COLLISION_GROUP else nil
-	)
+	local root, humanoid, healthFill =
+		MobRig.rig(model, definition, if collisionGroupReady then COLLISION_GROUP else nil)
 	if not root or not humanoid or not healthFill then
 		model:Destroy()
 		warn(`[MobService] failed to rig {definition.name} slot {slot}`)
@@ -683,12 +684,7 @@ spawnSlot = function(definition: Mobs.MobDefinition, slot: number)
 			task.spawn(callback, definition, slot, killer)
 		end
 		if definition.respawn ~= false then
-			task.delay(
-				definition.respawnSeconds or Constants.MOB.DEFAULT_RESPAWN_SECONDS,
-				spawnSlot,
-				definition,
-				slot
-			)
+			task.delay(definition.respawnSeconds or Constants.MOB.DEFAULT_RESPAWN_SECONDS, spawnSlot, definition, slot)
 		end
 	end)
 	if home then

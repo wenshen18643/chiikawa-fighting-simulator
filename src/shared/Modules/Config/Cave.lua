@@ -141,7 +141,7 @@ export type LevelDefinition = {
 Cave.LEVELS = {
 	{
 		index = 1,
-		coord = "D2",
+		coord = "E3",
 		name = "Spore Shallows",
 		floorY = -60,
 		grid = {
@@ -169,7 +169,7 @@ Cave.LEVELS = {
 	},
 	{
 		index = 2,
-		coord = "E2",
+		coord = "F3",
 		name = "The Winding",
 		floorY = -110,
 		grid = {
@@ -197,7 +197,7 @@ Cave.LEVELS = {
 	},
 	{
 		index = 3,
-		coord = "E1",
+		coord = "F2",
 		name = "The Cap Mother's Floor",
 		floorY = -160,
 		grid = {

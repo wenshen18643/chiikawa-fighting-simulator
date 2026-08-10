@@ -3,7 +3,7 @@ local Sections = require(ReplicatedStorage.Shared.Modules.Config.Sections)
 local Streets = require(ReplicatedStorage.Shared.Modules.Config.Streets)
 local Perimeter = {}
 
-Perimeter.CELLS = { "C3", "D3", "C4", "D4" }
+Perimeter.CELLS = { "D4", "E4", "D5", "E5" }
 Perimeter.GATE_HALF_WIDTH = Streets.NORTH_ROAD_HALF
 Perimeter.BAND = 44
 Perimeter.BLOCK_HEIGHT = 260

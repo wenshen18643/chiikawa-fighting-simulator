@@ -31,6 +31,7 @@ Assets.MODELS = {
 	strawberryDoor = { template = "StrawberryDoor", scale = 1 },
 	lantern = { template = "Lantern", scale = 1 },
 	lanternTall = { template = "LanternTall", scale = 1 },
+	wateringCan = { template = "WateringCan", scale = 1, collide = false },
 	mailBox = { template = "MailBox", scale = 1 },
 	picnicTable = { template = "PicnicTable", scale = 1 },
 	lowTable = { template = "LowTable", scale = 1 },

@@ -4,9 +4,11 @@ local Sections = {}
 local TABLE_TOP = SafeZone.SURFACE.lowTable
 
 Sections.SIZE = 212
-Sections.GRID = 6
+Sections.GRID = 8
+Sections.BOARD_SPAN = Sections.GRID * Sections.SIZE
 Sections.HALF = Sections.GRID * Sections.SIZE / 2
 Sections.SCATTER_LIMIT = 560
+Sections.ISLAND_EDGE_MARGIN = 40
 
 export type Cell = {
 	i: number,
@@ -21,7 +23,7 @@ export type Cell = {
 	theme: string,
 }
 
-local COLUMNS = "ABCDEF"
+local COLUMNS = "ABCDEFGH"
 
 function Sections.coord(i: number, j: number): string
 	return COLUMNS:sub(i, i) .. tostring(j)
@@ -41,12 +43,14 @@ function Sections.parse(coord: string): (number?, number?)
 end
 
 local MAP = {
-	{ "sakura", "sakura", "sakura", "bare", "bare", "meadow" },
-	{ "flower", "ramen", "farm", "bare", "bare", "flower" },
-	{ "meadow", "berry", "kitchen", "library", "bare", "grove" },
-	{ "meadow", "bramble", "market", "teaCorner", "bare", "grove" },
-	{ "meadow", "sausage", "sausage", "mushroom", "snow", "lake" },
-	{ "meadow", "sausage", "sausage", "grove", "quarry", "meadowQuiet" },
+	{ "bare", "bare", "bare", "bare", "bare", "bare", "bare", "bare" },
+	{ "bare", "sakura", "sakura", "sakura", "bare", "bare", "bare", "bare" },
+	{ "bare", "flower", "ramen", "bare", "bare", "bare", "bare", "bare" },
+	{ "bare", "meadow", "berry", "kitchen", "library", "bare", "grove", "bare" },
+	{ "bare", "meadow", "bramble", "market", "teaCorner", "bare", "grove", "bare" },
+	{ "bare", "meadow", "sausage", "sausage", "mushroom", "snow", "lake", "bare" },
+	{ "bare", "meadow", "sausage", "sausage", "grove", "quarry", "meadowQuiet", "bare" },
+	{ "bare", "bare", "bare", "bare", "bare", "bare", "bare", "bare" },
 }
 
 function Sections.themeAt(i: number, j: number): string?

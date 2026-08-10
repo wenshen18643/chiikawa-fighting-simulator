@@ -1,6 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Props = require(ReplicatedStorage.Shared.Modules.Props)
 local SafeZone = require(ReplicatedStorage.Shared.Modules.Config.SafeZone)
+local Sections = require(ReplicatedStorage.Shared.Modules.Config.Sections)
 local Streets = require(ReplicatedStorage.Shared.Modules.Config.Streets)
 local Area = require(script.Parent.Area)
 local SectionDressing = require(script.Parent.SectionDressing)
@@ -61,7 +62,7 @@ return Area.define({
 
 	gate = { skillTotal = 0, certificationTotal = 0 },
 	origin = Vector3.new(0, 0, 0),
-	terrain = { material = "LeafyGrass", islandSize = 1300 },
+	terrain = { material = "LeafyGrass", islandSize = Sections.BOARD_SPAN + Sections.ISLAND_EDGE_MARGIN * 2 },
 	palette = {
 		ground = Color3.fromRGB(150, 200, 130),
 		prop = Color3.fromRGB(122, 168, 96),

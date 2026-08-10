@@ -14,9 +14,9 @@ local town = Areas.get(1)
 assert(town, "Town area is missing")
 
 local EXPECTED_PLOTS = {
-	wild_carrot_field = { ingredient = "wildCarrot", cell = "B4" },
-	wild_potato_patch = { ingredient = "wildPotato", cell = "B3" },
-	wild_rice_paddy = { ingredient = "wildRice", cell = "B5" },
+	wild_carrot_field = { ingredient = "wildCarrot", cell = "C5", centre = Vector2.new(-318, 106) },
+	wild_potato_patch = { ingredient = "wildPotato", cell = "C4", centre = Vector2.new(-318, -106) },
+	wild_rice_paddy = { ingredient = "wildRice", cell = "C6", centre = Vector2.new(-318, 318) },
 }
 
 local seen = {}
@@ -25,7 +25,8 @@ for _, plot in Ingredients.PLOTS do
 	assert(expected, `unexpected wild plot "{plot.id}"`)
 	assert(plot.ingredient == expected.ingredient, `{plot.id} must grow {expected.ingredient}`)
 	assert(plot.cell == expected.cell, `{plot.id} must sit in section {expected.cell}`)
-	assert(Sections.byCoord(plot.cell), `{plot.id} names section {plot.cell} which does not exist`)
+	local cell = assert(Sections.byCoord(plot.cell), `{plot.id} names section {plot.cell} which does not exist`)
+	assert(Vector2.new(cell.cx, cell.cz) == expected.centre, `{plot.id} moved in world space`)
 	assert(plot.rows > 0 and plot.columns > 0, `{plot.id} must plant at least one node`)
 	seen[plot.id] = true
 end

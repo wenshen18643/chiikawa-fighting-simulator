@@ -64,15 +64,29 @@ local Mobs = {}
 
 Mobs.ORDER = { "mushroom_frog", "duck", "wolf" }
 
-Mobs.RING_INNER = { "C2", "D2", "E3", "E4", "D5", "B4", "B3" }
+Mobs.RING_INNER = { "D3", "E3", "F4", "F5", "E6", "C5", "C4" }
 
-Mobs.RING_MID = { "B2", "B5", "E5", "E2" }
+Mobs.RING_MID = { "C3", "C6", "F6", "F3" }
 
 Mobs.RING_OUTER = {
-	"A1", "B1", "C1", "D1", "E1", "F1",
-	"F2", "F3", "F4", "F5",
-	"F6", "E6", "D6", "C6", "B6", "A6",
-	"A5", "A4", "A3", "A2",
+	"B2",
+	"C2",
+	"D2",
+	"E2",
+	"F2",
+	"G2",
+	"G3",
+	"G4",
+	"G5",
+	"F7",
+	"E7",
+	"D7",
+	"C7",
+	"B7",
+	"B6",
+	"B5",
+	"B4",
+	"B3",
 }
 
 local DEFINITIONS: { [string]: MobDefinition } = {
@@ -306,10 +320,42 @@ Mobs.DEFINITIONS.cave_mycelia = {
 } :: any
 
 local FOREST_TIERS = {
-	{ guardians = 5, guardianHealth = 750, guardianDamage = 44, guardianHeight = 7, bossHealth = 7000, bossDamage = 100, bossHeight = 24 },
-	{ guardians = 6, guardianHealth = 1325, guardianDamage = 64, guardianHeight = 8, bossHealth = 13600, bossDamage = 144, bossHeight = 27 },
-	{ guardians = 7, guardianHealth = 2300, guardianDamage = 86, guardianHeight = 9, bossHealth = 26400, bossDamage = 202, bossHeight = 30 },
-	{ guardians = 8, guardianHealth = 3950, guardianDamage = 118, guardianHeight = 10, bossHealth = 52800, bossDamage = 274, bossHeight = 34 },
+	{
+		guardians = 5,
+		guardianHealth = 750,
+		guardianDamage = 44,
+		guardianHeight = 7,
+		bossHealth = 7000,
+		bossDamage = 100,
+		bossHeight = 24,
+	},
+	{
+		guardians = 6,
+		guardianHealth = 1325,
+		guardianDamage = 64,
+		guardianHeight = 8,
+		bossHealth = 13600,
+		bossDamage = 144,
+		bossHeight = 27,
+	},
+	{
+		guardians = 7,
+		guardianHealth = 2300,
+		guardianDamage = 86,
+		guardianHeight = 9,
+		bossHealth = 26400,
+		bossDamage = 202,
+		bossHeight = 30,
+	},
+	{
+		guardians = 8,
+		guardianHealth = 3950,
+		guardianDamage = 118,
+		guardianHeight = 10,
+		bossHealth = 52800,
+		bossDamage = 274,
+		bossHeight = 34,
+	},
 }
 
 local function forestMob(fields: { [string]: any }): MobDefinition

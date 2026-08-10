@@ -113,7 +113,7 @@ function BoardService.build()
 	local parent = root()
 	parent:ClearAllChildren()
 	for _, cell in Sections.cells() do
-		if cell.coord == Farming.CELL_COORD then
+		if Farming.isFootprintCell(cell.coord) then
 			continue
 		end
 		tile(cell, parent)

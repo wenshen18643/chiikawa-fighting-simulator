@@ -15,6 +15,7 @@ local UIManager = require(script.Parent.UIManager)
 local InventoryMenu = {}
 local MENU_ID = "inventory"
 local TOGGLE_ACTION = "InventoryToggle"
+local TOGGLE_PRIORITY = Enum.ContextActionPriority.High.Value
 local INGREDIENT_CELL = UDim2.fromOffset(160, 96)
 local CONSUMABLE_CELL = UDim2.fromOffset(246, 122)
 local USE_COOLDOWN = 0.5
@@ -433,12 +434,12 @@ function InventoryMenu.init()
 		end
 	end)
 
-	ContextActionService:BindAction(TOGGLE_ACTION, function(_, inputState)
+	ContextActionService:BindActionAtPriority(TOGGLE_ACTION, function(_, inputState)
 		if inputState == Enum.UserInputState.Begin and not UserInputService:GetFocusedTextBox() then
 			InventoryMenu.toggle()
 		end
 		return Enum.ContextActionResult.Sink
-	end, false, Enum.KeyCode.I, Enum.KeyCode.ButtonY)
+	end, false, TOGGLE_PRIORITY, Enum.KeyCode.I, Enum.KeyCode.ButtonY)
 end
 
 return InventoryMenu

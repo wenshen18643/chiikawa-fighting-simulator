@@ -20,14 +20,13 @@ Layout.APPROACH_WIDTH = 20
 
 local BRANCH_END = Streets.RING.halfX + Streets.BRANCH_LENGTH
 
-Layout.KITCHEN_CELL = "C4"
+Layout.KITCHEN_CELL = "D5"
 Layout.KITCHEN_FACING = Vector3.new(1, 0, 0)
 Layout.KITCHEN_FOOTPRINT = Vector2.new(52, 42)
 Layout.KITCHEN_SIZE = Vector3.new(Layout.KITCHEN_FOOTPRINT.X, 30, Layout.KITCHEN_FOOTPRINT.Y)
-Layout.KITCHEN_OFFSET =
-	Vector3.new(-(BRANCH_END + Layout.KITCHEN_FOOTPRINT.Y / 2), 0, Streets.RING.gateZ)
+Layout.KITCHEN_OFFSET = Vector3.new(-(BRANCH_END + Layout.KITCHEN_FOOTPRINT.Y / 2), 0, Streets.RING.gateZ)
 
-Layout.LIBRARY_CELL = "D4"
+Layout.LIBRARY_CELL = "E5"
 Layout.LIBRARY_FACING = Vector3.new(-1, 0, 0)
 Layout.LIBRARY_FOOTPRINT = Vector2.new(84, 62)
 Layout.LIBRARY_SIZE = Vector3.new(Layout.LIBRARY_FOOTPRINT.X, 27, Layout.LIBRARY_FOOTPRINT.Y)
@@ -52,6 +51,13 @@ export type Bridge = {
 	centre: Vector3,
 	size: Vector3,
 	gateCFrame: CFrame,
+}
+
+export type FarmLocalRect = {
+	x: number,
+	z: number,
+	halfX: number,
+	halfZ: number,
 }
 
 local function directionOf(angleDegrees: number): Vector3
@@ -101,14 +107,43 @@ function Layout.libraryCFrame(area: Areas.AreaDefinition): CFrame
 	return CFrame.lookAt(centre, centre + Layout.LIBRARY_FACING)
 end
 
+local function farmAnchorOffset(): Vector2
+	local minX, minZ = math.huge, math.huge
+	local maxX, maxZ = -math.huge, -math.huge
+	for _, coord in Farming.FOOTPRINT_CELLS do
+		local cell = Sections.byCoord(coord)
+		assert(cell, `Layout: farm footprint cell "{coord}" is invalid`)
+		minX, maxX = math.min(minX, cell.cx), math.max(maxX, cell.cx)
+		minZ, maxZ = math.min(minZ, cell.cz), math.max(maxZ, cell.cz)
+	end
+	assert(maxX - minX == Sections.SIZE, "Layout: farm footprint must span two adjacent columns")
+	assert(maxZ - minZ == Sections.SIZE, "Layout: farm footprint must span two adjacent rows")
+	return Vector2.new((minX + maxX) / 2, (minZ + maxZ) / 2)
+end
+
+local FARM_ANCHOR_OFFSET = farmAnchorOffset()
+
+function Layout.farmSurfaceY(area: Areas.AreaDefinition): number
+	return area.origin.Y + WORLD.TERRAIN_TOP + Farming.TERRACE_HEIGHT
+end
+
+function Layout.farmAnchor(area: Areas.AreaDefinition): Vector3
+	return Vector3.new(
+		area.origin.X + FARM_ANCHOR_OFFSET.X,
+		Layout.farmSurfaceY(area),
+		area.origin.Z + FARM_ANCHOR_OFFSET.Y
+	)
+end
+
+function Layout.farmCFrame(area: Areas.AreaDefinition): CFrame
+	local anchor = Layout.farmAnchor(area)
+	local target = area.origin
+		+ Vector3.new(Farming.FACING_TARGET_OFFSET.X, anchor.Y - area.origin.Y, Farming.FACING_TARGET_OFFSET.Y)
+	return CFrame.lookAt(anchor, target)
+end
+
 function Layout.farmFieldCFrame(area: Areas.AreaDefinition): CFrame
-	local cell = Sections.byCoord(Farming.CELL_COORD)
-	assert(cell, `Layout: farm cell "{Farming.CELL_COORD}" is invalid`)
-	return CFrame.new(area.origin + Vector3.new(
-		cell.cx + Farming.FIELD_OFFSET.X,
-		surfaceCentreY(Farming.PLOT_THICKNESS),
-		cell.cz + Farming.FIELD_OFFSET.Y
-	))
+	return Layout.farmCFrame(area) * CFrame.new(0, -Farming.PLOT_THICKNESS / 2, 0)
 end
 
 function Layout.farmPlotCFrame(area: Areas.AreaDefinition, plotId: number): CFrame?
@@ -122,10 +157,66 @@ function Layout.farmPlotCFrame(area: Areas.AreaDefinition, plotId: number): CFra
 end
 
 function Layout.farmEntranceCFrame(area: Areas.AreaDefinition): CFrame
-	local field = Layout.farmFieldCFrame(area).Position
-	local centre = Vector3.new(field.X, area.origin.Y + WORLD.PLATFORM_TOP, field.Z)
-	local mouth = centre - Vector3.new(0, 0, Farming.FIELD_LENGTH / 2 + Farming.FIELD_MARGIN)
-	return CFrame.lookAt(mouth, centre)
+	return Layout.farmCFrame(area) * CFrame.new(0, 0, -Farming.TERRACE_LENGTH / 2 + Farming.ARCH_INSET)
+end
+
+local function farmLocalRects(padding: number?): { FarmLocalRect }
+	local clearance = Farming.DECORATION_CLEARANCE + (padding or 0)
+	local slope = Farming.TERRACE_SLOPE_DEPTH
+	local terraceHalfX = Farming.TERRACE_WIDTH / 2
+	local terraceHalfZ = Farming.TERRACE_LENGTH / 2
+	local mainOuter = -terraceHalfZ - Farming.MAIN_RAMP_LENGTH - Farming.BOTTOM_APRON_SIZE.Y
+	local mainInner = -terraceHalfZ
+	local mainHalfX = math.max(Farming.MAIN_RAMP_WIDTH / 2 + slope, Farming.BOTTOM_APRON_SIZE.X / 2)
+	local sideOuter = Farming.SIDE_RAMP_SIDE * (terraceHalfX + Farming.SIDE_RAMP_LENGTH)
+	local sideInner = Farming.SIDE_RAMP_SIDE * terraceHalfX
+
+	return {
+		{
+			x = 0,
+			z = 0,
+			halfX = terraceHalfX + slope + clearance,
+			halfZ = terraceHalfZ + slope + clearance,
+		},
+		{
+			x = 0,
+			z = (mainOuter + mainInner) / 2,
+			halfX = mainHalfX + clearance,
+			halfZ = (mainInner - mainOuter) / 2 + clearance,
+		},
+		{
+			x = (sideOuter + sideInner) / 2,
+			z = Farming.SIDE_RAMP_LOCAL_Z,
+			halfX = math.abs(sideOuter - sideInner) / 2 + clearance,
+			halfZ = Farming.SIDE_RAMP_WIDTH / 2 + slope + clearance,
+		},
+	}
+end
+
+function Layout.farmLocalFootprints(padding: number?): { FarmLocalRect }
+	return farmLocalRects(padding)
+end
+
+function Layout.farmReservedZones(area: Areas.AreaDefinition, padding: number?): { Zone }
+	if area.id ~= Areas.STARTING_AREA then
+		return {}
+	end
+	local frame = Layout.farmCFrame(area)
+	local along = frame:VectorToWorldSpace(Vector3.new(0, 0, 1))
+	local zones: { Zone } = {}
+	for _, rect in farmLocalRects(padding) do
+		local centre = frame:PointToWorldSpace(Vector3.new(rect.x, 0, rect.z)) - area.origin
+		table.insert(zones, {
+			kind = "strip",
+			x = centre.X,
+			z = centre.Z,
+			dirX = along.X,
+			dirZ = along.Z,
+			halfLength = rect.halfZ,
+			halfWidth = rect.halfX,
+		})
+	end
+	return zones
 end
 
 function Layout.mobSpawnCFrames(
@@ -240,16 +331,13 @@ function Layout.isFarmPosition(area: Areas.AreaDefinition, position: Vector3, pa
 	if area.id ~= Areas.STARTING_AREA then
 		return false
 	end
-	local farmCell = Sections.byCoord(Farming.CELL_COORD)
-	if not farmCell then
-		return false
+	local localPosition = Layout.farmCFrame(area):PointToObjectSpace(position)
+	for _, rect in farmLocalRects(padding) do
+		if math.abs(localPosition.X - rect.x) <= rect.halfX and math.abs(localPosition.Z - rect.z) <= rect.halfZ then
+			return true
+		end
 	end
-	local localPosition = position - area.origin
-	local margin = padding or 0
-	return localPosition.X >= farmCell.minX - margin
-		and localPosition.X <= farmCell.maxX + margin
-		and localPosition.Z >= farmCell.minZ - margin
-		and localPosition.Z <= farmCell.maxZ + margin
+	return false
 end
 
 function Layout.isTownPoint(x: number, z: number, padding: number?): boolean
@@ -280,8 +368,7 @@ local function addBuildingZones(zones: { Zone }, area: Areas.AreaDefinition, fra
 	})
 
 	local direction = frame.LookVector
-	local approach = frame:PointToWorldSpace(Vector3.new(0, 0, -(halfDepth + Layout.APPROACH_LENGTH / 2)))
-		- area.origin
+	local approach = frame:PointToWorldSpace(Vector3.new(0, 0, -(halfDepth + Layout.APPROACH_LENGTH / 2))) - area.origin
 	table.insert(zones, {
 		kind = "strip",
 		x = approach.X,
@@ -310,15 +397,10 @@ function Layout.reservedZones(area: Areas.AreaDefinition): { Zone }
 		radius = Layout.plazaDiameter(area) / 2 + 20,
 	})
 
-	local farmCell = Sections.byCoord(Farming.CELL_COORD)
-	if area.id == Areas.STARTING_AREA and farmCell then
-		table.insert(zones, {
-			kind = "rect",
-			x = farmCell.cx,
-			z = farmCell.cz,
-			halfX = Sections.SIZE / 2,
-			halfZ = Sections.SIZE / 2,
-		})
+	if area.id == Areas.STARTING_AREA then
+		for _, zone in Layout.farmReservedZones(area) do
+			table.insert(zones, zone)
+		end
 	end
 
 	if area.id == Areas.STARTING_AREA then
