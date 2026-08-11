@@ -100,8 +100,8 @@ local function buildOddsStrip(card: Frame, surface: Color3, config: TicketConfig
 
 		UI.label(strip, `{rarityId}Name`, {
 			text = rarity.name,
-			font = UI.font.bold,
-			size = UI.text.caption,
+			font = UI.font.display,
+			size = UI.text.small,
 			color = UI.accentInk(surface, rarity.color),
 			align = Enum.TextXAlignment.Center,
 			position = UDim2.new((index - 1) / slots, 2, 0, 8),
@@ -110,7 +110,7 @@ local function buildOddsStrip(card: Frame, surface: Color3, config: TicketConfig
 		UI.label(strip, `{rarityId}Rate`, {
 			text = `{draw.weights[rarityId]}%`,
 			font = UI.font.bold,
-			size = UI.text.caption,
+			size = UI.text.small,
 			color = UI.color.ink,
 			align = Enum.TextXAlignment.Center,
 			position = UDim2.new((index - 1) / slots, 2, 0, 22),
@@ -161,15 +161,16 @@ function GachaTicket.build(parent: Instance, config: TicketConfig): Frame
 	stage.Parent = card
 	config.mountFeatured(stage)
 
-	UI.label(card, "FeaturedName", {
+	local featuredLabel = UI.label(card, "FeaturedName", {
 		text = `Featured · {config.featuredName}`,
-		font = UI.font.bold,
-		size = UI.text.caption,
-		color = UI.color.inkSoft,
+		font = UI.font.display,
+		size = UI.text.subtitle,
+		color = UI.color.ink,
 		align = Enum.TextXAlignment.Center,
-		position = UDim2.new(0, 18, 1, -68),
-		extent = UDim2.new(1, -36, 0, 16),
+		position = UDim2.new(0, 18, 1, -(FOOTER - 4)),
+		extent = UDim2.new(1, -36, 0, 22),
 	})
+	featuredLabel.TextTruncate = Enum.TextTruncate.AtEnd
 
 	drawButton(card, config, 1, UDim2.new(0.03, 0, 1, -52))
 	drawButton(card, config, 10, UDim2.new(0.51, 0, 1, -52))
