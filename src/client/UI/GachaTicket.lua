@@ -84,10 +84,15 @@ local function buildOddsStrip(card: Frame, surface: Color3, config: TicketConfig
 	strip.Size = UDim2.new(1, -36, 0, ODDS_HEIGHT)
 	strip.Parent = card
 
-	local slots = #catalog.RARITY_ORDER
-	for index, rarityId in catalog.RARITY_ORDER do
+	local slots = #catalog.RARITY_ORDER - 1
+	local visibleIndex = 0
+	for _, rarityId in catalog.RARITY_ORDER do
+		if rarityId == "common" then
+			continue
+		end
+		visibleIndex += 1
 		local rarity = catalog.RARITIES[rarityId]
-		local left = UDim2.new((index - 1) / slots, 2, 0, 0)
+		local left = UDim2.new((visibleIndex - 1) / slots, 2, 0, 0)
 		local width = UDim2.new(1 / slots, -4, 0, 5)
 		local pip = Instance.new("Frame")
 		pip.Name = rarityId
@@ -104,7 +109,7 @@ local function buildOddsStrip(card: Frame, surface: Color3, config: TicketConfig
 			size = UI.text.small,
 			color = UI.accentInk(surface, rarity.color),
 			align = Enum.TextXAlignment.Center,
-			position = UDim2.new((index - 1) / slots, 2, 0, 8),
+			position = UDim2.new((visibleIndex - 1) / slots, 2, 0, 8),
 			extent = UDim2.new(1 / slots, -4, 0, 14),
 		})
 		UI.label(strip, `{rarityId}Rate`, {
@@ -113,7 +118,7 @@ local function buildOddsStrip(card: Frame, surface: Color3, config: TicketConfig
 			size = UI.text.small,
 			color = UI.color.ink,
 			align = Enum.TextXAlignment.Center,
-			position = UDim2.new((index - 1) / slots, 2, 0, 22),
+			position = UDim2.new((visibleIndex - 1) / slots, 2, 0, 22),
 			extent = UDim2.new(1 / slots, -4, 0, 14),
 		})
 	end
