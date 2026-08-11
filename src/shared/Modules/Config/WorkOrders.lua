@@ -1,13 +1,18 @@
 --!strict
 
-local Cave = require(script.Parent.Cave)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local BigNumber = require(Shared.Modules.BigNumber)
 local Ingredients = require(script.Parent.Ingredients)
 local Mobs = require(script.Parent.Mobs)
+local Recipes = require(script.Parent.Recipes)
+local Skills = require(script.Parent.Skills)
 
 export type Objective = {
-	kind: "collect" | "defeat" | "reach",
+	kind: "collect" | "defeat" | "train" | "cook",
 	target: string,
 	count: number,
+	tier: number?,
 }
 
 export type Reward = {
@@ -29,35 +34,45 @@ local WorkOrders = {}
 
 WorkOrders.CHAIN = {
 	{
+		id = "pantry_start",
+		name = "Something For The Pot",
+		blurb = "The paddy out past the fence is nobody's. Pull eight rice and bring them here.",
+		objective = { kind = "collect", target = "wildRice", count = 8 },
+		reward = { yen = 250 },
+	},
+	{
+		id = "first_supper",
+		name = "First Supper",
+		blurb = "Rice, two of them, in the pot. Make one onigiri. Everyone starts there.",
+		objective = { kind = "cook", target = "onigiri", count = 1 },
+		reward = { yen = 300 },
+	},
+	{
 		id = "mushroom_run",
 		name = "Mushroom Run",
-		blurb = "There is a hole in the Mushroom Hollow. Things grow down there. Bring some back.",
+		blurb = "The Hollow is thick with them this week. Ten browns, off the ground, in a basket.",
 		objective = { kind = "collect", target = "brownMushroom", count = 10 },
 		reward = { yen = 300 },
 	},
 	{
-		id = "spore_cull",
-		name = "Spore Cull",
-		blurb = "The little ones puff at anybody who walks past. Thin them out.",
-		objective = { kind = "defeat", target = "cave_sporeling", count = 8 },
+		id = "frog_cull",
+		name = "Frog Cull",
+		blurb = "The frogs puff at anybody who walks past the Hollow. Thin them out.",
+		objective = { kind = "defeat", target = "mushroom_frog", count = 8 },
 		reward = { yen = 600 },
 	},
-
 	{
-		id = "deeper",
-		name = "Deeper",
-		blurb = "There is a second floor under the first. Go and stand on it, then come back and tell me.",
-		objective = { kind = "reach", target = "2", count = 1 },
-		reward = {
-			yen = 750,
-			unlock = { kind = "tool", id = "lantern", label = "Lantern" },
-		},
+		id = "field_lunch",
+		name = "Field Lunch",
+		blurb = "Two dango. Carrot and rice. The ones working the fields eat before they start.",
+		objective = { kind = "cook", target = "dango", count = 2 },
+		reward = { yen = 700 },
 	},
 	{
-		id = "wisp_catch",
-		name = "Chasing Lights",
-		blurb = "The lights down there run from you. Catch two. Do not ask me what they are.",
-		objective = { kind = "defeat", target = "cave_wisp", count = 2 },
+		id = "duck_drive",
+		name = "Duck Drive",
+		blurb = "Six ducks have decided the paddy belongs to them. Correct them.",
+		objective = { kind = "defeat", target = "duck", count = 6 },
 		reward = {
 			yen = 1000,
 			ingredients = { { id = "whiteMushroom", count = 6 } },
@@ -66,7 +81,7 @@ WorkOrders.CHAIN = {
 	{
 		id = "glowcap_haul",
 		name = "Glowcap Haul",
-		blurb = "The cook wants the ones that shine. Fifteen. Do not eat them on the way up.",
+		blurb = "The cook wants the pale ones out of the thicket. Fifteen. Do not eat them on the way.",
 		objective = { kind = "collect", target = "whiteMushroom", count = 15 },
 		reward = {
 			yen = 1350,
@@ -74,10 +89,17 @@ WorkOrders.CHAIN = {
 		},
 	},
 	{
-		id = "cap_mother",
-		name = "The Cap Mother",
-		blurb = "Something is holding the bottom floor. It has been there longer than the town has.",
-		objective = { kind = "defeat", target = "cave_mycelia", count = 1 },
+		id = "stew_service",
+		name = "Stew Service",
+		blurb = "You have the recipe now, so use it. Two pots of glowcap stew for the night shift.",
+		objective = { kind = "cook", target = "glowcapStew", count = 2 },
+		reward = { yen = 2000 },
+	},
+	{
+		id = "pack_leader",
+		name = "Pack Leader",
+		blurb = "The wolves came down off the ridge and have not gone back up. Twelve of them.",
+		objective = { kind = "defeat", target = "wolf", count = 12 },
 		reward = {
 			yen = 5000,
 			ingredients = { { id = "moonlightCap", count = 3 } },
@@ -100,6 +122,13 @@ WorkOrders.CHAIN = {
 			yen = 2250,
 			unlock = { kind = "tool", id = "pickaxe2", label = "Steel Pick" },
 		},
+	},
+	{
+		id = "miners_lunch",
+		name = "Miner's Lunch",
+		blurb = "Three bowls of ramen for the east face crew. Sausage, rice, potato. They eat at noon.",
+		objective = { kind = "cook", target = "ramen", count = 3 },
+		reward = { yen = 3200 },
 	},
 	{
 		id = "second_step",
@@ -136,9 +165,10 @@ export type Grade = {
 	span: number,
 	collect: { string },
 	defeat: { string },
-	reach: { string },
+	cook: { string },
 	collectCount: { number },
 	defeatCount: { number },
+	cookCount: { number },
 }
 
 WorkOrders.GRADES = {
@@ -147,67 +177,80 @@ WorkOrders.GRADES = {
 		span = 6,
 		collect = { "carrot", "potato", "rice" },
 		defeat = { "mushroom_frog", "duck" },
-		reach = {},
+		cook = { "onigiri", "dango" },
 		collectCount = { 8, 20 },
 		defeatCount = { 4, 10 },
+		cookCount = { 1, 3 },
 	},
 	{
 		label = "4級",
 		span = 8,
 		collect = { "brownMushroom", "carrot", "rice" },
 		defeat = { "duck", "wolf" },
-		reach = {},
+		cook = { "dango", "yogurtBerry", "forestTea" },
 		collectCount = { 12, 28 },
 		defeatCount = { 5, 12 },
+		cookCount = { 2, 4 },
 	},
 	{
 		label = "3級",
 		span = 10,
 		collect = { "brownMushroom", "whiteMushroom", "potato" },
-		defeat = { "wolf", "cave_sporeling" },
-		reach = { "1" },
+		defeat = { "wolf", "mushroom_frog" },
+		cook = { "forestTea", "pancakes", "meatSkewer" },
 		collectCount = { 15, 34 },
 		defeatCount = { 6, 15 },
+		cookCount = { 2, 5 },
 	},
 	{
 		label = "2級",
 		span = 12,
 		collect = { "whiteMushroom", "pinkSausage", "brownMushroom" },
-		defeat = { "cave_sporeling", "cave_pebblejaw" },
-		reach = { "2" },
+		defeat = { "wolf", "duck" },
+		cook = { "ramen", "yogurtVanilla", "duckGreens" },
 		collectCount = { 18, 40 },
 		defeatCount = { 8, 18 },
+		cookCount = { 3, 6 },
 	},
 	{
 		label = "1級",
 		span = 14,
 		collect = { "pinkSausage", "whiteBerry", "whiteMushroom" },
-		defeat = { "cave_pebblejaw", "cave_wisp" },
-		reach = { "2", "3" },
+		defeat = { "wolf", "mushroom_frog" },
+		cook = { "huntersStew", "scholarsJerky", "ramen" },
 		collectCount = { 20, 46 },
 		defeatCount = { 10, 22 },
+		cookCount = { 3, 7 },
 	},
 
 	{
 		label = "特級",
 		span = 20,
 		collect = { "goldSausage", "moonlightCap", "whiteBerry", "pinkSausage" },
-		defeat = { "cave_wisp", "cave_pebblejaw", "wolf" },
-		reach = { "3" },
+		defeat = { "wolf", "duck", "mushroom_frog" },
+		cook = { "championPlatter", "huntersStew", "duckGreens" },
 		collectCount = { 25, 60 },
 		defeatCount = { 12, 28 },
+		cookCount = { 4, 8 },
 	},
 } :: { Grade }
 
 WorkOrders.BOARD_SIZE = 3
+WorkOrders.MAX_ACTIVE = 5
 
 local YEN_BASE = 450
 local GROWTH = 1.11
+local TRAIN_PREFIX = "tr"
+local TRAIN_BASE_EXPONENT = 2
+local TRAIN_STEPS = 100
+local TRAIN_YEN_BASE = 250
+local TRAIN_YEN_GROWTH = 4
+local TRAIN_YEN_CAP = 1e15
 
 local VERBS = {
 	collect = { weight = 1 },
 	defeat = { weight = 1.2 },
-	reach = { weight = 0.7 },
+	cook = { weight = 1.4 },
 }
 
 local BLURBS = {
@@ -223,10 +266,17 @@ local BLURBS = {
 		"{count} {name}. Sasumata first, questions after.",
 		"Thin the {name} out. {count} will do for today.",
 	},
-	reach = {
-		"Get down to {name} and stand there a moment. Then come back.",
-		"Somebody has to check {name} is still where we left it. Today it is you.",
-		"{name}. Walk it, do not run it. Come back and tell me what you saw.",
+	train = {
+		"Get {name} up to {count}. Nobody gets good sitting on my counter.",
+		"{name} at {count}. Do not come back before the board reads that.",
+		"{name}, {count}. How you get there is your business.",
+		"You are soft. {name} at {count} will fix some of that.",
+	},
+	cook = {
+		"{count} of the {name}. The pot is over there and it is not going to stir itself.",
+		"Kitchen wants {count} {name} before the shift ends. Do not burn them.",
+		"{count} {name}. Somebody has to feed this town and today it is you.",
+		"{name}, {count} plates. Cook them properly, people are eating this.",
 	},
 }
 
@@ -246,8 +296,8 @@ local function candidatesFor(index: number, grade: Grade): { Objective }
 	for _, target in grade.defeat do
 		table.insert(list, { kind = "defeat", target = target, count = 0 })
 	end
-	for _, target in grade.reach do
-		table.insert(list, { kind = "reach", target = target, count = 1 })
+	for _, target in grade.cook do
+		table.insert(list, { kind = "cook", target = target, count = 0 })
 	end
 
 	candidateCache[index] = list
@@ -287,9 +337,71 @@ function WorkOrders.targetName(objective: Objective): string
 	elseif objective.kind == "defeat" then
 		local definition = Mobs.get(objective.target)
 		return if definition then definition.name else objective.target
+	elseif objective.kind == "train" then
+		local definition = Skills.get(objective.target)
+		return if definition then definition.name else objective.target
 	end
-	local level = Cave.get(tonumber(objective.target) or 0)
-	return if level then level.name else `floor {objective.target}`
+	local definition = Recipes.get(objective.target)
+	return if definition then definition.name else objective.target
+end
+
+function WorkOrders.formatCount(count: number): string
+	if count < 10000 then
+		return tostring(math.floor(count))
+	end
+
+	local text = BigNumber.toString(BigNumber.fromNumber(count))
+	local mantissa, suffix = string.match(text, "^([%d%.]+)(%a*)$")
+	if type(mantissa) ~= "string" or type(suffix) ~= "string" or not string.find(mantissa, "%.") then
+		return text
+	end
+
+	local trimmed = string.gsub(string.gsub(mantissa, "0+$", ""), "%.$", "")
+	return trimmed .. suffix
+end
+
+WorkOrders.TRAIN_STEPS = TRAIN_STEPS
+
+function WorkOrders.trainTarget(tier: number): BigNumber.BigNum
+	return BigNumber.pow10(math.max(tier, 0) + TRAIN_BASE_EXPONENT)
+end
+
+function WorkOrders.trainProgress(total: BigNumber.BigNum?, tier: number): number
+	if not BigNumber.isValid(total) or BigNumber.isZero(total :: BigNumber.BigNum) then
+		return 0
+	end
+
+	local value = total :: BigNumber.BigNum
+	local target = WorkOrders.trainTarget(tier)
+	if BigNumber.gte(value, target) then
+		return TRAIN_STEPS
+	end
+
+	local decades = BigNumber.log10(value) - BigNumber.log10(target)
+	return math.clamp(math.floor(10 ^ decades * TRAIN_STEPS), 0, TRAIN_STEPS)
+end
+
+function WorkOrders.trainOrder(skillId: string, tier: number): OrderDefinition
+	local definition = Skills.get(skillId)
+	local name = if definition then definition.name else skillId
+	local target = BigNumber.toString(WorkOrders.trainTarget(tier))
+	local lines = BLURBS.train
+
+	return {
+		id = `{TRAIN_PREFIX}:{skillId}:{tier}`,
+		name = `{name} Drill`,
+		blurb = string.gsub(string.gsub(lines[tier % #lines + 1], "{count}", target), "{name}", name),
+		objective = { kind = "train", target = skillId, count = TRAIN_STEPS, tier = tier },
+		reward = { yen = math.min(TRAIN_YEN_BASE * TRAIN_YEN_GROWTH ^ tier, TRAIN_YEN_CAP) },
+	}
+end
+
+function WorkOrders.trainOf(id: string): (string?, number?)
+	local skillId, tier = string.match(id, `^{TRAIN_PREFIX}:(%a+):(%d+)$`)
+	if not skillId or not tier then
+		return nil, nil
+	end
+	return skillId, tonumber(tier)
 end
 
 function WorkOrders.generate(rank: number, slot: number): OrderDefinition?
@@ -306,7 +418,7 @@ function WorkOrders.generate(rank: number, slot: number): OrderDefinition?
 		count = if pick.kind == "collect"
 			then band(grade.collectCount, t)
 			elseif pick.kind == "defeat" then band(grade.defeatCount, t)
-			else 1,
+			else band(grade.cookCount, t),
 	}
 
 	local verb = VERBS[pick.kind]
@@ -329,9 +441,9 @@ function WorkOrders.generate(rank: number, slot: number): OrderDefinition?
 		name = if pick.kind == "collect"
 			then `{name} Run`
 			elseif pick.kind == "defeat" then `{name} Cull`
-			else `Down to {name}`,
+			else `{name} Service`,
 		blurb = string.gsub(
-			string.gsub(lines[rng:NextInteger(1, #lines)], "{count}", tostring(objective.count)),
+			string.gsub(lines[rng:NextInteger(1, #lines)], "{count}", WorkOrders.formatCount(objective.count)),
 			"{name}",
 			name
 		),
@@ -362,6 +474,12 @@ function WorkOrders.get(id: string): OrderDefinition?
 	if static then
 		return static
 	end
+
+	local skillId, tier = WorkOrders.trainOf(id)
+	if skillId and tier then
+		return WorkOrders.trainOrder(skillId, tier)
+	end
+
 	local rank, slot = string.match(id, `^{ID_PREFIX}:(%d+):(%d+)$`)
 	if not rank or not slot then
 		return nil
@@ -372,10 +490,12 @@ end
 function WorkOrders.describe(order: OrderDefinition): string
 	local objective = order.objective
 	local name = WorkOrders.targetName(objective)
-	if objective.kind == "reach" then
-		return `Reach {name}`
-	elseif objective.kind == "collect" then
+	if objective.kind == "collect" then
 		return `Collect {objective.count} {name}`
+	elseif objective.kind == "cook" then
+		return `Cook {objective.count} {name}`
+	elseif objective.kind == "train" then
+		return `Train {name} to {BigNumber.toString(WorkOrders.trainTarget(objective.tier or 0))}`
 	end
 	return `Defeat {objective.count} {name}`
 end

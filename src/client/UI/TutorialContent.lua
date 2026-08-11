@@ -33,8 +33,6 @@ local function controlsFor(device: "keyboard" | "gamepad" | "touch"): { Row }
 			{ label = "1–4", value = "Tap a round skill button to select it" },
 			{ label = "Prompt", value = "Tap to talk, forage or use the kitchen" },
 			{ label = "Platter", value = "Open your inventory" },
-			{ label = "Pin", value = "Toggle the local minimap" },
-			{ label = "Map", value = "Open the Atlas, ladder and fast travel" },
 			{ label = "🌸", value = "Open the community farm" },
 			{ label = "?", value = "Open this Field Guide again" },
 		}
@@ -46,10 +44,7 @@ local function controlsFor(device: "keyboard" | "gamepad" | "touch"): { Row }
 			{ label = "R2", value = "One press starts one work action" },
 			{ label = "Skill bar", value = "Choose which skill open-ground work trains" },
 			{ label = "X", value = "Talk, forage or cook when a prompt appears" },
-			{ label = "Y", value = "Open your inventory" },
-			{ label = "Select", value = "Open the Atlas, ladder and fast travel" },
-			{ label = "Flower", value = "Open the community farm from the left rail" },
-			{ label = "Start", value = "Open this Field Guide again" },
+			{ label = "Left rail", value = "Farm, inventory and this Field Guide" },
 		}
 	end
 
@@ -60,11 +55,7 @@ local function controlsFor(device: "keyboard" | "gamepad" | "touch"): { Row }
 		{ label = "Left click", value = "One click starts one work action" },
 		{ label = "1  2  3  4", value = "Select Tobatsu, Resilience, Kusatori or Exam Prep" },
 		{ label = "E", value = "Talk, forage or cook when a prompt appears" },
-		{ label = "I", value = "Open your inventory" },
-		{ label = "M", value = "Toggle the local minimap" },
-		{ label = "N", value = "Open the Atlas, ladder and fast travel" },
-		{ label = "F", value = "Open the community farm" },
-		{ label = "H / F1", value = "Open this Field Guide again" },
+		{ label = "Left rail", value = "Farm, inventory and this Field Guide" },
 	}
 end
 
@@ -239,7 +230,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 					bullets = {
 						"Use the Friend Stand near Town spawn to choose a follower. Hachiware and Usagi can help during practice recall.",
 						"NPC dialogue advances in order each time you talk to that character.",
-						"Open regions are walkable and available for free fast travel in the Atlas.",
+						"Open regions are walkable once you have unlocked them; walk the road to reach them.",
 						"Other players can see your work animations, but there is no trading, party reward or PvP.",
 					},
 				},
@@ -305,7 +296,7 @@ function TutorialContent.pages(device: "keyboard" | "gamepad" | "touch"): { Page
 						{
 							label = "27–30 min",
 							value = "Plan for the Woods",
-							note = "Open the map and Atlas, check what is still closed, then aim for 50,000 combined skill.",
+							note = "Check which regions are still closed, then aim for 50,000 combined skill.",
 							accent = "gold",
 						},
 					},

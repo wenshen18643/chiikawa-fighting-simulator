@@ -2,55 +2,78 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared.Modules.Remotes)
+local WorkOrders = require(Shared.Modules.Config.WorkOrders)
 local UI = require(Shared.UI)
 local OrderTracker = {}
+
+type Row = {
+	root: Frame,
+	title: TextLabel,
+	detail: TextLabel,
+	fill: Frame,
+}
+
+type Entry = {
+	id: string,
+	name: string,
+	summary: string,
+	kind: string?,
+	progress: number,
+	count: number,
+}
+
 local WIDTH = 260
+local COMPACT_WIDTH = 220
 local HEIGHT = 54
+local GAP = UI.space.tight
 local TEMPLATE = "OrderTracker"
-local root: Frame
-local title: TextLabel
-local detail: TextLabel
-local fill: Frame
-local requestedVisible = false
+local holder: Frame
+local rows: { [string]: Row } = {}
+local order: { string } = {}
 local suppressed = false
 local compact = false
+local margin = 18
+local bottomOffset = 328
+local anchored: UDim2 = UDim2.new(1, -18, 1, -(328 - HEIGHT))
 
-local function setVisible(visible: boolean)
-	requestedVisible = visible
-	local renderedVisible = visible and not suppressed
-	if root.Visible == renderedVisible then
+local function place()
+	if not holder then
 		return
 	end
-	root.Visible = renderedVisible
+	anchored = UDim2.new(1, -margin, 1, -(bottomOffset - HEIGHT))
+	holder.Position = anchored
+	holder.Size = UDim2.fromOffset(if compact then COMPACT_WIDTH else WIDTH, 0)
+end
+
+local function refresh()
+	local visible = #order > 0 and not suppressed
+	if holder.Visible == visible then
+		return
+	end
+	holder.Visible = visible
+	if visible then
+		holder.Position = anchored + UDim2.fromOffset(26, 0)
+		UI.motion.to(holder, UI.motion.settle, { Position = anchored })
+	end
 end
 
 function OrderTracker.setSuppressed(value: boolean)
 	suppressed = value
-	if root then
-		root.Visible = requestedVisible and not suppressed
+	if holder then
+		refresh()
 	end
 end
 
-function OrderTracker.setCompact(value: boolean)
+function OrderTracker.setLayout(value: boolean, edge: number, bottom: number)
 	compact = value
-	if root then
-		root.Position = if compact then UDim2.new(1, -8, 0, 88) else UDim2.new(1, -UI.space.base, 0, 120)
-		root.Size = if compact then UDim2.fromOffset(220, HEIGHT) else UDim2.fromOffset(WIDTH, HEIGHT)
-	end
+	margin = edge
+	bottomOffset = bottom
+	place()
 end
 
-local function show(name: string, summary: string, progress: number, count: number)
-	title.Text = name
-	detail.Text = `{summary}  {progress}/{count}`
-	local ratio = if count > 0 then math.clamp(progress / count, 0, 1) else 0
-	fill.Size = UDim2.fromScale(ratio, 1)
-	fill.BackgroundColor3 = if ratio >= 1 then UI.color.leaf else UI.color.sky
-	setVisible(true)
-end
-
-local function build(parent: ScreenGui)
+local function buildRow(id: string): Row?
 	if UI.hasTemplate(TEMPLATE) then
-		local mounted = UI.template(TEMPLATE, { parent = parent })
+		local mounted = UI.template(TEMPLATE, { parent = holder, name = id })
 		local mountedTitle = mounted and mounted:FindFirstChild("Title", true)
 		local mountedDetail = mounted and mounted:FindFirstChild("Detail", true)
 		local mountedFill = mounted and mounted:FindFirstChild("Fill", true)
@@ -64,9 +87,8 @@ local function build(parent: ScreenGui)
 			and mountedFill
 			and mountedFill:IsA("Frame")
 		then
-			root, title, detail, fill = mounted, mountedTitle, mountedDetail, mountedFill
-			root.Visible = false
-			return
+			mounted.Size = UDim2.new(1, 0, mounted.Size.Y.Scale, mounted.Size.Y.Offset)
+			return { root = mounted, title = mountedTitle, detail = mountedDetail, fill = mountedFill }
 		end
 		warn(`[OrderTracker] template "{TEMPLATE}" is missing Title, Detail or Fill; using the built strip`)
 		if mounted then
@@ -74,43 +96,50 @@ local function build(parent: ScreenGui)
 		end
 	end
 
-	root = UI.card(parent, "OrderTracker", {
-		color = UI.color.paperDeep,
+	local root = UI.card(holder, id, {
 		radius = UI.radius.chip,
 	})
-	root.Size = UDim2.fromOffset(WIDTH, HEIGHT)
-	root.AnchorPoint = Vector2.new(1, 0)
-	root.Position = UDim2.new(1, -UI.space.base, 0, 120)
-	root.Visible = false
+	root.Size = UDim2.new(1, 0, 0, HEIGHT)
 
-	title = UI.label(root, "Title", {
+	local accent = Instance.new("Frame")
+	accent.Name = "Accent"
+	accent.BackgroundColor3 = UI.color.sky
+	accent.BorderSizePixel = 0
+	accent.Position = UDim2.fromOffset(0, 10)
+	accent.Size = UDim2.fromOffset(4, HEIGHT - 20)
+	accent.ZIndex = root.ZIndex + 1
+	accent.Parent = root
+	UI.corner(accent, UI.radius.pill)
+
+	local inset = UI.space.snug + 6
+	local title = UI.label(root, "Title", {
 		text = "",
 		font = UI.font.display,
-		size = UI.text.small,
-		position = UDim2.fromOffset(UI.space.snug, UI.space.tight),
-		extent = UDim2.new(1, -UI.space.snug * 2, 0, 18),
+		size = UI.text.body,
+		position = UDim2.fromOffset(inset, UI.space.tight),
+		extent = UDim2.new(1, -(inset + UI.space.snug), 0, 19),
 	})
 
-	detail = UI.label(root, "Detail", {
+	local detail = UI.label(root, "Detail", {
 		text = "",
-		font = UI.font.light,
+		font = UI.font.body,
 		size = UI.text.caption,
 		color = UI.color.inkSoft,
-		position = UDim2.fromOffset(UI.space.snug, UI.space.tight + 19),
-		extent = UDim2.new(1, -UI.space.snug * 2, 0, 14),
+		position = UDim2.fromOffset(inset, UI.space.tight + 20),
+		extent = UDim2.new(1, -(inset + UI.space.snug), 0, 14),
 	})
 
 	local track = Instance.new("Frame")
 	track.Name = "Track"
-	track.BackgroundColor3 = UI.color.glassDark
+	track.BackgroundColor3 = UI.color.paperSunken
 	track.BorderSizePixel = 0
-	track.Position = UDim2.fromOffset(UI.space.snug, HEIGHT - 14)
-	track.Size = UDim2.new(1, -UI.space.snug * 2, 0, 6)
+	track.Position = UDim2.fromOffset(inset, HEIGHT - 14)
+	track.Size = UDim2.new(1, -(inset + UI.space.snug), 0, 6)
 	track.ZIndex = root.ZIndex + 1
 	track.Parent = root
 	UI.corner(track, UI.radius.pill)
 
-	fill = Instance.new("Frame")
+	local fill = Instance.new("Frame")
 	fill.Name = "Fill"
 	fill.BackgroundColor3 = UI.color.sky
 	fill.BorderSizePixel = 0
@@ -118,6 +147,76 @@ local function build(parent: ScreenGui)
 	fill.ZIndex = track.ZIndex + 1
 	fill.Parent = track
 	UI.corner(fill, UI.radius.pill)
+
+	return { root = root, title = title, detail = detail, fill = fill }
+end
+
+local function rowFor(id: string): Row?
+	local existing = rows[id]
+	if existing then
+		return existing
+	end
+
+	local row = buildRow(id)
+	if not row then
+		return nil
+	end
+	rows[id] = row
+	table.insert(order, id)
+	return row
+end
+
+local function drop(id: string)
+	local row = rows[id]
+	if not row then
+		return
+	end
+	row.root:Destroy()
+	rows[id] = nil
+	local index = table.find(order, id)
+	if index then
+		table.remove(order, index)
+	end
+end
+
+local function update(entry: Entry)
+	local row = rowFor(entry.id)
+	if not row then
+		return
+	end
+
+	row.title.Text = entry.name
+	row.detail.Text = if entry.kind == "train"
+		then `{entry.summary}  {entry.progress}%`
+		else `{entry.summary}  {WorkOrders.formatCount(entry.progress)}/{WorkOrders.formatCount(entry.count)}`
+
+	local ratio = if entry.count > 0 then math.clamp(entry.progress / entry.count, 0, 1) else 0
+	UI.motion.to(row.fill, UI.motion.settle, {
+		Size = UDim2.fromScale(ratio, 1),
+		BackgroundColor3 = if ratio >= 1 then UI.color.leaf else UI.color.sky,
+	})
+end
+
+local function sync(entries: { Entry })
+	local seen: { [string]: boolean } = {}
+	for index, entry in entries do
+		if type(entry) == "table" and type(entry.id) == "string" then
+			seen[entry.id] = true
+			update(entry)
+			local row = rows[entry.id]
+			if row then
+				row.root.LayoutOrder = index
+			end
+		end
+	end
+
+	for index = #order, 1, -1 do
+		local id = order[index]
+		if not seen[id] then
+			drop(id)
+		end
+	end
+	refresh()
 end
 
 function OrderTracker.init()
@@ -130,8 +229,16 @@ function OrderTracker.init()
 	screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	screen.Parent = playerGui
 
-	build(screen)
-	OrderTracker.setCompact(compact)
+	holder = Instance.new("Frame")
+	holder.Name = "Stack"
+	holder.BackgroundTransparency = 1
+	holder.BorderSizePixel = 0
+	holder.AnchorPoint = Vector2.new(1, 1)
+	holder.AutomaticSize = Enum.AutomaticSize.Y
+	holder.Visible = false
+	holder.Parent = screen
+	UI.list(holder, GAP)
+	place()
 
 	Remotes.event("Order", "Event").OnClientEvent:Connect(function(kind, payload)
 		if type(payload) ~= "table" then
@@ -139,28 +246,19 @@ function OrderTracker.init()
 		end
 
 		if kind == "progress" then
-			show(payload.name, payload.summary, payload.progress, payload.count)
+			update(payload)
+			refresh()
 		elseif kind == "completed" then
-			setVisible(false)
+			drop(payload.id)
+			refresh()
 		elseif kind == "board" then
-			local active = payload.active
-			if type(active) ~= "string" then
-				setVisible(false)
-				return
-			end
-			for _, entry in payload.orders or {} do
-				if entry.id == active then
-					show(entry.name, entry.summary, entry.progress, entry.objective.count)
-					return
-				end
-			end
-			setVisible(false)
+			sync(if type(payload.tracked) == "table" then payload.tracked else {})
 		end
 	end)
 
 	Remotes.event("Order", "Open").OnClientEvent:Connect(function(payload)
-		if type(payload) == "table" and type(payload.active) ~= "string" then
-			setVisible(false)
+		if type(payload) == "table" then
+			sync(if type(payload.tracked) == "table" then payload.tracked else {})
 		end
 	end)
 end

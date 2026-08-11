@@ -9,7 +9,6 @@ local MovementController = require(script.Parent.Parent.Controllers.MovementCont
 local WorkController = require(script.Parent.Parent.Controllers.WorkController)
 local ControlsPanel = require(script.Parent.ControlsPanel)
 local InputMode = require(script.Parent.InputMode)
-local Minimap = require(script.Parent.Minimap)
 local UIManager = require(script.Parent.UIManager)
 local ControlTutorial = {}
 
@@ -37,12 +36,11 @@ local finished = false
 local transitioning = false
 local acknowledgeRemote: RemoteEvent
 local surfaceSuppressed = false
-local minimapSuppressed = false
 local changedListeners: { (boolean) -> () } = {}
 
 local function refreshEnabled()
 	if screen then
-		screen.Enabled = active and not surfaceSuppressed and not minimapSuppressed
+		screen.Enabled = active and not surfaceSuppressed
 	end
 end
 
@@ -404,13 +402,8 @@ function ControlTutorial.init()
 
 	build(screen)
 	surfaceSuppressed = UIManager.hasSurface()
-	minimapSuppressed = Minimap.isOpen()
 	UIManager.onChanged(function()
 		surfaceSuppressed = UIManager.hasSurface()
-		refreshEnabled()
-	end)
-	Minimap.onChanged(function(open)
-		minimapSuppressed = open
 		refreshEnabled()
 	end)
 	screen:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
@@ -444,7 +437,7 @@ function ControlTutorial.init()
 	end)
 
 	RunService.RenderStepped:Connect(function()
-		if not active or transitioning or surfaceSuppressed or minimapSuppressed or ControlsPanel.isOpen() then
+		if not active or transitioning or surfaceSuppressed or ControlsPanel.isOpen() then
 			return
 		end
 		local step = steps[current]
@@ -461,7 +454,6 @@ function ControlTutorial.init()
 			active
 			and not transitioning
 			and not surfaceSuppressed
-			and not minimapSuppressed
 			and not ControlsPanel.isOpen()
 			and steps[current]
 			and steps[current].id == "jump"
@@ -475,7 +467,6 @@ function ControlTutorial.init()
 			active
 			and not transitioning
 			and not surfaceSuppressed
-			and not minimapSuppressed
 			and not ControlsPanel.isOpen()
 			and steps[current]
 			and steps[current].id == "work"

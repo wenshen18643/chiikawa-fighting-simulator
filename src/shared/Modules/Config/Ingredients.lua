@@ -459,6 +459,7 @@ Ingredients.ZONES = {
 		ingredients = {
 			{ id = "whiteBerry", weight = 3 },
 			{ id = "whiteMushroom", weight = 1 },
+			{ id = "moonlightCap", weight = 1 },
 		},
 	},
 } :: { ZoneDefinition }

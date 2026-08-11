@@ -24,11 +24,16 @@ type Session = {
 }
 
 local COOKING = Constants.COOKING
+local cookedCallbacks: { (Player, string) -> () } = {}
 local sessions: { [Player]: Session } = {}
 local limiters: { [Player]: RateLimiter.RateLimiter } = {}
 local stationPosition: Vector3? = nil
 local openRemote: RemoteEvent
 local eventRemote: RemoteEvent
+
+function CookingService.onCooked(callback: (Player, string) -> ())
+	table.insert(cookedCallbacks, callback)
+end
 
 local function attachPrompt(rootPart: BasePart)
 	local prompt = Instance.new("ProximityPrompt")
@@ -183,6 +188,10 @@ local function onClick(player: Player)
 
 	local def = Recipes.get(recipeId)
 	NotifyService.send(player, `Cooked {def and def.name or recipeId}!`, "reward")
+
+	for _, callback in cookedCallbacks do
+		task.spawn(callback, player, recipeId)
+	end
 end
 
 function CookingService.init()

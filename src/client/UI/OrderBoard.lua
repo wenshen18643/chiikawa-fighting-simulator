@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared.Modules.Remotes)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
+local WorkOrders = require(Shared.Modules.Config.WorkOrders)
 local UI = require(Shared.UI)
 local UIManager = require(script.Parent.UIManager)
 local OrderBoard = {}
@@ -54,7 +55,7 @@ local function rewardText(reward: { [string]: any }): string
 	return table.concat(parts, "  •  ")
 end
 
-local function buildRow(entry: Entry, index: number)
+local function buildRow(entry: Entry, index: number, full: boolean)
 	local done = entry.progress >= entry.objective.count
 	local surface = if entry.accepted then UI.color.paperDeep else UI.color.paper
 
@@ -91,8 +92,10 @@ local function buildRow(entry: Entry, index: number)
 		extent = UDim2.new(1, -TEXT_INSET, 0, 32),
 	})
 
-	local requirement = if entry.accepted
-		then `{entry.summary}  —  {entry.progress}/{entry.objective.count}`
+	local requirement = if entry.objective.kind == "train"
+		then `{entry.summary}  —  {entry.progress}%`
+		elseif entry.accepted
+			then `{entry.summary}  —  {WorkOrders.formatCount(entry.progress)}/{WorkOrders.formatCount(entry.objective.count)}`
 		else entry.summary
 	UI.label(row, "Requirement", {
 		text = requirement,
@@ -125,6 +128,16 @@ local function buildRow(entry: Entry, index: number)
 		return
 	end
 
+	if full and not done then
+		UI.chip(row, "Full", {
+			text = "Hands full",
+			color = UI.color.rest,
+			extent = actionExtent,
+			position = actionPosition,
+		})
+		return
+	end
+
 	UI.button(row, if done then "TurnIn" else "Accept", {
 		text = if done then "Hand it in" else "Take it",
 		color = if done then UI.color.leafDeep else UI.color.sky,
@@ -137,7 +150,6 @@ local function buildRow(entry: Entry, index: number)
 			else
 				acceptRemote:FireServer(entry.id)
 			end
-			OrderBoard.setOpen(false)
 		end,
 	})
 end
@@ -150,9 +162,10 @@ local function render(payload: { [string]: any })
 	end
 
 	local entries = payload.orders or {}
+	local full = payload.full == true
 	emptyLabel.Visible = #entries == 0
 	for index, entry in entries do
-		buildRow(entry, index)
+		buildRow(entry, index, full)
 	end
 	listHolder.CanvasPosition = Vector2.zero
 end
@@ -211,7 +224,7 @@ local function buildPanel(parent: ScreenGui)
 	})
 
 	UI.label(panel, "Subtitle", {
-		text = "Yoroi-san has jobs. One at a time, and no overtime is expected of you.",
+		text = `Yoroi-san has jobs. Up to {WorkOrders.MAX_ACTIVE} at a time, and no overtime is expected of you.`,
 		font = UI.font.light,
 		size = UI.text.small,
 		color = UI.color.inkSoft,
@@ -300,7 +313,7 @@ function OrderBoard.init()
 	end)
 
 	Remotes.event("Order", "Event").OnClientEvent:Connect(function(kind, payload)
-		if kind == "board" and type(payload) == "table" then
+		if kind == "board" and type(payload) == "table" and UIManager.isOpen(MENU_ID) then
 			render(payload)
 		end
 	end)

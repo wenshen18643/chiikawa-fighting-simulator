@@ -1,4 +1,3 @@
-local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -9,7 +8,6 @@ local UI = require(Shared.UI)
 local StateController = require(script.Parent.Parent.Controllers.StateController)
 local UIManager = require(script.Parent.UIManager)
 local Atlas = {}
-local ACTION_NAME = "Atlas"
 local MENU_ID = "atlas"
 local scrim: Frame
 local panel: Frame
@@ -141,10 +139,8 @@ local CONTROLS = {
 	{ key = "Space", what = "Jump" },
 	{ key = "Left click", what = "Work. One click is one gain." },
 	{ key = "E", what = "Talk to someone" },
-	{ key = "M", what = "Toggle the minimap" },
-	{ key = "N", what = "This Atlas" },
-	{ key = "F", what = "Open the community farm" },
-	{ key = "H", what = "Open the full Field Guide" },
+	{ key = "1 2 3 4", what = "Select the skill your work trains" },
+	{ key = "Left rail", what = "Farm, inventory and the Field Guide" },
 }
 
 local function buildGuidePage(parent: Frame)
@@ -325,13 +321,6 @@ function Atlas.build(parent: Instance)
 			refresh()
 		end
 	end)
-
-	ContextActionService:BindAction(ACTION_NAME, function(_name, state)
-		if state == Enum.UserInputState.Begin then
-			Atlas.toggle()
-		end
-		return Enum.ContextActionResult.Sink
-	end, false, Enum.KeyCode.N, Enum.KeyCode.ButtonSelect)
 
 	UIManager.register(MENU_ID, {
 		setVisible = setPanelOpen,

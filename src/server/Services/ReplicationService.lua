@@ -44,6 +44,7 @@ local function buildSnapshot(player: Player, profile: any)
 		upgrades = profile.upgrades,
 		seasons = profile.seasons,
 		certifications = profile.certifications,
+		trainTier = (profile.workOrders and profile.workOrders.trainTier) or {},
 		certificationCap = Certifications.capFor(profile),
 		study = StudyService.snapshot(player, profile),
 		selectedSkill = profile.selectedSkill,

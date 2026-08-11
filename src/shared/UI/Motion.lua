@@ -3,6 +3,7 @@ local TweenService = game:GetService("TweenService")
 local Motion = {}
 local reducedMotion = GuiService.ReducedMotionEnabled
 local activeTweens: { [Tween]: { instance: Instance, goal: { [string]: any } } } = {}
+local loopingTweens: { Tween } = {}
 
 GuiService:GetPropertyChangedSignal("ReducedMotionEnabled"):Connect(function()
 	reducedMotion = GuiService.ReducedMotionEnabled
@@ -14,6 +15,11 @@ GuiService:GetPropertyChangedSignal("ReducedMotionEnabled"):Connect(function()
 			end
 		end
 		table.clear(activeTweens)
+
+		for _, tween in loopingTweens do
+			tween:Cancel()
+		end
+		table.clear(loopingTweens)
 	end
 end)
 
@@ -51,6 +57,18 @@ end
 
 function Motion.to(instance: Instance, info: TweenInfo, goal: { [string]: any })
 	Motion.play(instance, info, goal)
+end
+
+function Motion.loop(instance: Instance, seconds: number, goal: { [string]: any }): Tween?
+	if reducedMotion then
+		return nil
+	end
+
+	local info = TweenInfo.new(seconds, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+	local tween = TweenService:Create(instance, info, goal)
+	table.insert(loopingTweens, tween)
+	tween:Play()
+	return tween
 end
 
 function Motion.shimmer(gradient: UIGradient, period: number?): thread?

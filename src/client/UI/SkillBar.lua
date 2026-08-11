@@ -7,12 +7,16 @@ local WorkController = require(script.Parent.Parent.Controllers.WorkController)
 local SkillBar = {}
 local BUTTON = 68
 local CELL_WIDTH = 82
-local CELL_HEIGHT = 106
+local CELL_HEIGHT = 132
 local GAP = 10
 local COMPACT_BUTTON = 52
 local COMPACT_CELL_WIDTH = 66
-local COMPACT_CELL_HEIGHT = 84
+local COMPACT_CELL_HEIGHT = 96
 local COMPACT_GAP = 6
+local LIT_GROW = 6
+local RING_CLEAR = 8
+local CHIP_HEIGHT = 21
+local COMPACT_CHIP_HEIGHT = 18
 
 export type SkillEntry = {
 	setValue: (text: string, numeric: number?) -> (),
@@ -26,15 +30,45 @@ local holder: Frame
 local holderLayout: UIListLayout
 local compact = false
 local inputMode = "keyboard"
-local cells: { {
+type Record = {
 	cell: Frame,
 	button: TextButton,
 	badge: Frame,
+	chip: Frame,
 	value: TextLabel,
 	track: Frame,
 	pips: Frame,
 	grade: TextLabel,
-} } = {}
+}
+
+local cells: { Record } = {}
+
+local function applyLayout(record: Record)
+	local base = if compact then COMPACT_BUTTON else BUTTON
+	local width = if compact then COMPACT_CELL_WIDTH else CELL_WIDTH
+	local chipHeight = if compact then COMPACT_CHIP_HEIGHT else CHIP_HEIGHT
+	local top = base + LIT_GROW + RING_CLEAR
+
+	record.cell.Size = UDim2.fromOffset(width, if compact then COMPACT_CELL_HEIGHT else CELL_HEIGHT)
+	record.button.Size = UDim2.fromOffset(
+		if record.button:GetAttribute("Lit") == true then base + LIT_GROW else base,
+		if record.button:GetAttribute("Lit") == true then base + LIT_GROW else base
+	)
+
+	record.chip.Size = UDim2.fromOffset(width - (if compact then 12 else 18), chipHeight)
+	record.chip.Position = UDim2.new(0.5, 0, 0, top)
+	record.value.TextSize = if compact then 14 else 16
+
+	record.track.Size = UDim2.fromOffset(width - (if compact then 12 else 20), 5)
+	record.track.Position = UDim2.new(0.5, 0, 0, top + chipHeight + 3)
+
+	record.pips.Position = UDim2.new(0.5, 0, 0, top + chipHeight + 11)
+	record.grade.Position = UDim2.new(0.5, 0, 0, top + chipHeight + 17)
+
+	record.badge.Visible = not compact and inputMode == "keyboard"
+	record.pips.Visible = not compact
+	record.grade.Visible = not compact and record.grade:GetAttribute("HasGrade") == true
+end
 
 local function buildCell(
 	parent: Instance,
@@ -106,6 +140,15 @@ local function buildCell(
 		zIndex = 9,
 	})
 
+	local entrance = Instance.new("UIScale")
+	entrance.Scale = 0
+	entrance.Parent = cell
+	task.delay(0.05 * index, function()
+		if cell.Parent then
+			UI.motion.to(entrance, UI.motion.pop, { Scale = 1 })
+		end
+	end)
+
 	button.Activated:Connect(function()
 		if WorkController.isSelectable(skillId) then
 			WorkController.selectSkill(skillId)
@@ -114,45 +157,61 @@ local function buildCell(
 		end
 	end)
 
-	local value, setValue = UI.ticker(cell, "Value", {
+	local chip = Instance.new("Frame")
+	chip.Name = "ValueChip"
+	chip.AnchorPoint = Vector2.new(0.5, 0)
+	chip.BackgroundColor3 = UI.color.paper
+	chip.BackgroundTransparency = 0.04
+	chip.BorderSizePixel = 0
+	chip.ZIndex = 4
+	chip.Parent = cell
+	UI.corner(chip, UI.radius.pill)
+	UI.stroke(chip, UI.color.line, UI.Theme.stroke.hair).Transparency = 0.35
+
+	local restInk = UI.Theme.legible(UI.color.paper)
+	local litInk = UI.Theme.accentInk(UI.color.paper, accent)
+
+	local value, setValue = UI.ticker(chip, "Value", {
 		text = "0",
 		font = UI.font.display,
 		size = 16,
-		color = UI.color.ink,
+		color = restInk,
 		align = Enum.TextXAlignment.Center,
-		extent = UDim2.new(1, 0, 0, 19),
-		position = UDim2.fromOffset(0, BUTTON + 3),
+		extent = UDim2.fromScale(1, 1),
+		zIndex = 5,
 	})
-	value.TextStrokeColor3 = UI.color.line
-	value.TextStrokeTransparency = 0.2
 
 	local track, fill = UI.bar(cell, "Progress", accent)
-	track.Size = UDim2.fromOffset(CELL_WIDTH - 20, 5)
-	track.Position = UDim2.fromOffset(10, BUTTON + 24)
+	track.AnchorPoint = Vector2.new(0.5, 0)
 	track.ZIndex = 4
 
 	local pips, setPips = UI.pips(cell, "Grades", {
 		total = gradeCount,
 		color = accent,
 		extent = UDim2.fromOffset(CELL_WIDTH - 24, 4),
-		position = UDim2.fromOffset(12, BUTTON + 33),
 		zIndex = 5,
 	})
+	pips.AnchorPoint = Vector2.new(0.5, 0)
 
 	local grade = UI.label(cell, "Grade", {
 		text = "",
 		font = UI.font.bold,
 		size = 10,
-		color = accent,
+		color = UI.Theme.accentInk(UI.color.glassDark, accent),
 		align = Enum.TextXAlignment.Center,
 		extent = UDim2.new(1, 0, 0, 12),
-		position = UDim2.fromOffset(0, BUTTON + 40),
 	})
+	grade.AnchorPoint = Vector2.new(0.5, 0)
 	grade.Visible = false
+
+	local gradeStroke = UI.stroke(grade, UI.color.glassDark, 2)
+	gradeStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	gradeStroke.Transparency = 0.1
 
 	local function setState(lit: boolean, picked: boolean)
 		button:SetAttribute("Lit", lit)
 		local baseButton = if compact then COMPACT_BUTTON else BUTTON
+		local size = if lit then baseButton + LIT_GROW else baseButton
 		UI.motion.to(ring, UI.motion.settle, {
 			Color = if lit or picked then accent else UI.color.line,
 			Thickness = if lit then UI.Theme.stroke.heavy else UI.Theme.stroke.base,
@@ -161,29 +220,33 @@ local function buildCell(
 			BackgroundTransparency = if lit then 0.55 else 0.86,
 		})
 		UI.motion.to(button, UI.motion.settle, {
-			Size = UDim2.fromOffset(if lit then baseButton + 6 else baseButton, if lit then baseButton + 6 else baseButton),
+			Size = UDim2.fromOffset(size, size),
 		})
 		UI.motion.to(value, UI.motion.settle, {
-			TextColor3 = if lit then accent else UI.color.ink,
+			TextColor3 = if lit then litInk else restInk,
 		})
 	end
 
-	setState(false, false)
-	table.insert(cells, {
+	local record: Record = {
 		cell = cell,
 		button = button,
 		badge = badge,
+		chip = chip,
 		value = value,
 		track = track,
 		pips = pips,
 		grade = grade,
-	})
+	}
+
+	setState(false, false)
+	applyLayout(record)
+	table.insert(cells, record)
 
 	return {
 		setValue = setValue,
 
 		setProgress = function(fraction: number)
-			fill.Size = UDim2.fromScale(fraction, 1)
+			UI.motion.to(fill, UI.motion.settle, { Size = UDim2.fromScale(fraction, 1) })
 		end,
 		setPips = setPips,
 
@@ -228,7 +291,7 @@ end
 function SkillBar.setInputMode(mode: string)
 	inputMode = mode
 	for _, record in cells do
-		record.badge.Visible = not compact and inputMode == "keyboard"
+		applyLayout(record)
 	end
 end
 
@@ -242,19 +305,7 @@ function SkillBar.setCompact(value: boolean)
 	)
 	holderLayout.Padding = UDim.new(0, if compact then COMPACT_GAP else GAP)
 	for _, record in cells do
-		local buttonSize = if compact then COMPACT_BUTTON else BUTTON
-		if record.button:GetAttribute("Lit") == true then
-			buttonSize += 6
-		end
-		record.cell.Size = UDim2.fromOffset(if compact then COMPACT_CELL_WIDTH else CELL_WIDTH, if compact then COMPACT_CELL_HEIGHT else CELL_HEIGHT)
-		record.button.Size = UDim2.fromOffset(buttonSize, buttonSize)
-		record.badge.Visible = not compact and inputMode == "keyboard"
-		record.value.TextSize = if compact then 14 else 16
-		record.value.Position = UDim2.fromOffset(0, if compact then COMPACT_BUTTON + 2 else BUTTON + 3)
-		record.track.Size = UDim2.fromOffset(if compact then COMPACT_CELL_WIDTH - 12 else CELL_WIDTH - 20, 5)
-		record.track.Position = UDim2.fromOffset(if compact then 6 else 10, if compact then 73 else BUTTON + 24)
-		record.pips.Visible = not compact
-		record.grade.Visible = not compact and record.grade:GetAttribute("HasGrade") == true
+		applyLayout(record)
 	end
 end
 

@@ -7,21 +7,28 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BigNumber = require(Shared.Modules.BigNumber)
 local Remotes = require(Shared.Modules.Remotes)
 local Ingredients = require(Shared.Modules.Config.Ingredients)
+local Skills = require(Shared.Modules.Config.Skills)
 local WorkOrders = require(Shared.Modules.Config.WorkOrders)
+local CookingService = require(script.Parent.CookingService)
 local CurrencyService = require(script.Parent.CurrencyService)
 local DataService = require(script.Parent.DataService)
 local ForagingService = require(script.Parent.ForagingService)
 local HarvestNodes = require(script.Parent.HarvestNodes)
 local MobService = require(script.Parent.MobService)
 local NotifyService = require(script.Parent.NotifyService)
+local SkillService = require(script.Parent.SkillService)
 local WorkOrderService = {}
-local LEVEL_ATTRIBUTE = "CaveLevel"
-local LANTERN_ATTRIBUTE = "HasLantern"
 local openRemote: RemoteEvent
 local acceptRemote: RemoteEvent
 local turnInRemote: RemoteEvent
 local eventRemote: RemoteEvent
 local offered: { [Player]: { string } } = {}
+local reported: { [Player]: { [string]: number } } = {}
+local tracked: { [string]: boolean } = {}
+
+for _, skillId in Skills.ORDER do
+	tracked[skillId] = true
+end
 
 local function stateOf(profile: any)
 	local state = profile.workOrders
@@ -29,7 +36,38 @@ local function stateOf(profile: any)
 	state.active = state.active or {}
 
 	state.rank = state.rank or 0
+	state.trainTier = state.trainTier or {}
+
+	local order = state.activeOrder
+	if type(order) ~= "table" then
+		order = {}
+		state.activeOrder = order
+	end
+
+	for index = #order, 1, -1 do
+		if state.active[order[index]] == nil then
+			table.remove(order, index)
+		end
+	end
+	for id in state.active do
+		if not table.find(order, id) then
+			table.insert(order, id)
+		end
+	end
 	return state
+end
+
+local function dropActive(state: any, id: string)
+	state.active[id] = nil
+	local index = table.find(state.activeOrder, id)
+	if index then
+		table.remove(state.activeOrder, index)
+	end
+end
+
+local function tierOf(state: any, skillId: string): number
+	local tier = state.trainTier[skillId]
+	return if type(tier) == "number" then tier else 0
 end
 
 local function hasCompleted(state: any, id: string): boolean
@@ -41,13 +79,6 @@ local function hasCompleted(state: any, id: string): boolean
 	return false
 end
 
-local function activeId(state: any): string?
-	for id in state.active do
-		return id
-	end
-	return nil
-end
-
 local function chainDone(state: any): boolean
 	for _, order in WorkOrders.CHAIN do
 		if not hasCompleted(state, order.id) then
@@ -57,16 +88,8 @@ local function chainDone(state: any): boolean
 	return true
 end
 
-local function boardFor(profile: any): { WorkOrders.OrderDefinition }
+local function mainOrders(profile: any): { WorkOrders.OrderDefinition }
 	local state = stateOf(profile)
-	local current = activeId(state)
-	if current then
-		local order = WorkOrders.get(current)
-		if order then
-			return { order }
-		end
-		state.active = {}
-	end
 
 	for _, order in WorkOrders.CHAIN do
 		if not hasCompleted(state, order.id) then
@@ -77,9 +100,44 @@ local function boardFor(profile: any): { WorkOrders.OrderDefinition }
 	return WorkOrders.board(state.rank)
 end
 
+local function trainProgressOf(profile: any, skillId: string, tier: number): number
+	return WorkOrders.trainProgress(SkillService.get(profile, skillId), tier)
+end
+
+local function progressOf(profile: any, order: WorkOrders.OrderDefinition): number
+	local skillId, tier = WorkOrders.trainOf(order.id)
+	if skillId and tier then
+		return trainProgressOf(profile, skillId, tier)
+	end
+	return stateOf(profile).active[order.id] or 0
+end
+
+local function boardFor(profile: any): { WorkOrders.OrderDefinition }
+	local state = stateOf(profile)
+	for index = #state.activeOrder, 1, -1 do
+		local id = state.activeOrder[index]
+		if not WorkOrders.get(id) then
+			state.active[id] = nil
+			table.remove(state.activeOrder, index)
+		end
+	end
+
+	local offers = mainOrders(profile)
+	for _, skillId in Skills.ORDER do
+		table.insert(offers, WorkOrders.trainOrder(skillId, tierOf(state, skillId)))
+	end
+
+	local board = {}
+	for _, order in offers do
+		if state.active[order.id] == nil or progressOf(profile, order) >= order.objective.count then
+			table.insert(board, order)
+		end
+	end
+	return board
+end
+
 local function payloadFor(profile: any)
 	local state = stateOf(profile)
-	local current = activeId(state)
 	local board = boardFor(profile)
 	local ids = {}
 	local entries = {}
@@ -93,14 +151,33 @@ local function payloadFor(profile: any)
 			objective = order.objective,
 			reward = order.reward,
 			grade = order.grade,
-			progress = state.active[order.id] or 0,
-			accepted = current == order.id,
+			progress = progressOf(profile, order),
+			accepted = state.active[order.id] ~= nil,
 		})
+	end
+
+	local active = {}
+	local trackedEntries = {}
+	for _, id in state.activeOrder do
+		local order = WorkOrders.get(id)
+		if order then
+			table.insert(active, id)
+			table.insert(trackedEntries, {
+				id = order.id,
+				name = order.name,
+				summary = WorkOrders.describe(order),
+				kind = order.objective.kind,
+				progress = progressOf(profile, order),
+				count = order.objective.count,
+			})
+		end
 	end
 
 	return ids, {
 		orders = entries,
-		active = current,
+		active = active,
+		tracked = trackedEntries,
+		full = #active >= WorkOrders.MAX_ACTIVE,
 		rank = state.rank,
 		chainDone = chainDone(state),
 	}
@@ -124,20 +201,12 @@ function WorkOrderService.open(player: Player)
 	sendBoard(player, true)
 end
 
-local function activeOrder(profile: any): (WorkOrders.OrderDefinition?, number)
-	local state = stateOf(profile)
-	local id = activeId(state)
-	if not id then
-		return nil, 0
-	end
-	return WorkOrders.get(id), state.active[id] or 0
-end
-
 local function report(player: Player, order: WorkOrders.OrderDefinition, progress: number)
 	eventRemote:FireClient(player, "progress", {
 		id = order.id,
 		name = order.name,
 		summary = WorkOrders.describe(order),
+		kind = order.objective.kind,
 		progress = progress,
 		count = order.objective.count,
 	})
@@ -149,21 +218,20 @@ local function refreshCollect(player: Player)
 		return
 	end
 
-	local order, progress = activeOrder(profile)
-	if not order or order.objective.kind ~= "collect" then
-		return
-	end
-
-	local held = profile.currencies.ingredients[order.objective.target] or 0
-	local updated = math.min(order.objective.count, held)
-	if updated == progress then
-		return
-	end
-
-	stateOf(profile).active[order.id] = updated
-	report(player, order, updated)
-	if updated >= order.objective.count then
-		NotifyService.send(player, `{order.name} is done. Take it back to Yoroi-san.`, "reward")
+	local state = stateOf(profile)
+	local held = profile.currencies.ingredients
+	for _, id in state.activeOrder do
+		local order = WorkOrders.get(id)
+		if order and order.objective.kind == "collect" then
+			local updated = math.min(order.objective.count, held[order.objective.target] or 0)
+			if updated ~= (state.active[id] or 0) then
+				state.active[id] = updated
+				report(player, order, updated)
+				if updated >= order.objective.count then
+					NotifyService.send(player, `{order.name} is done. Take it back to Yoroi-san.`, "reward")
+				end
+			end
+		end
 	end
 end
 
@@ -173,31 +241,51 @@ local function advance(player: Player, kind: string, target: string, amount: num
 		return
 	end
 
-	local order, progress = activeOrder(profile)
-	if not order or order.objective.kind ~= kind or order.objective.target ~= target then
-		return
-	end
-	if progress >= order.objective.count then
-		return
-	end
-
 	local state = stateOf(profile)
-	local updated = math.min(order.objective.count, progress + amount)
-	state.active[order.id] = updated
-
-	report(player, order, updated)
-
-	if updated >= order.objective.count then
-		NotifyService.send(player, `{order.name} is done. Take it back to Yoroi-san.`, "reward")
+	for _, id in state.activeOrder do
+		local order = WorkOrders.get(id)
+		local objective = order and order.objective
+		if order and objective and objective.kind == kind and objective.target == target then
+			local progress = state.active[id] or 0
+			if progress < objective.count then
+				local updated = math.min(objective.count, progress + amount)
+				state.active[id] = updated
+				report(player, order, updated)
+				if updated >= objective.count then
+					NotifyService.send(player, `{order.name} is done. Take it back to Yoroi-san.`, "reward")
+				end
+			end
+		end
 	end
 end
 
-local function applyGear(player: Player, profile: any)
-	local character = player.Character
-	if not character then
+local function advanceTrain(player: Player, profile: any, skillId: string)
+	local state = stateOf(profile)
+	local tier = tierOf(state, skillId)
+	local order = WorkOrders.trainOrder(skillId, tier)
+	if state.active[order.id] == nil then
 		return
 	end
-	character:SetAttribute(LANTERN_ATTRIBUTE, profile.gear and profile.gear.lantern == true)
+
+	local progress = trainProgressOf(profile, skillId, tier)
+	local seen = reported[player]
+	if not seen then
+		seen = {}
+		reported[player] = seen
+	end
+
+	local last = seen[skillId]
+	if last == progress then
+		return
+	end
+	seen[skillId] = progress
+
+	report(player, order, progress)
+
+	if progress >= order.objective.count and (last or 0) < order.objective.count then
+		NotifyService.send(player, `{order.name} is done. Take it back to Yoroi-san.`, "reward")
+		sendBoard(player, false)
+	end
 end
 
 local function grant(player: Player, profile: any, order: WorkOrders.OrderDefinition)
@@ -224,7 +312,6 @@ local function grant(player: Player, profile: any, order: WorkOrders.OrderDefini
 			profile.companions.owned[unlock.id] = true
 		elseif unlock.kind == "tool" then
 			profile.gear[unlock.id] = true
-			applyGear(player, profile)
 		end
 		NotifyService.send(player, `{unlock.label} unlocked!`, "unlock")
 	end
@@ -251,12 +338,21 @@ local function onAccept(player: Player, id: any)
 	end
 
 	local state = stateOf(profile)
-	if activeId(state) then
+	if state.active[id] ~= nil then
+		return
+	end
+	if #state.activeOrder >= WorkOrders.MAX_ACTIVE then
+		NotifyService.send(player, `Hands full. {WorkOrders.MAX_ACTIVE} jobs at a time.`, "locked")
 		return
 	end
 
+	local drillSkill, drillTier = WorkOrders.trainOf(id)
 	local generatedRank = WorkOrders.rankOf(id)
-	if generatedRank then
+	if drillSkill and drillTier then
+		if not tracked[drillSkill] or drillTier ~= tierOf(state, drillSkill) then
+			return
+		end
+	elseif generatedRank then
 		if generatedRank ~= state.rank then
 			return
 		end
@@ -264,18 +360,15 @@ local function onAccept(player: Player, id: any)
 		return
 	end
 
-	state.active = { [id] = 0 }
+	state.active[id] = 0
+	table.insert(state.activeOrder, id)
 	NotifyService.send(player, `Took on "{order.name}".`, "info")
 	sendBoard(player, false)
 
-	if order.objective.kind == "reach" then
-		local character = player.Character
-		local level = character and character:GetAttribute(LEVEL_ATTRIBUTE)
-		if type(level) == "number" and level >= (tonumber(order.objective.target) or math.huge) then
-			advance(player, "reach", order.objective.target, 1)
-		end
-	elseif order.objective.kind == "collect" then
+	if order.objective.kind == "collect" then
 		refreshCollect(player)
+	elseif drillSkill then
+		advanceTrain(player, profile, drillSkill)
 	end
 end
 
@@ -289,6 +382,31 @@ local function onTurnIn(player: Player, id: any)
 	end
 
 	local state = stateOf(profile)
+	local skillId, tier = WorkOrders.trainOf(id)
+	if skillId and tier then
+		if not tracked[skillId] or tier ~= tierOf(state, skillId) or state.active[id] == nil then
+			return
+		end
+
+		local drill = WorkOrders.trainOrder(skillId, tier)
+		if trainProgressOf(profile, skillId, tier) < drill.objective.count then
+			return
+		end
+
+		dropActive(state, id)
+		state.trainTier[skillId] = tier + 1
+		local seen = reported[player]
+		if seen then
+			seen[skillId] = nil
+		end
+
+		grant(player, profile, drill)
+		NotifyService.send(player, `"{drill.name}" complete.`, "reward")
+		eventRemote:FireClient(player, "completed", { id = id, name = drill.name })
+		sendBoard(player, false)
+		return
+	end
+
 	local order = WorkOrders.get(id)
 	if not order or state.active[id] == nil then
 		return
@@ -309,7 +427,7 @@ local function onTurnIn(player: Player, id: any)
 		held[order.objective.target] = have - order.objective.count
 	end
 
-	state.active = {}
+	dropActive(state, id)
 	if WorkOrders.rankOf(id) then
 		state.rank += 1
 	else
@@ -320,30 +438,6 @@ local function onTurnIn(player: Player, id: any)
 	NotifyService.send(player, `"{order.name}" complete.`, "reward")
 	eventRemote:FireClient(player, "completed", { id = id, name = order.name })
 	sendBoard(player, false)
-end
-
-local function watchDepth()
-	while true do
-		task.wait(1)
-		for _, player in Players:GetPlayers() do
-			local profile = DataService.get(player)
-			local character = player.Character
-			if not profile or not character then
-				continue
-			end
-
-			local order = activeOrder(profile)
-			if not order or order.objective.kind ~= "reach" then
-				continue
-			end
-
-			local level = character:GetAttribute(LEVEL_ATTRIBUTE)
-			local wanted = tonumber(order.objective.target)
-			if type(level) == "number" and wanted and level >= wanted then
-				advance(player, "reach", order.objective.target, 1)
-			end
-		end
-	end
 end
 
 function WorkOrderService.init()
@@ -369,14 +463,13 @@ function WorkOrderService.init()
 		end
 	end)
 
-	local function onPlayer(player: Player)
-		player.CharacterAdded:Connect(function()
-			local profile = DataService.get(player)
-			if profile then
-				applyGear(player, profile)
-			end
-		end)
+	CookingService.onCooked(function(player, recipeId)
+		advance(player, "cook", recipeId, 1)
+	end)
 
+	SkillService.onAward(advanceTrain)
+
+	local function onPlayer(player: Player)
 		task.spawn(function()
 			if DataService.await(player, 10) then
 				sendBoard(player, false)
@@ -391,6 +484,7 @@ function WorkOrderService.init()
 
 	Players.PlayerRemoving:Connect(function(player)
 		offered[player] = nil
+		reported[player] = nil
 	end)
 
 	task.spawn(function()
@@ -404,8 +498,6 @@ function WorkOrderService.init()
 			WorkOrderService.open(player)
 		end)
 	end)
-
-	task.spawn(watchDepth)
 end
 
 return WorkOrderService

@@ -1,4 +1,3 @@
-local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -9,7 +8,6 @@ local InputMode = require(script.Parent.InputMode)
 local TutorialContent = require(script.Parent.TutorialContent)
 local UIManager = require(script.Parent.UIManager)
 local ControlsPanel = {}
-local TOGGLE_ACTION = "ToggleControls"
 local MENU_ID = "field-guide"
 local PAGE_EDGE_GUTTER = 6
 local PAGE_SCROLLBAR_GUTTER = 16
@@ -724,13 +722,6 @@ function ControlsPanel.init()
 		rebuildPages()
 		applyResponsiveLayout()
 	end)
-
-	ContextActionService:BindAction(TOGGLE_ACTION, function(_, inputState)
-		if inputState == Enum.UserInputState.Begin then
-			ControlsPanel.setOpen(not open)
-		end
-		return Enum.ContextActionResult.Sink
-	end, false, Enum.KeyCode.H, Enum.KeyCode.F1, Enum.KeyCode.ButtonStart)
 
 	local camera = Workspace.CurrentCamera
 	if camera then

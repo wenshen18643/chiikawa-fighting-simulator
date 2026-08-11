@@ -1,6 +1,5 @@
 --!strict
 
-local ContextActionService = game:GetService("ContextActionService")
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -37,7 +36,6 @@ type PlotSnapshot = {
 type Page = "grid" | "detail"
 
 local FarmMenu = {}
-local ACTION_NAME = "ToggleFarmMenu"
 local MENU_ID = "farm"
 local SOIL = Color3.fromRGB(102, 72, 51)
 local WOOD = Color3.fromRGB(176, 132, 86)
@@ -873,13 +871,6 @@ function FarmMenu.init()
 			updateLiveLabels()
 		end
 	end)
-
-	ContextActionService:BindAction(ACTION_NAME, function(_, inputState)
-		if inputState == Enum.UserInputState.Begin and not UserInputService:GetFocusedTextBox() then
-			FarmMenu.toggle()
-		end
-		return Enum.ContextActionResult.Sink
-	end, false, Enum.KeyCode.F)
 
 	task.spawn(function()
 		while true do

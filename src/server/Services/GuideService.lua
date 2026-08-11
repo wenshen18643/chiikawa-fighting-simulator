@@ -31,7 +31,7 @@ function GuideService.init()
 		if profile.meta.introShown then
 			task.delay(2, function()
 				if player:IsDescendantOf(game:GetService("Players")) then
-					NotifyService.send(player, "Welcome back. Press H to open the Field Guide.", "info")
+					NotifyService.send(player, "Welcome back. The ? button opens the Field Guide.", "info")
 				end
 			end)
 		end

@@ -63,7 +63,7 @@ local function buildTemplate(): any
 		gear = {},
 		recipes = {},
 		dishes = {},
-		workOrders = { completed = {}, active = {}, rank = 0 },
+		workOrders = { completed = {}, active = {}, activeOrder = {}, rank = 0, trainTier = {} },
 		unlockedRegions = { [tostring(Areas.STARTING_AREA)] = true },
 		discovered = {},
 		home = { furniture = {}, comfort = Constants.HOME.BASE_COMFORT },
