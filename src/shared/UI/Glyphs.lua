@@ -3,6 +3,8 @@ local Glyphs = {}
 
 type Ctx = { parent: Frame, color: Color3, zIndex: number }
 
+local YEN_COIN_IMAGE = "rbxassetid://81951616176827"
+
 local function shape(ctx: Ctx, config: { [string]: any }): Frame
 	local frame = Instance.new("Frame")
 	frame.Name = config.name or "Shape"
@@ -141,10 +143,14 @@ function shapes.pin(ctx)
 end
 
 function shapes.coin(ctx)
-	dot(ctx, 0.5, 0.5, 0.82)
-	shape(ctx, { name = "Inner", x = 0.5, y = 0.5, w = 0.58, h = 0.58, round = 0.5, layer = 1, transparency = 0.55 })
-	bar(ctx, { x = 0.5, y = 0.56, w = 0.42, h = 0.1, layer = 2 })
-	bar(ctx, { x = 0.5, y = 0.4, w = 0.1, h = 0.34, layer = 2 })
+	local image = Instance.new("ImageLabel")
+	image.Name = "YenCoin"
+	image.BackgroundTransparency = 1
+	image.Size = UDim2.fromScale(1, 1)
+	image.Image = YEN_COIN_IMAGE
+	image.ScaleType = Enum.ScaleType.Fit
+	image.ZIndex = ctx.zIndex
+	image.Parent = ctx.parent
 end
 
 function shapes.stamp(ctx)

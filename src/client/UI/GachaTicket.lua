@@ -35,11 +35,24 @@ local ODDS_HEIGHT = 38
 local STAGE_TOP = ODDS_TOP + ODDS_HEIGHT + 6
 local FOOTER = 96
 
+local function compactYen(amount: number): string
+	if amount < 1000 then
+		return tostring(amount)
+	end
+
+	local thousands = amount / 1000
+	if thousands % 1 == 0 then
+		return `{thousands}k`
+	end
+
+	return `{string.format("%.1f", thousands)}k`
+end
+
 local function drawButton(parent: Frame, config: TicketConfig, count: number, position: UDim2)
 	local draw = config.catalog.DRAWS[config.drawId]
 	local accent = if config.drawId == "premium" then UI.color.gold else UI.color.sky
 	local button = UI.button(parent, `Draw{count}`, {
-		text = `Draw {count}  ·  {draw.cost * count} yen`,
+		text = `Draw {count}  ·  {compactYen(draw.cost * count)}`,
 		color = accent,
 		textColor = UI.color.ink,
 		extent = UDim2.new(0.46, 0, 0, 44),
@@ -50,6 +63,13 @@ local function drawButton(parent: Frame, config: TicketConfig, count: number, po
 		onActivated = function()
 			config.onDraw(count)
 		end,
+	})
+	UI.glyph(button, "coin", {
+		color = UI.color.ink,
+		extent = UDim2.fromOffset(17, 17),
+		anchor = Vector2.new(0.5, 0.5),
+		position = UDim2.new(0.84, 0, 0.5, 0),
+		zIndex = button.ZIndex + 1,
 	})
 	config.onButton(button)
 end
@@ -152,15 +172,6 @@ function GachaTicket.build(parent: Instance, config: TicketConfig): Frame
 	UI.label(card, "FeaturedName", {
 		text = `Featured · {config.featuredName}`,
 		font = UI.font.bold,
-		size = UI.text.caption,
-		color = UI.color.inkSoft,
-		align = Enum.TextXAlignment.Center,
-		position = UDim2.new(0, 18, 1, -84),
-		extent = UDim2.new(1, -36, 0, 16),
-	})
-	UI.label(card, "Cost", {
-		text = `{draw.cost} yen per capsule`,
-		font = UI.font.light,
 		size = UI.text.caption,
 		color = UI.color.inkSoft,
 		align = Enum.TextXAlignment.Center,
