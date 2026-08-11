@@ -143,19 +143,11 @@ function GachaTicket.build(parent: Instance, config: TicketConfig): Frame
 	rail.Parent = card
 	UI.corner(rail, 3)
 
-	UI.label(card, "Eyebrow", {
-		text = if premium then "LUCKY CAPSULE" else "EVERYDAY CAPSULE",
-		font = UI.font.bold,
-		size = UI.text.caption,
-		color = UI.accentInk(surface, accent),
-		position = UDim2.fromOffset(18, 10),
-		extent = UDim2.new(1, -32, 0, 18),
-	})
 	UI.label(card, "Title", {
 		text = draw.name,
 		font = UI.font.display,
 		size = UI.text.title,
-		position = UDim2.fromOffset(18, 27),
+		position = UDim2.fromOffset(18, 14),
 		extent = UDim2.new(1, -32, 0, 28),
 	})
 

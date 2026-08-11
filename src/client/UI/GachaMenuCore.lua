@@ -10,6 +10,7 @@ local UI = require(Shared.UI)
 local StateController = require(script.Parent.Parent.Controllers.StateController)
 local WorkController = require(script.Parent.Parent.Controllers.WorkController)
 local UIManager = require(script.Parent.UIManager)
+local GachaIndexPage = require(script.Parent.GachaIndexPage)
 local GachaReveal = require(script.Parent.GachaReveal)
 local GachaResults = require(script.Parent.GachaResults)
 local GachaTicket = require(script.Parent.GachaTicket)
@@ -55,19 +56,23 @@ local GachaMenu = {}
 local MENU_ID = config.menuId
 local FLOW_INPUT_LOCK = config.flowInputLock
 local CLOSE_DISTANCE = 24
+local PANEL_EXTENT = UDim2.fromScale(0.66, 0.78)
+local PANEL_MAX_SIZE = Vector2.new(900, 560)
 local screen: ScreenGui
 local setPanelOpen: (boolean, boolean?) -> ()
 local closeButton: TextButton
+local titleLabel: TextLabel
 local isOpen = false
 local state: GachaState? = nil
-local activePage = "draw"
+local activePage = "summon"
 local collectionFilter = "all"
 local pullBusy = false
 local cancelReveal: (() -> ())? = nil
 local cancelResults: (() -> ())? = nil
 local pages = {} :: { [string]: Frame }
 local drawButtons = {} :: { TextButton }
-local tabButtons = {} :: { [string]: TextButton }
+local sideButtons = {} :: { [string]: TextButton }
+local indexPage: GachaIndexPage.Controller
 local collectionList: ScrollingFrame
 local collectionFilterBar: Frame
 local selectedSkinId: string? = nil
@@ -133,53 +138,27 @@ local function presentResult(result: PullResult): GachaReveal.Presentation?
 end
 
 local function showPage(key: string)
+	if key ~= "summon" and key ~= "index" and key ~= "owned" then
+		return
+	end
 	activePage = key
 	for pageKey, page in pages do
 		page.Visible = pageKey == key
 	end
-	for pageKey, button in tabButtons do
+	for pageKey, button in sideButtons do
 		local selected = pageKey == key
-		local accent = if pageKey == "draw" then if config.isWeapon then UI.color.gold else UI.color.sky else UI.color.mint
-		button.BackgroundColor3 = if selected then accent else UI.color.paperRaised
+		button.BackgroundColor3 = if selected then UI.color.mint else UI.color.paperRaised
 		button.TextColor3 = if selected then UI.color.ink else UI.color.inkSoft
 	end
-end
-
-local function buildNavigation(parent: Frame)
-	local navigation = UI.card(parent, "Navigation", {
-		color = UI.color.paperSunken,
-		radius = UI.radius.chip,
-		position = UDim2.fromOffset(0, 52),
-		stroke = false,
-		sheen = false,
-		innerLine = false,
-	})
-	navigation.Size = UDim2.new(1, 0, 0, 44)
-
-	local entries = {
-		{ key = "draw", label = "Draw" },
-		{ key = "collection", label = if config.isWeapon then "Armoury" else "Collection" },
-	}
-	for index, entry in entries do
-		local button = UI.button(navigation, entry.key, {
-			text = entry.label,
-			font = UI.font.bold,
-			textSize = UI.text.body,
-			color = UI.color.paperRaised,
-			textColor = UI.color.inkSoft,
-			radius = UI.radius.chip,
-			position = UDim2.new((index - 1) / #entries, 4, 0, 4),
-			extent = UDim2.new(1 / #entries, -8, 1, -8),
-			stroke = false,
-			sheen = false,
-
-			onActivated = function()
-				showPage(entry.key)
-			end,
-		})
-		tabButtons[entry.key] = button
+	if key == "summon" then
+		titleLabel.Text = if config.isWeapon then "Weapon Summon" else "Skin Summon"
+		closeButton.Text = "Close"
+	else
+		titleLabel.Text = if key == "index"
+			then if config.isWeapon then "Weapon Index" else "Skin Index"
+			else if config.isWeapon then "Owned Weapons" else "Owned Skins"
+		closeButton.Text = "Back"
 	end
-	showPage(activePage)
 end
 
 local function buildDrawTicket(parent: Instance, drawId: string, position: UDim2)
@@ -317,14 +296,14 @@ local function paintCollectionFilters()
 end
 
 local function matchesFilter(skin: any): boolean
+	local snapshot = state
+	if not snapshot or (snapshot.copies[skin.id] or 0) <= 0 then
+		return false
+	end
 	if collectionFilter == "all" then
 		return true
 	end
 	if config.isWeapon then
-		if collectionFilter == "owned" then
-			local snapshot = state
-			return snapshot ~= nil and (snapshot.copies[skin.id] or 0) > 0
-		end
 		return skin.origin == collectionFilter
 	end
 	if collectionFilter == "showcase" then
@@ -339,18 +318,6 @@ function renderDetail()
 	local snapshot = state
 	local skin = if selectedSkinId then Catalog.get(selectedSkinId) else nil
 	if not skin or not snapshot then
-		UI.label(detailPane, "Empty", {
-			text = if config.isWeapon
-				then "Pick a weapon on the left to preview it in 3D."
-				else "Pick a look on the left to preview it in 3D.",
-			font = UI.font.light,
-			size = UI.text.small,
-			color = UI.color.inkFaint,
-			align = Enum.TextXAlignment.Center,
-			position = UDim2.new(0, 12, 0.5, -20),
-			extent = UDim2.new(1, -24, 0, 40),
-			wrapped = true,
-		})
 		return
 	end
 
@@ -568,6 +535,17 @@ function renderCollection()
 	for index, skin in visible do
 		buildCollectionRow(skin, index)
 	end
+	if #visible == 0 then
+		local empty = UI.label(collectionList, "Empty", {
+			text = if config.isWeapon then "No weapons owned" else "No skins owned",
+			font = UI.font.display,
+			size = UI.text.small,
+			color = UI.color.inkFaint,
+			align = Enum.TextXAlignment.Center,
+			extent = UDim2.new(1, -10, 0, 52),
+		})
+		empty.LayoutOrder = 1
+	end
 	paintCollectionFilters()
 	renderDetail()
 end
@@ -589,7 +567,6 @@ local function buildCollectionFilters(parent: Frame)
 			{ key = "canon", label = "From the show" },
 			{ key = "cool", label = "Cool" },
 			{ key = "cute", label = "Cute" },
-			{ key = "owned", label = "Owned" },
 		}
 		else {
 			{ key = "all", label = "All" },
@@ -607,9 +584,11 @@ local function buildCollectionFilters(parent: Frame)
 			extent = UDim2.new(1 / #entries, -5, 1, 0),
 			stroke = false,
 			sheen = false,
+			states = false,
 
 			onActivated = function()
 				collectionFilter = entry.key
+				paintCollectionFilters()
 				renderCollection()
 			end,
 		})
@@ -619,20 +598,41 @@ end
 
 local function buildPanel(parent: ScreenGui)
 	local body: ScrollingFrame? = nil
+	local sideRail: Frame? = nil
 
-	local function applyBodyLayout(compact: boolean)
+	local function applyBodyLayout(compact: boolean, panelSize: UDim2)
 		if not body then
 			return
 		end
+		local viewport = UI.responsive.viewport()
+		local outsideSpace = (viewport.X - panelSize.X.Offset) / 2 - 28
+		local outsideRail = not compact and outsideSpace >= 140
 		body.CanvasSize = if compact then UDim2.fromOffset(0, 430) else UDim2.fromOffset(0, 0)
 		body.ScrollBarThickness = if compact then 6 else 0
+		body.Position = if outsideRail then UDim2.fromOffset(0, 52) else UDim2.fromOffset(96, 52)
+		body.Size = if outsideRail then UDim2.new(1, 0, 1, -52) else UDim2.new(1, -96, 1, -52)
 		for _, page in pages do
 			page.Size = if compact then UDim2.new(1, -8, 0, 430) else UDim2.fromScale(1, 1)
 		end
+		if sideRail then
+			local railWidth = if outsideRail then math.min(300, math.floor(outsideSpace)) else 84
+			local buttonHeight = if outsideRail then math.clamp(math.floor(railWidth * 0.305), 60, 92) else 44
+			local gap = if outsideRail then 12 else 8
+			sideRail.AnchorPoint = if outsideRail then Vector2.new(1, 0) else Vector2.zero
+			sideRail.Position = if outsideRail then UDim2.fromOffset(-28, 4) else UDim2.fromOffset(8, 54)
+			sideRail.Size = UDim2.fromOffset(railWidth, buttonHeight * 2 + gap)
+			local railLayout = sideRail:FindFirstChildOfClass("UIListLayout")
+			if railLayout then
+				railLayout.Padding = UDim.new(0, gap)
+			end
+			for _, button in sideButtons do
+				button.Size = UDim2.fromOffset(railWidth, buttonHeight)
+			end
+		end
 	end
 	local _scrim, content, toggle = UI.modal(parent, config.screenName, {
-		extent = UDim2.new(0.74, 0, 0.84, 0),
-		maxSize = Vector2.new(980, 680),
+		extent = PANEL_EXTENT,
+		maxSize = PANEL_MAX_SIZE,
 		zIndex = 30,
 		dismissOnBackground = false,
 
@@ -640,8 +640,8 @@ local function buildPanel(parent: ScreenGui)
 			GachaMenu.setOpen(false)
 		end,
 
-		onResponsiveChanged = function(compact: boolean)
-			applyBodyLayout(compact)
+		onResponsiveChanged = function(compact: boolean, size: UDim2)
+			applyBodyLayout(compact, size)
 		end,
 
 		onToggled = function(open: boolean)
@@ -651,7 +651,7 @@ local function buildPanel(parent: ScreenGui)
 	setPanelOpen = toggle
 	UI.padding(content, UI.space.base)
 
-	UI.label(content, "Title", {
+	titleLabel = UI.label(content, "Title", {
 		text = if config.isWeapon then "Weapon Summon" else "Skin Summon",
 		font = UI.font.display,
 		size = UI.text.display,
@@ -665,9 +665,46 @@ local function buildPanel(parent: ScreenGui)
 		sheen = false,
 
 		onActivated = function()
-			GachaMenu.setOpen(false)
+			if activePage == "summon" then
+				GachaMenu.setOpen(false)
+			else
+				showPage("summon")
+			end
 		end,
 	})
+
+	local rail = Instance.new("Frame")
+	rail.Name = "PageRail"
+	rail.BackgroundTransparency = 1
+	rail.Size = UDim2.fromOffset(84, 96)
+	rail.ZIndex = content.ZIndex + 2
+	rail.Parent = content
+	sideRail = rail
+	local railLayout = Instance.new("UIListLayout")
+	railLayout.Padding = UDim.new(0, 8)
+	railLayout.Parent = rail
+	for index, entry in {
+		{ key = "index", label = "Index" },
+		{ key = "owned", label = "Owned" },
+	} do
+		local button = UI.button(rail, entry.key, {
+			text = entry.label,
+			textSize = UI.text.small,
+			color = UI.color.paperRaised,
+			textColor = UI.color.inkSoft,
+			extent = UDim2.fromOffset(84, 44),
+			stroke = false,
+			sheen = false,
+			states = false,
+			zIndex = content.ZIndex + 3,
+
+			onActivated = function()
+				showPage(if activePage == entry.key then "summon" else entry.key)
+			end,
+		})
+		button.LayoutOrder = index
+		sideButtons[entry.key] = button
+	end
 
 	local bodyFrame = Instance.new("ScrollingFrame")
 	bodyFrame.Name = "Body"
@@ -675,13 +712,13 @@ local function buildPanel(parent: ScreenGui)
 	bodyFrame.BorderSizePixel = 0
 	bodyFrame.CanvasSize = UDim2.fromOffset(0, 0)
 	bodyFrame.ScrollBarImageColor3 = UI.color.inkSoft
-	bodyFrame.Position = UDim2.fromOffset(0, 106)
-	bodyFrame.Size = UDim2.new(1, 0, 1, -106)
+	bodyFrame.Position = UDim2.fromOffset(0, 52)
+	bodyFrame.Size = UDim2.new(1, 0, 1, -52)
 	bodyFrame.Parent = content
 	UI.padding(bodyFrame, 2)
 	body = bodyFrame
 
-	for _, key in { "draw", "collection" } do
+	for _, key in { "summon", "index", "owned" } do
 		local page = Instance.new("Frame")
 		page.Name = key
 		page.BackgroundTransparency = 1
@@ -690,14 +727,18 @@ local function buildPanel(parent: ScreenGui)
 		page.Parent = bodyFrame
 		pages[key] = page
 	end
-	applyBodyLayout(UI.responsive.isCompact())
+	local initialPanelSize, initialCompact = UI.responsive.panelSize(PANEL_EXTENT, PANEL_MAX_SIZE)
+	applyBodyLayout(initialCompact, initialPanelSize)
 
-	buildNavigation(content)
+	buildDrawTicket(pages.summon, "standard", UDim2.fromScale(0, 0))
+	buildDrawTicket(pages.summon, "premium", UDim2.fromScale(0.515, 0))
+	indexPage = GachaIndexPage.build(pages.index, {
+		catalog = Catalog,
+		preview = Preview,
+		isWeapon = config.isWeapon,
+	})
 
-	buildDrawTicket(pages.draw, "standard", UDim2.fromScale(0, 0))
-	buildDrawTicket(pages.draw, "premium", UDim2.fromScale(0.515, 0))
-
-	buildCollectionFilters(pages.collection)
+	buildCollectionFilters(pages.owned)
 	collectionList = Instance.new("ScrollingFrame")
 	collectionList.Name = "CollectionList"
 	collectionList.BackgroundTransparency = 1
@@ -708,11 +749,11 @@ local function buildPanel(parent: ScreenGui)
 	collectionList.CanvasSize = UDim2.fromOffset(0, 0)
 	collectionList.ScrollBarThickness = 6
 	collectionList.ScrollBarImageColor3 = UI.color.inkSoft
-	collectionList.Parent = pages.collection
+	collectionList.Parent = pages.owned
 	UI.padding(collectionList, 2)
 	UI.list(collectionList, 6)
 
-	detailPane = UI.card(pages.collection, "Detail", {
+	detailPane = UI.card(pages.owned, "Detail", {
 		color = UI.color.paperRaised,
 		radius = UI.radius.tile,
 		position = UDim2.new(0.55, 0, 0, 42),
@@ -721,6 +762,7 @@ local function buildPanel(parent: ScreenGui)
 		innerLine = false,
 	})
 	detailPane.Size = UDim2.new(0.45, 0, 1, -42)
+	showPage(activePage)
 
 	UIManager.register(MENU_ID, {
 		setVisible = setPanelOpen,
@@ -835,8 +877,11 @@ function GachaMenu.init()
 	sellRemote = Remotes.event(config.remoteCategory, "Sell")
 
 	Remotes.event(config.remoteCategory, "Open").OnClientEvent:Connect(function(value)
+		collectionFilter = "all"
+		selectedSkinId = nil
+		indexPage.reset()
 		applyState(value)
-		showPage("draw")
+		showPage("summon")
 		GachaMenu.setOpen(true)
 	end)
 
@@ -849,7 +894,7 @@ function GachaMenu.init()
 			local results = parseResults(payload.results)
 			if results and type(payload.drawId) == "string" then
 				local drawId = payload.drawId
-				showPage("draw")
+				showPage("summon")
 				if cancelReveal then
 					cancelReveal()
 				end
