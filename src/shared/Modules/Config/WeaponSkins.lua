@@ -113,6 +113,8 @@ for _, rarityId in WeaponSkins.RARITY_ORDER do
 	end
 end
 
+WeaponSkins.BY_RARITY = byRarity
+
 function WeaponSkins.poolSize(rarityId: string, includeShowcase: boolean?): number
 	local pool = if includeShowcase then byRarity[rarityId] else dropPool[rarityId]
 	return if pool then #pool else 0
