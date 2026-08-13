@@ -37,6 +37,9 @@ local function stateOf(profile: any)
 
 	state.rank = state.rank or 0
 	state.trainTier = state.trainTier or {}
+	if type(state.trainBaselines) ~= "table" then
+		state.trainBaselines = {}
+	end
 
 	local order = state.activeOrder
 	if type(order) ~= "table" then
@@ -54,11 +57,24 @@ local function stateOf(profile: any)
 			table.insert(order, id)
 		end
 	end
+
+	for index = #order, WorkOrders.MAX_ACTIVE + 1, -1 do
+		local id = order[index]
+		state.active[id] = nil
+		state.trainBaselines[id] = nil
+		table.remove(order, index)
+	end
+	for id in state.trainBaselines do
+		if state.active[id] == nil then
+			state.trainBaselines[id] = nil
+		end
+	end
 	return state
 end
 
 local function dropActive(state: any, id: string)
 	state.active[id] = nil
+	state.trainBaselines[id] = nil
 	local index = table.find(state.activeOrder, id)
 	if index then
 		table.remove(state.activeOrder, index)
@@ -101,7 +117,20 @@ local function mainOrders(profile: any): { WorkOrders.OrderDefinition }
 end
 
 local function trainProgressOf(profile: any, skillId: string, tier: number): number
-	return WorkOrders.trainProgress(SkillService.get(profile, skillId), tier)
+	local state = stateOf(profile)
+	local id = WorkOrders.trainOrder(skillId, tier).id
+	if state.active[id] == nil then
+		return 0
+	end
+
+	local current = SkillService.get(profile, skillId)
+	local baseline = state.trainBaselines[id]
+	if not BigNumber.isValid(baseline) then
+		baseline = BigNumber.clone(current)
+		state.trainBaselines[id] = baseline
+	end
+
+	return WorkOrders.trainProgress(BigNumber.sub(current, baseline), tier)
 end
 
 local function progressOf(profile: any, order: WorkOrders.OrderDefinition): number
@@ -342,7 +371,7 @@ local function onAccept(player: Player, id: any)
 		return
 	end
 	if #state.activeOrder >= WorkOrders.MAX_ACTIVE then
-		NotifyService.send(player, `Hands full. {WorkOrders.MAX_ACTIVE} jobs at a time.`, "locked")
+		NotifyService.send(player, "Finish your active quest before taking another one.", "locked")
 		return
 	end
 
@@ -362,6 +391,13 @@ local function onAccept(player: Player, id: any)
 
 	state.active[id] = 0
 	table.insert(state.activeOrder, id)
+	if drillSkill then
+		state.trainBaselines[id] = BigNumber.clone(SkillService.get(profile, drillSkill))
+		local seen = reported[player]
+		if seen then
+			seen[drillSkill] = nil
+		end
+	end
 	NotifyService.send(player, `Took on "{order.name}".`, "info")
 	sendBoard(player, false)
 

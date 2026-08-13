@@ -236,7 +236,7 @@ WorkOrders.GRADES = {
 } :: { Grade }
 
 WorkOrders.BOARD_SIZE = 3
-WorkOrders.MAX_ACTIVE = 5
+WorkOrders.MAX_ACTIVE = 1
 
 local YEN_BASE = 450
 local GROWTH = 1.11
@@ -267,10 +267,10 @@ local BLURBS = {
 		"Thin the {name} out. {count} will do for today.",
 	},
 	train = {
-		"Get {name} up to {count}. Nobody gets good sitting on my counter.",
-		"{name} at {count}. Do not come back before the board reads that.",
-		"{name}, {count}. How you get there is your business.",
-		"You are soft. {name} at {count} will fix some of that.",
+		"Train {name} by {count}. Nobody gets good sitting on my counter.",
+		"Put {count} more into {name}. Do not come back before the work is done.",
+		"{name}, up by {count}. How you get there is your business.",
+		"You are soft. Training {name} by {count} will fix some of that.",
 	},
 	cook = {
 		"{count} of the {name}. The pot is over there and it is not going to stir itself.",
@@ -495,7 +495,7 @@ function WorkOrders.describe(order: OrderDefinition): string
 	elseif objective.kind == "cook" then
 		return `Cook {objective.count} {name}`
 	elseif objective.kind == "train" then
-		return `Train {name} to {BigNumber.toString(WorkOrders.trainTarget(objective.tier or 0))}`
+		return `Train {name} by {BigNumber.toString(WorkOrders.trainTarget(objective.tier or 0))}`
 	end
 	return `Defeat {objective.count} {name}`
 end

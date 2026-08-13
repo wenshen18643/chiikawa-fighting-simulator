@@ -8,9 +8,15 @@ local Boosts = require(Shared.Modules.Boosts)
 local Constants = require(Shared.Modules.Constants)
 local Areas = require(Shared.Areas)
 local Skills = require(Shared.Modules.Config.Skills)
+local Ingredients = require(Shared.Modules.Config.Ingredients)
 local CompanionSkins = require(Shared.Modules.Config.CompanionSkins)
 local WeaponSkins = require(Shared.Modules.Config.WeaponSkins)
 local Upgrades = require(Shared.Modules.Config.Upgrades)
+local Server = script.Parent.Parent
+local environmentModule = Server:FindFirstChild("Environment")
+local Environment = if environmentModule and environmentModule:IsA("ModuleScript")
+	then require(environmentModule)
+	else require(Server.EnvironmentDefaults)
 local DataService = {}
 local profiles: { [Player]: any } = {}
 local handles: { [Player]: any } = {}
@@ -63,7 +69,14 @@ local function buildTemplate(): any
 		gear = {},
 		recipes = {},
 		dishes = {},
-		workOrders = { completed = {}, active = {}, activeOrder = {}, rank = 0, trainTier = {} },
+		workOrders = {
+			completed = {},
+			active = {},
+			activeOrder = {},
+			rank = 0,
+			trainTier = {},
+			trainBaselines = {},
+		},
 		unlockedRegions = { [tostring(Areas.STARTING_AREA)] = true },
 		discovered = {},
 		home = { furniture = {}, comfort = Constants.HOME.BASE_COMFORT },
@@ -110,6 +123,25 @@ local OPEN_MAPS = {
 	copies = true,
 	equipped = true,
 }
+
+local function stockAllIngredients(profile: any)
+	if not Environment.UNLIMITED_INVENTORY then
+		return
+	end
+
+	local ingredients = profile.currencies.ingredients
+	if type(ingredients) ~= "table" then
+		ingredients = {}
+		profile.currencies.ingredients = ingredients
+	end
+
+	for _, ingredientId in Ingredients.ORDER do
+		local count = ingredients[ingredientId]
+		if type(count) ~= "number" or count ~= count or count == math.huge or count == -math.huge or count < 1 then
+			ingredients[ingredientId] = 1
+		end
+	end
+end
 
 local function reconcile(profile: any): any
 	local function walk(target: any, source: any)
@@ -196,6 +228,7 @@ local function reconcile(profile: any): any
 		profile.seasons = 0
 	end
 
+	stockAllIngredients(profile)
 	CompanionSkins.reconcileProfile(profile)
 	WeaponSkins.reconcileProfile(profile)
 

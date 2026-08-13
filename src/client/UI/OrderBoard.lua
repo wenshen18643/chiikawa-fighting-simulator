@@ -224,7 +224,7 @@ local function buildPanel(parent: ScreenGui)
 	})
 
 	UI.label(panel, "Subtitle", {
-		text = `Yoroi-san has jobs. Up to {WorkOrders.MAX_ACTIVE} at a time, and no overtime is expected of you.`,
+		text = "Yoroi-san has jobs. Finish your active quest before taking another.",
 		font = UI.font.light,
 		size = UI.text.small,
 		color = UI.color.inkSoft,

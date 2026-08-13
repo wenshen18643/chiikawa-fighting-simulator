@@ -55,6 +55,7 @@ function Write-Stage([string]$Message, [string]$Colour = "Cyan") {
 
 function Sync-Environment {
     $UnlimitedYen = $false
+    $UnlimitedInventory = $false
 
     if (Test-Path -LiteralPath $EnvironmentFile) {
         foreach ($RawLine in [System.IO.File]::ReadAllLines($EnvironmentFile)) {
@@ -65,25 +66,33 @@ function Sync-Environment {
             if ($Separator -lt 1) { continue }
 
             $Key = $Line.Substring(0, $Separator).Trim()
-            if ($Key -ne "UNLIMITED_YEN") { continue }
+            if ($Key -notin @("UNLIMITED_YEN", "UNLIMITED_INVENTORY")) { continue }
 
             $Value = $Line.Substring($Separator + 1).Trim().Trim('"').Trim("'").ToLowerInvariant()
             if ($Value -in @("true", "1", "yes", "on")) {
-                $UnlimitedYen = $true
+                $Enabled = $true
             }
             elseif ($Value -in @("false", "0", "no", "off")) {
-                $UnlimitedYen = $false
+                $Enabled = $false
             }
             else {
-                Write-Host "Invalid UNLIMITED_YEN value '$Value' in .env." -ForegroundColor Red
+                Write-Host "Invalid $Key value '$Value' in .env." -ForegroundColor Red
                 Write-Host "Use true/false, 1/0, yes/no, or on/off." -ForegroundColor Yellow
                 exit 1
+            }
+
+            if ($Key -eq "UNLIMITED_YEN") {
+                $UnlimitedYen = $Enabled
+            }
+            else {
+                $UnlimitedInventory = $Enabled
             }
         }
     }
 
-    $LuaBoolean = $UnlimitedYen.ToString().ToLowerInvariant()
-    $Contents = "return {`n`tUNLIMITED_YEN = $LuaBoolean,`n}`n"
+    $LuaUnlimitedYen = $UnlimitedYen.ToString().ToLowerInvariant()
+    $LuaUnlimitedInventory = $UnlimitedInventory.ToString().ToLowerInvariant()
+    $Contents = "return {`n`tUNLIMITED_YEN = $LuaUnlimitedYen,`n`tUNLIMITED_INVENTORY = $LuaUnlimitedInventory,`n}`n"
     $Current = if (Test-Path -LiteralPath $RuntimeEnvironmentFile) {
         [System.IO.File]::ReadAllText($RuntimeEnvironmentFile)
     }
@@ -97,6 +106,8 @@ function Sync-Environment {
 
     $State = if ($UnlimitedYen) { "enabled" } else { "disabled" }
     Write-Stage "Unlimited yen: $State (.env)"
+    $InventoryState = if ($UnlimitedInventory) { "enabled" } else { "disabled" }
+    Write-Stage "Unlimited inventory: $InventoryState (.env)"
 }
 
 Sync-Environment
