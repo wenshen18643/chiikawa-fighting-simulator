@@ -836,6 +836,7 @@ function CompanionService.init()
 
 	folder = Instance.new("Folder")
 	folder.Name = "Companions"
+	folder:SetAttribute("RuntimeGenerated", true)
 	folder.Parent = Workspace
 
 	local stand = buildStand(

@@ -7,6 +7,7 @@ local Mascot = require(Shared.Modules.Mascot)
 local Npcs = require(Shared.Modules.Config.Npcs)
 local Areas = require(Shared.Areas)
 local NotifyService = require(script.Parent.NotifyService)
+local StudioFirst = require(script.Parent.Parent.StudioFirst)
 local NpcService = {}
 local spoken: { [Player]: { [string]: number } } = {}
 
@@ -94,13 +95,18 @@ end
 
 function NpcService.init()
 	local existing = Workspace:FindFirstChild("Npcs")
-	if existing then
-		existing:Destroy()
-	end
+	local folder: Folder
+	if StudioFirst.shouldPreserve(existing) and existing:IsA("Folder") then
+		folder = existing
+	else
+		if existing then
+			existing:Destroy()
+		end
 
-	local folder = Instance.new("Folder")
-	folder.Name = "Npcs"
-	folder.Parent = Workspace
+		folder = Instance.new("Folder")
+		folder.Name = "Npcs"
+		folder.Parent = Workspace
+	end
 
 	for index, definition in Npcs.DEFINITIONS do
 		local region = Areas.get(definition.regionId)
@@ -109,8 +115,33 @@ function NpcService.init()
 			continue
 		end
 
-		local model = buildMascot(definition, region.origin + definition.offset)
-		model.Parent = folder
+		local existingModel = folder:FindFirstChild(definition.id)
+		local model: Model
+		if existingModel and existingModel:IsA("Model") then
+			model = existingModel
+			if not model.PrimaryPart then
+				model.PrimaryPart = model:FindFirstChildWhichIsA("BasePart", true)
+			end
+		else
+			model = buildMascot(definition, region.origin + definition.offset)
+			model.Parent = folder
+		end
+
+		local root = model.PrimaryPart
+		if not root then
+			warn(`[NpcService] "{definition.id}" has no PrimaryPart`)
+			continue
+		end
+
+		local oldNameplate = root:FindFirstChild("Nameplate")
+		if oldNameplate then
+			oldNameplate:Destroy()
+		end
+		for _, child in root:GetChildren() do
+			if child:IsA("ProximityPrompt") and child.ActionText == "Talk" then
+				child:Destroy()
+			end
+		end
 
 		addNameplate(model, definition)
 		addPrompt(model, definition)

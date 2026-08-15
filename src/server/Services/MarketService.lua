@@ -8,6 +8,7 @@ local UI = require(Shared.UI)
 local YoroiRig = require(Shared.Modules.YoroiRig)
 local AssetService = require(script.Parent.AssetService)
 local MarketBuilder = require(script.Parent.MarketBuilder)
+local StudioFirst = require(script.Parent.Parent.StudioFirst)
 local MarketService = {}
 local FOLDER_NAME = "Market"
 local folder: Folder
@@ -170,6 +171,11 @@ function MarketService.init()
 	origin = town.origin
 
 	local existing = Workspace:FindFirstChild(FOLDER_NAME)
+	if existing and StudioFirst.shouldPreserve(existing) and existing:IsA("Folder") then
+		folder = existing
+		return
+	end
+
 	if existing then
 		existing:Destroy()
 	end

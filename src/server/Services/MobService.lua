@@ -832,6 +832,7 @@ function MobService.init()
 	end
 	folder = Instance.new("Folder")
 	folder.Name = "Mobs"
+	folder:SetAttribute("RuntimeGenerated", true)
 	folder.Parent = Workspace
 
 	for _, mobId in Mobs.ORDER do

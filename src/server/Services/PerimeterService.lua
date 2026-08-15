@@ -7,6 +7,7 @@ local Perimeter = require(Shared.Modules.Config.Perimeter)
 local Streets = require(Shared.Modules.Config.Streets)
 local UI = require(Shared.UI)
 local WorldService = require(script.Parent.WorldService)
+local StudioFirst = require(script.Parent.Parent.StudioFirst)
 local PerimeterService = {}
 local WORLD = Constants.WORLD
 local BASE_Y = WORLD.TERRAIN_TOP
@@ -51,7 +52,15 @@ local function part(props: { [string]: any }): Part
 	return p
 end
 
-local function slab(parent: Instance, name: string, x: number, y: number, z: number, size: Vector3, config: { [string]: any })
+local function slab(
+	parent: Instance,
+	name: string,
+	x: number,
+	y: number,
+	z: number,
+	size: Vector3,
+	config: { [string]: any }
+)
 	return part({
 		Name = name,
 		Size = size,
@@ -77,12 +86,28 @@ local function buildCourses(run: Perimeter.Run, parent: Folder, step: () -> ())
 	local y = BASE_Y
 
 	for _, course in COURSES do
-		slab(parent, `{run.side}_{course.name}`, run.cx, y, run.cz, spanSize(run, run.length, course.height, course.thickness), course)
+		slab(
+			parent,
+			`{run.side}_{course.name}`,
+			run.cx,
+			y,
+			run.cz,
+			spanSize(run, run.length, course.height, course.thickness),
+			course
+		)
 		y += course.height
 		step()
 	end
 
-	slab(parent, `{run.side}_Coping`, run.cx, y, run.cz, spanSize(run, run.length, COPING.height, COPING.thickness), COPING)
+	slab(
+		parent,
+		`{run.side}_Coping`,
+		run.cx,
+		y,
+		run.cz,
+		spanSize(run, run.length, COPING.height, COPING.thickness),
+		COPING
+	)
 	step()
 end
 
@@ -236,6 +261,10 @@ function PerimeterService.build(): Folder?
 	end
 
 	local existing = region:FindFirstChild("Perimeter")
+	if existing and StudioFirst.shouldPreserve(existing) and existing:IsA("Folder") then
+		return existing
+	end
+
 	if existing then
 		existing:Destroy()
 	end

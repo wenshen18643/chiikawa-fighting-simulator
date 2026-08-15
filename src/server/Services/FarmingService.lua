@@ -663,6 +663,7 @@ local function buildFarm()
 
 	local folder = Instance.new("Folder")
 	folder.Name = "CommunityFarm"
+	folder:SetAttribute("RuntimeGenerated", true)
 	folder.Parent = regionFolder
 	farmFolder = folder
 	FarmEnvironmentBuilder.build(area, folder)

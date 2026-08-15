@@ -56,11 +56,27 @@ local BOOT_ORDER = {
 	"BoardService",
 }
 
+local INTERIOR_ONLY_SERVICES = {
+	BoardService = true,
+	FarmingService = true,
+	FeastService = true,
+	ForagingService = true,
+	MobLootService = true,
+	MobService = true,
+	NpcService = true,
+	QuarryService = true,
+	SausageForestService = true,
+}
+
 local failures: { string } = {}
 local timings: { { name: string, seconds: number } } = {}
 local bootStart = os.clock()
 
 for _, name in BOOT_ORDER do
+	if workspace:GetAttribute("InteriorOnly") == true and INTERIOR_ONLY_SERVICES[name] then
+		continue
+	end
+
 	local module = Services:FindFirstChild(name)
 	if not module then
 		warn(`[Server] boot order lists "{name}" but no such service module exists`)

@@ -357,6 +357,7 @@ function QuarryService.init()
 	end
 	folder = Instance.new("Folder")
 	folder.Name = "Quarry"
+	folder:SetAttribute("RuntimeGenerated", true)
 	folder.Parent = Workspace
 
 	local problems = Quarry.check()

@@ -312,11 +312,7 @@ local function lightUp(model: Model)
 	light.Parent = widest
 end
 
-function ForagingService.plant(
-	def: Ingredients.IngredientDefinition,
-	position: Vector3,
-	options: PlantOptions
-): Node?
+function ForagingService.plant(def: Ingredients.IngredientDefinition, position: Vector3, options: PlantOptions): Node?
 	local model = AssetService.clone(def.asset)
 	if not model then
 		warn(`[ForagingService] no model for "{def.asset}" ({def.id}) - skipping node`)
@@ -519,8 +515,14 @@ function ForagingService.init()
 		return
 	end
 
+	local existingGroves = regionFolder:FindFirstChild("Forage")
+	if existingGroves then
+		existingGroves:Destroy()
+	end
+
 	local groves = Instance.new("Folder")
 	groves.Name = "Forage"
+	groves:SetAttribute("RuntimeGenerated", true)
 	groves.Parent = regionFolder
 
 	local params = RaycastParams.new()

@@ -174,9 +174,7 @@ local function plantGroves(plot: Plot, folder: Folder, step: () -> ()): { Vector
 			local x = centre.X + math.cos(angle) * reach
 			local z = centre.Y + math.sin(angle) * reach
 			if claim(plot, x, z) then
-				local size = if index == 1
-					then SausageForest.SIZES[3]
-					else SausageForest.pick(SausageForest.SIZES, rng)
+				local size = if index == 1 then SausageForest.SIZES[3] else SausageForest.pick(SausageForest.SIZES, rng)
 				plantTree(plot, folder, x, z, size)
 				table.insert(trunks, Vector2.new(x, z))
 			end
@@ -369,8 +367,14 @@ function SausageForestService.init()
 
 	reserved = Layout.reservedZones(area)
 
+	local existingRoot = regionFolder:FindFirstChild("SausageForest")
+	if existingRoot then
+		existingRoot:Destroy()
+	end
+
 	local root = Instance.new("Folder")
 	root.Name = "SausageForest"
+	root:SetAttribute("RuntimeGenerated", true)
 	root.Parent = regionFolder
 
 	MobService.onKilled(onKilled)

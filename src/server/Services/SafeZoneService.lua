@@ -14,6 +14,7 @@ local AssetService = require(script.Parent.AssetService)
 local SafeZoneFurniture = require(script.Parent.SafeZoneFurniture)
 local WeedService = require(script.Parent.WeedService)
 local WorldService = require(script.Parent.WorldService)
+local StudioFirst = require(script.Parent.Parent.StudioFirst)
 local SafeZoneService = {}
 local CHECK_INTERVAL = 0.2
 local palette = SafeZone.palette
@@ -1071,32 +1072,42 @@ function SafeZoneService.init()
 	changedRemote = Remotes.event("SafeZone", "Changed")
 
 	local existing = Workspace:FindFirstChild("SafeZone")
-	if existing then
-		existing:Destroy()
-	end
-
-	houseFolder = Instance.new("Folder")
-	houseFolder.Name = "SafeZone"
-	houseFolder.Parent = Workspace
-
 	local town = Areas.BY_ID[Areas.STARTING_AREA]
 	origin = town.origin + Vector3.new(0, Constants.WORLD.PLATFORM_TOP, 0)
 
 	volumeCentre = origin + SafeZone.VOLUME.centreOffset
 	volumeHalf = SafeZone.VOLUME.size / 2
 
-	build(Random.new(20260727))
+	local preserveExisting = existing ~= nil and StudioFirst.shouldPreserve(existing) and existing:IsA("Folder")
+	if preserveExisting then
+		houseFolder = existing
+	else
+		if existing then
+			existing:Destroy()
+		end
 
-	local spawn = Instance.new("SpawnLocation")
-	spawn.Name = "HomeSpawn"
-	spawn.Anchored = true
-	spawn.CanCollide = false
-	spawn.Transparency = 1
-	spawn.Size = Vector3.new(10, 1, 10)
-	spawn.CFrame = SafeZoneService.getSpawnCFrame()
+		houseFolder = Instance.new("Folder")
+		houseFolder.Name = "SafeZone"
+		houseFolder.Parent = Workspace
+		build(Random.new(20260727))
+	end
+
+	local existingSpawn = houseFolder:FindFirstChild("HomeSpawn", true)
+	local spawn: SpawnLocation
+	if existingSpawn and existingSpawn:IsA("SpawnLocation") then
+		spawn = existingSpawn
+	else
+		spawn = Instance.new("SpawnLocation")
+		spawn.Name = "HomeSpawn"
+		spawn.Anchored = true
+		spawn.CanCollide = false
+		spawn.Transparency = 1
+		spawn.Size = Vector3.new(10, 1, 10)
+		spawn.CFrame = SafeZoneService.getSpawnCFrame()
+		spawn.Parent = houseFolder
+	end
 	spawn.Neutral = true
 	spawn.Duration = 0
-	spawn.Parent = houseFolder
 
 	WorldService.setSpawnCFrame(Areas.STARTING_AREA, SafeZoneService.getDoorstepCFrame())
 

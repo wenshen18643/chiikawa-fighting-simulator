@@ -242,6 +242,11 @@ function TerrainBuilder.awaitReady()
 	readySignal.Event:Wait()
 end
 
+function TerrainBuilder.useExisting()
+	ready = true
+	readySignal:Fire()
+end
+
 function TerrainBuilder.init()
 	Workspace.Terrain:Clear()
 	filled = 0

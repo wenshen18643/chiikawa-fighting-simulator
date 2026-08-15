@@ -248,9 +248,9 @@ local function payout(food: Food, player: Player, profile: any, share: number)
 
 	NotifyService.send(
 		player,
-		`The {def.name} is gone! You ate {math.round(share * 100)}% of it: +{BigNumber.toString(
-			yen
-		)} yen, +{BigNumber.toString(gain)} Resilience, and {Boosts.describeFood(def.buff)}.`,
+		`The {def.name} is gone! You ate {math.round(share * 100)}% of it: +{BigNumber.toString(yen)} yen, +{BigNumber.toString(
+			gain
+		)} Resilience, and {Boosts.describeFood(def.buff)}.`,
 		"reward"
 	)
 end
@@ -366,8 +366,14 @@ function FeastService.init()
 		end
 	end)
 
+	local existingFolder = regionFolder:FindFirstChild("Feast")
+	if existingFolder then
+		existingFolder:Destroy()
+	end
+
 	folder = Instance.new("Folder")
 	folder.Name = "Feast"
+	folder:SetAttribute("RuntimeGenerated", true)
 	folder.Parent = regionFolder
 
 	task.spawn(function()

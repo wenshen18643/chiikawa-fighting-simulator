@@ -14,6 +14,7 @@ local UI = require(Shared.UI)
 local AssetService = require(script.Parent.AssetService)
 local NotifyService = require(script.Parent.NotifyService)
 local TerrainBuilder = require(script.Parent.TerrainBuilder)
+local StudioFirst = require(script.Parent.Parent.StudioFirst)
 local WorldService = {}
 local WORLD = Constants.WORLD
 local regionSpawns: { [number]: CFrame } = {}
@@ -652,6 +653,22 @@ end
 
 function WorldService.init()
 	local existing = Workspace:FindFirstChild("World")
+	if existing and StudioFirst.shouldPreserve(existing) and existing:IsA("Folder") then
+		worldFolder = existing
+		configureCollisionGroups()
+		TerrainBuilder.useExisting()
+
+		for _, region in Areas.ALL do
+			regionSpawns[region.id] = Layout.spawnCFrame(region)
+		end
+
+		dressed = true
+		dressedSignal:Fire()
+		startVoidCatch()
+		applyOptionalWorkspaceSettings()
+		return
+	end
+
 	if existing then
 		existing:Destroy()
 	end

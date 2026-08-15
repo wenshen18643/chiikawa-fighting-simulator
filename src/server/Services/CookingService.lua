@@ -15,6 +15,7 @@ local KitchenBuilder = require(script.Parent.KitchenBuilder)
 local NotifyService = require(script.Parent.NotifyService)
 local SkillService = require(script.Parent.SkillService)
 local WorldService = require(script.Parent.WorldService)
+local StudioFirst = require(script.Parent.Parent.StudioFirst)
 local CookingService = {}
 
 type Session = {
@@ -35,18 +36,22 @@ function CookingService.onCooked(callback: (Player, string) -> ())
 	table.insert(cookedCallbacks, callback)
 end
 
-local function attachPrompt(rootPart: BasePart)
-	local prompt = Instance.new("ProximityPrompt")
+local function bindPrompt(prompt: ProximityPrompt)
 	prompt.ActionText = "Cook"
 	prompt.ObjectText = "Cooking Pot"
 	prompt.MaxActivationDistance = 12
 	prompt.HoldDuration = 0
 	prompt.RequiresLineOfSight = false
-	prompt.Parent = rootPart
 
 	prompt.Triggered:Connect(function(player)
 		openRemote:FireClient(player)
 	end)
+end
+
+local function attachPrompt(rootPart: BasePart)
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Parent = rootPart
+	bindPrompt(prompt)
 end
 
 local function buildKitchen()
@@ -55,6 +60,20 @@ local function buildKitchen()
 	if not area or not regionFolder then
 		warn("[CookingService] Town region folder is missing (did WorldService run first?) - no kitchen built")
 		return
+	end
+
+	local existing = regionFolder:FindFirstChild("Kitchen")
+	if existing and StudioFirst.shouldPreserve(existing) then
+		for _, descendant in existing:GetDescendants() do
+			if descendant:IsA("ProximityPrompt") and descendant.ActionText == "Cook" then
+				local promptRoot = descendant.Parent
+				if promptRoot and promptRoot:IsA("BasePart") then
+					stationPosition = promptRoot.Position
+					bindPrompt(descendant)
+					return
+				end
+			end
+		end
 	end
 
 	local built = KitchenBuilder.build(regionFolder, Layout.kitchenCFrame(area))

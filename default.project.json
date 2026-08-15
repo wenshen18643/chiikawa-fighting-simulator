@@ -41,12 +41,18 @@
     "StarterGui": {
       "$className": "StarterGui",
       "$path": "src/gui",
+      "$ignoreUnknownInstances": true,
       "$properties": {
         "ScreenOrientation": "LandscapeSensor"
       }
     },
     "Workspace": {
       "$className": "Workspace",
+      "$ignoreUnknownInstances": true,
+      "$attributes": {
+        "InteriorOnly": true,
+        "StudioFirst": true
+      },
       "$properties": {
         "FilteringEnabled": true,
         "StreamingEnabled": true,

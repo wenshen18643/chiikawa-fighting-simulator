@@ -5,6 +5,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Constants = require(Shared.Modules.Constants)
 local Farming = require(Shared.Modules.Config.Farming)
 local Sections = require(Shared.Modules.Config.Sections)
+local StudioFirst = require(script.Parent.Parent.StudioFirst)
 local BoardService = {}
 local FOLDER = "Board"
 local LIGHT = Color3.fromRGB(248, 244, 236)
@@ -123,6 +124,10 @@ end
 
 function BoardService.init()
 	if RunService:IsStudio() then
+		local existing = Workspace:FindFirstChild(FOLDER)
+		if existing and StudioFirst.shouldPreserve(existing) and existing:IsA("Folder") then
+			return
+		end
 		BoardService.build()
 	end
 end
